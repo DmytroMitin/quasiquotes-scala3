@@ -1,0 +1,576 @@
+module	owner	kind	name	signature
+core	quasiquotes.construct	class	PlaceholderSource	PlaceholderSource[+T](source: String, holes: Vector[T])
+core	quasiquotes.construct	class	QuasiTypeSplice	QuasiTypeSplice
+core	quasiquotes.construct	object	PlaceholderSource	PlaceholderSource
+core	quasiquotes.construct	object	QuasiTypeSplices	QuasiTypeSplices
+core	quasiquotes.construct	object	QuasiquoteError	QuasiquoteError
+core	quasiquotes.construct	trait	QuasiquoteError	QuasiquoteError
+core	quasiquotes.construct.PlaceholderSource	def	synthesize	synthesize[T](parts: Seq[String], holes: Seq[T]): Either[QuasiquoteError, PlaceholderSource[T]]
+core	quasiquotes.construct.QuasiTypeSplices	def	typeSplice	typeSplice(constructedType: ConstructedType): QuasiTypeSplice
+core	quasiquotes.construct.QuasiquoteError	class	HoleCountMismatch	HoleCountMismatch(expected: Int, actual: Int) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	class	InvalidConstructorName	InvalidConstructorName(name: String, detail: String) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	class	InvalidPlaceholderName	InvalidPlaceholderName(name: String) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	class	MissingPlaceholder	MissingPlaceholder(index: Int) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	class	ParseFailure	ParseFailure(parseError: ParseError) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	class	PlaceholderCategoryMismatch	PlaceholderCategoryMismatch(name: String, actual: PlaceholderCategory, position: PlaceholderPosition) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	class	TypeSpliceLoweringFailure	TypeSpliceLoweringFailure(detail: String) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	class	UnknownPlaceholder	UnknownPlaceholder(name: String) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	class	UnresolvedConstructor	UnresolvedConstructor(name: String, detail: String) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	class	UnresolvedIdentifier	UnresolvedIdentifier(name: String) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	class	UnsupportedApplication	UnsupportedApplication(detail: String) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	class	UnsupportedConstructorApplication	UnsupportedConstructorApplication(name: String, detail: String) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	class	UnsupportedLiteral	UnsupportedLiteral(detail: String) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	class	UnsupportedPlaceholderPosition	UnsupportedPlaceholderPosition(name: String, actual: PlaceholderCategory, position: PlaceholderPosition) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	class	UnsupportedSelection	UnsupportedSelection(qualifierType: String, name: String, detail: String) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	class	UnsupportedTree	UnsupportedTree(nodeKind: String, detail: String) extends QuasiquoteError
+core	quasiquotes.construct.QuasiquoteError	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError	given	derived$CanEqual	derived$CanEqual: CanEqual[QuasiquoteError, QuasiquoteError]
+core	quasiquotes.construct.QuasiquoteError.HoleCountMismatch	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError.InvalidConstructorName	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError.InvalidPlaceholderName	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError.MissingPlaceholder	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError.ParseFailure	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError.PlaceholderCategoryMismatch	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError.TypeSpliceLoweringFailure	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError.UnknownPlaceholder	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError.UnresolvedConstructor	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError.UnresolvedIdentifier	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError.UnsupportedApplication	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError.UnsupportedConstructorApplication	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError.UnsupportedLiteral	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError.UnsupportedPlaceholderPosition	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError.UnsupportedSelection	def	message	message: String
+core	quasiquotes.construct.QuasiquoteError.UnsupportedTree	def	message	message: String
+core	quasiquotes.matching	class	MappedPatternSource	MappedPatternSource(patternSource: PatternSource, originMap: GeneratedSourceMap, occurrences: Vector[HoleOccurrence])
+core	quasiquotes.matching	class	MatchResult	MatchResult[T](bindings: Map[String, T])
+core	quasiquotes.matching	class	PatternSource	PatternSource(source: String, holes: Vector[String])
+core	quasiquotes.matching	object	MatchFailure	MatchFailure
+core	quasiquotes.matching	object	PatternError	PatternError
+core	quasiquotes.matching	object	PatternSource	PatternSource
+core	quasiquotes.matching	object	TermPattern	TermPattern
+core	quasiquotes.matching	trait	MatchFailure	MatchFailure
+core	quasiquotes.matching	trait	PatternError	PatternError
+core	quasiquotes.matching	trait	TermPattern	TermPattern
+core	quasiquotes.matching.MappedPatternSource	val	generatedHoleIndex	generatedHoleIndex: GeneratedHoleIndex
+core	quasiquotes.matching.MatchFailure	class	RepeatedHoleMismatch	RepeatedHoleMismatch(name: String, previous: String, current: String) extends MatchFailure
+core	quasiquotes.matching.MatchFailure	class	ShapeMismatch	ShapeMismatch(expected: String, actual: String) extends MatchFailure
+core	quasiquotes.matching.MatchFailure	class	UnsupportedTargetShape	UnsupportedTargetShape(detail: String) extends MatchFailure
+core	quasiquotes.matching.MatchFailure	def	message	message: String
+core	quasiquotes.matching.MatchFailure	given	derived$CanEqual	derived$CanEqual: CanEqual[MatchFailure, MatchFailure]
+core	quasiquotes.matching.MatchFailure.RepeatedHoleMismatch	def	message	message: String
+core	quasiquotes.matching.MatchFailure.ShapeMismatch	def	message	message: String
+core	quasiquotes.matching.MatchFailure.UnsupportedTargetShape	def	message	message: String
+core	quasiquotes.matching.MatchResult	def	binding	binding(name: String): Option[T]
+core	quasiquotes.matching.PatternError	class	InvalidHoleName	InvalidHoleName(name: String) extends PatternError
+core	quasiquotes.matching.PatternError	class	NoHolesInInterpolator	NoHolesInInterpolator() extends PatternError
+core	quasiquotes.matching.PatternError	class	ParseFailure	ParseFailure(parseError: ParseError) extends PatternError
+core	quasiquotes.matching.PatternError	class	UnsupportedPatternShape	UnsupportedPatternShape(nodeKind: String, detail: String) extends PatternError
+core	quasiquotes.matching.PatternError	def	message	message: String
+core	quasiquotes.matching.PatternError	given	derived$CanEqual	derived$CanEqual: CanEqual[PatternError, PatternError]
+core	quasiquotes.matching.PatternError.InvalidHoleName	def	message	message: String
+core	quasiquotes.matching.PatternError.NoHolesInInterpolator	def	message	message: String
+core	quasiquotes.matching.PatternError.ParseFailure	def	message	message: String
+core	quasiquotes.matching.PatternError.UnsupportedPatternShape	def	message	message: String
+core	quasiquotes.matching.PatternSource	def	extractHoleName	extractHoleName(identifier: String): Option[String]
+core	quasiquotes.matching.PatternSource	def	synthesize	synthesize(pattern: String): Either[PatternError, PatternSource]
+core	quasiquotes.matching.PatternSource	def	synthesizeMapped	synthesizeMapped(pattern: String): Either[PatternError, MappedPatternSource]
+core	quasiquotes.matching.PatternSource	def	synthesizeMappedLocated	synthesizeMappedLocated(pattern: String): Either[LocatedDiagnostic[PatternError], MappedPatternSource]
+core	quasiquotes.matching.TermPattern	class	Apply	Apply(function: TermPattern, arguments: List[TermPattern]) extends TermPattern
+core	quasiquotes.matching.TermPattern	class	Hole	Hole(name: String) extends TermPattern
+core	quasiquotes.matching.TermPattern	class	Identifier	Identifier(name: String) extends TermPattern
+core	quasiquotes.matching.TermPattern	class	If	If(condition: TermPattern, thenBranch: TermPattern, elseBranch: TermPattern) extends TermPattern
+core	quasiquotes.matching.TermPattern	class	Infix	Infix(left: TermPattern, operator: String, right: TermPattern) extends TermPattern
+core	quasiquotes.matching.TermPattern	class	InterpolatedString	InterpolatedString(prefix: String, parts: List[String], arguments: List[TermPattern]) extends TermPattern
+core	quasiquotes.matching.TermPattern	class	Literal	Literal(value: String) extends TermPattern
+core	quasiquotes.matching.TermPattern	class	New	New(constructor: String, arguments: List[TermPattern]) extends TermPattern
+core	quasiquotes.matching.TermPattern	class	Parenthesized	Parenthesized(expression: TermPattern) extends TermPattern
+core	quasiquotes.matching.TermPattern	class	Select	Select(qualifier: TermPattern, name: String) extends TermPattern
+core	quasiquotes.matching.TermPattern	class	Tuple	Tuple(elements: List[TermPattern]) extends TermPattern
+core	quasiquotes.matching.TermPattern	class	Typed	Typed(expression: TermPattern, typeName: String) extends TermPattern
+core	quasiquotes.matching.TermPattern	class	Unary	Unary(operator: String, operand: TermPattern) extends TermPattern
+core	quasiquotes.matching.TermPattern	def	render	render(pattern: TermPattern): String
+core	quasiquotes.matching.TermPattern	def	render	render: String
+core	quasiquotes.matching.TermPattern	given	derived$CanEqual	derived$CanEqual: CanEqual[TermPattern, TermPattern]
+core	quasiquotes.parser	class	ParseDiagnostic	ParseDiagnostic(message: String, generatedSpan: Option[SourceSpan])
+core	quasiquotes.parser	class	ParseError	ParseError(source: String, kind: ParseErrorKind, messages: List[String], diagnostics: List[ParseDiagnostic] = ...) extends RuntimeException
+core	quasiquotes.parser	enum	ParseErrorKind	ParseErrorKind
+core	quasiquotes.parser	object	DiagnosticLocationMapper	DiagnosticLocationMapper
+core	quasiquotes.parser	object	ParseError	ParseError
+core	quasiquotes.parser	object	Placeholder	Placeholder
+core	quasiquotes.parser	object	TermShape	TermShape
+core	quasiquotes.parser	object	TypeShape	TypeShape
+core	quasiquotes.parser	trait	TermShape	TermShape
+core	quasiquotes.parser	trait	TypeShape	TypeShape
+core	quasiquotes.parser.DiagnosticLocationMapper	def	fromParseError	fromParseError(error: ParseError, sourceMap: GeneratedSourceMap): Option[DiagnosticLocation]
+core	quasiquotes.parser.DiagnosticLocationMapper	def	wholeSource	wholeSource(sourceMap: GeneratedSourceMap, preferredSpan: Option[SourceSpan] = ...): Option[DiagnosticLocation]
+core	quasiquotes.parser.ParseError	def	summary	summary: String
+core	quasiquotes.parser.ParseError	def	syntax	syntax(source: String, messages: List[String]): ParseError
+core	quasiquotes.parser.ParseError	def	trailing	trailing(source: String, offset: Int, trailingSnippet: String, tokenDescription: String): ParseError
+core	quasiquotes.parser.ParseErrorKind	val	SyntaxError	SyntaxError extends ParseErrorKind
+core	quasiquotes.parser.ParseErrorKind	val	TrailingInput	TrailingInput extends ParseErrorKind
+core	quasiquotes.parser.Placeholder	def	isPlaceholder	isPlaceholder(name: String): Boolean
+core	quasiquotes.parser.TermShape	class	Apply	Apply(function: TermShape, arguments: List[TermShape]) extends TermShape
+core	quasiquotes.parser.TermShape	class	Identifier	Identifier(name: String, isPlaceholder: Boolean) extends TermShape
+core	quasiquotes.parser.TermShape	class	If	If(condition: TermShape, thenBranch: TermShape, elseBranch: TermShape) extends TermShape
+core	quasiquotes.parser.TermShape	class	Infix	Infix(left: TermShape, operator: String, right: TermShape) extends TermShape
+core	quasiquotes.parser.TermShape	class	InterpolatedString	InterpolatedString(prefix: String, parts: List[String], arguments: List[TermShape]) extends TermShape
+core	quasiquotes.parser.TermShape	class	Literal	Literal(value: String) extends TermShape
+core	quasiquotes.parser.TermShape	class	New	New(constructor: String, arguments: List[TermShape]) extends TermShape
+core	quasiquotes.parser.TermShape	class	Parenthesized	Parenthesized(expression: TermShape) extends TermShape
+core	quasiquotes.parser.TermShape	class	Select	Select(qualifier: TermShape, name: String) extends TermShape
+core	quasiquotes.parser.TermShape	class	Tuple	Tuple(elements: List[TermShape]) extends TermShape
+core	quasiquotes.parser.TermShape	class	Typed	Typed(expression: TermShape, typeName: String) extends TermShape
+core	quasiquotes.parser.TermShape	class	Unary	Unary(operator: String, operand: TermShape) extends TermShape
+core	quasiquotes.parser.TermShape	class	Unsupported	Unsupported(nodeKind: String, detail: String) extends TermShape
+core	quasiquotes.parser.TermShape	def	render	render(shape: TermShape): String
+core	quasiquotes.parser.TermShape	def	render	render: String
+core	quasiquotes.parser.TermShape	given	derived$CanEqual	derived$CanEqual: CanEqual[TermShape, TermShape]
+core	quasiquotes.parser.TypeShape	class	Apply	Apply(constructor: TypeShape, arguments: List[TypeShape]) extends TypeShape
+core	quasiquotes.parser.TypeShape	class	Function	Function(arguments: List[TypeShape], result: TypeShape) extends TypeShape
+core	quasiquotes.parser.TypeShape	class	Identifier	Identifier(name: String) extends TypeShape
+core	quasiquotes.parser.TypeShape	class	Parenthesized	Parenthesized(typeShape: TypeShape) extends TypeShape
+core	quasiquotes.parser.TypeShape	class	Select	Select(qualifier: TypeShape, name: String) extends TypeShape
+core	quasiquotes.parser.TypeShape	class	Tuple	Tuple(elements: List[TypeShape]) extends TypeShape
+core	quasiquotes.parser.TypeShape	class	Unsupported	Unsupported(nodeKind: String, detail: String) extends TypeShape
+core	quasiquotes.parser.TypeShape	def	render	render(shape: TypeShape): String
+core	quasiquotes.parser.TypeShape	def	render	render: String
+core	quasiquotes.parser.TypeShape	given	derived$CanEqual	derived$CanEqual: CanEqual[TypeShape, TypeShape]
+core	quasiquotes.publicapi	class	CompletedTerm	CompletedTerm
+core	quasiquotes.publicapi	class	CompletedType	CompletedType
+core	quasiquotes.publicapi	class	DefinitionResultView	DefinitionResultView
+core	quasiquotes.publicapi	class	FailureAnchor	FailureAnchor
+core	quasiquotes.publicapi	class	PublicFailure	PublicFailure
+core	quasiquotes.publicapi	object	CompletedTerm	CompletedTerm
+core	quasiquotes.publicapi	object	CompletedType	CompletedType
+core	quasiquotes.publicapi	object	DefinitionConstruction	DefinitionConstruction
+core	quasiquotes.publicapi.CompletedTerm	def	kindCode	kindCode: String
+core	quasiquotes.publicapi.CompletedTerm	def	reference	reference(name: String): Either[PublicFailure, CompletedTerm]
+core	quasiquotes.publicapi.CompletedTerm	def	source	source: String
+core	quasiquotes.publicapi.CompletedTerm	given	derived$CanEqual	derived$CanEqual: CanEqual[CompletedTerm, CompletedTerm]
+core	quasiquotes.publicapi.CompletedTerm	val	referenceName	referenceName: String
+core	quasiquotes.publicapi.CompletedType	def	applied	applied(constructor: CompletedType, arguments: Vector[CompletedType]): Either[PublicFailure, CompletedType]
+core	quasiquotes.publicapi.CompletedType	def	arguments	arguments: Vector[CompletedType]
+core	quasiquotes.publicapi.CompletedType	def	constructor	constructor: Option[CompletedType]
+core	quasiquotes.publicapi.CompletedType	def	kindCode	kindCode: String
+core	quasiquotes.publicapi.CompletedType	def	name	name: Option[String]
+core	quasiquotes.publicapi.CompletedType	def	named	named(name: String): Either[PublicFailure, CompletedType]
+core	quasiquotes.publicapi.CompletedType	def	source	source: String
+core	quasiquotes.publicapi.CompletedType	def	typeParameter	typeParameter(name: String): Either[PublicFailure, CompletedType]
+core	quasiquotes.publicapi.CompletedType	given	derived$CanEqual	derived$CanEqual: CanEqual[CompletedType, CompletedType]
+core	quasiquotes.publicapi.DefinitionConstruction	def	contextualMethod	contextualMethod(name: String, typeParameterName: String, contextualParameterName: String, contextualParameterType: CompletedType, resultType: CompletedType, body: CompletedTerm): Either[PublicFailure, DefinitionResultView]
+core	quasiquotes.publicapi.DefinitionResultView	def	kindCode	kindCode: String
+core	quasiquotes.publicapi.DefinitionResultView	val	body	body: CompletedTerm
+core	quasiquotes.publicapi.DefinitionResultView	val	contextualParameterName	contextualParameterName: String
+core	quasiquotes.publicapi.DefinitionResultView	val	contextualParameterType	contextualParameterType: CompletedType
+core	quasiquotes.publicapi.DefinitionResultView	val	name	name: String
+core	quasiquotes.publicapi.DefinitionResultView	val	resultType	resultType: CompletedType
+core	quasiquotes.publicapi.DefinitionResultView	val	typeParameterName	typeParameterName: String
+core	quasiquotes.publicapi.FailureAnchor	val	componentCode	componentCode: String
+core	quasiquotes.publicapi.FailureAnchor	val	ordinal	ordinal: Option[Int]
+core	quasiquotes.publicapi.PublicFailure	val	anchor	anchor: Option[FailureAnchor]
+core	quasiquotes.publicapi.PublicFailure	val	code	code: String
+core	quasiquotes.publicapi.PublicFailure	val	message	message: String
+core	quasiquotes.source	class	DiagnosticLocation	DiagnosticLocation(sourceId: SourceId, span: SourceSpan, origins: Vector[SourceOrigin], precision: DiagnosticPrecision)
+core	quasiquotes.source	class	GeneratedHoleIndex	GeneratedHoleIndex
+core	quasiquotes.source	class	GeneratedSegment	GeneratedSegment(generatedSpan: SourceSpan, origin: SourceOrigin)
+core	quasiquotes.source	class	GeneratedSourceMap	GeneratedSourceMap(generatedSource: String, generatedSourceId: SourceId, segments: Vector[GeneratedSegment])
+core	quasiquotes.source	class	HoleOccurrence	HoleOccurrence(name: String, generatedName: String, originalSpan: SourceSpan, generatedSpan: SourceSpan, role: HoleRole)
+core	quasiquotes.source	class	LocatedDiagnostic	LocatedDiagnostic[+E](diagnostic: E, location: Option[DiagnosticLocation])
+core	quasiquotes.source	class	MappedHoleSource	MappedHoleSource(generatedSource: String, occurrences: Vector[HoleOccurrence], originMap: GeneratedSourceMap)
+core	quasiquotes.source	class	MappedOrigin	MappedOrigin(generatedSpan: SourceSpan, origin: SourceOrigin)
+core	quasiquotes.source	class	SourceId	SourceId(value: String)
+core	quasiquotes.source	class	SourceSpan	SourceSpan(start: Int, end: Int)
+core	quasiquotes.source	enum	DiagnosticPrecision	DiagnosticPrecision
+core	quasiquotes.source	enum	HoleRole	HoleRole
+core	quasiquotes.source	enum	InterpolationCategory	InterpolationCategory
+core	quasiquotes.source	object	DiagnosticLocation	DiagnosticLocation
+core	quasiquotes.source	object	GeneratedHoleIndex	GeneratedHoleIndex
+core	quasiquotes.source	object	HoleSourceRewriter	HoleSourceRewriter
+core	quasiquotes.source	object	SourceId	SourceId
+core	quasiquotes.source	object	SourceOrigin	SourceOrigin
+core	quasiquotes.source	trait	SourceOrigin	SourceOrigin
+core	quasiquotes.source.DiagnosticLocation	def	direct	direct(sourceId: SourceId, span: SourceSpan, precision: DiagnosticPrecision): Option[DiagnosticLocation]
+core	quasiquotes.source.DiagnosticLocation	def	fromGeneratedMap	fromGeneratedMap(sourceMap: GeneratedSourceMap, span: SourceSpan, precision: DiagnosticPrecision): Option[DiagnosticLocation]
+core	quasiquotes.source.DiagnosticLocation	given	derived$CanEqual	derived$CanEqual: CanEqual[DiagnosticLocation, DiagnosticLocation]
+core	quasiquotes.source.DiagnosticPrecision	val	ExactOccurrence	ExactOccurrence extends DiagnosticPrecision
+core	quasiquotes.source.DiagnosticPrecision	val	WholeSource	WholeSource extends DiagnosticPrecision
+core	quasiquotes.source.GeneratedHoleIndex	def	fromOccurrences	fromOccurrences(occurrences: Iterable[HoleOccurrence]): GeneratedHoleIndex
+core	quasiquotes.source.GeneratedHoleIndex	def	generatedNameFor	generatedNameFor(semanticName: String): Option[String]
+core	quasiquotes.source.GeneratedHoleIndex	def	semanticNameFor	semanticNameFor(generatedIdentifier: String): Option[String]
+core	quasiquotes.source.GeneratedHoleIndex	given	derived$CanEqual	derived$CanEqual: CanEqual[GeneratedHoleIndex, GeneratedHoleIndex]
+core	quasiquotes.source.GeneratedHoleIndex	val	empty	empty: GeneratedHoleIndex
+core	quasiquotes.source.GeneratedSourceMap	def	generatedSpansFor	generatedSpansFor(predicate: SourceOrigin => Boolean): Vector[SourceSpan]
+core	quasiquotes.source.GeneratedSourceMap	def	originAt	originAt(offset: Int): Option[SourceOrigin]
+core	quasiquotes.source.GeneratedSourceMap	def	originsFor	originsFor(span: SourceSpan): Vector[MappedOrigin]
+core	quasiquotes.source.HoleRole	val	DefinitionBodyTermTemplate	DefinitionBodyTermTemplate extends HoleRole
+core	quasiquotes.source.HoleRole	val	DefinitionBodyTypeTemplate	DefinitionBodyTypeTemplate extends HoleRole
+core	quasiquotes.source.HoleRole	val	DefinitionTypeTemplate	DefinitionTypeTemplate extends HoleRole
+core	quasiquotes.source.HoleRole	val	TermPattern	TermPattern extends HoleRole
+core	quasiquotes.source.HoleRole	val	TermTemplate	TermTemplate extends HoleRole
+core	quasiquotes.source.HoleRole	val	TypePattern	TypePattern extends HoleRole
+core	quasiquotes.source.HoleRole	val	TypeTemplate	TypeTemplate extends HoleRole
+core	quasiquotes.source.HoleSourceRewriter	def	rewrite	rewrite(source: String, generatedPrefix: String, role: HoleRole, originalSourceId: SourceId, generatedSourceId: SourceId, allowUnicodeIdentifiers: Boolean = ...): MappedHoleSource
+core	quasiquotes.source.InterpolationCategory	val	ConstructedTypeSplice	ConstructedTypeSplice extends InterpolationCategory
+core	quasiquotes.source.InterpolationCategory	val	DefinitionBodyTermSplice	DefinitionBodyTermSplice extends InterpolationCategory
+core	quasiquotes.source.InterpolationCategory	val	DefinitionBodyTypeSplice	DefinitionBodyTypeSplice extends InterpolationCategory
+core	quasiquotes.source.InterpolationCategory	val	DefinitionTypeSplice	DefinitionTypeSplice extends InterpolationCategory
+core	quasiquotes.source.InterpolationCategory	val	TermSplice	TermSplice extends InterpolationCategory
+core	quasiquotes.source.MappedHoleSource	val	generatedHoleIndex	generatedHoleIndex: GeneratedHoleIndex
+core	quasiquotes.source.SourceId	given	derived$CanEqual	derived$CanEqual: CanEqual[SourceId, SourceId]
+core	quasiquotes.source.SourceId	val	DefinitionConstructionTemplate	DefinitionConstructionTemplate: SourceId
+core	quasiquotes.source.SourceId	val	TermConstructionTemplate	TermConstructionTemplate: SourceId
+core	quasiquotes.source.SourceId	val	TermPattern	TermPattern: SourceId
+core	quasiquotes.source.SourceId	val	TypePattern	TypePattern: SourceId
+core	quasiquotes.source.SourceId	val	TypeTemplate	TypeTemplate: SourceId
+core	quasiquotes.source.SourceId	val	VirtualDefinitionTemplateParserInput	VirtualDefinitionTemplateParserInput: SourceId
+core	quasiquotes.source.SourceId	val	VirtualExpressionParserInput	VirtualExpressionParserInput: SourceId
+core	quasiquotes.source.SourceId	val	VirtualTermPatternParserInput	VirtualTermPatternParserInput: SourceId
+core	quasiquotes.source.SourceId	val	VirtualTypePatternParserInput	VirtualTypePatternParserInput: SourceId
+core	quasiquotes.source.SourceId	val	VirtualTypeTemplateParserInput	VirtualTypeTemplateParserInput: SourceId
+core	quasiquotes.source.SourceOrigin	class	InterpolationArgument	InterpolationArgument(templateSourceId: SourceId, argumentIndex: Int, category: InterpolationCategory) extends SourceOrigin
+core	quasiquotes.source.SourceOrigin	class	LiteralPart	LiteralPart(templateSourceId: SourceId, partIndex: Int, spanWithinPart: SourceSpan) extends SourceOrigin
+core	quasiquotes.source.SourceOrigin	class	OriginalText	OriginalText(sourceId: SourceId, originalSpan: SourceSpan) extends SourceOrigin
+core	quasiquotes.source.SourceOrigin	class	RewrittenHole	RewrittenHole(sourceId: SourceId, originalSpan: SourceSpan, holeName: String, role: HoleRole) extends SourceOrigin
+core	quasiquotes.source.SourceOrigin	given	derived$CanEqual	derived$CanEqual: CanEqual[SourceOrigin, SourceOrigin]
+core	quasiquotes.source.SourceSpan	def	contains	contains(offset: Int): Boolean
+core	quasiquotes.source.SourceSpan	def	intersection	intersection(other: SourceSpan): Option[SourceSpan]
+core	quasiquotes.source.SourceSpan	def	isEmpty	isEmpty: Boolean
+core	quasiquotes.source.SourceSpan	def	length	length: Int
+core	quasiquotes.source.SourceSpan	def	overlaps	overlaps(other: SourceSpan): Boolean
+core	quasiquotes.types	class	ConstructedType	ConstructedType(normalForm: TypeNormalForm)
+core	quasiquotes.types	class	TypeMatchResult	TypeMatchResult(bindings: Map[String, TypeNormalForm])
+core	quasiquotes.types	class	TypeQuasiquoteError	TypeQuasiquoteError(message: String) extends RuntimeException
+core	quasiquotes.types	object	ConstructedType	ConstructedType
+core	quasiquotes.types	object	TypeMatchResult	TypeMatchResult
+core	quasiquotes.types	object	TypeNormalForm	TypeNormalForm
+core	quasiquotes.types	object	TypePattern	TypePattern
+core	quasiquotes.types	object	TypeTemplate	TypeTemplate
+core	quasiquotes.types	trait	TypeNormalForm	TypeNormalForm
+core	quasiquotes.types	trait	TypePattern	TypePattern
+core	quasiquotes.types	trait	TypeTemplate	TypeTemplate
+core	quasiquotes.types.ConstructedType	def	renderSource	renderSource(normalForm: TypeNormalForm): String
+core	quasiquotes.types.ConstructedType	def	source	source: String
+core	quasiquotes.types.TypeMatchResult	def	binding	binding(name: String): Option[TypeNormalForm]
+core	quasiquotes.types.TypeMatchResult	def	bindingsSummary	bindingsSummary: String
+core	quasiquotes.types.TypeMatchResult	def	requiredBinding	requiredBinding(name: String): Either[TypeQuasiquoteError, TypeNormalForm]
+core	quasiquotes.types.TypeNormalForm	class	STypeApply	STypeApply(constructor: TypeNormalForm, arguments: List[TypeNormalForm]) extends TypeNormalForm
+core	quasiquotes.types.TypeNormalForm	class	STypeFunction	STypeFunction(arguments: List[TypeNormalForm], result: TypeNormalForm) extends TypeNormalForm
+core	quasiquotes.types.TypeNormalForm	class	STypeIdent	STypeIdent(name: String) extends TypeNormalForm
+core	quasiquotes.types.TypeNormalForm	class	STypeTuple	STypeTuple(elements: List[TypeNormalForm]) extends TypeNormalForm
+core	quasiquotes.types.TypeNormalForm	def	fromShape	fromShape(shape: TypeShape): Either[TypeQuasiquoteError, TypeNormalForm]
+core	quasiquotes.types.TypeNormalForm	def	render	render(normalForm: TypeNormalForm): String
+core	quasiquotes.types.TypeNormalForm	def	render	render: String
+core	quasiquotes.types.TypeNormalForm	given	derived$CanEqual	derived$CanEqual: CanEqual[TypeNormalForm, TypeNormalForm]
+core	quasiquotes.types.TypePattern	class	TPApply	TPApply(constructor: TypePattern, arguments: List[TypePattern]) extends TypePattern
+core	quasiquotes.types.TypePattern	class	TPFunction	TPFunction(arguments: List[TypePattern], result: TypePattern) extends TypePattern
+core	quasiquotes.types.TypePattern	class	TPHole	TPHole(name: String) extends TypePattern
+core	quasiquotes.types.TypePattern	class	TPIdent	TPIdent(name: String) extends TypePattern
+core	quasiquotes.types.TypePattern	class	TPTuple	TPTuple(elements: List[TypePattern]) extends TypePattern
+core	quasiquotes.types.TypePattern	def	containsHole	containsHole(pattern: TypePattern): Boolean
+core	quasiquotes.types.TypePattern	def	containsHole	containsHole: Boolean
+core	quasiquotes.types.TypePattern	def	fromShape	fromShape(shape: TypeShape): Either[TypeQuasiquoteError, TypePattern]
+core	quasiquotes.types.TypePattern	def	matchNormalForm	matchNormalForm(pattern: TypePattern, target: TypeNormalForm): Option[TypeMatchResult]
+core	quasiquotes.types.TypePattern	def	rewriteSourceMapped	rewriteSourceMapped(source: String): MappedHoleSource
+core	quasiquotes.types.TypePattern	given	derived$CanEqual	derived$CanEqual: CanEqual[TypePattern, TypePattern]
+core	quasiquotes.types.TypeTemplate	class	TTApply	TTApply(constructor: TypeTemplate, arguments: List[TypeTemplate]) extends TypeTemplate
+core	quasiquotes.types.TypeTemplate	class	TTFunction	TTFunction(arguments: List[TypeTemplate], result: TypeTemplate) extends TypeTemplate
+core	quasiquotes.types.TypeTemplate	class	TTHole	TTHole(name: String) extends TypeTemplate
+core	quasiquotes.types.TypeTemplate	class	TTIdent	TTIdent(name: String) extends TypeTemplate
+core	quasiquotes.types.TypeTemplate	class	TTTuple	TTTuple(elements: List[TypeTemplate]) extends TypeTemplate
+core	quasiquotes.types.TypeTemplate	def	construct	construct(template: TypeTemplate, bindings: Map[String, TypeNormalForm]): Either[TypeQuasiquoteError, TypeNormalForm]
+core	quasiquotes.types.TypeTemplate	def	fromShape	fromShape(shape: TypeShape): Either[TypeQuasiquoteError, TypeTemplate]
+core	quasiquotes.types.TypeTemplate	def	holeNames	holeNames(template: TypeTemplate): Set[String]
+core	quasiquotes.types.TypeTemplate	def	rewriteSourceMapped	rewriteSourceMapped(source: String): MappedHoleSource
+core	quasiquotes.types.TypeTemplate	def	validateConstructed	validateConstructed(normalForm: TypeNormalForm): Either[TypeQuasiquoteError, Unit]
+core	quasiquotes.types.TypeTemplate	given	derived$CanEqual	derived$CanEqual: CanEqual[TypeTemplate, TypeTemplate]
+frontend	quasiquotes.construct	object	IdentifierResolver	IdentifierResolver
+frontend	quasiquotes.construct	object	ParsedTermLowerer	ParsedTermLowerer
+frontend	quasiquotes.construct	object	QuasiTypeSpliceExamples	QuasiTypeSpliceExamples
+frontend	quasiquotes.construct	object	QuasiquoteBuilder	QuasiquoteBuilder
+frontend	quasiquotes.construct	object	QuasiquoteDiagnosticExamples	QuasiquoteDiagnosticExamples
+frontend	quasiquotes.construct	object	QuasiquoteMacroExamples	QuasiquoteMacroExamples
+frontend	quasiquotes.construct	object	Quasiquotes	Quasiquotes
+frontend	quasiquotes.construct	object	TypedTermConstruct	TypedTermConstruct
+frontend	quasiquotes.construct	object	TypedTermConstructExamples	TypedTermConstructExamples
+frontend	quasiquotes.construct.IdentifierResolver	def	resolve	resolve(name: String)(using q: Quotes): Either[QuasiquoteError, q.reflect.Term]
+frontend	quasiquotes.construct.ParsedTermLowerer	def	lower	lower(using q: Quotes)(tree: Tree, bindings: Vector[PlaceholderBinding[q.reflect.Term]], literalCategorizedNames: Set[String] = ...): Either[QuasiquoteError, q.reflect.Term]
+frontend	quasiquotes.construct.QuasiTypeSpliceExamples	def	equivalenceSummary	equivalenceSummary(value: List[Int]): String
+frontend	quasiquotes.construct.QuasiTypeSpliceExamples	def	literalTermCandidateCollision	literalTermCandidateCollision(value: Int): Int
+frontend	quasiquotes.construct.QuasiTypeSpliceExamples	def	literalTypeCandidateCollision	literalTypeCandidateCollision(value: Int): Int
+frontend	quasiquotes.construct.QuasiTypeSpliceExamples	def	markerInTermPositionMessage	markerInTermPositionMessage: String
+frontend	quasiquotes.construct.QuasiTypeSpliceExamples	def	nestedAppliedSplice	nestedAppliedSplice(value: List[Int]): List[Int]
+frontend	quasiquotes.construct.QuasiTypeSpliceExamples	def	placeholderSourceSummary	placeholderSourceSummary: String
+frontend	quasiquotes.construct.QuasiTypeSpliceExamples	def	spliceSummary	spliceSummary(termKind: String, templateSource: String, bindingName: String, bindingSource: String): String
+frontend	quasiquotes.construct.QuasiTypeSpliceExamples	def	spliceSummary	spliceSummary(termKind: String, templateSource: String, firstBindingName: String, firstBindingSource: String, secondBindingName: String, secondBindingSource: String): String
+frontend	quasiquotes.construct.QuasiTypeSpliceExamples	def	termInTypePositionMessage	termInTypePositionMessage: String
+frontend	quasiquotes.construct.QuasiTypeSpliceExamples	def	unknownPlaceholderMessage	unknownPlaceholderMessage: String
+frontend	quasiquotes.construct.QuasiTypeSpliceExamples	def	unsupportedNormalFormMessage	unsupportedNormalFormMessage: String
+frontend	quasiquotes.construct.QuasiTypeSpliceExamples	def	unsupportedTypePositionMessage	unsupportedTypePositionMessage: String
+frontend	quasiquotes.construct.QuasiquoteBuilder	def	build	build(using q: Quotes)(parts: Seq[String], arguments: Seq[q.reflect.Term | QuasiTypeSplice]): Either[QuasiquoteError, q.reflect.Term]
+frontend	quasiquotes.construct.QuasiquoteDiagnosticExamples	def	invalidConstructedTypeInTerm	invalidConstructedTypeInTerm: Any
+frontend	quasiquotes.construct.QuasiquoteDiagnosticExamples	def	invalidLiteralParse	invalidLiteralParse: Any
+frontend	quasiquotes.construct.QuasiquoteDiagnosticExamples	def	invalidTermInType	invalidTermInType(inline value: Int): Any
+frontend	quasiquotes.construct.QuasiquoteDiagnosticExamples	def	locatedBuilderSummary	locatedBuilderSummary: List[String]
+frontend	quasiquotes.construct.QuasiquoteDiagnosticExamples	def	locatedLoweringSummary	locatedLoweringSummary: List[String]
+frontend	quasiquotes.construct.QuasiquoteDiagnosticExamples	def	positionResolverSummary	positionResolverSummary(inline value: Int): String
+frontend	quasiquotes.construct.QuasiquoteDiagnosticExamples	def	validQuasiquote	validQuasiquote(inline value: Int): Int
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	class	DemoCase	DemoCase(label: String, input: String, placeholderSource: String, treeStructure: String, substitutedResult: String)
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	addHoles	addHoles(x: Int, y: Int): Int
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	callFunctionHole	callFunctionHole(x: Int): Int
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	callSelectedMethodViaHole	callSelectedMethodViaHole(x: Int): Int
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	emitBooleanLiteral	emitBooleanLiteral: Boolean
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	emitIntLiteral	emitIntLiteral: Int
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	emitStringLiteral	emitStringLiteral: String
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	holeInfixSummary	holeInfixSummary(x: Int, y: Int): DemoCase
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	ifApplicationSummary	ifApplicationSummary(cond: Boolean, x: Int, y: Int): DemoCase
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	ifHoles	ifHoles(cond: Boolean, x: Int, y: Int): Int
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	namedInfixSummary	namedInfixSummary: DemoCase
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	namedSelectInfixSummary	namedSelectInfixSummary(x: Int): DemoCase
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	nestedFunctionHoleSummary	nestedFunctionHoleSummary(x: Int): DemoCase
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	nestedFunctionHoles	nestedFunctionHoles(x: Int): Int
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	nestedNamedApplicationSummary	nestedNamedApplicationSummary: DemoCase
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	nestedParenHoleSummary	nestedParenHoleSummary(x: Int): DemoCase
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	nestedSelectApplicationSummary	nestedSelectApplicationSummary(x: Int): DemoCase
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	nestedTupleHoles	nestedTupleHoles(x: Int, y: Int, z: Int): (Int, (Int, Int))
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	parenthesizedAdd	parenthesizedAdd(x: Int, y: Int): Int
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	parenthesizedInfixSummary	parenthesizedInfixSummary(x: Int, y: Int): DemoCase
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	parenthesizedNamedSummary	parenthesizedNamedSummary: DemoCase
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	parenthesizedSelectedHoleSummary	parenthesizedSelectedHoleSummary(x: Int): DemoCase
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	stringLength	stringLength(value: String): Int
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	tupleApplicationSummary	tupleApplicationSummary(x: Int, y: Int): DemoCase
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	tupleHoles	tupleHoles(x: Int, y: Int): (Int, Int)
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	typedHole	typedHole(x: Int): Int
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	typedHoleApplication	typedHoleApplication(x: Int): Int
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	unsupportedComplexTypeAscriptionMessage	unsupportedComplexTypeAscriptionMessage: String
+frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	unsupportedSyntaxMessage	unsupportedSyntaxMessage: String
+frontend	quasiquotes.construct.Quasiquotes	def	qr	qr(using q: Quotes)(args: q.reflect.Term | QuasiTypeSplice*): q.reflect.Term
+frontend	quasiquotes.construct.TypedTermConstruct	def	ascribe	ascribe(using q: Quotes)(term: q.reflect.Term, constructedType: ConstructedType): Either[TypeQuasiquoteError, q.reflect.Term]
+frontend	quasiquotes.construct.TypedTermConstruct	def	ascribeNormalForm	ascribeNormalForm(using q: Quotes)(term: q.reflect.Term, normalForm: TypeNormalForm): Either[TypeQuasiquoteError, q.reflect.Term]
+frontend	quasiquotes.construct.TypedTermConstruct	def	ascribeTemplate	ascribeTemplate(using q: Quotes)(term: q.reflect.Term, templateSource: String, bindings: (String, TypeNormalForm)*): Either[TypeQuasiquoteError, q.reflect.Term]
+frontend	quasiquotes.construct.TypedTermConstructExamples	def	typedAscriptionMessage	typedAscriptionMessage(templateSource: String, bindingName: String, bindingSource: String): String
+frontend	quasiquotes.construct.TypedTermConstructExamples	def	typedAscriptionMessage	typedAscriptionMessage(templateSource: String, firstBindingName: String, firstBindingSource: String, secondBindingName: String, secondBindingSource: String): String
+frontend	quasiquotes.construct.TypedTermConstructExamples	def	typedAscriptionMissingBindingMessage	typedAscriptionMissingBindingMessage(templateSource: String): String
+frontend	quasiquotes.construct.TypedTermConstructExamples	def	typedAscriptionSummary	typedAscriptionSummary(termKind: String, templateSource: String, bindingName: String, bindingSource: String): String
+frontend	quasiquotes.construct.TypedTermConstructExamples	def	typedAscriptionSummary	typedAscriptionSummary(termKind: String, templateSource: String, firstBindingName: String, firstBindingSource: String, secondBindingName: String, secondBindingSource: String): String
+frontend	quasiquotes.construct.TypedTermConstructExamples	def	typedAscriptionUnsupportedNormalFormMessage	typedAscriptionUnsupportedNormalFormMessage(source: String): String
+frontend	quasiquotes.matching	class	QuasiPattern	QuasiPattern(input: String, placeholderSource: String, shape: String, pattern: TermPattern)
+frontend	quasiquotes.matching	object	CanonicalTerm	CanonicalTerm
+frontend	quasiquotes.matching	object	MatchNormalizer	MatchNormalizer
+frontend	quasiquotes.matching	object	PatternCompiler	PatternCompiler
+frontend	quasiquotes.matching	object	QuasiPattern	QuasiPattern
+frontend	quasiquotes.matching	object	QuasiquoteMatchExamples	QuasiquoteMatchExamples
+frontend	quasiquotes.matching	object	TargetTermView	TargetTermView
+frontend	quasiquotes.matching	object	TermCanonicalizer	TermCanonicalizer
+frontend	quasiquotes.matching	object	TermMatcher	TermMatcher
+frontend	quasiquotes.matching	trait	CanonicalTerm	CanonicalTerm
+frontend	quasiquotes.matching	trait	TargetTermView	TargetTermView[+T]
+frontend	quasiquotes.matching.CanonicalTerm	class	Apply	Apply(function: CanonicalTerm, arguments: List[CanonicalTerm]) extends CanonicalTerm
+frontend	quasiquotes.matching.CanonicalTerm	class	Ident	Ident(name: String) extends CanonicalTerm
+frontend	quasiquotes.matching.CanonicalTerm	class	If	If(condition: CanonicalTerm, thenBranch: CanonicalTerm, elseBranch: CanonicalTerm) extends CanonicalTerm
+frontend	quasiquotes.matching.CanonicalTerm	class	Infix	Infix(left: CanonicalTerm, operator: String, right: CanonicalTerm) extends CanonicalTerm
+frontend	quasiquotes.matching.CanonicalTerm	class	InterpolatedString	InterpolatedString(prefix: String, parts: List[String], arguments: List[CanonicalTerm]) extends CanonicalTerm
+frontend	quasiquotes.matching.CanonicalTerm	class	Literal	Literal(value: String) extends CanonicalTerm
+frontend	quasiquotes.matching.CanonicalTerm	class	New	New(constructor: String, arguments: List[CanonicalTerm]) extends CanonicalTerm
+frontend	quasiquotes.matching.CanonicalTerm	class	Select	Select(qualifier: CanonicalTerm, name: String) extends CanonicalTerm
+frontend	quasiquotes.matching.CanonicalTerm	class	Tuple	Tuple(elements: List[CanonicalTerm]) extends CanonicalTerm
+frontend	quasiquotes.matching.CanonicalTerm	class	Typed	Typed(expression: CanonicalTerm, typeName: String) extends CanonicalTerm
+frontend	quasiquotes.matching.CanonicalTerm	class	Unary	Unary(operator: String, operand: CanonicalTerm) extends CanonicalTerm
+frontend	quasiquotes.matching.CanonicalTerm	def	render	render(term: CanonicalTerm): String
+frontend	quasiquotes.matching.CanonicalTerm	def	render	render: String
+frontend	quasiquotes.matching.CanonicalTerm	given	derived$CanEqual	derived$CanEqual: CanEqual[CanonicalTerm, CanonicalTerm]
+frontend	quasiquotes.matching.MatchNormalizer	def	normalizePattern	normalizePattern(pattern: TermPattern): TermPattern
+frontend	quasiquotes.matching.MatchNormalizer	def	normalizeTarget	normalizeTarget[T](view: TargetTermView[T]): TargetTermView[T]
+frontend	quasiquotes.matching.MatchNormalizer	def	normalizedTreeStructure	normalizedTreeStructure(using q: Quotes)(term: q.reflect.Term): String
+frontend	quasiquotes.matching.MatchNormalizer	def	normalizedView	normalizedView(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, TargetTermView[q.reflect.Term]]
+frontend	quasiquotes.matching.PatternCompiler	def	compile	compile(tree: Tree): Either[PatternError, TermPattern]
+frontend	quasiquotes.matching.QuasiPattern	def	matchTerm	matchTerm(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, MatchResult[q.reflect.Term]]
+frontend	quasiquotes.matching.QuasiPattern	def	matchTermRaw	matchTermRaw(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, MatchResult[q.reflect.Term]]
+frontend	quasiquotes.matching.QuasiPattern	def	qq	qq: Nothing
+frontend	quasiquotes.matching.QuasiPattern	def	term	term(pattern: String): Either[PatternError, QuasiPattern]
+frontend	quasiquotes.matching.QuasiPattern	def	termLocated	termLocated(pattern: String): Either[LocatedDiagnostic[PatternError], QuasiPattern]
+frontend	quasiquotes.matching.QuasiPattern	def	termOrThrow	termOrThrow(pattern: String): QuasiPattern
+frontend	quasiquotes.matching.QuasiquoteMatchExamples	class	CanonicalDemo	CanonicalDemo(target: String, success: Boolean, canonical: String, detail: String)
+frontend	quasiquotes.matching.QuasiquoteMatchExamples	class	EqualityComparisonDemo	EqualityComparisonDemo(normalizedEqual: Boolean, canonicalEqual: Boolean, leftNormalized: String, rightNormalized: String, leftCanonical: String, rightCanonical: String, detail: String)
+frontend	quasiquotes.matching.QuasiquoteMatchExamples	class	MatchDemo	MatchDemo(mode: String, pattern: String, target: String, success: Boolean, bindings: List[String], detail: String)
+frontend	quasiquotes.matching.QuasiquoteMatchExamples	class	NormalizationDemo	NormalizationDemo(pattern: String, target: String, before: MatchDemo, after: MatchDemo)
+frontend	quasiquotes.matching.QuasiquoteMatchExamples	def	classifyInfix	classifyInfix(expr: Int): String
+frontend	quasiquotes.matching.QuasiquoteMatchExamples	def	classifyInfixRaw	classifyInfixRaw(expr: Int): String
+frontend	quasiquotes.matching.QuasiquoteMatchExamples	def	classifyNested	classifyNested(expr: Int): String
+frontend	quasiquotes.matching.QuasiquoteMatchExamples	def	classifyRepeatedOperand	classifyRepeatedOperand(expr: Int): String
+frontend	quasiquotes.matching.QuasiquoteMatchExamples	def	compareEquality	compareEquality[A, B](left: A, right: B): EqualityComparisonDemo
+frontend	quasiquotes.matching.QuasiquoteMatchExamples	def	summarizeCanonical	summarizeCanonical[A](expr: A): CanonicalDemo
+frontend	quasiquotes.matching.QuasiquoteMatchExamples	def	summarizeMatch	summarizeMatch[A](inline pattern: String, expr: A): MatchDemo
+frontend	quasiquotes.matching.QuasiquoteMatchExamples	def	summarizeMatchNormalized	summarizeMatchNormalized[A](inline pattern: String, expr: A): MatchDemo
+frontend	quasiquotes.matching.QuasiquoteMatchExamples	def	summarizeMatchRaw	summarizeMatchRaw[A](inline pattern: String, expr: A): MatchDemo
+frontend	quasiquotes.matching.QuasiquoteMatchExamples	def	summarizeNormalization	summarizeNormalization[A](inline pattern: String, expr: A): NormalizationDemo
+frontend	quasiquotes.matching.TargetTermView	class	Apply	Apply[T](function: TargetTermView[T], arguments: List[TargetTermView[T]], original: T) extends TargetTermView[T]
+frontend	quasiquotes.matching.TargetTermView	class	Identifier	Identifier[T](name: String, original: T) extends TargetTermView[T]
+frontend	quasiquotes.matching.TargetTermView	class	If	If[T](condition: TargetTermView[T], thenBranch: TargetTermView[T], elseBranch: TargetTermView[T], original: T) extends TargetTermView[T]
+frontend	quasiquotes.matching.TargetTermView	class	Infix	Infix[T](left: TargetTermView[T], operator: String, right: TargetTermView[T], original: T) extends TargetTermView[T]
+frontend	quasiquotes.matching.TargetTermView	class	InterpolatedString	InterpolatedString[T](prefix: String, parts: List[String], arguments: List[TargetTermView[T]], original: T) extends TargetTermView[T]
+frontend	quasiquotes.matching.TargetTermView	class	Literal	Literal[T](value: String, original: T) extends TargetTermView[T]
+frontend	quasiquotes.matching.TargetTermView	class	New	New[T](constructor: String, arguments: List[TargetTermView[T]], original: T) extends TargetTermView[T]
+frontend	quasiquotes.matching.TargetTermView	class	Select	Select[T](qualifier: TargetTermView[T], name: String, original: T) extends TargetTermView[T]
+frontend	quasiquotes.matching.TargetTermView	class	Tuple	Tuple[T](elements: List[TargetTermView[T]], original: T) extends TargetTermView[T]
+frontend	quasiquotes.matching.TargetTermView	class	Typed	Typed[T](expression: TargetTermView[T], typeName: String, original: T) extends TargetTermView[T]
+frontend	quasiquotes.matching.TargetTermView	class	Unary	Unary[T](operator: String, operand: TargetTermView[T], original: T) extends TargetTermView[T]
+frontend	quasiquotes.matching.TargetTermView	def	fromTerm	fromTerm(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, TargetTermView[q.reflect.Term]]
+frontend	quasiquotes.matching.TargetTermView	def	original	original: T
+frontend	quasiquotes.matching.TargetTermView	def	render	render(view: TargetTermView[_]): String
+frontend	quasiquotes.matching.TargetTermView	def	render	render: String
+frontend	quasiquotes.matching.TargetTermView	given	derived$CanEqual	derived$CanEqual: [T_$_L, T_$_R] => CanEqual[T_$_L, T_$_R] => CanEqual[TargetTermView[T_$_L], TargetTermView[T_$_R]]
+frontend	quasiquotes.matching.TermCanonicalizer	def	canonicalEqual	canonicalEqual(using q: Quotes)(left: q.reflect.Term, right: q.reflect.Term): Either[MatchFailure, Boolean]
+frontend	quasiquotes.matching.TermCanonicalizer	def	canonicalize	canonicalize(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, CanonicalTerm]
+frontend	quasiquotes.matching.TermMatcher	def	matchTerm	matchTerm(using q: Quotes)(pattern: TermPattern, target: q.reflect.Term): Either[MatchFailure, MatchResult[q.reflect.Term]]
+frontend	quasiquotes.matching.TermMatcher	def	matchTermRaw	matchTermRaw(using q: Quotes)(pattern: TermPattern, target: q.reflect.Term): Either[MatchFailure, MatchResult[q.reflect.Term]]
+frontend	quasiquotes.parser	class	ParsedExpression	ParsedExpression(source: String, rawTree: Tree, shape: TermShape, rawStructure: String)
+frontend	quasiquotes.parser	class	ParsedType	ParsedType(source: String, rawTree: Tree, shape: TypeShape, rawStructure: String)
+frontend	quasiquotes.parser	class	runParserDemo	runParserDemo
+frontend	quasiquotes.parser	def	runParserDemo	runParserDemo(): Unit
+frontend	quasiquotes.parser	object	DottySourceSpanAdapter	DottySourceSpanAdapter
+frontend	quasiquotes.parser	object	ParserDemo	ParserDemo
+frontend	quasiquotes.parser	object	Scala3ParserBridge	Scala3ParserBridge
+frontend	quasiquotes.parser	object	TermShapeInspector	TermShapeInspector
+frontend	quasiquotes.parser	object	TinyTermParser	TinyTermParser
+frontend	quasiquotes.parser	object	TinyTypeParser	TinyTypeParser
+frontend	quasiquotes.parser	object	TypeShapeInspector	TypeShapeInspector
+frontend	quasiquotes.parser.DottySourceSpanAdapter	def	fromSpan	fromSpan(span: Span): Option[SourceSpan]
+frontend	quasiquotes.parser.DottySourceSpanAdapter	def	fromTree	fromTree(tree: Tree): Option[SourceSpan]
+frontend	quasiquotes.parser.ParserDemo	def	matchReportFor	matchReportFor(demo: MatchDemo): String
+frontend	quasiquotes.parser.ParserDemo	def	normalizationReportFor	normalizationReportFor(demo: NormalizationDemo): String
+frontend	quasiquotes.parser.ParserDemo	def	quasiquoteReportFor	quasiquoteReportFor(demo: DemoCase): String
+frontend	quasiquotes.parser.ParserDemo	def	reportFor	reportFor(input: String): String
+frontend	quasiquotes.parser.ParserDemo	object	MatchAnyScope	MatchAnyScope
+frontend	quasiquotes.parser.ParserDemo	object	MatchFooApplicationScope	MatchFooApplicationScope
+frontend	quasiquotes.parser.ParserDemo	object	MatchFunctionHoleScope	MatchFunctionHoleScope
+frontend	quasiquotes.parser.ParserDemo	object	MatchInfixScope	MatchInfixScope
+frontend	quasiquotes.parser.ParserDemo	object	MatchMacroProofScope	MatchMacroProofScope
+frontend	quasiquotes.parser.ParserDemo	object	MatchNestedScope	MatchNestedScope
+frontend	quasiquotes.parser.ParserDemo	object	MatchParenScope	MatchParenScope
+frontend	quasiquotes.parser.ParserDemo	object	MatchSelectionApplicationScope	MatchSelectionApplicationScope
+frontend	quasiquotes.parser.ParserDemo	object	MatchUnsupportedScope	MatchUnsupportedScope
+frontend	quasiquotes.parser.ParserDemo	object	NamedInfixScope	NamedInfixScope
+frontend	quasiquotes.parser.ParserDemo	object	NamedSelectInfixScope	NamedSelectInfixScope
+frontend	quasiquotes.parser.ParserDemo	object	NestedNamedApplicationScope	NestedNamedApplicationScope
+frontend	quasiquotes.parser.ParserDemo	object	NestedParenHoleScope	NestedParenHoleScope
+frontend	quasiquotes.parser.ParserDemo	object	NestedSelectApplicationScope	NestedSelectApplicationScope
+frontend	quasiquotes.parser.ParserDemo	object	NormalizationInfixScope	NormalizationInfixScope
+frontend	quasiquotes.parser.ParserDemo	object	NormalizationParenScope	NormalizationParenScope
+frontend	quasiquotes.parser.ParserDemo	object	ParenthesizedNamedScope	ParenthesizedNamedScope
+frontend	quasiquotes.parser.ParserDemo	object	ParenthesizedSelectedHoleScope	ParenthesizedSelectedHoleScope
+frontend	quasiquotes.parser.ParserDemo	val	AcceptedExamples	AcceptedExamples: List[String]
+frontend	quasiquotes.parser.ParserDemo	val	RejectedExamples	RejectedExamples: List[String]
+frontend	quasiquotes.parser.ParserDemo.MatchAnyScope	val	demo	demo: MatchDemo
+frontend	quasiquotes.parser.ParserDemo.MatchFooApplicationScope	val	demo	demo: MatchDemo
+frontend	quasiquotes.parser.ParserDemo.MatchFunctionHoleScope	val	demo	demo: MatchDemo
+frontend	quasiquotes.parser.ParserDemo.MatchInfixScope	val	demo	demo: MatchDemo
+frontend	quasiquotes.parser.ParserDemo.MatchInfixScope	val	repeatedFailure	repeatedFailure: MatchDemo
+frontend	quasiquotes.parser.ParserDemo.MatchInfixScope	val	repeatedSuccess	repeatedSuccess: MatchDemo
+frontend	quasiquotes.parser.ParserDemo.MatchMacroProofScope	val	infix	infix: String
+frontend	quasiquotes.parser.ParserDemo.MatchMacroProofScope	val	infixRaw	infixRaw: String
+frontend	quasiquotes.parser.ParserDemo.MatchMacroProofScope	val	nested	nested: String
+frontend	quasiquotes.parser.ParserDemo.MatchNestedScope	val	demo	demo: MatchDemo
+frontend	quasiquotes.parser.ParserDemo.MatchParenScope	val	demo	demo: MatchDemo
+frontend	quasiquotes.parser.ParserDemo.MatchSelectionApplicationScope	val	demo	demo: MatchDemo
+frontend	quasiquotes.parser.ParserDemo.MatchUnsupportedScope	val	demo	demo: MatchDemo
+frontend	quasiquotes.parser.ParserDemo.NamedInfixScope	val	demo	demo: DemoCase
+frontend	quasiquotes.parser.ParserDemo.NamedSelectInfixScope	val	demo	demo: DemoCase
+frontend	quasiquotes.parser.ParserDemo.NestedNamedApplicationScope	val	demo	demo: DemoCase
+frontend	quasiquotes.parser.ParserDemo.NestedParenHoleScope	val	demo	demo: DemoCase
+frontend	quasiquotes.parser.ParserDemo.NestedSelectApplicationScope	val	demo	demo: DemoCase
+frontend	quasiquotes.parser.ParserDemo.NormalizationInfixScope	val	demo	demo: NormalizationDemo
+frontend	quasiquotes.parser.ParserDemo.NormalizationParenScope	val	demo	demo: NormalizationDemo
+frontend	quasiquotes.parser.ParserDemo.ParenthesizedNamedScope	val	demo	demo: DemoCase
+frontend	quasiquotes.parser.ParserDemo.ParenthesizedSelectedHoleScope	val	demo	demo: DemoCase
+frontend	quasiquotes.parser.Scala3ParserBridge	def	parseExpression	parseExpression(source: String): Either[ParseError, ParsedExpression]
+frontend	quasiquotes.parser.Scala3ParserBridge	def	parseType	parseType(source: String): Either[ParseError, ParsedType]
+frontend	quasiquotes.parser.TermShapeInspector	def	inspect	inspect(tree: Tree): TermShape
+frontend	quasiquotes.parser.TermShapeInspector	def	rawStructure	rawStructure(tree: Tree): String
+frontend	quasiquotes.parser.TinyTermParser	def	parse	parse(source: String): Either[ParseError, ParsedExpression]
+frontend	quasiquotes.parser.TinyTermParser	def	parseOrThrow	parseOrThrow(source: String): ParsedExpression
+frontend	quasiquotes.parser.TinyTermParser	def	parseRaw	parseRaw(source: String): Either[ParseError, Tree]
+frontend	quasiquotes.parser.TinyTypeParser	def	parse	parse(source: String): Either[ParseError, ParsedType]
+frontend	quasiquotes.parser.TinyTypeParser	def	parseOrThrow	parseOrThrow(source: String): ParsedType
+frontend	quasiquotes.parser.TinyTypeParser	def	parseRaw	parseRaw(source: String): Either[ParseError, Tree]
+frontend	quasiquotes.parser.TypeShapeInspector	def	inspect	inspect(tree: Tree): TypeShape
+frontend	quasiquotes.parser.TypeShapeInspector	def	rawStructure	rawStructure(tree: Tree): String
+frontend	quasiquotes.types	class	QuasiTypePattern	QuasiTypePattern(source: String, expected: Option[QuasiTypeRepr], expectedNormalForm: Option[TypeNormalForm], typePattern: TypePattern)
+frontend	quasiquotes.types	class	QuasiTypeRepr	QuasiTypeRepr(source: String, shape: TypeShape, renderedTypeRepr: String)
+frontend	quasiquotes.types	def	toTypeRepr	toTypeRepr(using Quotes): Either[TypeQuasiquoteError, x$2.reflect.TypeRepr]
+frontend	quasiquotes.types	object	ConstructedTypeBridge	ConstructedTypeBridge
+frontend	quasiquotes.types	object	ConstructedTypeBridgeExamples	ConstructedTypeBridgeExamples
+frontend	quasiquotes.types	object	QuasiTypeConstruct	QuasiTypeConstruct
+frontend	quasiquotes.types	object	QuasiTypeExamples	QuasiTypeExamples
+frontend	quasiquotes.types	object	QuasiTypePattern	QuasiTypePattern
+frontend	quasiquotes.types	object	QuasiTypeRepr	QuasiTypeRepr
+frontend	quasiquotes.types	object	QuasiTypequotes	QuasiTypequotes
+frontend	quasiquotes.types	object	TargetTypeReprInspector	TargetTypeReprInspector
+frontend	quasiquotes.types	object	TypeNormalFormSource	TypeNormalFormSource
+frontend	quasiquotes.types	object	TypePatternSource	TypePatternSource
+frontend	quasiquotes.types	object	TypeReprLowerer	TypeReprLowerer
+frontend	quasiquotes.types	object	TypeTemplateSource	TypeTemplateSource
+frontend	quasiquotes.types.ConstructedTypeBridge	def	withNormalFormType	withNormalFormType[A](normalForm: TypeNormalForm)(body: [t] => Type[t] ?=> A)(using Quotes): Either[TypeQuasiquoteError, A]
+frontend	quasiquotes.types.ConstructedTypeBridge	def	withTemplateType	withTemplateType[A](templateSource: String, bindings: (String, TypeNormalForm)*)(body: [t] => Type[t] ?=> A)(using Quotes): Either[TypeQuasiquoteError, A]
+frontend	quasiquotes.types.ConstructedTypeBridge	def	withType	withType[A](constructed: ConstructedType)(body: [t] => Type[t] ?=> A)(using Quotes): Either[TypeQuasiquoteError, A]
+frontend	quasiquotes.types.ConstructedTypeBridgeExamples	def	bridgeSummary	bridgeSummary(templateSource: String, bindingName: String, bindingSource: String): String
+frontend	quasiquotes.types.ConstructedTypeBridgeExamples	def	bridgeSummary	bridgeSummary(templateSource: String, firstBindingName: String, firstBindingSource: String, secondBindingName: String, secondBindingSource: String): String
+frontend	quasiquotes.types.ConstructedTypeBridgeExamples	def	missingBindingMessage	missingBindingMessage(templateSource: String): String
+frontend	quasiquotes.types.ConstructedTypeBridgeExamples	def	normalFormBridgeSummary	normalFormBridgeSummary(source: String): String
+frontend	quasiquotes.types.ConstructedTypeBridgeExamples	def	templateBridgeSummary	templateBridgeSummary(templateSource: String, bindingName: String, bindingSource: String): String
+frontend	quasiquotes.types.ConstructedTypeBridgeExamples	def	unsupportedNormalFormMessage	unsupportedNormalFormMessage(source: String): String
+frontend	quasiquotes.types.QuasiTypeConstruct	def	fromTemplate	fromTemplate(templateSource: String, bindings: (String, TypeNormalForm)*): Either[TypeQuasiquoteError, ConstructedType]
+frontend	quasiquotes.types.QuasiTypeConstruct	def	fromTemplate	fromTemplate(templateSource: String, bindings: Map[String, TypeNormalForm]): Either[TypeQuasiquoteError, ConstructedType]
+frontend	quasiquotes.types.QuasiTypeConstruct	def	fromTemplateLocated	fromTemplateLocated(templateSource: String, bindings: (String, TypeNormalForm)*): Either[LocatedDiagnostic[TypeQuasiquoteError], ConstructedType]
+frontend	quasiquotes.types.QuasiTypeConstruct	def	fromTemplateLocated	fromTemplateLocated(templateSource: String, bindings: Map[String, TypeNormalForm]): Either[LocatedDiagnostic[TypeQuasiquoteError], ConstructedType]
+frontend	quasiquotes.types.QuasiTypeConstruct	def	toTypeRepr	toTypeRepr(constructed: ConstructedType)(using Quotes): Either[TypeQuasiquoteError, x$2.reflect.TypeRepr]
+frontend	quasiquotes.types.QuasiTypeExamples	def	constructedTypeReprLoweringMessage	constructedTypeReprLoweringMessage(templateSource: String, bindingName: String, bindingSource: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	constructedTypeReprRoundtripSummary	constructedTypeReprRoundtripSummary(templateSource: String, bindingName: String, bindingSource: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	constructedTypeReprRoundtripSummary	constructedTypeReprRoundtripSummary(templateSource: String, firstBindingName: String, firstBindingSource: String, secondBindingName: String, secondBindingSource: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	equalityComparisonSummary	equalityComparisonSummary(patternSource: String, targetSource: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	locatedPatternSummary	locatedPatternSummary(patternSource: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	matchSummary	matchSummary(patternSource: String, targetSource: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	matches	matches(patternSource: String, targetSource: String): Boolean
+frontend	quasiquotes.types.QuasiTypeExamples	def	matchingSubstrateSummary	matchingSubstrateSummary(patternSource: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	normalFormLoweringMessage	normalFormLoweringMessage(source: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	patternAliasEquivalenceSummary	patternAliasEquivalenceSummary(patternSource: String, targetSource: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	rawAppliedLoweringMessage	rawAppliedLoweringMessage(constructorName: String, argumentName: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	rawFunctionArityLoweringMessage	rawFunctionArityLoweringMessage: String
+frontend	quasiquotes.types.QuasiTypeExamples	def	rawIdentifierLoweringMessage	rawIdentifierLoweringMessage(name: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	rawTupleArityLoweringMessage	rawTupleArityLoweringMessage: String
+frontend	quasiquotes.types.QuasiTypeExamples	def	structuralMatches	structuralMatches(patternSource: String, targetSource: String): Boolean
+frontend	quasiquotes.types.QuasiTypeExamples	def	structuralNormalFormSummary	structuralNormalFormSummary(source: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	supportedConstructionSummary	supportedConstructionSummary: List[String]
+frontend	quasiquotes.types.QuasiTypeExamples	def	targetInspectionComparisonSummary	targetInspectionComparisonSummary(patternSource: String, targetSource: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	targetNormalFormSummary	targetNormalFormSummary(source: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	tqqEquivalenceSummary	tqqEquivalenceSummary(patternSource: String, targetSource: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	tqqTypePatternMatchSummary	tqqTypePatternMatchSummary(patternSource: String, targetSource: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	typeConstructionDualitySummary	typeConstructionDualitySummary(patternSource: String, targetSource: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	typeConstructionLoweringDualitySummary	typeConstructionLoweringDualitySummary(patternSource: String, targetSource: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	typePatternBindingSummary	typePatternBindingSummary(patternSource: String, targetSource: String, bindingName: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	typePatternMatchSummary	typePatternMatchSummary(patternSource: String, targetSource: String): String
+frontend	quasiquotes.types.QuasiTypeExamples	def	unsupportedMessage	unsupportedMessage(source: String): String
+frontend	quasiquotes.types.QuasiTypePattern	def	exactRenderedTypeReprMatches	exactRenderedTypeReprMatches(using q: Quotes)(target: q.reflect.TypeRepr): Boolean
+frontend	quasiquotes.types.QuasiTypePattern	def	matchShape	matchShape(targetShape: TypeShape)(using Quotes): Either[TypeQuasiquoteError, Boolean]
+frontend	quasiquotes.types.QuasiTypePattern	def	matchShapeResult	matchShapeResult(targetShape: TypeShape)(using Quotes): Either[TypeQuasiquoteError, Option[TypeMatchResult]]
+frontend	quasiquotes.types.QuasiTypePattern	def	matchSource	matchSource(targetSource: String)(using Quotes): Either[TypeQuasiquoteError, Option[TypeMatchResult]]
+frontend	quasiquotes.types.QuasiTypePattern	def	matchTypeRepr	matchTypeRepr(using q: Quotes)(target: q.reflect.TypeRepr): Boolean
+frontend	quasiquotes.types.QuasiTypePattern	def	matchTypeReprResult	matchTypeReprResult(using q: Quotes)(target: q.reflect.TypeRepr): Option[TypeMatchResult]
+frontend	quasiquotes.types.QuasiTypePattern	def	matchesSource	matchesSource(expectedSource: String, actualSource: String)(using Quotes): Either[TypeQuasiquoteError, Boolean]
+frontend	quasiquotes.types.QuasiTypePattern	def	matchesSourceByRenderedTypeRepr	matchesSourceByRenderedTypeRepr(expectedSource: String, actualSource: String)(using Quotes): Either[TypeQuasiquoteError, Boolean]
+frontend	quasiquotes.types.QuasiTypePattern	def	matchingSubstrateSummary	matchingSubstrateSummary: String
+frontend	quasiquotes.types.QuasiTypePattern	def	pattern	pattern(source: String)(using Quotes): Either[TypeQuasiquoteError, QuasiTypePattern]
+frontend	quasiquotes.types.QuasiTypePattern	def	patternLocated	patternLocated(source: String)(using Quotes): Either[LocatedDiagnostic[TypeQuasiquoteError], QuasiTypePattern]
+frontend	quasiquotes.types.QuasiTypePattern	def	repr	repr(source: String)(using Quotes): Either[TypeQuasiquoteError, QuasiTypePattern]
+frontend	quasiquotes.types.QuasiTypePattern	def	reprOrThrow	reprOrThrow(source: String)(using Quotes): QuasiTypePattern
+frontend	quasiquotes.types.QuasiTypeRepr	def	fromSource	fromSource(source: String)(using Quotes): Either[TypeQuasiquoteError, QuasiTypeRepr]
+frontend	quasiquotes.types.QuasiTypequotes	def	tqq	tqq(source: String)(using Quotes): Either[TypeQuasiquoteError, QuasiTypePattern]
+frontend	quasiquotes.types.QuasiTypequotes	def	tqr	tqr(templateSource: String, bindings: (String, TypeNormalForm)*): Either[TypeQuasiquoteError, ConstructedType]
+frontend	quasiquotes.types.TargetTypeReprInspector	def	inspect	inspect(using q: Quotes)(target: q.reflect.TypeRepr): Either[TypeQuasiquoteError, TypeNormalForm]
+frontend	quasiquotes.types.TypeNormalFormSource	def	equalSources	equalSources(leftSource: String, rightSource: String): Either[TypeQuasiquoteError, Boolean]
+frontend	quasiquotes.types.TypeNormalFormSource	def	fromSource	fromSource(source: String): Either[TypeQuasiquoteError, TypeNormalForm]
+frontend	quasiquotes.types.TypePatternSource	def	fromSource	fromSource(source: String): Either[TypeQuasiquoteError, TypePattern]
+frontend	quasiquotes.types.TypePatternSource	def	fromSourceLocated	fromSourceLocated(source: String): Either[LocatedDiagnostic[TypeQuasiquoteError], TypePattern]
+frontend	quasiquotes.types.TypeReprLowerer	def	lower	lower(shape: TypeShape)(using Quotes): Either[TypeQuasiquoteError, x$2.reflect.TypeRepr]
+frontend	quasiquotes.types.TypeReprLowerer	def	lowerNormalForm	lowerNormalForm(normalForm: TypeNormalForm)(using Quotes): Either[TypeQuasiquoteError, x$2.reflect.TypeRepr]
+frontend	quasiquotes.types.TypeTemplateSource	def	fromSource	fromSource(source: String): Either[TypeQuasiquoteError, TypeTemplate]
+frontend	quasiquotes.types.TypeTemplateSource	def	fromSourceLocated	fromSourceLocated(source: String): Either[LocatedDiagnostic[TypeQuasiquoteError], TypeTemplate]
