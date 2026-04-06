@@ -4,5 +4,8 @@ ThisBuild / scalaVersion := "3.8.3"
 lazy val root = (project in file("."))
   .settings(
     name := "quasiquotes-scala3",
-    libraryDependencies += "org.scalameta" %% "munit" % "1.2.4" % Test
+    libraryDependencies ++= Seq(
+      "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
+      "org.scalameta" %% "munit" % "1.2.4" % Test
+    )
   )
