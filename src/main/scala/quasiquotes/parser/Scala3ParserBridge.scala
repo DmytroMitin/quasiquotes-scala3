@@ -3,6 +3,7 @@ package quasiquotes.parser
 import dotty.tools.dotc.ast.untpd
 import dotty.tools.dotc.core.Contexts.{Context, ContextBase}
 import dotty.tools.dotc.parsing.Parsers.Parser
+import dotty.tools.dotc.parsing.Tokens
 import dotty.tools.dotc.reporting.StoreReporter
 import dotty.tools.dotc.util.SourceFile
 
@@ -22,7 +23,16 @@ object Scala3ParserBridge:
     val rawTree = parser.expr()
     val messages = reporter.pendingMessages.map(_.message).toList
 
-    if messages.nonEmpty then Left(ParseError(source, messages))
+    if messages.nonEmpty then Left(ParseError.syntax(source, messages))
+    else if parser.in.token != Tokens.EOF then
+      Left(
+        ParseError.trailing(
+          source = source,
+          offset = parser.in.offset,
+          trailingSnippet = source.drop(parser.in.offset).trim,
+          tokenDescription = Tokens.tokenString(parser.in.token)
+        )
+      )
     else
       Right(
         ParsedExpression(

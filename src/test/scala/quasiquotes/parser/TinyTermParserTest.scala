@@ -1,7 +1,7 @@
 package quasiquotes.parser
 
 class TinyTermParserTest extends munit.FunSuite:
-  private val expectedShapes = List(
+  private val acceptedShapes = List(
     "foo" -> "Ident(foo)",
     "1" -> "Literal(1)",
     "\"abc\"" -> "Literal(\"abc\")",
@@ -14,7 +14,16 @@ class TinyTermParserTest extends munit.FunSuite:
     "__hole0(__hole1)" -> "Apply(Placeholder(__hole0), [Placeholder(__hole1)])"
   )
 
-  expectedShapes.foreach { (input, expected) =>
+  private val rejectedCases = List(
+    "foo bar" -> ParseErrorKind.SyntaxError,
+    "foo(x) y" -> ParseErrorKind.SyntaxError,
+    "foo; bar" -> ParseErrorKind.TrailingInput,
+    "foo)" -> ParseErrorKind.TrailingInput,
+    "foo(__hole0) junk" -> ParseErrorKind.SyntaxError,
+    "__hole0 __hole1" -> ParseErrorKind.SyntaxError
+  )
+
+  acceptedShapes.foreach { (input, expected) =>
     test(s"parse shape for $input") {
       val parsed = TinyTermParser.parseOrThrow(input)
       assertEquals(parsed.shape.render, expected)
@@ -33,4 +42,24 @@ class TinyTermParserTest extends munit.FunSuite:
     assert(Placeholder.isPlaceholder("__hole12"))
     assert(!Placeholder.isPlaceholder("foo"))
     assert(!Placeholder.isPlaceholder("__hole"))
+  }
+
+  rejectedCases.foreach { (input, expectedKind) =>
+    test(s"reject malformed or trailing input for $input") {
+      TinyTermParser.parse(input) match
+        case Left(error) =>
+          assertEquals(error.kind, expectedKind)
+          assert(clue(error.summary).nonEmpty)
+        case Right(parsed) =>
+          fail(s"expected rejection, got ${parsed.shape.render}")
+    }
+  }
+
+  test("reject empty input as syntax error") {
+    TinyTermParser.parse("") match
+      case Left(error) =>
+        assertEquals(error.kind, ParseErrorKind.SyntaxError)
+        assert(clue(error.summary).nonEmpty)
+      case Right(parsed) =>
+        fail(s"expected syntax failure, got ${parsed.shape.render}")
   }
