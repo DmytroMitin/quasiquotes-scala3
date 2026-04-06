@@ -18,6 +18,8 @@ object TermShapeInspector:
         TermShape.Select(inspect(qualifier), name.toString)
       case untpd.Apply(function, arguments) =>
         TermShape.Apply(inspect(function), arguments.map(inspect))
+      case untpd.InfixOp(left, op, right) =>
+        TermShape.Infix(inspect(left), op.name.toString, inspect(right))
       case untpd.TypedSplice(tree) =>
         inspect(tree)
       case untpd.Parens(tree) =>
@@ -37,6 +39,8 @@ object TermShapeInspector:
         s"Select(${rawStructure(qualifier)}, ${name.toString})"
       case untpd.Apply(function, arguments) =>
         s"Apply(${rawStructure(function)}, [${arguments.map(rawStructure).mkString(", ")}])"
+      case untpd.InfixOp(left, op, right) =>
+        s"InfixOp(${rawStructure(left)},${rawStructure(op)},${rawStructure(right)})"
       case untpd.TypedSplice(tree) =>
         s"TypedSplice(${rawStructure(tree)})"
       case untpd.Parens(tree) =>

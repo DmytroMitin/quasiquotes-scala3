@@ -33,6 +33,12 @@ object ParsedTermLowerer:
             loweredArguments <- sequence(arguments.map(lowerTerm))
             applied <- applyFunction(loweredFunction, loweredArguments)
           yield applied
+        case untpd.InfixOp(left, op, right) =>
+          for
+            loweredLeft <- lowerTerm(left)
+            loweredRight <- lowerTerm(right)
+            applied <- applyInfix(loweredLeft, op.name.toString, loweredRight)
+          yield applied
         case untpd.Parens(inner) =>
           lowerTerm(inner)
         case untpd.TypedSplice(tree) =>
@@ -87,6 +93,24 @@ object ParsedTermLowerer:
         catch
           case NonFatal(error) =>
             Left(QuasiquoteError.UnsupportedApplication(error.getMessage.nn))
+
+  private def applyInfix(
+      using q: Quotes
+  )(
+      qualifier: q.reflect.Term,
+      name: String,
+      argument: q.reflect.Term
+  ): Either[QuasiquoteError, q.reflect.Term] =
+    import q.reflect.*
+
+    try Right(Select.overloaded(qualifier, name, Nil, argument :: Nil))
+    catch
+      case NonFatal(error) =>
+        Left(
+          QuasiquoteError.UnsupportedApplication(
+            s"Could not lower infix operator $name on ${qualifier.tpe.show}: ${error.getMessage.nn}"
+          )
+        )
 
   private def normalizeTerm(using q: Quotes)(term: q.reflect.Term): q.reflect.Term =
     import q.reflect.*

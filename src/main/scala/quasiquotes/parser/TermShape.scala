@@ -8,6 +8,7 @@ object TermShape:
   final case class Literal(value: String) extends TermShape
   final case class Select(qualifier: TermShape, name: String) extends TermShape
   final case class Apply(function: TermShape, arguments: List[TermShape]) extends TermShape
+  final case class Infix(left: TermShape, operator: String, right: TermShape) extends TermShape
   final case class Parenthesized(expression: TermShape) extends TermShape
   final case class Unsupported(nodeKind: String, detail: String) extends TermShape
 
@@ -19,5 +20,7 @@ object TermShape:
       case Select(qualifier, name) => s"Select(${render(qualifier)}, $name)"
       case Apply(function, arguments) =>
         s"Apply(${render(function)}, [${arguments.map(render).mkString(", ")}])"
+      case Infix(left, operator, right) =>
+        s"Infix(${render(left)}, $operator, ${render(right)})"
       case Parenthesized(expression) => s"Parens(${render(expression)})"
       case Unsupported(nodeKind, detail) => s"Unsupported($nodeKind, $detail)"
