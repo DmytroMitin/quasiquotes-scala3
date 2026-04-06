@@ -1,5 +1,7 @@
 package quasiquotes.parser
 
+import quasiquotes.construct.QuasiquoteMacroExamples
+
 object ParserDemo:
   val AcceptedExamples: List[String] = List(
     "foo",
@@ -50,3 +52,12 @@ object ParserDemo:
     println(ParserDemo.reportFor(example))
     println()
   }
+
+  println("Macro usability examples")
+  println()
+  println(s"emitIntLiteral => ${QuasiquoteMacroExamples.emitIntLiteral}")
+  println(s"""emitStringLiteral => "${QuasiquoteMacroExamples.emitStringLiteral}"""")
+  println(s"callSelectedMethodViaHole(2) => ${QuasiquoteMacroExamples.callSelectedMethodViaHole(2)}")
+  println(s"callFunctionHole(2) => ${QuasiquoteMacroExamples.callFunctionHole(2)}")
+  println(s"""stringLength("abcd") => ${QuasiquoteMacroExamples.stringLength("abcd")}""")
+  println(s"unsupportedSyntaxMessage => ${QuasiquoteMacroExamples.unsupportedSyntaxMessage}")
