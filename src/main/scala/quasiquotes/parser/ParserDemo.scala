@@ -2,6 +2,8 @@ package quasiquotes.parser
 
 import quasiquotes.construct.QuasiquoteMacroExamples
 import quasiquotes.construct.QuasiquoteMacroExamples.DemoCase
+import quasiquotes.matching.QuasiquoteMatchExamples
+import quasiquotes.matching.QuasiquoteMatchExamples.MatchDemo
 
 object ParserDemo:
   val AcceptedExamples: List[String] = List(
@@ -55,39 +57,93 @@ object ParserDemo:
        |Tree: ${demo.treeStructure}
        |Evaluated: ${demo.substitutedResult}""".stripMargin
 
-private object NamedInfixScope:
-  private val foo = 2
-  private val bar = 5
-  val demo: DemoCase = QuasiquoteMacroExamples.namedInfixSummary
+  def matchReportFor(demo: MatchDemo): String =
+    s"""Pattern: ${demo.pattern}
+       |Target: ${demo.target}
+       |Result: ${if demo.success then "success" else "failure"}
+       |Bindings: ${if demo.bindings.nonEmpty then demo.bindings.mkString(", ") else "(none)"}
+       |Detail: ${demo.detail}""".stripMargin
 
-private object NamedSelectInfixScope:
-  private object foo:
-    val bar = 4
-  val demo: DemoCase = QuasiquoteMacroExamples.namedSelectInfixSummary(3)
+  object NamedInfixScope:
+    private val foo = 2
+    private val bar = 5
+    val demo: DemoCase = QuasiquoteMacroExamples.namedInfixSummary
 
-private object NestedNamedApplicationScope:
-  private def foo(value: Int): Int = value + 10
-  private def bar(value: Int): Int = value * 2
-  private val baz = 3
-  val demo: DemoCase = QuasiquoteMacroExamples.nestedNamedApplicationSummary
+  object NamedSelectInfixScope:
+    private object foo:
+      val bar = 4
+    val demo: DemoCase = QuasiquoteMacroExamples.namedSelectInfixSummary(3)
 
-private object NestedSelectApplicationScope:
-  private object foo:
-    def bar(value: Int): Int = value + 4
-  private def baz(value: Int): Int = value * 3
-  val demo: DemoCase = QuasiquoteMacroExamples.nestedSelectApplicationSummary(2)
+  object NestedNamedApplicationScope:
+    private def foo(value: Int): Int = value + 10
+    private def bar(value: Int): Int = value * 2
+    private val baz = 3
+    val demo: DemoCase = QuasiquoteMacroExamples.nestedNamedApplicationSummary
 
-private object ParenthesizedNamedScope:
-  private val foo = 11
-  val demo: DemoCase = QuasiquoteMacroExamples.parenthesizedNamedSummary
+  object NestedSelectApplicationScope:
+    private object foo:
+      def bar(value: Int): Int = value + 4
+    private def baz(value: Int): Int = value * 3
+    val demo: DemoCase = QuasiquoteMacroExamples.nestedSelectApplicationSummary(2)
 
-private object ParenthesizedSelectedHoleScope:
-  private object foo:
-    def bar(value: Int): Int = value + 6
-  val demo: DemoCase = QuasiquoteMacroExamples.parenthesizedSelectedHoleSummary(3)
+  object ParenthesizedNamedScope:
+    private val foo = 11
+    val demo: DemoCase = QuasiquoteMacroExamples.parenthesizedNamedSummary
 
-private object NestedParenHoleScope:
-  val demo: DemoCase = QuasiquoteMacroExamples.nestedParenHoleSummary(7)
+  object ParenthesizedSelectedHoleScope:
+    private object foo:
+      def bar(value: Int): Int = value + 6
+    val demo: DemoCase = QuasiquoteMacroExamples.parenthesizedSelectedHoleSummary(3)
+
+  object NestedParenHoleScope:
+    val demo: DemoCase = QuasiquoteMacroExamples.nestedParenHoleSummary(7)
+
+  object MatchAnyScope:
+    private def foo(value: Int): Int = value + 1
+    val demo: MatchDemo = QuasiquoteMatchExamples.summarizeMatch("$x", foo(1))
+
+  object MatchFooApplicationScope:
+    private def foo(value: Int): Int = value + 10
+    val demo: MatchDemo = QuasiquoteMatchExamples.summarizeMatch("foo($x)", foo(1))
+
+  object MatchFunctionHoleScope:
+    private def bar(value: Int): Int = value + 1
+    private val baz = 2
+    val demo: MatchDemo = QuasiquoteMatchExamples.summarizeMatch("$f($x)", bar(baz))
+
+  object MatchSelectionApplicationScope:
+    private object foo:
+      def bar(value: Int): Int = value + 5
+    val demo: MatchDemo = QuasiquoteMatchExamples.summarizeMatch("foo.bar($x)", foo.bar(3))
+
+  object MatchInfixScope:
+    private val a = 2
+    private val b = 3
+    val demo: MatchDemo = QuasiquoteMatchExamples.summarizeMatch("$x + $y", a + b)
+    val repeatedSuccess: MatchDemo = QuasiquoteMatchExamples.summarizeMatch("$x + $x", a + a)
+    val repeatedFailure: MatchDemo = QuasiquoteMatchExamples.summarizeMatch("$x + $x", a + b)
+
+  object MatchNestedScope:
+    private def f(value: Int): Int = value + 1
+    private def g(value: Int): Int = value * 2
+    private val h = 3
+    val demo: MatchDemo = QuasiquoteMatchExamples.summarizeMatch("f(g($x))", f(g(h)))
+
+  object MatchParenScope:
+    private val z = 7
+    val demo: MatchDemo = QuasiquoteMatchExamples.summarizeMatch("(($x))", ((z)))
+
+  object MatchUnsupportedScope:
+    val demo: MatchDemo = QuasiquoteMatchExamples.summarizeMatch("if $x then $y else $z", 1)
+
+  object MatchMacroProofScope:
+    private val a = 2
+    private val b = 3
+    private def f(value: Int): Int = value + 1
+    private def g(value: Int): Int = value * 2
+    private val h = 3
+    val infix: String = QuasiquoteMatchExamples.classifyInfix(a + b)
+    val nested: String = QuasiquoteMatchExamples.classifyNested(f(g(h)))
 
 @main def runParserDemo(): Unit =
   println("Accepted examples")
@@ -114,21 +170,42 @@ private object NestedParenHoleScope:
   println()
   println(ParserDemo.quasiquoteReportFor(QuasiquoteMacroExamples.holeInfixSummary(2, 3)))
   println()
-  println(ParserDemo.quasiquoteReportFor(NamedInfixScope.demo))
+  println(ParserDemo.quasiquoteReportFor(ParserDemo.NamedInfixScope.demo))
   println()
-  println(ParserDemo.quasiquoteReportFor(NamedSelectInfixScope.demo))
+  println(ParserDemo.quasiquoteReportFor(ParserDemo.NamedSelectInfixScope.demo))
   println()
   println(ParserDemo.quasiquoteReportFor(QuasiquoteMacroExamples.nestedFunctionHoleSummary(2)))
   println()
-  println(ParserDemo.quasiquoteReportFor(NestedNamedApplicationScope.demo))
+  println(ParserDemo.quasiquoteReportFor(ParserDemo.NestedNamedApplicationScope.demo))
   println()
-  println(ParserDemo.quasiquoteReportFor(NestedSelectApplicationScope.demo))
+  println(ParserDemo.quasiquoteReportFor(ParserDemo.NestedSelectApplicationScope.demo))
   println()
-  println(ParserDemo.quasiquoteReportFor(ParenthesizedNamedScope.demo))
+  println(ParserDemo.quasiquoteReportFor(ParserDemo.ParenthesizedNamedScope.demo))
   println()
-  println(ParserDemo.quasiquoteReportFor(ParenthesizedSelectedHoleScope.demo))
+  println(ParserDemo.quasiquoteReportFor(ParserDemo.ParenthesizedSelectedHoleScope.demo))
   println()
-  println(ParserDemo.quasiquoteReportFor(NestedParenHoleScope.demo))
+  println(ParserDemo.quasiquoteReportFor(ParserDemo.NestedParenHoleScope.demo))
   println()
   println(ParserDemo.quasiquoteReportFor(QuasiquoteMacroExamples.parenthesizedInfixSummary(4, 5)))
   println(s"unsupportedSyntaxMessage => ${QuasiquoteMacroExamples.unsupportedSyntaxMessage}")
+  println()
+  println("Matching examples")
+  println()
+  val matchExamples = List(
+    ParserDemo.MatchAnyScope.demo,
+    ParserDemo.MatchFooApplicationScope.demo,
+    ParserDemo.MatchFunctionHoleScope.demo,
+    ParserDemo.MatchSelectionApplicationScope.demo,
+    ParserDemo.MatchInfixScope.demo,
+    ParserDemo.MatchNestedScope.demo,
+    ParserDemo.MatchParenScope.demo,
+    ParserDemo.MatchInfixScope.repeatedSuccess,
+    ParserDemo.MatchInfixScope.repeatedFailure,
+    ParserDemo.MatchUnsupportedScope.demo
+  )
+  matchExamples.foreach { example =>
+    println(ParserDemo.matchReportFor(example))
+    println()
+  }
+  println(s"Macro matching proof (infix) => ${ParserDemo.MatchMacroProofScope.infix}")
+  println(s"Macro matching proof (nested) => ${ParserDemo.MatchMacroProofScope.nested}")
