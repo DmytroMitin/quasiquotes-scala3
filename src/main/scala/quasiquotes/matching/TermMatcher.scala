@@ -36,15 +36,17 @@ object TermMatcher:
             case None => Right(bindings.updated(name, target.original))
             case Some(previous) =>
               val current = target.original
-              if structurallyEqual(previous, current) then Right(bindings)
-              else
-                Left(
-                  MatchFailure.RepeatedHoleMismatch(
-                    name = name,
-                    previous = previous.show(using Printer.TreeStructure),
-                    current = current.show(using Printer.TreeStructure)
+              normalizedEquality(previous, current).flatMap { equal =>
+                if equal then Right(bindings)
+                else
+                  Left(
+                    MatchFailure.RepeatedHoleMismatch(
+                      name = name,
+                      previous = MatchNormalizer.normalizedTreeStructure(previous),
+                      current = MatchNormalizer.normalizedTreeStructure(current)
+                    )
                   )
-                )
+              }
         case TermPattern.Identifier(name) =>
           target match
             case TargetTermView.Identifier(targetName, _) if targetName == name => Right(bindings)
@@ -87,9 +89,14 @@ object TermMatcher:
       bindings <- loop(preparedPattern, preparedTarget, Map.empty)
     yield MatchResult[q.reflect.Term](bindings)
 
-  private def structurallyEqual(using q: Quotes)(left: q.reflect.Term, right: q.reflect.Term): Boolean =
-    import q.reflect.*
-    left.show(using Printer.TreeStructure) == right.show(using Printer.TreeStructure)
+  private def normalizedEquality(using q: Quotes)(
+      left: q.reflect.Term,
+      right: q.reflect.Term
+  ): Either[MatchFailure, Boolean] =
+    for
+      normalizedLeft <- MatchNormalizer.normalizedView(left)
+      normalizedRight <- MatchNormalizer.normalizedView(right)
+    yield normalizedLeft.render == normalizedRight.render
 
   private def shapeMismatch(pattern: TermPattern, target: TargetTermView[?]): MatchFailure =
     MatchFailure.ShapeMismatch(pattern.render, target.render)

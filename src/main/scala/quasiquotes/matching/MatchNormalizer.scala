@@ -1,5 +1,7 @@
 package quasiquotes.matching
 
+import scala.quoted.Quotes
+
 object MatchNormalizer:
   private val SymbolicOperators = Set("+", "-", "*", "/", "%")
 
@@ -27,3 +29,14 @@ object MatchNormalizer:
         TargetTermView.Apply(normalizeTarget(function), arguments.map(normalizeTarget), original)
       case other =>
         other
+
+  def normalizedView(using q: Quotes)(
+      term: q.reflect.Term
+  ): Either[MatchFailure, TargetTermView[q.reflect.Term]] =
+    TargetTermView.fromTerm(term).map(normalizeTarget)
+
+  def normalizedTreeStructure(using q: Quotes)(term: q.reflect.Term): String =
+    import q.reflect.*
+    normalizedView(term) match
+      case Right(view) => view.render
+      case Left(_) => term.show(using Printer.TreeStructure)

@@ -33,6 +33,9 @@ object QuasiquoteMatchExamples:
   inline def classifyNested(expr: Int): String =
     ${ classifyNestedImpl('expr) }
 
+  inline def classifyRepeatedOperand(expr: Int): String =
+    ${ classifyRepeatedOperandImpl('expr) }
+
   final case class NormalizationDemo(
       pattern: String,
       target: String,
@@ -112,3 +115,12 @@ object QuasiquoteMatchExamples:
         Expr(s"nested-match(x=$x)")
       case Left(failure) =>
         Expr(s"no-nested-match(${failure.message})")
+
+  private def classifyRepeatedOperandImpl(expr: Expr[Int])(using Quotes): Expr[String] =
+    import quotes.reflect.*
+    QuasiPattern.termOrThrow("$x + $x").matchTerm(expr.asTerm) match
+      case Right(result) =>
+        val x = result.bindings("x").show(using Printer.TreeStructure)
+        Expr(s"duplicated-operand(x=$x)")
+      case Left(failure) =>
+        Expr(s"not-duplicated(${failure.message})")

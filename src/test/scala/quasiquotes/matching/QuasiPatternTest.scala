@@ -32,6 +32,9 @@ private object MatchNestedScope:
   private def g(value: Int): Int = value * 2
   private val h = 3
   val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("f(g($x))", f(g(h)))
+  val repeated: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("pair($x, $x)", pair(h, h))
+
+  private def pair(left: Int, right: Int): Int = left + right
 
 private object MatchParenScope:
   private val z = 7
@@ -50,6 +53,8 @@ private object MatchMacroProofScope:
   val infixRaw: String = QuasiquoteMatchExamples.classifyInfixRaw(a + b)
   val infix: String = QuasiquoteMatchExamples.classifyInfix(a + b)
   val nested: String = QuasiquoteMatchExamples.classifyNested(f(g(h)))
+  val duplicatedSuccess: String = QuasiquoteMatchExamples.classifyRepeatedOperand(a + a)
+  val duplicatedFailure: String = QuasiquoteMatchExamples.classifyRepeatedOperand(a + b)
 
 class QuasiPatternTest extends munit.FunSuite:
   test("qq term pattern parses a hole pattern") {
@@ -109,10 +114,16 @@ class QuasiPatternTest extends munit.FunSuite:
     assert(demo.after.bindings.exists(_.startsWith("$x = ")))
   }
 
-  test("repeated hole names require structural equality") {
+  test("repeated hole names require normalized equality") {
     assert(MatchInfixScope.repeatedSuccess.success)
     assert(!MatchInfixScope.repeatedFailure.success)
     assert(MatchInfixScope.repeatedFailure.detail.contains("Repeated hole"))
+  }
+
+  test("nested repeated holes match equal arguments") {
+    val demo = MatchNestedScope.repeated
+    assert(demo.success)
+    assertEquals(demo.bindings.count(_.startsWith("$x = ")), 1)
   }
 
   test("shape mismatch fails clearly") {
@@ -140,4 +151,9 @@ class QuasiPatternTest extends munit.FunSuite:
   test("macro demo shows normalization improvement explicitly") {
     assert(MatchMacroProofScope.infixRaw.startsWith("raw-no-infix-match("))
     assert(MatchMacroProofScope.infix.startsWith("infix-match("))
+  }
+
+  test("macro repeated-hole demo detects duplicated operands") {
+    assert(MatchMacroProofScope.duplicatedSuccess.startsWith("duplicated-operand("))
+    assert(MatchMacroProofScope.duplicatedFailure.startsWith("not-duplicated("))
   }
