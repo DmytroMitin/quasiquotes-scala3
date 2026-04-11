@@ -10,6 +10,9 @@ final case class QuasiPattern(
     shape: String,
     pattern: TermPattern
 ):
+  def matchTermRaw(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, MatchResult[q.reflect.Term]] =
+    TermMatcher.matchTermRaw(pattern, term)
+
   def matchTerm(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, MatchResult[q.reflect.Term]] =
     TermMatcher.matchTerm(pattern, term)
 

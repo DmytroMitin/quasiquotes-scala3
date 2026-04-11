@@ -2,42 +2,44 @@ package quasiquotes.matching
 
 private object MatchAnyScope:
   private def foo(value: Int): Int = value + 1
-  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatch("$x", foo(1))
+  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x", foo(1))
 
 private object MatchFooApplicationScope:
   private def foo(value: Int): Int = value + 10
-  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatch("foo($x)", foo(1))
+  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("foo($x)", foo(1))
 
 private object MatchFunctionHoleScope:
   private def bar(value: Int): Int = value + 1
   private val baz = 2
-  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatch("$f($x)", bar(baz))
+  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$f($x)", bar(baz))
 
 private object MatchSelectionApplicationScope:
   private object foo:
     def bar(value: Int): Int = value + 5
-  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatch("foo.bar($x)", foo.bar(3))
+  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("foo.bar($x)", foo.bar(3))
 
 private object MatchInfixScope:
   private val a = 2
   private val b = 3
-  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatch("$x + $y", a + b)
-  val repeatedSuccess: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatch("$x + $x", a + a)
-  val repeatedFailure: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatch("$x + $x", a + b)
-  val negative: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatch("$x + $y", a)
+  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $y", a + b)
+  val repeatedSuccess: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $x", a + a)
+  val repeatedFailure: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $x", a + b)
+  val negative: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $y", a)
+  val normalization: QuasiquoteMatchExamples.NormalizationDemo = QuasiquoteMatchExamples.summarizeNormalization("$x + $y", a + b)
 
 private object MatchNestedScope:
   private def f(value: Int): Int = value + 1
   private def g(value: Int): Int = value * 2
   private val h = 3
-  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatch("f(g($x))", f(g(h)))
+  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("f(g($x))", f(g(h)))
 
 private object MatchParenScope:
   private val z = 7
-  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatch("(($x))", ((z)))
+  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("(($x))", ((z)))
+  val normalization: QuasiquoteMatchExamples.NormalizationDemo = QuasiquoteMatchExamples.summarizeNormalization("(($x))", ((z)))
 
 private object MatchUnsupportedScope:
-  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatch("if $x then $y else $z", 1)
+  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("if $x then $y else $z", 1)
 
 private object MatchMacroProofScope:
   private val a = 2
@@ -45,6 +47,7 @@ private object MatchMacroProofScope:
   private def f(value: Int): Int = value + 1
   private def g(value: Int): Int = value * 2
   private val h = 3
+  val infixRaw: String = QuasiquoteMatchExamples.classifyInfixRaw(a + b)
   val infix: String = QuasiquoteMatchExamples.classifyInfix(a + b)
   val nested: String = QuasiquoteMatchExamples.classifyNested(f(g(h)))
 
@@ -99,6 +102,13 @@ class QuasiPatternTest extends munit.FunSuite:
     assert(demo.bindings.exists(_.startsWith("$x = ")))
   }
 
+  test("parentheses normalization fixes raw matching failure") {
+    val demo = MatchParenScope.normalization
+    assert(!demo.before.success)
+    assert(demo.after.success)
+    assert(demo.after.bindings.exists(_.startsWith("$x = ")))
+  }
+
   test("repeated hole names require structural equality") {
     assert(MatchInfixScope.repeatedSuccess.success)
     assert(!MatchInfixScope.repeatedFailure.success)
@@ -110,6 +120,13 @@ class QuasiPatternTest extends munit.FunSuite:
     assert(MatchInfixScope.negative.detail.contains("Pattern shape mismatch"))
   }
 
+  test("infix normalization fixes a real raw mismatch") {
+    val demo = MatchInfixScope.normalization
+    assert(!demo.before.success)
+    assert(demo.after.success)
+    assertEquals(demo.after.bindings.size, 2)
+  }
+
   test("unsupported pattern syntax fails clearly") {
     assert(!MatchUnsupportedScope.demo.success)
     assert(MatchUnsupportedScope.demo.detail.contains("Unsupported pattern tree shape"))
@@ -118,4 +135,9 @@ class QuasiPatternTest extends munit.FunSuite:
   test("matching API works inside real macros") {
     assert(MatchMacroProofScope.infix.startsWith("infix-match("))
     assert(MatchMacroProofScope.nested.startsWith("nested-match("))
+  }
+
+  test("macro demo shows normalization improvement explicitly") {
+    assert(MatchMacroProofScope.infixRaw.startsWith("raw-no-infix-match("))
+    assert(MatchMacroProofScope.infix.startsWith("infix-match("))
   }

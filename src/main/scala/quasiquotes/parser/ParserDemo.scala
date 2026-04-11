@@ -4,6 +4,7 @@ import quasiquotes.construct.QuasiquoteMacroExamples
 import quasiquotes.construct.QuasiquoteMacroExamples.DemoCase
 import quasiquotes.matching.QuasiquoteMatchExamples
 import quasiquotes.matching.QuasiquoteMatchExamples.MatchDemo
+import quasiquotes.matching.QuasiquoteMatchExamples.NormalizationDemo
 
 object ParserDemo:
   val AcceptedExamples: List[String] = List(
@@ -58,11 +59,25 @@ object ParserDemo:
        |Evaluated: ${demo.substitutedResult}""".stripMargin
 
   def matchReportFor(demo: MatchDemo): String =
-    s"""Pattern: ${demo.pattern}
+    s"""Mode: ${demo.mode}
+       |Pattern: ${demo.pattern}
        |Target: ${demo.target}
        |Result: ${if demo.success then "success" else "failure"}
        |Bindings: ${if demo.bindings.nonEmpty then demo.bindings.mkString(", ") else "(none)"}
        |Detail: ${demo.detail}""".stripMargin
+
+  def normalizationReportFor(demo: NormalizationDemo): String =
+    s"""Pattern: ${demo.pattern}
+       |Target: ${demo.target}
+       |
+       |Before normalization:
+       |${indent(matchReportFor(demo.before))}
+       |
+       |After normalization:
+       |${indent(matchReportFor(demo.after))}""".stripMargin
+
+  private def indent(text: String): String =
+    text.linesIterator.map("  " + _).mkString("\n")
 
   object NamedInfixScope:
     private val foo = 2
@@ -119,9 +134,9 @@ object ParserDemo:
   object MatchInfixScope:
     private val a = 2
     private val b = 3
-    val demo: MatchDemo = QuasiquoteMatchExamples.summarizeMatch("$x + $y", a + b)
-    val repeatedSuccess: MatchDemo = QuasiquoteMatchExamples.summarizeMatch("$x + $x", a + a)
-    val repeatedFailure: MatchDemo = QuasiquoteMatchExamples.summarizeMatch("$x + $x", a + b)
+    val demo: MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $y", a + b)
+    val repeatedSuccess: MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $x", a + a)
+    val repeatedFailure: MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $x", a + b)
 
   object MatchNestedScope:
     private def f(value: Int): Int = value + 1
@@ -131,10 +146,19 @@ object ParserDemo:
 
   object MatchParenScope:
     private val z = 7
-    val demo: MatchDemo = QuasiquoteMatchExamples.summarizeMatch("(($x))", ((z)))
+    val demo: MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("(($x))", ((z)))
 
   object MatchUnsupportedScope:
-    val demo: MatchDemo = QuasiquoteMatchExamples.summarizeMatch("if $x then $y else $z", 1)
+    val demo: MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("if $x then $y else $z", 1)
+
+  object NormalizationParenScope:
+    private val z = 7
+    val demo: NormalizationDemo = QuasiquoteMatchExamples.summarizeNormalization("(($x))", ((z)))
+
+  object NormalizationInfixScope:
+    private val a = 2
+    private val b = 3
+    val demo: NormalizationDemo = QuasiquoteMatchExamples.summarizeNormalization("$x + $y", a + b)
 
   object MatchMacroProofScope:
     private val a = 2
@@ -142,6 +166,7 @@ object ParserDemo:
     private def f(value: Int): Int = value + 1
     private def g(value: Int): Int = value * 2
     private val h = 3
+    val infixRaw: String = QuasiquoteMatchExamples.classifyInfixRaw(a + b)
     val infix: String = QuasiquoteMatchExamples.classifyInfix(a + b)
     val nested: String = QuasiquoteMatchExamples.classifyNested(f(g(h)))
 
@@ -207,5 +232,16 @@ object ParserDemo:
     println(ParserDemo.matchReportFor(example))
     println()
   }
+  println("Normalization before/after")
+  println()
+  val normalizationExamples = List(
+    ParserDemo.NormalizationParenScope.demo,
+    ParserDemo.NormalizationInfixScope.demo
+  )
+  normalizationExamples.foreach { example =>
+    println(ParserDemo.normalizationReportFor(example))
+    println()
+  }
+  println(s"Macro matching proof (infix, raw) => ${ParserDemo.MatchMacroProofScope.infixRaw}")
   println(s"Macro matching proof (infix) => ${ParserDemo.MatchMacroProofScope.infix}")
   println(s"Macro matching proof (nested) => ${ParserDemo.MatchMacroProofScope.nested}")

@@ -3,48 +3,64 @@ package quasiquotes.matching
 import scala.quoted.Quotes
 
 object TermMatcher:
+  def matchTermRaw(using q: Quotes)(
+      pattern: TermPattern,
+      target: q.reflect.Term
+  ): Either[MatchFailure, MatchResult[q.reflect.Term]] =
+    matchViews(pattern, target, normalized = false)
+
   def matchTerm(using q: Quotes)(
       pattern: TermPattern,
       target: q.reflect.Term
   ): Either[MatchFailure, MatchResult[q.reflect.Term]] =
+    matchViews(pattern, target, normalized = true)
+
+  private def matchViews(using q: Quotes)(
+      pattern: TermPattern,
+      target: q.reflect.Term,
+      normalized: Boolean
+  ): Either[MatchFailure, MatchResult[q.reflect.Term]] =
     import q.reflect.*
+    val preparedPattern =
+      if normalized then MatchNormalizer.normalizePattern(pattern)
+      else pattern
 
     def loop(
         pattern: TermPattern,
-        target: Term,
+        target: TargetTermView[Term],
         bindings: Map[String, Term]
     ): Either[MatchFailure, Map[String, Term]] =
-      val normalizedTarget = normalize(target)
       pattern match
         case TermPattern.Hole(name) =>
           bindings.get(name) match
-            case None => Right(bindings.updated(name, normalizedTarget))
+            case None => Right(bindings.updated(name, target.original))
             case Some(previous) =>
-              if structurallyEqual(previous, normalizedTarget) then Right(bindings)
+              val current = target.original
+              if structurallyEqual(previous, current) then Right(bindings)
               else
                 Left(
                   MatchFailure.RepeatedHoleMismatch(
                     name = name,
                     previous = previous.show(using Printer.TreeStructure),
-                    current = normalizedTarget.show(using Printer.TreeStructure)
+                    current = current.show(using Printer.TreeStructure)
                   )
                 )
         case TermPattern.Identifier(name) =>
-          normalizedTarget match
-            case Ident(targetName) if targetName == name => Right(bindings)
+          target match
+            case TargetTermView.Identifier(targetName, _) if targetName == name => Right(bindings)
             case other => Left(shapeMismatch(pattern, other))
         case TermPattern.Literal(value) =>
-          literalText(normalizedTarget) match
-            case Some(targetValue) if targetValue == value => Right(bindings)
-            case _ => Left(shapeMismatch(pattern, normalizedTarget))
+          target match
+            case TargetTermView.Literal(targetValue, _) if targetValue == value => Right(bindings)
+            case _ => Left(shapeMismatch(pattern, target))
         case TermPattern.Select(qualifier, name) =>
-          normalizedTarget match
-            case Select(targetQualifier, targetName) if targetName == name =>
+          target match
+            case TargetTermView.Select(targetQualifier, targetName, _) if targetName == name =>
               loop(qualifier, targetQualifier, bindings)
             case other => Left(shapeMismatch(pattern, other))
         case TermPattern.Apply(function, arguments) =>
-          normalizedTarget match
-            case Apply(targetFunction, targetArguments) if targetArguments.length == arguments.length =>
+          target match
+            case TargetTermView.Apply(targetFunction, targetArguments, _) if targetArguments.length == arguments.length =>
               for
                 functionBindings <- loop(function, targetFunction, bindings)
                 argumentBindings <- arguments.zip(targetArguments).foldLeft(Right(functionBindings): Either[MatchFailure, Map[String, Term]]) {
@@ -54,43 +70,26 @@ object TermMatcher:
               yield argumentBindings
             case other => Left(shapeMismatch(pattern, other))
         case TermPattern.Infix(left, operator, right) =>
-          normalizedTarget match
-            // Reflect trees encode infix syntax as a one-argument Apply(Select(lhs, op), rhs).
-            case Apply(Select(targetLeft, targetOperator), targetRight :: Nil) if targetOperator == operator =>
+          target match
+            case TargetTermView.Infix(targetLeft, targetOperator, targetRight, _) if targetOperator == operator =>
               for
                 leftBindings <- loop(left, targetLeft, bindings)
                 rightBindings <- loop(right, targetRight, leftBindings)
               yield rightBindings
             case other => Left(shapeMismatch(pattern, other))
         case TermPattern.Parenthesized(inner) =>
-          loop(inner, normalizedTarget, bindings)
+          if normalized then loop(inner, target, bindings)
+          else Left(shapeMismatch(pattern, target))
 
-    loop(pattern, target, Map.empty).map(MatchResult[q.reflect.Term].apply)
-
-  private def normalize(using q: Quotes)(term: q.reflect.Term): q.reflect.Term =
-    import q.reflect.*
-    term match
-      case Inlined(_, _, inner) => normalize(inner)
-      case Typed(inner, _) => normalize(inner)
-      case Block(Nil, inner: Term) => normalize(inner)
-      // Macro arguments often arrive as proxy identifiers whose ValDef rhs is the real tree.
-      case ident: Ident if ident.symbol.exists =>
-        ident.symbol.tree match
-          case ValDef(_, _, Some(rhs)) => normalize(rhs)
-          case _ => term
-      case _ => term
-
-  private def literalText(using q: Quotes)(term: q.reflect.Term): Option[String] =
-    import q.reflect.*
-    normalize(term) match
-      case Literal(IntConstant(value)) => Some(value.toString)
-      case Literal(StringConstant(value)) => Some("\"" + value + "\"")
-      case _ => None
+    for
+      rawView <- TargetTermView.fromTerm(target)
+      preparedTarget = if normalized then MatchNormalizer.normalizeTarget(rawView) else rawView
+      bindings <- loop(preparedPattern, preparedTarget, Map.empty)
+    yield MatchResult[q.reflect.Term](bindings)
 
   private def structurallyEqual(using q: Quotes)(left: q.reflect.Term, right: q.reflect.Term): Boolean =
     import q.reflect.*
-    normalize(left).show(using Printer.TreeStructure) == normalize(right).show(using Printer.TreeStructure)
+    left.show(using Printer.TreeStructure) == right.show(using Printer.TreeStructure)
 
-  private def shapeMismatch(using q: Quotes)(pattern: TermPattern, target: q.reflect.Term): MatchFailure =
-    import q.reflect.*
-    MatchFailure.ShapeMismatch(pattern.render, normalize(target).show(using Printer.TreeStructure))
+  private def shapeMismatch(pattern: TermPattern, target: TargetTermView[?]): MatchFailure =
+    MatchFailure.ShapeMismatch(pattern.render, target.render)
