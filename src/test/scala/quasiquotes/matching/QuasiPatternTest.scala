@@ -21,9 +21,19 @@ private object MatchSelectionApplicationScope:
 private object MatchInfixScope:
   private val a = 2
   private val b = 3
+  private val c = 4
   val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $y", a + b)
+  val sameIdentifierEquality: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $x", a + a)
+  val differentIdentifierInequality: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $x", a + b)
   val repeatedSuccess: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $x", a + a)
   val repeatedFailure: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $x", a + b)
+  val repeatedParenSuccess: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $x", (a) + a)
+  val repeatedNestedParenSuccess: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $x", ((a)) + (a))
+  val commutativeRejection: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + b", b + a)
+  val associativeRejection: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $x", (a + b) + (a + (b + c)))
+  val algebraicSimplificationRejection: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $x", (a + 0) + a)
+  val semanticEqualityRejection: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $x", (1 + 1) + 2)
+  val explicitMethodCallShape: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $y", a.+(b))
   val negative: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $y", a)
   val normalization: QuasiquoteMatchExamples.NormalizationDemo = QuasiquoteMatchExamples.summarizeNormalization("$x + $y", a + b)
 
@@ -31,14 +41,20 @@ private object MatchNestedScope:
   private def f(value: Int): Int = value + 1
   private def g(value: Int): Int = value * 2
   private val h = 3
+  private val i = 4
   val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("f(g($x))", f(g(h)))
   val repeated: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("pair($x, $x)", pair(h, h))
+  val repeatedFunctionSuccess: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("f($x, $x)", f(h, h))
+  val repeatedFunctionFailure: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("f($x, $x)", f(h, i))
 
+  private def f(left: Int, right: Int): Int = left + right
   private def pair(left: Int, right: Int): Int = left + right
 
 private object MatchParenScope:
   private val z = 7
   val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("(($x))", ((z)))
+  val singleParenEquality: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $x", z + (z))
+  val nestedParenEquality: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("$x + $x", z + ((z)))
   val normalization: QuasiquoteMatchExamples.NormalizationDemo = QuasiquoteMatchExamples.summarizeNormalization("(($x))", ((z)))
 
 private object MatchUnsupportedScope:
@@ -95,6 +111,15 @@ class QuasiPatternTest extends munit.FunSuite:
     assertEquals(demo.bindings.size, 2)
   }
 
+  test("equality contract treats the same identifier as equal") {
+    assert(MatchInfixScope.sameIdentifierEquality.success)
+  }
+
+  test("equality contract treats different identifiers as not equal") {
+    assert(!MatchInfixScope.differentIdentifierInequality.success)
+    assert(MatchInfixScope.differentIdentifierInequality.detail.contains("Repeated hole"))
+  }
+
   test("qq f(g($x)) matches nested targets") {
     val demo = MatchNestedScope.demo
     assert(demo.success)
@@ -114,6 +139,13 @@ class QuasiPatternTest extends munit.FunSuite:
     assert(demo.after.bindings.exists(_.startsWith("$x = ")))
   }
 
+  test("equality contract ignores supported parentheses around repeated holes") {
+    assert(MatchParenScope.singleParenEquality.success)
+    assert(MatchParenScope.nestedParenEquality.success)
+    assert(MatchInfixScope.repeatedParenSuccess.success)
+    assert(MatchInfixScope.repeatedNestedParenSuccess.success)
+  }
+
   test("repeated hole names require normalized equality") {
     assert(MatchInfixScope.repeatedSuccess.success)
     assert(!MatchInfixScope.repeatedFailure.success)
@@ -124,6 +156,35 @@ class QuasiPatternTest extends munit.FunSuite:
     val demo = MatchNestedScope.repeated
     assert(demo.success)
     assertEquals(demo.bindings.count(_.startsWith("$x = ")), 1)
+  }
+
+  test("function-call repeated holes enforce equality") {
+    assert(MatchNestedScope.repeatedFunctionSuccess.success)
+    assert(!MatchNestedScope.repeatedFunctionFailure.success)
+    assert(MatchNestedScope.repeatedFunctionFailure.detail.contains("Repeated hole"))
+  }
+
+  test("equality contract rejects commutativity") {
+    assert(!MatchInfixScope.commutativeRejection.success)
+  }
+
+  test("equality contract rejects associativity") {
+    assert(!MatchInfixScope.associativeRejection.success)
+    assert(MatchInfixScope.associativeRejection.detail.contains("Repeated hole"))
+  }
+
+  test("equality contract rejects algebraic simplification") {
+    assert(!MatchInfixScope.algebraicSimplificationRejection.success)
+    assert(MatchInfixScope.algebraicSimplificationRejection.detail.contains("Repeated hole"))
+  }
+
+  test("equality contract rejects semantic equality") {
+    assert(!MatchInfixScope.semanticEqualityRejection.success)
+  }
+
+  test("explicit method-call operator syntax uses only the existing limited infix shape normalization") {
+    assert(MatchInfixScope.explicitMethodCallShape.success)
+    assertEquals(MatchInfixScope.explicitMethodCallShape.bindings.size, 2)
   }
 
   test("shape mismatch fails clearly") {
@@ -141,6 +202,12 @@ class QuasiPatternTest extends munit.FunSuite:
   test("unsupported pattern syntax fails clearly") {
     assert(!MatchUnsupportedScope.demo.success)
     assert(MatchUnsupportedScope.demo.detail.contains("Unsupported pattern tree shape"))
+  }
+
+  test("unsupported lambda and block patterns remain outside the equality contract") {
+    assert(QuasiPattern.term("(x => x)").isLeft)
+    assert(QuasiPattern.term("(y => y)").isLeft)
+    assert(QuasiPattern.term("{ val x = 1; x }").isLeft)
   }
 
   test("matching API works inside real macros") {
