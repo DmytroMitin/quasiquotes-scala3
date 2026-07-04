@@ -72,6 +72,39 @@ private object MatchMacroProofScope:
   val duplicatedSuccess: String = QuasiquoteMatchExamples.classifyRepeatedOperand(a + a)
   val duplicatedFailure: String = QuasiquoteMatchExamples.classifyRepeatedOperand(a + b)
 
+private object CanonicalEqualityScope:
+  private val a = 2
+  private val b = 3
+  private val c = 4
+  private def one: Int = 1
+  private def two: Int = 2
+
+  val sameIdentifier: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(a, a)
+  val differentIdentifiers: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(a, b)
+  val singleParens: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(a, (a))
+  val nestedParens: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(a, ((a)))
+  val methodCallOperatorShape: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(a + b, a.+(b))
+  val commutativity: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(a + b, b + a)
+  val associativity: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality((a + b) + c, a + (b + c))
+  val algebraicSimplification: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(a + 0, a)
+  val semanticEquality: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(one + one, two)
+  val lambda: QuasiquoteMatchExamples.CanonicalDemo =
+    QuasiquoteMatchExamples.summarizeCanonical((x: Int) => x)
+  val block: QuasiquoteMatchExamples.CanonicalDemo =
+    QuasiquoteMatchExamples.summarizeCanonical {
+      val local = a
+      local
+    }
+
 class QuasiPatternTest extends munit.FunSuite:
   test("qq term pattern parses a hole pattern") {
     val pattern = QuasiPattern.termOrThrow("$x + $y")
@@ -223,4 +256,38 @@ class QuasiPatternTest extends munit.FunSuite:
   test("macro repeated-hole demo detects duplicated operands") {
     assert(MatchMacroProofScope.duplicatedSuccess.startsWith("duplicated-operand("))
     assert(MatchMacroProofScope.duplicatedFailure.startsWith("not-duplicated("))
+  }
+
+  test("canonical equality matches normalized equality for supported identifiers and parentheses") {
+    assert(CanonicalEqualityScope.sameIdentifier.normalizedEqual)
+    assert(CanonicalEqualityScope.sameIdentifier.canonicalEqual)
+    assert(!CanonicalEqualityScope.differentIdentifiers.normalizedEqual)
+    assert(!CanonicalEqualityScope.differentIdentifiers.canonicalEqual)
+    assert(CanonicalEqualityScope.singleParens.normalizedEqual)
+    assert(CanonicalEqualityScope.singleParens.canonicalEqual)
+    assert(CanonicalEqualityScope.nestedParens.normalizedEqual)
+    assert(CanonicalEqualityScope.nestedParens.canonicalEqual)
+  }
+
+  test("canonical equality preserves existing limited infix operator shape normalization") {
+    assert(CanonicalEqualityScope.methodCallOperatorShape.normalizedEqual)
+    assert(CanonicalEqualityScope.methodCallOperatorShape.canonicalEqual)
+  }
+
+  test("canonical equality preserves rejected equality boundaries") {
+    assert(!CanonicalEqualityScope.commutativity.normalizedEqual)
+    assert(!CanonicalEqualityScope.commutativity.canonicalEqual)
+    assert(!CanonicalEqualityScope.associativity.normalizedEqual)
+    assert(!CanonicalEqualityScope.associativity.canonicalEqual)
+    assert(!CanonicalEqualityScope.algebraicSimplification.normalizedEqual)
+    assert(!CanonicalEqualityScope.algebraicSimplification.canonicalEqual)
+    assert(!CanonicalEqualityScope.semanticEquality.normalizedEqual)
+    assert(!CanonicalEqualityScope.semanticEquality.canonicalEqual)
+  }
+
+  test("canonicalization keeps lambdas and local blocks unsupported") {
+    assert(!CanonicalEqualityScope.lambda.success)
+    assert(CanonicalEqualityScope.lambda.detail.contains("Unsupported"))
+    assert(!CanonicalEqualityScope.block.success)
+    assert(CanonicalEqualityScope.block.detail.contains("Unsupported"))
   }

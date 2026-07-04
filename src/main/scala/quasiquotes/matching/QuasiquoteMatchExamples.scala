@@ -43,6 +43,29 @@ object QuasiquoteMatchExamples:
       after: MatchDemo
   )
 
+  final case class CanonicalDemo(
+      target: String,
+      success: Boolean,
+      canonical: String,
+      detail: String
+  )
+
+  final case class EqualityComparisonDemo(
+      normalizedEqual: Boolean,
+      canonicalEqual: Boolean,
+      leftNormalized: String,
+      rightNormalized: String,
+      leftCanonical: String,
+      rightCanonical: String,
+      detail: String
+  )
+
+  inline def summarizeCanonical[A](expr: A): CanonicalDemo =
+    ${ summarizeCanonicalImpl('expr) }
+
+  inline def compareEquality[A, B](left: A, right: B): EqualityComparisonDemo =
+    ${ compareEqualityImpl('left, 'right) }
+
   private def summarizeMatchImpl[A: Type](patternExpr: Expr[String], expr: Expr[A], useNormalization: Boolean)(using Quotes): Expr[MatchDemo] =
     import quotes.reflect.*
 
@@ -86,6 +109,65 @@ object QuasiquoteMatchExamples:
         after = ${ summarizeMatchImpl(patternExpr, expr, useNormalization = true) }
       )
     }
+
+  private def summarizeCanonicalImpl[A: Type](expr: Expr[A])(using Quotes): Expr[CanonicalDemo] =
+    import quotes.reflect.*
+    val target = expr.asTerm
+    val targetText = target.show(using Printer.TreeStructure)
+    TermCanonicalizer.canonicalize(target) match
+      case Right(canonical) =>
+        '{
+          CanonicalDemo(
+            target = ${ Expr(targetText) },
+            success = true,
+            canonical = ${ Expr(canonical.render) },
+            detail = "canonicalized"
+          )
+        }
+      case Left(failure) =>
+        '{
+          CanonicalDemo(
+            target = ${ Expr(targetText) },
+            success = false,
+            canonical = "",
+            detail = ${ Expr(failure.message) }
+          )
+        }
+
+  private def compareEqualityImpl[A: Type, B: Type](left: Expr[A], right: Expr[B])(using Quotes): Expr[EqualityComparisonDemo] =
+    import quotes.reflect.*
+    val leftTerm = left.asTerm
+    val rightTerm = right.asTerm
+
+    val leftNormalized = normalizedStructure(leftTerm)
+    val rightNormalized = normalizedStructure(rightTerm)
+    val leftCanonical = canonicalStructure(leftTerm)
+    val rightCanonical = canonicalStructure(rightTerm)
+
+    val normalizedEqual = leftNormalized.toOption == rightNormalized.toOption && leftNormalized.isRight
+    val canonicalEqual = leftCanonical.toOption == rightCanonical.toOption && leftCanonical.isRight
+    val detail =
+      List(leftNormalized.left.toOption, rightNormalized.left.toOption, leftCanonical.left.toOption, rightCanonical.left.toOption).flatten match
+        case Nil => "compared"
+        case failures => failures.mkString("; ")
+
+    '{
+      EqualityComparisonDemo(
+        normalizedEqual = ${ Expr(normalizedEqual) },
+        canonicalEqual = ${ Expr(canonicalEqual) },
+        leftNormalized = ${ Expr(leftNormalized.fold(identity, identity)) },
+        rightNormalized = ${ Expr(rightNormalized.fold(identity, identity)) },
+        leftCanonical = ${ Expr(leftCanonical.fold(identity, identity)) },
+        rightCanonical = ${ Expr(rightCanonical.fold(identity, identity)) },
+        detail = ${ Expr(detail) }
+      )
+    }
+
+  private def normalizedStructure(using Quotes)(term: quotes.reflect.Term): Either[String, String] =
+    MatchNormalizer.normalizedView(term).map(_.render).left.map(_.message)
+
+  private def canonicalStructure(using Quotes)(term: quotes.reflect.Term): Either[String, String] =
+    TermCanonicalizer.canonicalize(term).map(_.render).left.map(_.message)
 
   private def classifyInfixImpl(expr: Expr[Int])(using Quotes): Expr[String] =
     import quotes.reflect.*
