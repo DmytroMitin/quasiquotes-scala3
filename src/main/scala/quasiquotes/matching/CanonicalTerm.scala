@@ -11,6 +11,7 @@ object CanonicalTerm:
   final case class Select(qualifier: CanonicalTerm, name: String) extends CanonicalTerm
   final case class Apply(function: CanonicalTerm, arguments: List[CanonicalTerm]) extends CanonicalTerm
   final case class Infix(left: CanonicalTerm, operator: String, right: CanonicalTerm) extends CanonicalTerm
+  final case class Typed(expression: CanonicalTerm, typeName: String) extends CanonicalTerm
 
   def render(term: CanonicalTerm): String =
     term match
@@ -21,6 +22,8 @@ object CanonicalTerm:
         s"CApply(${render(function)}, [${arguments.map(render).mkString(", ")}])"
       case Infix(left, operator, right) =>
         s"CInfix(${render(left)}, $operator, ${render(right)})"
+      case Typed(expression, typeName) =>
+        s"CTyped(${render(expression)}, Type($typeName))"
 
 object TermCanonicalizer:
   def canonicalize(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, CanonicalTerm] =
@@ -53,6 +56,8 @@ object TermCanonicalizer:
           canonicalLeft <- canonicalizeView(left)
           canonicalRight <- canonicalizeView(right)
         yield CanonicalTerm.Infix(canonicalLeft, operator, canonicalRight)
+      case TargetTermView.Typed(expression, typeName, _) =>
+        canonicalizeView(expression).map(CanonicalTerm.Typed(_, typeName))
 
   private def sequence[A](values: List[Either[MatchFailure, A]]): Either[MatchFailure, List[A]] =
     values.foldRight(Right(Nil): Either[MatchFailure, List[A]]) { (next, acc) =>

@@ -25,6 +25,8 @@ object PatternCompiler:
           compiledLeft <- compile(left)
           compiledRight <- compile(right)
         yield TermPattern.Infix(compiledLeft, op.name.toString, compiledRight)
+      case untpd.Typed(expression, typeTree) =>
+        compile(expression).map(TermPattern.Typed(_, renderType(typeTree)))
       case untpd.Parens(inner) =>
         compile(inner).map(TermPattern.Parenthesized.apply)
       case untpd.TypedSplice(inner) =>
@@ -44,3 +46,17 @@ object PatternCompiler:
     value match
       case string: String => "\"" + string + "\""
       case other => String.valueOf(other)
+
+  private def renderType(tree: untpd.Tree): String =
+    normalizeTypeName(tree match
+      case untpd.Ident(name) => name.toString
+      case untpd.Select(qualifier, name) => s"${renderType(qualifier)}.${name.toString}"
+      case other => other.toString
+    )
+
+  private def normalizeTypeName(typeName: String): String =
+    typeName match
+      case "scala.Int" => "Int"
+      case "scala.Predef.String" | "java.lang.String" | "scala.String" => "String"
+      case "scala.Boolean" => "Boolean"
+      case other => other

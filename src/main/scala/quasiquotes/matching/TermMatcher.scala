@@ -79,6 +79,11 @@ object TermMatcher:
                 rightBindings <- loop(right, targetRight, leftBindings)
               yield rightBindings
             case other => Left(shapeMismatch(pattern, other))
+        case TermPattern.Typed(expression, typeName) =>
+          target match
+            case TargetTermView.Typed(targetExpression, targetTypeName, _) if targetTypeName == typeName =>
+              loop(expression, targetExpression, bindings)
+            case other => Left(shapeMismatch(pattern, other))
         case TermPattern.Parenthesized(inner) =>
           if normalized then loop(inner, target, bindings)
           else Left(shapeMismatch(pattern, target))

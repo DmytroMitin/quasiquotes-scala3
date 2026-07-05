@@ -67,6 +67,14 @@ class QuasiquoteMacroTest extends munit.FunSuite:
     assertEquals(QuasiquoteMacroExamples.parenthesizedAdd(2, 3), 5)
   }
 
+  test("qr can construct a typed hole expression") {
+    assertEquals(QuasiquoteMacroExamples.typedHole(2), 2)
+  }
+
+  test("qr can construct an application with a typed hole argument") {
+    assertEquals(QuasiquoteMacroExamples.typedHoleApplication(2), 3)
+  }
+
   test("demo summary for hole infix expressions is usable") {
     val demo = QuasiquoteMacroExamples.holeInfixSummary(2, 3)
     assertEquals(demo.input, "$x + $y")
@@ -141,4 +149,8 @@ class QuasiquoteMacroTest extends munit.FunSuite:
 
   test("unsupported syntax fails clearly") {
     assert(QuasiquoteMacroExamples.unsupportedSyntaxMessage.trim.nonEmpty)
+  }
+
+  test("unsupported complex type ascriptions fail clearly") {
+    assert(QuasiquoteMacroExamples.unsupportedComplexTypeAscriptionMessage.contains("Unsupported type ascription"))
   }

@@ -10,6 +10,7 @@ object TermPattern:
   final case class Select(qualifier: TermPattern, name: String) extends TermPattern
   final case class Apply(function: TermPattern, arguments: List[TermPattern]) extends TermPattern
   final case class Infix(left: TermPattern, operator: String, right: TermPattern) extends TermPattern
+  final case class Typed(expression: TermPattern, typeName: String) extends TermPattern
   final case class Parenthesized(expression: TermPattern) extends TermPattern
 
   def render(pattern: TermPattern): String =
@@ -22,4 +23,5 @@ object TermPattern:
         s"Apply(${render(function)}, [${arguments.map(render).mkString(", ")}])"
       case Infix(left, operator, right) =>
         s"Infix(${render(left)}, $operator, ${render(right)})"
+      case Typed(expression, typeName) => s"Typed(${render(expression)}, Type($typeName))"
       case Parenthesized(expression) => s"Parens(${render(expression)})"

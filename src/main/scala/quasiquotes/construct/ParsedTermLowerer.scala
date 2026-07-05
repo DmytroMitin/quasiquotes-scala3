@@ -39,6 +39,11 @@ object ParsedTermLowerer:
             loweredRight <- lowerTerm(right)
             applied <- applyInfix(loweredLeft, op.name.toString, loweredRight)
           yield applied
+        case untpd.Typed(expression, typeTree) =>
+          for
+            loweredExpression <- lowerTerm(expression)
+            loweredType <- lowerType(typeTree)
+          yield Typed(loweredExpression, loweredType)
         case untpd.Parens(inner) =>
           lowerTerm(inner)
         case untpd.TypedSplice(tree) =>
@@ -47,6 +52,14 @@ object ParsedTermLowerer:
           Left(QuasiquoteError.UnsupportedTree(other.getClass.getSimpleName, other.toString))
 
     lowerTerm(tree)
+
+  private def lowerType(using q: Quotes)(tree: untpd.Tree): Either[QuasiquoteError, q.reflect.TypeTree] =
+    import q.reflect.*
+    renderType(tree) match
+      case "Int" | "scala.Int" => Right(TypeTree.of[Int])
+      case "String" | "scala.String" => Right(TypeTree.of[String])
+      case "Boolean" | "scala.Boolean" => Right(TypeTree.of[Boolean])
+      case other => Left(QuasiquoteError.UnsupportedTree("TypeTree", s"Unsupported type ascription: $other"))
 
   private def resolvePlaceholder(
       using q: Quotes
@@ -117,6 +130,12 @@ object ParsedTermLowerer:
     term.tpe.widen match
       case mt: MethodType if mt.paramNames.isEmpty => term.appliedToNone
       case _ => term
+
+  private def renderType(tree: untpd.Tree): String =
+    tree match
+      case untpd.Ident(name) => name.toString
+      case untpd.Select(qualifier, name) => s"${renderType(qualifier)}.${name.toString}"
+      case other => other.toString
 
   private def sequence[A](values: List[Either[QuasiquoteError, A]]): Either[QuasiquoteError, List[A]] =
     values.foldRight(Right(Nil): Either[QuasiquoteError, List[A]]) { (next, acc) =>

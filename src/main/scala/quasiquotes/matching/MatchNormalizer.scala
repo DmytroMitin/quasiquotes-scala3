@@ -15,6 +15,8 @@ object MatchNormalizer:
         TermPattern.Apply(normalizePattern(function), arguments.map(normalizePattern))
       case TermPattern.Infix(left, operator, right) =>
         TermPattern.Infix(normalizePattern(left), operator, normalizePattern(right))
+      case TermPattern.Typed(expression, typeName) =>
+        TermPattern.Typed(normalizePattern(expression), typeName)
       case other =>
         other
 
@@ -27,6 +29,8 @@ object MatchNormalizer:
         TargetTermView.Infix(normalizeTarget(left), operator, normalizeTarget(right), original)
       case TargetTermView.Apply(function, arguments, original) =>
         TargetTermView.Apply(normalizeTarget(function), arguments.map(normalizeTarget), original)
+      case TargetTermView.Typed(expression, typeName, original) =>
+        TargetTermView.Typed(normalizeTarget(expression), typeName, original)
       case other =>
         other
 

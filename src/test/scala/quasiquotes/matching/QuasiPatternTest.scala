@@ -60,6 +60,20 @@ private object MatchParenScope:
 private object MatchUnsupportedScope:
   val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("if $x then $y else $z", 1)
 
+private object MatchTypedScope:
+  private val a = 2
+  private val b = "two"
+  private def foo(value: Int): Int = value + 1
+
+  val typedPattern: QuasiquoteMatchExamples.MatchDemo =
+    QuasiquoteMatchExamples.summarizeMatchNormalized("$x: Int", (a: Int))
+  val typedPatternWrongType: QuasiquoteMatchExamples.MatchDemo =
+    QuasiquoteMatchExamples.summarizeMatchNormalized("$x: Int", (b: String))
+  val typedPatternPlainTarget: QuasiquoteMatchExamples.MatchDemo =
+    QuasiquoteMatchExamples.summarizeMatchNormalized("$x: Int", a)
+  val typedApplicationArgument: QuasiquoteMatchExamples.MatchDemo =
+    QuasiquoteMatchExamples.summarizeMatchNormalized("foo($x: Int)", foo(a: Int))
+
 private object MatchMacroProofScope:
   private val a = 2
   private val b = 3
@@ -103,6 +117,14 @@ private object CanonicalEqualityScope:
     QuasiquoteMatchExamples.compareEquality(a + 0, a)
   val semanticEquality: QuasiquoteMatchExamples.EqualityComparisonDemo =
     QuasiquoteMatchExamples.compareEquality(one + one, two)
+  val typedSameType: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality((a: Int), (a: Int))
+  val typedNestedParens: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(((a: Int)), (a: Int))
+  val typedDifferentType: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality((a: Int), (a: AnyVal))
+  val typedVsPlain: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality((a: Int), a)
   val lambda: QuasiquoteMatchExamples.CanonicalDemo =
     QuasiquoteMatchExamples.summarizeCanonical((x: Int) => x)
   val block: QuasiquoteMatchExamples.CanonicalDemo =
@@ -249,6 +271,19 @@ class QuasiPatternTest extends munit.FunSuite:
     assert(QuasiPattern.term("{ val x = 1; x }").isLeft)
   }
 
+  test("typed expression patterns match supported ascriptions structurally") {
+    assert(MatchTypedScope.typedPattern.success)
+    assert(MatchTypedScope.typedPattern.bindings.exists(_.startsWith("$x = ")))
+    assert(MatchTypedScope.typedApplicationArgument.success)
+  }
+
+  test("typed expression patterns reject mismatched or missing ascriptions") {
+    assert(!MatchTypedScope.typedPatternWrongType.success)
+    assert(MatchTypedScope.typedPatternWrongType.detail.contains("Pattern shape mismatch"))
+    assert(!MatchTypedScope.typedPatternPlainTarget.success)
+    assert(MatchTypedScope.typedPatternPlainTarget.detail.contains("Pattern shape mismatch"))
+  }
+
   test("matching API works inside real macros") {
     assert(MatchMacroProofScope.infix.startsWith("infix-match("))
     assert(MatchMacroProofScope.nested.startsWith("nested-match("))
@@ -298,6 +333,17 @@ class QuasiPatternTest extends munit.FunSuite:
     assert(!CanonicalEqualityScope.algebraicSimplification.canonicalEqual)
     assert(!CanonicalEqualityScope.semanticEquality.normalizedEqual)
     assert(!CanonicalEqualityScope.semanticEquality.canonicalEqual)
+  }
+
+  test("typed expression equality preserves ascription boundaries") {
+    assert(CanonicalEqualityScope.typedSameType.normalizedEqual)
+    assert(CanonicalEqualityScope.typedSameType.canonicalEqual)
+    assert(CanonicalEqualityScope.typedNestedParens.normalizedEqual)
+    assert(CanonicalEqualityScope.typedNestedParens.canonicalEqual)
+    assert(!CanonicalEqualityScope.typedDifferentType.normalizedEqual)
+    assert(!CanonicalEqualityScope.typedDifferentType.canonicalEqual)
+    assert(!CanonicalEqualityScope.typedVsPlain.normalizedEqual)
+    assert(!CanonicalEqualityScope.typedVsPlain.canonicalEqual)
   }
 
   test("canonicalization keeps lambdas and local blocks unsupported") {

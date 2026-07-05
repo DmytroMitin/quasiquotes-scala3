@@ -20,6 +20,8 @@ object TermShapeInspector:
         TermShape.Apply(inspect(function), arguments.map(inspect))
       case untpd.InfixOp(left, op, right) =>
         TermShape.Infix(inspect(left), op.name.toString, inspect(right))
+      case untpd.Typed(expression, typeTree) =>
+        TermShape.Typed(inspect(expression), inspectType(typeTree))
       case untpd.TypedSplice(tree) =>
         inspect(tree)
       case untpd.Parens(tree) =>
@@ -41,6 +43,8 @@ object TermShapeInspector:
         s"Apply(${rawStructure(function)}, [${arguments.map(rawStructure).mkString(", ")}])"
       case untpd.InfixOp(left, op, right) =>
         s"InfixOp(${rawStructure(left)},${rawStructure(op)},${rawStructure(right)})"
+      case untpd.Typed(expression, typeTree) =>
+        s"Typed(${rawStructure(expression)},${rawTypeStructure(typeTree)})"
       case untpd.TypedSplice(tree) =>
         s"TypedSplice(${rawStructure(tree)})"
       case untpd.Parens(tree) =>
@@ -52,3 +56,23 @@ object TermShapeInspector:
     constant.value match
       case value: String => "\"" + value + "\""
       case value => String.valueOf(value)
+
+  private def inspectType(tree: untpd.Tree): String =
+    normalizeTypeName(tree match
+      case untpd.Ident(name) => name.toString
+      case untpd.Select(qualifier, name) => s"${inspectType(qualifier)}.${name.toString}"
+      case other => other.toString
+    )
+
+  private def rawTypeStructure(tree: untpd.Tree): String =
+    tree match
+      case untpd.Ident(name) => s"Ident(${name.toString})"
+      case untpd.Select(qualifier, name) => s"Select(${rawTypeStructure(qualifier)}, ${name.toString})"
+      case other => other.getClass.getSimpleName
+
+  private def normalizeTypeName(typeName: String): String =
+    typeName match
+      case "scala.Int" => "Int"
+      case "scala.Predef.String" | "java.lang.String" | "scala.String" => "String"
+      case "scala.Boolean" => "Boolean"
+      case other => other

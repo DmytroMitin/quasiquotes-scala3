@@ -30,6 +30,10 @@ object QuasiquoteMacroExamples:
 
   inline def parenthesizedAdd(x: Int, y: Int): Int = ${ parenthesizedAddImpl('x, 'y) }
 
+  inline def typedHole(x: Int): Int = ${ typedHoleImpl('x) }
+
+  inline def typedHoleApplication(x: Int): Int = ${ typedHoleApplicationImpl('x) }
+
   inline def holeInfixSummary(x: Int, y: Int): DemoCase = ${ holeInfixSummaryImpl('x, 'y) }
 
   inline def nestedFunctionHoleSummary(x: Int): DemoCase = ${ nestedFunctionHoleSummaryImpl('x) }
@@ -51,6 +55,8 @@ object QuasiquoteMacroExamples:
   inline def nestedParenHoleSummary(x: Int): DemoCase = ${ nestedParenHoleSummaryImpl('x) }
 
   inline def unsupportedSyntaxMessage: String = ${ unsupportedSyntaxMessageImpl }
+
+  inline def unsupportedComplexTypeAscriptionMessage: String = ${ unsupportedComplexTypeAscriptionMessageImpl }
 
   private def emitIntLiteralImpl(using Quotes): Expr[Int] =
     import quotes.reflect.*
@@ -98,6 +104,17 @@ object QuasiquoteMacroExamples:
     import quotes.reflect.*
     import quasiquotes.construct.Quasiquotes.*
     qr"(${x.asTerm} + ${y.asTerm})".asExprOf[Int]
+
+  private def typedHoleImpl(x: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    qr"${x.asTerm}: Int".asExprOf[Int]
+
+  private def typedHoleApplicationImpl(x: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    val functionTerm = Select.unique('{ (n: Int) => n + 1 }.asTerm, "apply")
+    qr"$functionTerm(${x.asTerm}: Int)".asExprOf[Int]
 
   private def holeInfixSummaryImpl(x: Expr[Int], y: Expr[Int])(using Quotes): Expr[DemoCase] =
     import quotes.reflect.*
@@ -183,3 +200,9 @@ object QuasiquoteMacroExamples:
     QuasiquoteBuilder.build(Seq("1 + 2"), Nil) match
       case Left(error) => Expr(error.message)
       case Right(term) => Expr(term.show)
+
+  private def unsupportedComplexTypeAscriptionMessageImpl(using Quotes): Expr[String] =
+    import quotes.reflect.*
+    QuasiquoteBuilder.build(Seq("", ": List[Int]"), Seq('{ 1 }.asTerm)) match
+      case Left(error) => Expr(error.message)
+      case Right(term) => Expr(term.show(using Printer.TreeStructure))
