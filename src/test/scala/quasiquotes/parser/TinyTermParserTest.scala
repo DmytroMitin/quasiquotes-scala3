@@ -5,6 +5,7 @@ class TinyTermParserTest extends munit.FunSuite:
     "foo" -> "Ident(foo)",
     "1" -> "Literal(1)",
     "\"abc\"" -> "Literal(\"abc\")",
+    "true" -> "Literal(true)",
     "foo.bar" -> "Select(Ident(foo), bar)",
     "foo(x)" -> "Apply(Ident(foo), [Ident(x)])",
     "foo.bar(x)" -> "Apply(Select(Ident(foo), bar), [Ident(x)])",

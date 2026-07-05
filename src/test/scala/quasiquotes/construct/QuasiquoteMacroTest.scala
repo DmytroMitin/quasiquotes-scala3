@@ -51,6 +51,10 @@ class QuasiquoteMacroTest extends munit.FunSuite:
     assertEquals(QuasiquoteMacroExamples.emitStringLiteral, "abc")
   }
 
+  test("qr can emit a boolean literal as a Term") {
+    assertEquals(QuasiquoteMacroExamples.emitBooleanLiteral, true)
+  }
+
   test("qr can lower selection plus application with a qualifier hole") {
     assertEquals(QuasiquoteMacroExamples.callSelectedMethodViaHole(2), 3)
   }

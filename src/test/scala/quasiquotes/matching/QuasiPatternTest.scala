@@ -8,6 +8,10 @@ private object MatchFooApplicationScope:
   private def foo(value: Int): Int = value + 10
   val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("foo($x)", foo(1))
 
+private object MatchLiteralScope:
+  val booleanLiteral: QuasiquoteMatchExamples.MatchDemo =
+    QuasiquoteMatchExamples.summarizeMatchNormalized("true", true)
+
 private object MatchFunctionHoleScope:
   private def bar(value: Int): Int = value + 1
   private val baz = 2
@@ -131,6 +135,10 @@ private object CanonicalEqualityScope:
     QuasiquoteMatchExamples.compareEquality(a, a)
   val differentIdentifiers: QuasiquoteMatchExamples.EqualityComparisonDemo =
     QuasiquoteMatchExamples.compareEquality(a, b)
+  val sameBooleanLiteral: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(true, true)
+  val differentBooleanLiteral: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(true, false)
   val singleParens: QuasiquoteMatchExamples.EqualityComparisonDemo =
     QuasiquoteMatchExamples.compareEquality(a, (a))
   val nestedParens: QuasiquoteMatchExamples.EqualityComparisonDemo =
@@ -208,6 +216,11 @@ class QuasiPatternTest extends munit.FunSuite:
     val demo = MatchFooApplicationScope.demo
     assert(demo.success)
     assert(demo.bindings.exists(_.startsWith("$x = ")))
+  }
+
+  test("literal patterns match boolean literal targets structurally") {
+    assert(MatchLiteralScope.booleanLiteral.success)
+    assertEquals(MatchLiteralScope.booleanLiteral.bindings, Nil)
   }
 
   test("qq $f($x) matches application with function hole") {
@@ -387,6 +400,10 @@ class QuasiPatternTest extends munit.FunSuite:
     assert(CanonicalEqualityScope.sameIdentifier.canonicalEqual)
     assert(!CanonicalEqualityScope.differentIdentifiers.normalizedEqual)
     assert(!CanonicalEqualityScope.differentIdentifiers.canonicalEqual)
+    assert(CanonicalEqualityScope.sameBooleanLiteral.normalizedEqual)
+    assert(CanonicalEqualityScope.sameBooleanLiteral.canonicalEqual)
+    assert(!CanonicalEqualityScope.differentBooleanLiteral.normalizedEqual)
+    assert(!CanonicalEqualityScope.differentBooleanLiteral.canonicalEqual)
     assert(CanonicalEqualityScope.singleParens.normalizedEqual)
     assert(CanonicalEqualityScope.singleParens.canonicalEqual)
     assert(CanonicalEqualityScope.nestedParens.normalizedEqual)

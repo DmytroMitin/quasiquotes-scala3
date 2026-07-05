@@ -18,6 +18,8 @@ object QuasiquoteMacroExamples:
 
   inline def emitStringLiteral: String = ${ emitStringLiteralImpl }
 
+  inline def emitBooleanLiteral: Boolean = ${ emitBooleanLiteralImpl }
+
   inline def callSelectedMethodViaHole(x: Int): Int = ${ callSelectedMethodViaHoleImpl('x) }
 
   inline def callFunctionHole(x: Int): Int = ${ callFunctionHoleImpl('x) }
@@ -77,6 +79,11 @@ object QuasiquoteMacroExamples:
     import quotes.reflect.*
     import quasiquotes.construct.Quasiquotes.*
     qr""""abc"""".asExprOf[String]
+
+  private def emitBooleanLiteralImpl(using Quotes): Expr[Boolean] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    qr"true".asExprOf[Boolean]
 
   private def callSelectedMethodViaHoleImpl(x: Expr[Int])(using Quotes): Expr[Int] =
     import quotes.reflect.*
