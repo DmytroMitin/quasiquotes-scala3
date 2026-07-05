@@ -1,6 +1,8 @@
 package quasiquotes.matching
 
-final case class MatchResult[T](bindings: Map[String, T])
+final case class MatchResult[T](bindings: Map[String, T]):
+  def binding(name: String): Option[T] =
+    bindings.get(name.stripPrefix("$"))
 
 sealed trait MatchFailure derives CanEqual:
   def message: String

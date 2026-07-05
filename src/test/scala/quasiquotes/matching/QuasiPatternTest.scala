@@ -199,6 +199,14 @@ private object CanonicalEqualityScope:
     }
 
 class QuasiPatternTest extends munit.FunSuite:
+  test("match result binding lookup accepts bare and dollar-prefixed hole names") {
+    val result = MatchResult(Map("x" -> "bound"))
+
+    assertEquals(result.binding("x"), Some("bound"))
+    assertEquals(result.binding("$x"), Some("bound"))
+    assertEquals(result.binding("missing"), None)
+  }
+
   test("qq term pattern parses a hole pattern") {
     val pattern = QuasiPattern.termOrThrow("$x + $y")
     assertEquals(pattern.placeholderSource, "__qqhole_x + __qqhole_y")
