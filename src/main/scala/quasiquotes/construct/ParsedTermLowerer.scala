@@ -2,7 +2,7 @@ package quasiquotes.construct
 
 import scala.util.control.NonFatal
 
-import scala.quoted.Quotes
+import scala.quoted.{Expr, Quotes}
 import dotty.tools.dotc.ast.untpd
 
 object ParsedTermLowerer:
@@ -44,6 +44,11 @@ object ParsedTermLowerer:
             loweredExpression <- lowerTerm(expression)
             loweredType <- lowerType(typeTree)
           yield Typed(loweredExpression, loweredType)
+        case untpd.Tuple(elements) =>
+          for
+            loweredElements <- sequence(elements.map(lowerTerm))
+            loweredTuple <- makeTuple(loweredElements)
+          yield loweredTuple
         case untpd.Parens(inner) =>
           lowerTerm(inner)
         case untpd.TypedSplice(tree) =>
@@ -124,6 +129,18 @@ object ParsedTermLowerer:
             s"Could not lower infix operator $name on ${qualifier.tpe.show}: ${error.getMessage.nn}"
           )
         )
+
+  private def makeTuple(using q: Quotes)(elements: List[q.reflect.Term]): Either[QuasiquoteError, q.reflect.Term] =
+    import q.reflect.*
+
+    if elements.size < 2 || elements.size > 22 then
+      Left(QuasiquoteError.UnsupportedTree("Tuple", s"Unsupported tuple arity: ${elements.size}"))
+    else
+      try
+        Right(Expr.ofTupleFromSeq(elements.map(_.asExpr)).asTerm)
+      catch
+        case NonFatal(error) =>
+          Left(QuasiquoteError.UnsupportedTree("Tuple", error.getMessage.nn))
 
   private def normalizeTerm(using q: Quotes)(term: q.reflect.Term): q.reflect.Term =
     import q.reflect.*

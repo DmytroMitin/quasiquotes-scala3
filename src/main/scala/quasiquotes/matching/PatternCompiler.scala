@@ -27,6 +27,8 @@ object PatternCompiler:
         yield TermPattern.Infix(compiledLeft, op.name.toString, compiledRight)
       case untpd.Typed(expression, typeTree) =>
         compile(expression).map(TermPattern.Typed(_, renderType(typeTree)))
+      case untpd.Tuple(elements) =>
+        sequence(elements.map(compile)).map(TermPattern.Tuple.apply)
       case untpd.Parens(inner) =>
         compile(inner).map(TermPattern.Parenthesized.apply)
       case untpd.TypedSplice(inner) =>

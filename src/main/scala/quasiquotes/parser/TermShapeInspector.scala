@@ -22,6 +22,8 @@ object TermShapeInspector:
         TermShape.Infix(inspect(left), op.name.toString, inspect(right))
       case untpd.Typed(expression, typeTree) =>
         TermShape.Typed(inspect(expression), inspectType(typeTree))
+      case untpd.Tuple(elements) =>
+        TermShape.Tuple(elements.map(inspect))
       case untpd.TypedSplice(tree) =>
         inspect(tree)
       case untpd.Parens(tree) =>
@@ -45,6 +47,8 @@ object TermShapeInspector:
         s"InfixOp(${rawStructure(left)},${rawStructure(op)},${rawStructure(right)})"
       case untpd.Typed(expression, typeTree) =>
         s"Typed(${rawStructure(expression)},${rawTypeStructure(typeTree)})"
+      case untpd.Tuple(elements) =>
+        s"Tuple([${elements.map(rawStructure).mkString(", ")}])"
       case untpd.TypedSplice(tree) =>
         s"TypedSplice(${rawStructure(tree)})"
       case untpd.Parens(tree) =>

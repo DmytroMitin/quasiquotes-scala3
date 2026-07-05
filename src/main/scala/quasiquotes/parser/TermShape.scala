@@ -10,6 +10,7 @@ object TermShape:
   final case class Apply(function: TermShape, arguments: List[TermShape]) extends TermShape
   final case class Infix(left: TermShape, operator: String, right: TermShape) extends TermShape
   final case class Typed(expression: TermShape, typeName: String) extends TermShape
+  final case class Tuple(elements: List[TermShape]) extends TermShape
   final case class Parenthesized(expression: TermShape) extends TermShape
   final case class Unsupported(nodeKind: String, detail: String) extends TermShape
 
@@ -24,5 +25,6 @@ object TermShape:
       case Infix(left, operator, right) =>
         s"Infix(${render(left)}, $operator, ${render(right)})"
       case Typed(expression, typeName) => s"Typed(${render(expression)}, Type($typeName))"
+      case Tuple(elements) => s"Tuple([${elements.map(render).mkString(", ")}])"
       case Parenthesized(expression) => s"Parens(${render(expression)})"
       case Unsupported(nodeKind, detail) => s"Unsupported($nodeKind, $detail)"

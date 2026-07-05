@@ -23,7 +23,10 @@ class TinyTermParserTest extends munit.FunSuite:
     "__hole0(__hole1)" -> "Apply(Placeholder(__hole0), [Placeholder(__hole1)])",
     "x: Int" -> "Typed(Ident(x), Type(Int))",
     "(x: Int)" -> "Parens(Typed(Ident(x), Type(Int)))",
-    "foo(x: Int)" -> "Apply(Ident(foo), [Typed(Ident(x), Type(Int))])"
+    "foo(x: Int)" -> "Apply(Ident(foo), [Typed(Ident(x), Type(Int))])",
+    "(a, b)" -> "Tuple([Ident(a), Ident(b)])",
+    "(a, (b, c))" -> "Tuple([Ident(a), Tuple([Ident(b), Ident(c)])])",
+    "foo((a, b))" -> "Apply(Ident(foo), [Tuple([Ident(a), Ident(b)])])"
   )
 
   private val rejectedCases = List(

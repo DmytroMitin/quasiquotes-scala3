@@ -34,9 +34,15 @@ object QuasiquoteMacroExamples:
 
   inline def typedHoleApplication(x: Int): Int = ${ typedHoleApplicationImpl('x) }
 
+  inline def tupleHoles(x: Int, y: Int): (Int, Int) = ${ tupleHolesImpl('x, 'y) }
+
+  inline def nestedTupleHoles(x: Int, y: Int, z: Int): (Int, (Int, Int)) = ${ nestedTupleHolesImpl('x, 'y, 'z) }
+
   inline def holeInfixSummary(x: Int, y: Int): DemoCase = ${ holeInfixSummaryImpl('x, 'y) }
 
   inline def nestedFunctionHoleSummary(x: Int): DemoCase = ${ nestedFunctionHoleSummaryImpl('x) }
+
+  inline def tupleApplicationSummary(x: Int, y: Int): DemoCase = ${ tupleApplicationSummaryImpl('x, 'y) }
 
   inline def parenthesizedInfixSummary(x: Int, y: Int): DemoCase = ${ parenthesizedInfixSummaryImpl('x, 'y) }
 
@@ -116,6 +122,16 @@ object QuasiquoteMacroExamples:
     val functionTerm = Select.unique('{ (n: Int) => n + 1 }.asTerm, "apply")
     qr"$functionTerm(${x.asTerm}: Int)".asExprOf[Int]
 
+  private def tupleHolesImpl(x: Expr[Int], y: Expr[Int])(using Quotes): Expr[(Int, Int)] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    qr"(${x.asTerm}, ${y.asTerm})".asExprOf[(Int, Int)]
+
+  private def nestedTupleHolesImpl(x: Expr[Int], y: Expr[Int], z: Expr[Int])(using Quotes): Expr[(Int, (Int, Int))] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    qr"(${x.asTerm}, (${y.asTerm}, ${z.asTerm}))".asExprOf[(Int, (Int, Int))]
+
   private def holeInfixSummaryImpl(x: Expr[Int], y: Expr[Int])(using Quotes): Expr[DemoCase] =
     import quotes.reflect.*
     import quasiquotes.construct.Quasiquotes.*
@@ -134,6 +150,15 @@ object QuasiquoteMacroExamples:
     val placeholderSource = PlaceholderSource.synthesize(Seq("", "(", "(", "))"), Seq(fTerm, gTerm, xTerm)).toOption.get.source
     val term = qr"$fTerm($gTerm($xTerm))"
     '{ DemoCase("""qr"$f($g($x))"""", "$f($g($x))", ${ Expr(placeholderSource) }, ${ Expr(term.show(using Printer.TreeStructure)) }, ${ term.asExprOf[Int] }.toString) }
+
+  private def tupleApplicationSummaryImpl(x: Expr[Int], y: Expr[Int])(using Quotes): Expr[DemoCase] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    val xTerm = x.asTerm
+    val yTerm = y.asTerm
+    val placeholderSource = PlaceholderSource.synthesize(Seq("foo((", ", ", "))"), Seq(xTerm, yTerm)).toOption.get.source
+    val term = qr"foo(($xTerm, $yTerm))"
+    '{ DemoCase("""qr"foo(($x, $y))"""", "foo(($x, $y))", ${ Expr(placeholderSource) }, ${ Expr(term.show(using Printer.TreeStructure)) }, ${ term.asExprOf[Int] }.toString) }
 
   private def parenthesizedInfixSummaryImpl(x: Expr[Int], y: Expr[Int])(using Quotes): Expr[DemoCase] =
     import quotes.reflect.*

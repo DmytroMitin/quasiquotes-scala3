@@ -74,6 +74,23 @@ private object MatchTypedScope:
   val typedApplicationArgument: QuasiquoteMatchExamples.MatchDemo =
     QuasiquoteMatchExamples.summarizeMatchNormalized("foo($x: Int)", foo(a: Int))
 
+private object MatchTupleScope:
+  private val a = 2
+  private val b = 3
+  private val c = 4
+  private def foo(value: (Int, Int)): Int = value._1 + value._2
+
+  val simple: QuasiquoteMatchExamples.MatchDemo =
+    QuasiquoteMatchExamples.summarizeMatchNormalized("($x, $y)", (a, b))
+  val repeatedSuccess: QuasiquoteMatchExamples.MatchDemo =
+    QuasiquoteMatchExamples.summarizeMatchNormalized("($x, $x)", (a, a))
+  val repeatedFailure: QuasiquoteMatchExamples.MatchDemo =
+    QuasiquoteMatchExamples.summarizeMatchNormalized("($x, $x)", (a, b))
+  val applicationArgument: QuasiquoteMatchExamples.MatchDemo =
+    QuasiquoteMatchExamples.summarizeMatchNormalized("foo(($x, $y))", foo((a, b)))
+  val nested: QuasiquoteMatchExamples.MatchDemo =
+    QuasiquoteMatchExamples.summarizeMatchNormalized("($x, ($y, $z))", (a, (b, c)))
+
 private object MatchMacroProofScope:
   private val a = 2
   private val b = 3
@@ -125,6 +142,16 @@ private object CanonicalEqualityScope:
     QuasiquoteMatchExamples.compareEquality((a: Int), (a: AnyVal))
   val typedVsPlain: QuasiquoteMatchExamples.EqualityComparisonDemo =
     QuasiquoteMatchExamples.compareEquality((a: Int), a)
+  val tupleSame: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality((a, b), (a, b))
+  val tupleNestedParens: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(((a, b)), (a, b))
+  val tupleOrder: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality((a, b), (b, a))
+  val tupleNesting: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality((a, (b, c)), ((a, b), c))
+  val tupleVsPlain: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality((a, b), a)
   val lambda: QuasiquoteMatchExamples.CanonicalDemo =
     QuasiquoteMatchExamples.summarizeCanonical((x: Int) => x)
   val block: QuasiquoteMatchExamples.CanonicalDemo =
@@ -284,6 +311,19 @@ class QuasiPatternTest extends munit.FunSuite:
     assert(MatchTypedScope.typedPatternPlainTarget.detail.contains("Pattern shape mismatch"))
   }
 
+  test("tuple expression patterns match supported tuple targets structurally") {
+    assert(MatchTupleScope.simple.success)
+    assertEquals(MatchTupleScope.simple.bindings.size, 2)
+    assert(MatchTupleScope.applicationArgument.success)
+    assert(MatchTupleScope.nested.success)
+  }
+
+  test("tuple repeated-hole patterns use normalized structural equality") {
+    assert(MatchTupleScope.repeatedSuccess.success)
+    assert(!MatchTupleScope.repeatedFailure.success)
+    assert(MatchTupleScope.repeatedFailure.detail.contains("Repeated hole"))
+  }
+
   test("matching API works inside real macros") {
     assert(MatchMacroProofScope.infix.startsWith("infix-match("))
     assert(MatchMacroProofScope.nested.startsWith("nested-match("))
@@ -344,6 +384,24 @@ class QuasiPatternTest extends munit.FunSuite:
     assert(!CanonicalEqualityScope.typedDifferentType.canonicalEqual)
     assert(!CanonicalEqualityScope.typedVsPlain.normalizedEqual)
     assert(!CanonicalEqualityScope.typedVsPlain.canonicalEqual)
+  }
+
+  test("tuple expression equality preserves order and nesting boundaries") {
+    assert(CanonicalEqualityScope.tupleSame.normalizedEqual)
+    assert(CanonicalEqualityScope.tupleSame.canonicalEqual)
+    assert(CanonicalEqualityScope.tupleNestedParens.normalizedEqual)
+    assert(CanonicalEqualityScope.tupleNestedParens.canonicalEqual)
+    assert(!CanonicalEqualityScope.tupleOrder.normalizedEqual)
+    assert(!CanonicalEqualityScope.tupleOrder.canonicalEqual)
+    assert(!CanonicalEqualityScope.tupleNesting.normalizedEqual)
+    assert(!CanonicalEqualityScope.tupleNesting.canonicalEqual)
+    assert(!CanonicalEqualityScope.tupleVsPlain.normalizedEqual)
+    assert(!CanonicalEqualityScope.tupleVsPlain.canonicalEqual)
+  }
+
+  test("tuple destructuring and binder-like patterns remain unsupported") {
+    assert(QuasiPattern.term("case ($x, $y) => $x").isLeft)
+    assert(QuasiPattern.term("(($x, $y) => $x)").isLeft)
   }
 
   test("canonicalization keeps lambdas and local blocks unsupported") {

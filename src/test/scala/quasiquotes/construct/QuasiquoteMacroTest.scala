@@ -34,6 +34,10 @@ private object ParenthesizedSelectedHoleScope:
 private object NestedParenHoleScope:
   val demo: QuasiquoteMacroExamples.DemoCase = QuasiquoteMacroExamples.nestedParenHoleSummary(7)
 
+private object TupleApplicationScope:
+  private def foo(value: (Int, Int)): Int = value._1 + value._2
+  val demo: QuasiquoteMacroExamples.DemoCase = QuasiquoteMacroExamples.tupleApplicationSummary(2, 3)
+
 class QuasiquoteMacroTest extends munit.FunSuite:
   test("qr can emit an integer literal as a Term") {
     assertEquals(QuasiquoteMacroExamples.emitIntLiteral, 1)
@@ -73,6 +77,21 @@ class QuasiquoteMacroTest extends munit.FunSuite:
 
   test("qr can construct an application with a typed hole argument") {
     assertEquals(QuasiquoteMacroExamples.typedHoleApplication(2), 3)
+  }
+
+  test("qr can construct a tuple expression from holes") {
+    assertEquals(QuasiquoteMacroExamples.tupleHoles(2, 3), (2, 3))
+  }
+
+  test("qr can construct a nested tuple expression") {
+    assertEquals(QuasiquoteMacroExamples.nestedTupleHoles(2, 3, 4), (2, (3, 4)))
+  }
+
+  test("qr can construct an application with a tuple argument") {
+    assertEquals(TupleApplicationScope.demo.input, "foo(($x, $y))")
+    assertEquals(TupleApplicationScope.demo.placeholderSource, "foo((__hole0, __hole1))")
+    assert(TupleApplicationScope.demo.treeStructure.contains("Apply"))
+    assertEquals(TupleApplicationScope.demo.substitutedResult, "5")
   }
 
   test("demo summary for hole infix expressions is usable") {

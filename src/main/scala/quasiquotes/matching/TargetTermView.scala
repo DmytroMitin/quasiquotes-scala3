@@ -1,6 +1,7 @@
 package quasiquotes.matching
 
 import scala.quoted.Quotes
+import scala.util.matching.Regex
 
 sealed trait TargetTermView[+T] derives CanEqual:
   def original: T
@@ -13,6 +14,7 @@ object TargetTermView:
   final case class Apply[T](function: TargetTermView[T], arguments: List[TargetTermView[T]], original: T) extends TargetTermView[T]
   final case class Infix[T](left: TargetTermView[T], operator: String, right: TargetTermView[T], original: T) extends TargetTermView[T]
   final case class Typed[T](expression: TargetTermView[T], typeName: String, original: T) extends TargetTermView[T]
+  final case class Tuple[T](elements: List[TargetTermView[T]], original: T) extends TargetTermView[T]
 
   def fromTerm(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, TargetTermView[q.reflect.Term]] =
     import q.reflect.*
@@ -33,6 +35,9 @@ object TargetTermView:
         case q.reflect.Select(qualifier, name) =>
           val current = unwrapWrappers(term)
           extract(qualifier).map(TargetTermView.Select(_, name, current))
+        case q.reflect.Apply(function, arguments) if tupleArity(function).contains(arguments.length) =>
+          val current = unwrapWrappers(term)
+          sequence(arguments.map(extract)).map(TargetTermView.Tuple(_, current))
         case q.reflect.Apply(function, arguments) =>
           val current = unwrapWrappers(term)
           for
@@ -58,6 +63,8 @@ object TargetTermView:
         s"Infix(${render(left)}, $operator, ${render(right)})"
       case Typed(expression, typeName, _) =>
         s"Typed(${render(expression)}, Type($typeName))"
+      case Tuple(elements, _) =>
+        s"Tuple([${elements.map(render).mkString(", ")}])"
 
   private def unwrapWrappers(using q: Quotes)(term: q.reflect.Term): q.reflect.Term =
     import q.reflect.*
@@ -80,6 +87,25 @@ object TargetTermView:
       case "scala.Predef.String" | "java.lang.String" | "scala.String" => "String"
       case "scala.Boolean" => "Boolean"
       case other => other
+
+  private val TupleSymbol: Regex = """.*Tuple([2-9]|1[0-9]|2[0-2])(\.apply|\.<init>)?$""".r
+
+  private def tupleArity(using q: Quotes)(term: q.reflect.Term): Option[Int] =
+    import q.reflect.*
+
+    def fromSymbol(term: Term): Option[Int] =
+      if term.symbol.exists then
+        term.symbol.fullName match
+          case TupleSymbol(arity, _) => Some(arity.toInt)
+          case _ => None
+      else None
+
+    fromSymbol(term).orElse {
+      term match
+        case q.reflect.TypeApply(function, _) => tupleArity(function)
+        case q.reflect.Select(qualifier, _) => tupleArity(qualifier)
+        case _ => None
+    }
 
   private def sequence[A](values: List[Either[MatchFailure, A]]): Either[MatchFailure, List[A]] =
     values.foldRight(Right(Nil): Either[MatchFailure, List[A]]) { (next, acc) =>

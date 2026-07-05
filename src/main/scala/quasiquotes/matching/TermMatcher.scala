@@ -84,6 +84,14 @@ object TermMatcher:
             case TargetTermView.Typed(targetExpression, targetTypeName, _) if targetTypeName == typeName =>
               loop(expression, targetExpression, bindings)
             case other => Left(shapeMismatch(pattern, other))
+        case TermPattern.Tuple(elements) =>
+          target match
+            case TargetTermView.Tuple(targetElements, _) if targetElements.length == elements.length =>
+              elements.zip(targetElements).foldLeft(Right(bindings): Either[MatchFailure, Map[String, Term]]) {
+                case (acc, (patternElement, targetElement)) =>
+                  acc.flatMap(loop(patternElement, targetElement, _))
+              }
+            case other => Left(shapeMismatch(pattern, other))
         case TermPattern.Parenthesized(inner) =>
           if normalized then loop(inner, target, bindings)
           else Left(shapeMismatch(pattern, target))
