@@ -19,6 +19,7 @@ object ParsedTermLowerer:
           constant.value match
             case value: String => Right(Literal(StringConstant(value)))
             case value: Int => Right(Literal(IntConstant(value)))
+            case value: Boolean => Right(Literal(BooleanConstant(value)))
             case value => Left(QuasiquoteError.UnsupportedLiteral(String.valueOf(value)))
         case untpd.Number(digits, _) =>
           scala.util.Try(digits.toInt).toEither.left.map(_ => QuasiquoteError.UnsupportedLiteral(digits)).map(value => Literal(IntConstant(value)))
@@ -49,6 +50,12 @@ object ParsedTermLowerer:
             loweredElements <- sequence(elements.map(lowerTerm))
             loweredTuple <- makeTuple(loweredElements)
           yield loweredTuple
+        case untpd.If(condition, thenBranch, elseBranch) =>
+          for
+            loweredCondition <- lowerTerm(condition)
+            loweredThenBranch <- lowerTerm(thenBranch)
+            loweredElseBranch <- lowerTerm(elseBranch)
+          yield If(loweredCondition, loweredThenBranch, loweredElseBranch)
         case untpd.Parens(inner) =>
           lowerTerm(inner)
         case untpd.TypedSplice(tree) =>

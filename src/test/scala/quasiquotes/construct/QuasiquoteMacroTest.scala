@@ -38,6 +38,10 @@ private object TupleApplicationScope:
   private def foo(value: (Int, Int)): Int = value._1 + value._2
   val demo: QuasiquoteMacroExamples.DemoCase = QuasiquoteMacroExamples.tupleApplicationSummary(2, 3)
 
+private object IfApplicationScope:
+  private def foo(value: Int): Int = value + 10
+  val demo: QuasiquoteMacroExamples.DemoCase = QuasiquoteMacroExamples.ifApplicationSummary(true, 2, 3)
+
 class QuasiquoteMacroTest extends munit.FunSuite:
   test("qr can emit an integer literal as a Term") {
     assertEquals(QuasiquoteMacroExamples.emitIntLiteral, 1)
@@ -92,6 +96,18 @@ class QuasiquoteMacroTest extends munit.FunSuite:
     assertEquals(TupleApplicationScope.demo.placeholderSource, "foo((__hole0, __hole1))")
     assert(TupleApplicationScope.demo.treeStructure.contains("Apply"))
     assertEquals(TupleApplicationScope.demo.substitutedResult, "5")
+  }
+
+  test("qr can construct an if expression from holes") {
+    assertEquals(QuasiquoteMacroExamples.ifHoles(true, 2, 3), 2)
+    assertEquals(QuasiquoteMacroExamples.ifHoles(false, 2, 3), 3)
+  }
+
+  test("qr can construct an application with an if argument") {
+    assertEquals(IfApplicationScope.demo.input, "foo(if $cond then $x else $y)")
+    assertEquals(IfApplicationScope.demo.placeholderSource, "foo(if __hole0 then __hole1 else __hole2)")
+    assert(IfApplicationScope.demo.treeStructure.contains("If"))
+    assertEquals(IfApplicationScope.demo.substitutedResult, "12")
   }
 
   test("demo summary for hole infix expressions is usable") {

@@ -13,6 +13,7 @@ object CanonicalTerm:
   final case class Infix(left: CanonicalTerm, operator: String, right: CanonicalTerm) extends CanonicalTerm
   final case class Typed(expression: CanonicalTerm, typeName: String) extends CanonicalTerm
   final case class Tuple(elements: List[CanonicalTerm]) extends CanonicalTerm
+  final case class If(condition: CanonicalTerm, thenBranch: CanonicalTerm, elseBranch: CanonicalTerm) extends CanonicalTerm
 
   def render(term: CanonicalTerm): String =
     term match
@@ -27,6 +28,8 @@ object CanonicalTerm:
         s"CTyped(${render(expression)}, Type($typeName))"
       case Tuple(elements) =>
         s"CTuple([${elements.map(render).mkString(", ")}])"
+      case If(condition, thenBranch, elseBranch) =>
+        s"CIf(${render(condition)}, ${render(thenBranch)}, ${render(elseBranch)})"
 
 object TermCanonicalizer:
   def canonicalize(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, CanonicalTerm] =
@@ -63,6 +66,12 @@ object TermCanonicalizer:
         canonicalizeView(expression).map(CanonicalTerm.Typed(_, typeName))
       case TargetTermView.Tuple(elements, _) =>
         sequence(elements.map(canonicalizeView)).map(CanonicalTerm.Tuple.apply)
+      case TargetTermView.If(condition, thenBranch, elseBranch, _) =>
+        for
+          canonicalCondition <- canonicalizeView(condition)
+          canonicalThenBranch <- canonicalizeView(thenBranch)
+          canonicalElseBranch <- canonicalizeView(elseBranch)
+        yield CanonicalTerm.If(canonicalCondition, canonicalThenBranch, canonicalElseBranch)
 
   private def sequence[A](values: List[Either[MatchFailure, A]]): Either[MatchFailure, List[A]] =
     values.foldRight(Right(Nil): Either[MatchFailure, List[A]]) { (next, acc) =>

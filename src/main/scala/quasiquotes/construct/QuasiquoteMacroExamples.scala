@@ -38,11 +38,15 @@ object QuasiquoteMacroExamples:
 
   inline def nestedTupleHoles(x: Int, y: Int, z: Int): (Int, (Int, Int)) = ${ nestedTupleHolesImpl('x, 'y, 'z) }
 
+  inline def ifHoles(cond: Boolean, x: Int, y: Int): Int = ${ ifHolesImpl('cond, 'x, 'y) }
+
   inline def holeInfixSummary(x: Int, y: Int): DemoCase = ${ holeInfixSummaryImpl('x, 'y) }
 
   inline def nestedFunctionHoleSummary(x: Int): DemoCase = ${ nestedFunctionHoleSummaryImpl('x) }
 
   inline def tupleApplicationSummary(x: Int, y: Int): DemoCase = ${ tupleApplicationSummaryImpl('x, 'y) }
+
+  inline def ifApplicationSummary(cond: Boolean, x: Int, y: Int): DemoCase = ${ ifApplicationSummaryImpl('cond, 'x, 'y) }
 
   inline def parenthesizedInfixSummary(x: Int, y: Int): DemoCase = ${ parenthesizedInfixSummaryImpl('x, 'y) }
 
@@ -132,6 +136,11 @@ object QuasiquoteMacroExamples:
     import quasiquotes.construct.Quasiquotes.*
     qr"(${x.asTerm}, (${y.asTerm}, ${z.asTerm}))".asExprOf[(Int, (Int, Int))]
 
+  private def ifHolesImpl(cond: Expr[Boolean], x: Expr[Int], y: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    qr"if ${cond.asTerm} then ${x.asTerm} else ${y.asTerm}".asExprOf[Int]
+
   private def holeInfixSummaryImpl(x: Expr[Int], y: Expr[Int])(using Quotes): Expr[DemoCase] =
     import quotes.reflect.*
     import quasiquotes.construct.Quasiquotes.*
@@ -159,6 +168,16 @@ object QuasiquoteMacroExamples:
     val placeholderSource = PlaceholderSource.synthesize(Seq("foo((", ", ", "))"), Seq(xTerm, yTerm)).toOption.get.source
     val term = qr"foo(($xTerm, $yTerm))"
     '{ DemoCase("""qr"foo(($x, $y))"""", "foo(($x, $y))", ${ Expr(placeholderSource) }, ${ Expr(term.show(using Printer.TreeStructure)) }, ${ term.asExprOf[Int] }.toString) }
+
+  private def ifApplicationSummaryImpl(cond: Expr[Boolean], x: Expr[Int], y: Expr[Int])(using Quotes): Expr[DemoCase] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    val condTerm = cond.asTerm
+    val xTerm = x.asTerm
+    val yTerm = y.asTerm
+    val placeholderSource = PlaceholderSource.synthesize(Seq("foo(if ", " then ", " else ", ")"), Seq(condTerm, xTerm, yTerm)).toOption.get.source
+    val term = qr"foo(if $condTerm then $xTerm else $yTerm)"
+    '{ DemoCase("""qr"foo(if $cond then $x else $y)"""", "foo(if $cond then $x else $y)", ${ Expr(placeholderSource) }, ${ Expr(term.show(using Printer.TreeStructure)) }, ${ term.asExprOf[Int] }.toString) }
 
   private def parenthesizedInfixSummaryImpl(x: Expr[Int], y: Expr[Int])(using Quotes): Expr[DemoCase] =
     import quotes.reflect.*

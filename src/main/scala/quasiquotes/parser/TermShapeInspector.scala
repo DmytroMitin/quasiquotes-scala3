@@ -24,6 +24,8 @@ object TermShapeInspector:
         TermShape.Typed(inspect(expression), inspectType(typeTree))
       case untpd.Tuple(elements) =>
         TermShape.Tuple(elements.map(inspect))
+      case untpd.If(condition, thenBranch, elseBranch) =>
+        TermShape.If(inspect(condition), inspect(thenBranch), inspect(elseBranch))
       case untpd.TypedSplice(tree) =>
         inspect(tree)
       case untpd.Parens(tree) =>
@@ -49,6 +51,8 @@ object TermShapeInspector:
         s"Typed(${rawStructure(expression)},${rawTypeStructure(typeTree)})"
       case untpd.Tuple(elements) =>
         s"Tuple([${elements.map(rawStructure).mkString(", ")}])"
+      case untpd.If(condition, thenBranch, elseBranch) =>
+        s"If(${rawStructure(condition)},${rawStructure(thenBranch)},${rawStructure(elseBranch)})"
       case untpd.TypedSplice(tree) =>
         s"TypedSplice(${rawStructure(tree)})"
       case untpd.Parens(tree) =>

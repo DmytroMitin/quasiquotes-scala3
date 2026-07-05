@@ -92,6 +92,15 @@ object TermMatcher:
                   acc.flatMap(loop(patternElement, targetElement, _))
               }
             case other => Left(shapeMismatch(pattern, other))
+        case TermPattern.If(condition, thenBranch, elseBranch) =>
+          target match
+            case TargetTermView.If(targetCondition, targetThenBranch, targetElseBranch, _) =>
+              for
+                conditionBindings <- loop(condition, targetCondition, bindings)
+                thenBindings <- loop(thenBranch, targetThenBranch, conditionBindings)
+                elseBindings <- loop(elseBranch, targetElseBranch, thenBindings)
+              yield elseBindings
+            case other => Left(shapeMismatch(pattern, other))
         case TermPattern.Parenthesized(inner) =>
           if normalized then loop(inner, target, bindings)
           else Left(shapeMismatch(pattern, target))

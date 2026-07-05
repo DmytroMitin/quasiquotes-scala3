@@ -29,6 +29,12 @@ object PatternCompiler:
         compile(expression).map(TermPattern.Typed(_, renderType(typeTree)))
       case untpd.Tuple(elements) =>
         sequence(elements.map(compile)).map(TermPattern.Tuple.apply)
+      case untpd.If(condition, thenBranch, elseBranch) =>
+        for
+          compiledCondition <- compile(condition)
+          compiledThenBranch <- compile(thenBranch)
+          compiledElseBranch <- compile(elseBranch)
+        yield TermPattern.If(compiledCondition, compiledThenBranch, compiledElseBranch)
       case untpd.Parens(inner) =>
         compile(inner).map(TermPattern.Parenthesized.apply)
       case untpd.TypedSplice(inner) =>

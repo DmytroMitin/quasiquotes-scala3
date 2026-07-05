@@ -15,6 +15,7 @@ object TargetTermView:
   final case class Infix[T](left: TargetTermView[T], operator: String, right: TargetTermView[T], original: T) extends TargetTermView[T]
   final case class Typed[T](expression: TargetTermView[T], typeName: String, original: T) extends TargetTermView[T]
   final case class Tuple[T](elements: List[TargetTermView[T]], original: T) extends TargetTermView[T]
+  final case class If[T](condition: TargetTermView[T], thenBranch: TargetTermView[T], elseBranch: TargetTermView[T], original: T) extends TargetTermView[T]
 
   def fromTerm(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, TargetTermView[q.reflect.Term]] =
     import q.reflect.*
@@ -32,6 +33,9 @@ object TargetTermView:
         case q.reflect.Literal(StringConstant(value)) =>
           val current = unwrapWrappers(term)
           Right(TargetTermView.Literal("\"" + value + "\"", current))
+        case q.reflect.Literal(BooleanConstant(value)) =>
+          val current = unwrapWrappers(term)
+          Right(TargetTermView.Literal(value.toString, current))
         case q.reflect.Select(qualifier, name) =>
           val current = unwrapWrappers(term)
           extract(qualifier).map(TargetTermView.Select(_, name, current))
@@ -47,6 +51,13 @@ object TargetTermView:
         case q.reflect.Typed(expression, typeTree) =>
           val current = unwrapWrappers(term)
           extract(expression).map(TargetTermView.Typed(_, renderType(typeTree), current))
+        case q.reflect.If(condition, thenBranch, elseBranch) =>
+          val current = unwrapWrappers(term)
+          for
+            extractedCondition <- extract(condition)
+            extractedThenBranch <- extract(thenBranch)
+            extractedElseBranch <- extract(elseBranch)
+          yield TargetTermView.If(extractedCondition, extractedThenBranch, extractedElseBranch, current)
         case other =>
           Left(MatchFailure.UnsupportedTargetShape(other.show(using Printer.TreeStructure)))
 
@@ -65,6 +76,8 @@ object TargetTermView:
         s"Typed(${render(expression)}, Type($typeName))"
       case Tuple(elements, _) =>
         s"Tuple([${elements.map(render).mkString(", ")}])"
+      case If(condition, thenBranch, elseBranch, _) =>
+        s"If(${render(condition)}, ${render(thenBranch)}, ${render(elseBranch)})"
 
   private def unwrapWrappers(using q: Quotes)(term: q.reflect.Term): q.reflect.Term =
     import q.reflect.*

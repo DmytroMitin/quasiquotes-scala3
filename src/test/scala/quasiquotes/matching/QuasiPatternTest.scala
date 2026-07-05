@@ -58,7 +58,7 @@ private object MatchParenScope:
   val normalization: QuasiquoteMatchExamples.NormalizationDemo = QuasiquoteMatchExamples.summarizeNormalization("(($x))", ((z)))
 
 private object MatchUnsupportedScope:
-  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("if $x then $y else $z", 1)
+  val demo: QuasiquoteMatchExamples.MatchDemo = QuasiquoteMatchExamples.summarizeMatchNormalized("value match { case x => x }", 1)
 
 private object MatchTypedScope:
   private val a = 2
@@ -90,6 +90,23 @@ private object MatchTupleScope:
     QuasiquoteMatchExamples.summarizeMatchNormalized("foo(($x, $y))", foo((a, b)))
   val nested: QuasiquoteMatchExamples.MatchDemo =
     QuasiquoteMatchExamples.summarizeMatchNormalized("($x, ($y, $z))", (a, (b, c)))
+
+private object MatchIfScope:
+  private val cond = true
+  private val a = 2
+  private val b = 3
+  private def foo(value: Int): Int = value + 10
+
+  val simple: QuasiquoteMatchExamples.MatchDemo =
+    QuasiquoteMatchExamples.summarizeMatchNormalized("if $c then $t else $e", if cond then a else b)
+  val repeatedSuccess: QuasiquoteMatchExamples.MatchDemo =
+    QuasiquoteMatchExamples.summarizeMatchNormalized("if $c then $x else $x", if cond then a else a)
+  val repeatedFailure: QuasiquoteMatchExamples.MatchDemo =
+    QuasiquoteMatchExamples.summarizeMatchNormalized("if $c then $x else $x", if cond then a else b)
+  val applicationArgument: QuasiquoteMatchExamples.MatchDemo =
+    QuasiquoteMatchExamples.summarizeMatchNormalized("foo(if $c then $t else $e)", foo(if cond then a else b))
+  val tupleBranches: QuasiquoteMatchExamples.MatchDemo =
+    QuasiquoteMatchExamples.summarizeMatchNormalized("if $c then ($a, $b) else ($d, $e)", if cond then (a, b) else (b, a))
 
 private object MatchMacroProofScope:
   private val a = 2
@@ -152,6 +169,19 @@ private object CanonicalEqualityScope:
     QuasiquoteMatchExamples.compareEquality((a, (b, c)), ((a, b), c))
   val tupleVsPlain: QuasiquoteMatchExamples.EqualityComparisonDemo =
     QuasiquoteMatchExamples.compareEquality((a, b), a)
+  private def trueCondition: Boolean = true
+  val ifSame: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(if trueCondition then a else b, if trueCondition then a else b)
+  val ifConditionParens: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(if (trueCondition) then a else b, if trueCondition then a else b)
+  val ifBranchParens: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(if trueCondition then (a) else b, if trueCondition then a else b)
+  val ifBranchOrder: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(if trueCondition then a else b, if trueCondition then b else a)
+  val ifSameBranchesVsPlain: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(if trueCondition then a else a, a)
+  val ifTrueConditionVsPlain: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(if trueCondition then a else b, a)
   val lambda: QuasiquoteMatchExamples.CanonicalDemo =
     QuasiquoteMatchExamples.summarizeCanonical((x: Int) => x)
   val block: QuasiquoteMatchExamples.CanonicalDemo =
@@ -324,6 +354,19 @@ class QuasiPatternTest extends munit.FunSuite:
     assert(MatchTupleScope.repeatedFailure.detail.contains("Repeated hole"))
   }
 
+  test("if expression patterns match supported if targets structurally") {
+    assert(MatchIfScope.simple.success)
+    assertEquals(MatchIfScope.simple.bindings.size, 3)
+    assert(MatchIfScope.applicationArgument.success)
+    assert(MatchIfScope.tupleBranches.success)
+  }
+
+  test("if repeated-hole branch patterns use normalized structural equality") {
+    assert(MatchIfScope.repeatedSuccess.success)
+    assert(!MatchIfScope.repeatedFailure.success)
+    assert(MatchIfScope.repeatedFailure.detail.contains("Repeated hole"))
+  }
+
   test("matching API works inside real macros") {
     assert(MatchMacroProofScope.infix.startsWith("infix-match("))
     assert(MatchMacroProofScope.nested.startsWith("nested-match("))
@@ -397,6 +440,27 @@ class QuasiPatternTest extends munit.FunSuite:
     assert(!CanonicalEqualityScope.tupleNesting.canonicalEqual)
     assert(!CanonicalEqualityScope.tupleVsPlain.normalizedEqual)
     assert(!CanonicalEqualityScope.tupleVsPlain.canonicalEqual)
+  }
+
+  test("if expression equality preserves branch and condition structure") {
+    assert(CanonicalEqualityScope.ifSame.normalizedEqual)
+    assert(CanonicalEqualityScope.ifSame.canonicalEqual)
+    assert(CanonicalEqualityScope.ifConditionParens.normalizedEqual)
+    assert(CanonicalEqualityScope.ifConditionParens.canonicalEqual)
+    assert(CanonicalEqualityScope.ifBranchParens.normalizedEqual)
+    assert(CanonicalEqualityScope.ifBranchParens.canonicalEqual)
+    assert(!CanonicalEqualityScope.ifBranchOrder.normalizedEqual)
+    assert(!CanonicalEqualityScope.ifBranchOrder.canonicalEqual)
+    assert(!CanonicalEqualityScope.ifSameBranchesVsPlain.normalizedEqual)
+    assert(!CanonicalEqualityScope.ifSameBranchesVsPlain.canonicalEqual)
+    assert(!CanonicalEqualityScope.ifTrueConditionVsPlain.normalizedEqual)
+    assert(!CanonicalEqualityScope.ifTrueConditionVsPlain.canonicalEqual)
+  }
+
+  test("unsupported control-flow and binder-like patterns remain unsupported") {
+    assert(QuasiPattern.term("value match { case x => x }").isLeft)
+    assert(QuasiPattern.term("while cond do a").isLeft)
+    assert(QuasiPattern.term("for x <- xs yield x").isLeft)
   }
 
   test("tuple destructuring and binder-like patterns remain unsupported") {
