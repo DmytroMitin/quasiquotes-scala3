@@ -89,6 +89,12 @@ private object CanonicalEqualityScope:
     QuasiquoteMatchExamples.compareEquality(a, ((a)))
   val methodCallOperatorShape: QuasiquoteMatchExamples.EqualityComparisonDemo =
     QuasiquoteMatchExamples.compareEquality(a + b, a.+(b))
+  val repeatedInfixOperands: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(a, a)
+  val repeatedParenOperands: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality((a), a)
+  val repeatedFunctionArguments: QuasiquoteMatchExamples.EqualityComparisonDemo =
+    QuasiquoteMatchExamples.compareEquality(a, a)
   val commutativity: QuasiquoteMatchExamples.EqualityComparisonDemo =
     QuasiquoteMatchExamples.compareEquality(a + b, b + a)
   val associativity: QuasiquoteMatchExamples.EqualityComparisonDemo =
@@ -272,6 +278,15 @@ class QuasiPatternTest extends munit.FunSuite:
   test("canonical equality preserves existing limited infix operator shape normalization") {
     assert(CanonicalEqualityScope.methodCallOperatorShape.normalizedEqual)
     assert(CanonicalEqualityScope.methodCallOperatorShape.canonicalEqual)
+  }
+
+  test("canonical equality agrees with normalized equality for repeated-hole success operands") {
+    assert(CanonicalEqualityScope.repeatedInfixOperands.normalizedEqual)
+    assert(CanonicalEqualityScope.repeatedInfixOperands.canonicalEqual)
+    assert(CanonicalEqualityScope.repeatedParenOperands.normalizedEqual)
+    assert(CanonicalEqualityScope.repeatedParenOperands.canonicalEqual)
+    assert(CanonicalEqualityScope.repeatedFunctionArguments.normalizedEqual)
+    assert(CanonicalEqualityScope.repeatedFunctionArguments.canonicalEqual)
   }
 
   test("canonical equality preserves rejected equality boundaries") {
