@@ -1,6 +1,7 @@
 package quasiquotes.types
 
 import scala.quoted.*
+import quasiquotes.parser.TinyTypeParser
 
 final case class QuasiTypePattern(
     source: String,
@@ -16,3 +17,10 @@ object QuasiTypePattern:
 
   def reprOrThrow(source: String)(using Quotes): QuasiTypePattern =
     repr(source).fold(throw _, identity)
+
+  def matchesSource(expectedSource: String, actualSource: String)(using Quotes): Either[TypeQuasiquoteError, Boolean] =
+    for
+      pattern <- repr(expectedSource)
+      targetShape <- TinyTypeParser.parse(actualSource).left.map(error => TypeQuasiquoteError(error.summary)).map(_.shape)
+      targetRepr <- TypeReprLowerer.lower(targetShape)
+    yield pattern.matchTypeRepr(targetRepr)

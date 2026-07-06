@@ -1,6 +1,5 @@
 package quasiquotes.types
 
-import quasiquotes.parser.TinyTypeParser
 import scala.quoted.*
 
 object QuasiTypeExamples:
@@ -9,6 +8,9 @@ object QuasiTypeExamples:
 
   inline def matches(patternSource: String, targetSource: String): Boolean =
     ${ matchesImpl('patternSource, 'targetSource) }
+
+  inline def matchSummary(patternSource: String, targetSource: String): String =
+    ${ matchSummaryImpl('patternSource, 'targetSource) }
 
   inline def unsupportedMessage(source: String): String =
     ${ unsupportedMessageImpl('source) }
@@ -26,13 +28,14 @@ object QuasiTypeExamples:
   private def matchesImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[Boolean] =
     val patternText = patternSource.valueOrAbort
     val targetText = targetSource.valueOrAbort
-    val result =
-      for
-        pattern <- QuasiTypePattern.repr(patternText)
-        targetShape <- TinyTypeParser.parse(targetText).left.map(error => TypeQuasiquoteError(error.summary)).map(_.shape)
-        targetRepr <- TypeReprLowerer.lower(targetShape)
-      yield pattern.matchTypeRepr(targetRepr)
+    val result = QuasiTypePattern.matchesSource(patternText, targetText)
     Expr(result.getOrElse(false))
+
+  private def matchSummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =
+    val patternText = patternSource.valueOrAbort
+    val targetText = targetSource.valueOrAbort
+    val operator = if QuasiTypePattern.matchesSource(patternText, targetText).getOrElse(false) then "==" else "!="
+    Expr(s"$patternText $operator $targetText")
 
   private def unsupportedMessageImpl(source: Expr[String])(using Quotes): Expr[String] =
     val sourceText = source.valueOrAbort

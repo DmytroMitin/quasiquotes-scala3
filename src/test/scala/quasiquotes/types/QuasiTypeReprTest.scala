@@ -18,6 +18,7 @@ class QuasiTypeReprTest extends munit.FunSuite:
     assert(QuasiTypeExamples.matches("String", "String"))
     assert(QuasiTypeExamples.matches("Boolean", "Boolean"))
     assert(QuasiTypeExamples.matches("List[Int]", "List[Int]"))
+    assert(QuasiTypeExamples.matches("List[String]", "List[String]"))
     assert(QuasiTypeExamples.matches("Option[String]", "Option[String]"))
     assert(QuasiTypeExamples.matches("(Int, String)", "(Int, String)"))
     assert(QuasiTypeExamples.matches("Int => String", "Int => String"))
@@ -28,8 +29,14 @@ class QuasiTypeReprTest extends munit.FunSuite:
     assert(!QuasiTypeExamples.matches("Int", "AnyVal"))
     assert(!QuasiTypeExamples.matches("List[Int]", "List[String]"))
     assert(!QuasiTypeExamples.matches("List[Int]", "Option[Int]"))
+    assert(!QuasiTypeExamples.matches("Option[String]", "Option[Int]"))
     assert(!QuasiTypeExamples.matches("(Int, String)", "(String, Int)"))
     assert(!QuasiTypeExamples.matches("Int => String", "String => Int"))
+  }
+
+  test("renders a stable type equality summary for examples and docs") {
+    assertEquals(QuasiTypeExamples.matchSummary("List[Int]", "List[Int]"), "List[Int] == List[Int]")
+    assertEquals(QuasiTypeExamples.matchSummary("List[Int]", "List[String]"), "List[Int] != List[String]")
   }
 
   test("unsupported type syntax fails clearly") {
@@ -42,4 +49,5 @@ class QuasiTypeReprTest extends munit.FunSuite:
 
     assert(message.contains("Selected type syntax is not supported"))
     assert(!QuasiTypeExamples.matches("Int", "scala.Int"))
+    assert(!QuasiTypeExamples.matches("Int", "A.B"))
   }
