@@ -12,6 +12,15 @@ object QuasiTypeExamples:
   inline def matchSummary(patternSource: String, targetSource: String): String =
     ${ matchSummaryImpl('patternSource, 'targetSource) }
 
+  inline def structuralNormalFormSummary(source: String): String =
+    ${ structuralNormalFormSummaryImpl('source) }
+
+  inline def structuralMatches(patternSource: String, targetSource: String): Boolean =
+    ${ structuralMatchesImpl('patternSource, 'targetSource) }
+
+  inline def equalityComparisonSummary(patternSource: String, targetSource: String): String =
+    ${ equalityComparisonSummaryImpl('patternSource, 'targetSource) }
+
   inline def unsupportedMessage(source: String): String =
     ${ unsupportedMessageImpl('source) }
 
@@ -36,6 +45,22 @@ object QuasiTypeExamples:
     val targetText = targetSource.valueOrAbort
     val operator = if QuasiTypePattern.matchesSource(patternText, targetText).getOrElse(false) then "==" else "!="
     Expr(s"$patternText $operator $targetText")
+
+  private def structuralNormalFormSummaryImpl(source: Expr[String])(using Quotes): Expr[String] =
+    val sourceText = source.valueOrAbort
+    Expr(TypeNormalForm.fromSource(sourceText).fold(_.message, _.render))
+
+  private def structuralMatchesImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[Boolean] =
+    val patternText = patternSource.valueOrAbort
+    val targetText = targetSource.valueOrAbort
+    Expr(TypeNormalForm.equalSources(patternText, targetText).getOrElse(false))
+
+  private def equalityComparisonSummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =
+    val patternText = patternSource.valueOrAbort
+    val targetText = targetSource.valueOrAbort
+    val exact = QuasiTypePattern.matchesSource(patternText, targetText).getOrElse(false)
+    val structural = TypeNormalForm.equalSources(patternText, targetText).getOrElse(false)
+    Expr(s"exact=$exact structural=$structural")
 
   private def unsupportedMessageImpl(source: Expr[String])(using Quotes): Expr[String] =
     val sourceText = source.valueOrAbort
