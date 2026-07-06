@@ -42,3 +42,32 @@ object Scala3ParserBridge:
           rawStructure = TermShapeInspector.rawStructure(rawTree)
         )
       )
+
+  def parseType(source: String): Either[ParseError, ParsedType] =
+    val base = new ContextBase
+    val reporter = new StoreReporter(null)
+    given Context = base.initialCtx.fresh.setReporter(reporter)
+
+    val parser = new Parser(SourceFile.virtual("Type.scala", source))
+    val rawTree = parser.typ()
+    val messages = reporter.pendingMessages.map(_.message).toList
+
+    if messages.nonEmpty then Left(ParseError.syntax(source, messages))
+    else if parser.in.token != Tokens.EOF then
+      Left(
+        ParseError.trailing(
+          source = source,
+          offset = parser.in.offset,
+          trailingSnippet = source.drop(parser.in.offset).trim,
+          tokenDescription = Tokens.tokenString(parser.in.token)
+        )
+      )
+    else
+      Right(
+        ParsedType(
+          source = source,
+          rawTree = rawTree,
+          shape = TypeShapeInspector.inspect(rawTree),
+          rawStructure = TypeShapeInspector.rawStructure(rawTree)
+        )
+      )
