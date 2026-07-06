@@ -21,6 +21,9 @@ object QuasiTypeExamples:
   inline def equalityComparisonSummary(patternSource: String, targetSource: String): String =
     ${ equalityComparisonSummaryImpl('patternSource, 'targetSource) }
 
+  inline def matchingSubstrateSummary(patternSource: String): String =
+    ${ matchingSubstrateSummaryImpl('patternSource) }
+
   inline def unsupportedMessage(source: String): String =
     ${ unsupportedMessageImpl('source) }
 
@@ -58,9 +61,14 @@ object QuasiTypeExamples:
   private def equalityComparisonSummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =
     val patternText = patternSource.valueOrAbort
     val targetText = targetSource.valueOrAbort
-    val exact = QuasiTypePattern.matchesSource(patternText, targetText).getOrElse(false)
+    val exact = QuasiTypePattern.matchesSourceByRenderedTypeRepr(patternText, targetText).getOrElse(false)
     val structural = TypeNormalForm.equalSources(patternText, targetText).getOrElse(false)
     Expr(s"exact=$exact structural=$structural")
+
+  private def matchingSubstrateSummaryImpl(patternSource: Expr[String])(using Quotes): Expr[String] =
+    val patternText = patternSource.valueOrAbort
+    val pattern = QuasiTypePattern.reprOrThrow(patternText)
+    Expr(pattern.matchingSubstrateSummary)
 
   private def unsupportedMessageImpl(source: Expr[String])(using Quotes): Expr[String] =
     val sourceText = source.valueOrAbort

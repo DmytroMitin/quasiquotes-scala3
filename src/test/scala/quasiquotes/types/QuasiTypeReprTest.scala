@@ -84,6 +84,13 @@ class QuasiTypeReprTest extends munit.FunSuite:
     assertEquals(QuasiTypeExamples.equalityComparisonSummary("Int => String", "String => Int"), "exact=false structural=false")
   }
 
+  test("source matching reports TypeNormalForm as the no-hole matching substrate") {
+    assertEquals(
+      QuasiTypeExamples.matchingSubstrateSummary("List[Int]"),
+      "source=TypeNormalForm targetTypeRepr=exact-rendered-TypeRepr"
+    )
+  }
+
   test("unsupported type syntax fails clearly") {
     assert(QuasiTypeExamples.unsupportedMessage("List[?]").contains("Unsupported type shape"))
     assert(QuasiTypeExamples.structuralNormalFormSummary("List[?]").contains("Unsupported type shape"))
