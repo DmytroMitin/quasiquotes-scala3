@@ -118,6 +118,32 @@ class QuasiTypeReprTest extends munit.FunSuite:
     )
   }
 
+  test("matches simple type-hole patterns and exposes bindings") {
+    assertEquals(QuasiTypeExamples.typePatternMatchSummary("$t", "Int"), "matched=true bindings=t=STypeIdent(Int)")
+    assertEquals(QuasiTypeExamples.typePatternMatchSummary("List[$t]", "List[Int]"), "matched=true bindings=t=STypeIdent(Int)")
+    assertEquals(QuasiTypeExamples.typePatternMatchSummary("Option[$t]", "Option[String]"), "matched=true bindings=t=STypeIdent(String)")
+    assertEquals(QuasiTypeExamples.typePatternMatchSummary("($a, $b)", "(Int, String)"), "matched=true bindings=a=STypeIdent(Int), b=STypeIdent(String)")
+  }
+
+  test("repeated type holes enforce structural normal-form equality") {
+    assertEquals(QuasiTypeExamples.typePatternMatchSummary("($t, $t)", "(Int, Int)"), "matched=true bindings=t=STypeIdent(Int)")
+    assertEquals(QuasiTypeExamples.typePatternMatchSummary("$t => $t", "Int => Int"), "matched=true bindings=t=STypeIdent(Int)")
+    assertEquals(QuasiTypeExamples.typePatternMatchSummary("($t, $t)", "(Int, String)"), "matched=false")
+    assertEquals(QuasiTypeExamples.typePatternMatchSummary("$t => $t", "Int => String"), "matched=false")
+  }
+
+  test("type-hole patterns preserve unsupported and rejected boundaries") {
+    assertEquals(QuasiTypeExamples.typePatternMatchSummary("List[$t]", "Option[Int]"), "matched=false")
+    assert(QuasiTypeExamples.typePatternMatchSummary("List[$t]", "List[?]").contains("Unsupported type shape"))
+    assert(QuasiTypeExamples.typePatternMatchSummary("List[$t]", "scala.Int").contains("Selected type syntax is not supported"))
+    assert(QuasiTypeExamples.typePatternMatchSummary("List[$t]", "A.B").contains("Selected type syntax is not supported"))
+  }
+
+  test("type-hole binding lookup accepts bare and dollar-prefixed names") {
+    assertEquals(QuasiTypeExamples.typePatternBindingSummary("List[$t]", "List[Int]", "t"), "STypeIdent(Int)")
+    assertEquals(QuasiTypeExamples.typePatternBindingSummary("List[$t]", "List[Int]", "$t"), "STypeIdent(Int)")
+  }
+
   test("unsupported type syntax fails clearly") {
     assert(QuasiTypeExamples.unsupportedMessage("List[?]").contains("Unsupported type shape"))
     assert(QuasiTypeExamples.structuralNormalFormSummary("List[?]").contains("Unsupported type shape"))

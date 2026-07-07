@@ -55,6 +55,7 @@ object TypeReprLowerer:
     import quotes.reflect.*
     (argument, result) match
       case (TypeShape.Identifier("Int"), TypeShape.Identifier("String")) => Right(TypeRepr.of[Int => String])
+      case (TypeShape.Identifier("Int"), TypeShape.Identifier("Int")) => Right(TypeRepr.of[Int => Int])
       case (TypeShape.Identifier("String"), TypeShape.Identifier("Int")) => Right(TypeRepr.of[String => Int])
       case _ => Left(TypeQuasiquoteError(s"Unsupported function type shape for Phase 13 TypeRepr lowering: ${TypeShape.Function(List(argument), result).render}"))
 

@@ -30,6 +30,12 @@ object QuasiTypeExamples:
   inline def targetInspectionComparisonSummary(patternSource: String, targetSource: String): String =
     ${ targetInspectionComparisonSummaryImpl('patternSource, 'targetSource) }
 
+  inline def typePatternMatchSummary(patternSource: String, targetSource: String): String =
+    ${ typePatternMatchSummaryImpl('patternSource, 'targetSource) }
+
+  inline def typePatternBindingSummary(patternSource: String, targetSource: String, bindingName: String): String =
+    ${ typePatternBindingSummaryImpl('patternSource, 'targetSource, 'bindingName) }
+
   inline def unsupportedMessage(source: String): String =
     ${ unsupportedMessageImpl('source) }
 
@@ -99,6 +105,30 @@ object QuasiTypeExamples:
     Expr(inspected.fold(_.message, (sourceNormalForm, targetNormalForm) =>
       s"source=${sourceNormalForm.render} target=${targetNormalForm.render} matched=${sourceNormalForm == targetNormalForm}"
     ))
+
+  private def typePatternMatchSummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =
+    val patternText = patternSource.valueOrAbort
+    val targetText = targetSource.valueOrAbort
+    val summary =
+      for
+        pattern <- QuasiTypePattern.repr(patternText)
+        result <- pattern.matchSource(targetText)
+      yield result match
+        case Some(matchResult) if matchResult.bindings.nonEmpty => s"matched=true bindings=${matchResult.bindingsSummary}"
+        case Some(_) => "matched=true bindings="
+        case None => "matched=false"
+    Expr(summary.fold(_.message, identity))
+
+  private def typePatternBindingSummaryImpl(patternSource: Expr[String], targetSource: Expr[String], bindingName: Expr[String])(using Quotes): Expr[String] =
+    val patternText = patternSource.valueOrAbort
+    val targetText = targetSource.valueOrAbort
+    val bindingText = bindingName.valueOrAbort
+    val summary =
+      for
+        pattern <- QuasiTypePattern.repr(patternText)
+        result <- pattern.matchSource(targetText)
+      yield result.flatMap(_.binding(bindingText)).fold("matched=false")(_.render)
+    Expr(summary.fold(_.message, identity))
 
   private def unsupportedMessageImpl(source: Expr[String])(using Quotes): Expr[String] =
     val sourceText = source.valueOrAbort
