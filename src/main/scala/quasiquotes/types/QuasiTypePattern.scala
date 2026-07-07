@@ -9,9 +9,12 @@ final case class QuasiTypePattern(
     expectedNormalForm: TypeNormalForm
 ):
   def matchingSubstrateSummary: String =
-    "source=TypeNormalForm targetTypeRepr=exact-rendered-TypeRepr"
+    "source=TypeNormalForm targetTypeRepr=TypeNormalForm exact-rendered-TypeRepr=debug"
 
   def matchTypeRepr(using q: Quotes)(target: q.reflect.TypeRepr): Boolean =
+    TargetTypeReprInspector.inspect(target).contains(expectedNormalForm)
+
+  def exactRenderedTypeReprMatches(using q: Quotes)(target: q.reflect.TypeRepr): Boolean =
     import q.reflect.*
     target.show == expected.renderedTypeRepr
 
@@ -43,4 +46,4 @@ object QuasiTypePattern:
       pattern <- repr(expectedSource)
       targetShape <- TinyTypeParser.parse(actualSource).left.map(error => TypeQuasiquoteError(error.summary)).map(_.shape)
       targetRepr <- TypeReprLowerer.lower(targetShape)
-    yield pattern.matchTypeRepr(targetRepr)
+    yield pattern.exactRenderedTypeReprMatches(targetRepr)

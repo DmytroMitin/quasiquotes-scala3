@@ -87,7 +87,34 @@ class QuasiTypeReprTest extends munit.FunSuite:
   test("source matching reports TypeNormalForm as the no-hole matching substrate") {
     assertEquals(
       QuasiTypeExamples.matchingSubstrateSummary("List[Int]"),
-      "source=TypeNormalForm targetTypeRepr=exact-rendered-TypeRepr"
+      "source=TypeNormalForm targetTypeRepr=TypeNormalForm exact-rendered-TypeRepr=debug"
+    )
+  }
+
+  test("inspects supported target TypeRepr values as structural normal forms") {
+    assertEquals(QuasiTypeExamples.targetNormalFormSummary("Int"), "STypeIdent(Int)")
+    assertEquals(QuasiTypeExamples.targetNormalFormSummary("String"), "STypeIdent(String)")
+    assertEquals(QuasiTypeExamples.targetNormalFormSummary("Boolean"), "STypeIdent(Boolean)")
+    assertEquals(QuasiTypeExamples.targetNormalFormSummary("List[Int]"), "STypeApply(STypeIdent(List), [STypeIdent(Int)])")
+    assertEquals(QuasiTypeExamples.targetNormalFormSummary("List[String]"), "STypeApply(STypeIdent(List), [STypeIdent(String)])")
+    assertEquals(QuasiTypeExamples.targetNormalFormSummary("Option[String]"), "STypeApply(STypeIdent(Option), [STypeIdent(String)])")
+    assertEquals(QuasiTypeExamples.targetNormalFormSummary("(Int, String)"), "STypeTuple([STypeIdent(Int), STypeIdent(String)])")
+    assertEquals(QuasiTypeExamples.targetNormalFormSummary("Int => String"), "STypeFunction([STypeIdent(Int)], STypeIdent(String))")
+  }
+
+  test("source and target TypeRepr normal forms agree on supported and rejected cases") {
+    assertEquals(QuasiTypeExamples.targetInspectionComparisonSummary("Int", "Int"), "source=STypeIdent(Int) target=STypeIdent(Int) matched=true")
+    assertEquals(QuasiTypeExamples.targetInspectionComparisonSummary("List[Int]", "List[Int]"), "source=STypeApply(STypeIdent(List), [STypeIdent(Int)]) target=STypeApply(STypeIdent(List), [STypeIdent(Int)]) matched=true")
+    assertEquals(QuasiTypeExamples.targetInspectionComparisonSummary("Option[String]", "Option[String]"), "source=STypeApply(STypeIdent(Option), [STypeIdent(String)]) target=STypeApply(STypeIdent(Option), [STypeIdent(String)]) matched=true")
+    assertEquals(QuasiTypeExamples.targetInspectionComparisonSummary("(Int, String)", "(Int, String)"), "source=STypeTuple([STypeIdent(Int), STypeIdent(String)]) target=STypeTuple([STypeIdent(Int), STypeIdent(String)]) matched=true")
+    assertEquals(QuasiTypeExamples.targetInspectionComparisonSummary("Int => String", "Int => String"), "source=STypeFunction([STypeIdent(Int)], STypeIdent(String)) target=STypeFunction([STypeIdent(Int)], STypeIdent(String)) matched=true")
+    assertEquals(QuasiTypeExamples.targetInspectionComparisonSummary("List[Int]", "List[String]"), "source=STypeApply(STypeIdent(List), [STypeIdent(Int)]) target=STypeApply(STypeIdent(List), [STypeIdent(String)]) matched=false")
+  }
+
+  test("direct target TypeRepr matching reports TypeNormalForm after Phase 17 migration") {
+    assertEquals(
+      QuasiTypeExamples.matchingSubstrateSummary("List[Int]"),
+      "source=TypeNormalForm targetTypeRepr=TypeNormalForm exact-rendered-TypeRepr=debug"
     )
   }
 
@@ -107,4 +134,5 @@ class QuasiTypeReprTest extends munit.FunSuite:
     assert(!QuasiTypeExamples.structuralMatches("Int", "scala.Int"))
     assert(!QuasiTypeExamples.matches("Int", "A.B"))
     assert(!QuasiTypeExamples.structuralMatches("Int", "A.B"))
+    assert(QuasiTypeExamples.targetNormalFormSummary("scala.Int").contains("Selected type syntax is not supported"))
   }

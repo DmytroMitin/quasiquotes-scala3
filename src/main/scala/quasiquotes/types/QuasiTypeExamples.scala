@@ -24,6 +24,12 @@ object QuasiTypeExamples:
   inline def matchingSubstrateSummary(patternSource: String): String =
     ${ matchingSubstrateSummaryImpl('patternSource) }
 
+  inline def targetNormalFormSummary(source: String): String =
+    ${ targetNormalFormSummaryImpl('source) }
+
+  inline def targetInspectionComparisonSummary(patternSource: String, targetSource: String): String =
+    ${ targetInspectionComparisonSummaryImpl('patternSource, 'targetSource) }
+
   inline def unsupportedMessage(source: String): String =
     ${ unsupportedMessageImpl('source) }
 
@@ -69,6 +75,30 @@ object QuasiTypeExamples:
     val patternText = patternSource.valueOrAbort
     val pattern = QuasiTypePattern.reprOrThrow(patternText)
     Expr(pattern.matchingSubstrateSummary)
+
+  private def targetNormalFormSummaryImpl(source: Expr[String])(using Quotes): Expr[String] =
+    val sourceText = source.valueOrAbort
+    val inspected =
+      for
+        quasiType <- QuasiTypeRepr.fromSource(sourceText)
+        targetRepr <- TypeReprLowerer.lower(quasiType.shape)
+        targetNormalForm <- TargetTypeReprInspector.inspect(targetRepr)
+      yield targetNormalForm
+    Expr(inspected.fold(_.message, _.render))
+
+  private def targetInspectionComparisonSummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =
+    val patternText = patternSource.valueOrAbort
+    val targetText = targetSource.valueOrAbort
+    val inspected =
+      for
+        sourceNormalForm <- TypeNormalForm.fromSource(patternText)
+        targetQuasiType <- QuasiTypeRepr.fromSource(targetText)
+        targetRepr <- TypeReprLowerer.lower(targetQuasiType.shape)
+        targetNormalForm <- TargetTypeReprInspector.inspect(targetRepr)
+      yield (sourceNormalForm, targetNormalForm)
+    Expr(inspected.fold(_.message, (sourceNormalForm, targetNormalForm) =>
+      s"source=${sourceNormalForm.render} target=${targetNormalForm.render} matched=${sourceNormalForm == targetNormalForm}"
+    ))
 
   private def unsupportedMessageImpl(source: Expr[String])(using Quotes): Expr[String] =
     val sourceText = source.valueOrAbort
