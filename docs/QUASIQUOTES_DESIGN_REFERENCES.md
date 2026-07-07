@@ -9,6 +9,10 @@ Instead, best practices emerge from multiple ecosystems:
 - Lisp / Scheme / Racket (semantics)
 - Haskell Template Haskell (architecture)
 - Scala 2 quasiquotes (ergonomics and pitfalls)
+- Scala 3 metaprogramming (typed quotes and reflection)
+- Squid (typed, hygienic quasiquotes and staged rewriting)
+- hearth-cross-quotes (typed quotation compatibility)
+- compiler architecture
 
 ---
 
@@ -137,6 +141,58 @@ Design lessons:
 
 ---
 
+### Squid (typed, hygienic quasiquotes and staged rewriting)
+
+[Squid](https://github.com/epfldata/squid) is a Scala metaprogramming framework focused on type-safe and scope-safe manipulation of program fragments. Its documentation describes type- and scope-safe quasiquotes, reusable intermediate representations, staged rewriting, and optimization-oriented program transformation.
+
+Squid explores a different design point from Scala 2 reflection quasiquotes:
+
+- statically typed code values
+- hygienic / scope-safe quasiquotes
+- expression-focused program transformation
+- staged rewriting and optimization
+- reusable intermediate representations
+
+It is useful prior art for:
+
+- typed quasiquote design
+- hygiene
+- binder-aware matching
+- staged program rewriting
+
+This project is different:
+
+- it targets Scala 3
+- it is parser-driven over Scala 3 reflection/compiler internals
+- it starts with reflect-level quasiquotes (`qr`, `qq`) and TypeRepr-backed type experiments
+- it makes normalization and equality explicit as operational matching concerns
+
+Squid does not change the current roadmap. It is relevant future inspiration if this project later explores stronger typing, hygiene, binder-aware matching, staged rewriting, or reusable intermediate representations.
+
+---
+
+### Hearth cross-quotes (typed quotation compatibility)
+
+[hearth-cross-quotes](https://scala-hearth.readthedocs.io/en/stable/cross-quotes/) targets cross-version compatibility around typed quotations and typed macro expressions. Its examples bridge Scala 2-style typed macro expressions such as `c.Expr[A](...)` and Scala 3-style quotes such as `'{ ... }` / `Expr[A]`.
+
+This is closer to Scala 3 standard quotes and Scala 2 typed macro expressions than to Scala 2 untyped reflection quasiquotes such as `q"..."` and `tq"..."`.
+
+This project is different:
+
+- it explores parser-driven reflect-level quasiquotes in Scala 3
+- it is closer to Scala 2 `q"..."` / `tq"..."` style tree construction and matching
+- compatibility with Scala 2 quasiquotes is not a current priority
+
+hearth-cross-quotes may become relevant later if this project explores:
+
+- a Scala 2 / Scala 3 compatibility layer
+- migration between Scala 2 quasiquotes and Scala 3 parser-driven quasiquotes
+- typed quote compatibility on top of this project's lower-level quasiquote layer
+
+It does not solve this project's parser-driven quasiquote problem and does not imply that this project should become a compatibility layer.
+
+---
+
 ### Compiler architecture influence
 
 Across languages, quasiquote systems tend to follow:
@@ -204,6 +260,8 @@ It is a synthesis of:
 - Lisp: semantic model (templates + holes)
 - Haskell: architecture (parser + AST builder)
 - Scala 2: ergonomics and usability
+- Squid: typed, hygienic, reusable quasiquotes and staged rewriting
+- hearth-cross-quotes: typed quotation compatibility across Scala macro systems
 
 This project builds on these ideas while making
 normalization and equality explicit and controllable.
