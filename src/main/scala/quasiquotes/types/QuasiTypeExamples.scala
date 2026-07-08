@@ -33,6 +33,12 @@ object QuasiTypeExamples:
   inline def typePatternMatchSummary(patternSource: String, targetSource: String): String =
     ${ typePatternMatchSummaryImpl('patternSource, 'targetSource) }
 
+  inline def tqqTypePatternMatchSummary(patternSource: String, targetSource: String): String =
+    ${ tqqTypePatternMatchSummaryImpl('patternSource, 'targetSource) }
+
+  inline def tqqEquivalenceSummary(patternSource: String, targetSource: String): String =
+    ${ tqqEquivalenceSummaryImpl('patternSource, 'targetSource) }
+
   inline def typePatternBindingSummary(patternSource: String, targetSource: String, bindingName: String): String =
     ${ typePatternBindingSummaryImpl('patternSource, 'targetSource, 'bindingName) }
 
@@ -118,6 +124,34 @@ object QuasiTypeExamples:
         case Some(_) => "matched=true bindings="
         case None => "matched=false"
     Expr(summary.fold(_.message, identity))
+
+  private def tqqTypePatternMatchSummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =
+    val patternText = patternSource.valueOrAbort
+    val targetText = targetSource.valueOrAbort
+    val summary =
+      for
+        pattern <- QuasiTypequotes.tqq(patternText)
+        result <- pattern.matchSource(targetText)
+      yield result match
+        case Some(matchResult) if matchResult.bindings.nonEmpty => s"matched=true bindings=${matchResult.bindingsSummary}"
+        case Some(_) => "matched=true bindings="
+        case None => "matched=false"
+    Expr(summary.fold(_.message, identity))
+
+  private def tqqEquivalenceSummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =
+    val patternText = patternSource.valueOrAbort
+    val targetText = targetSource.valueOrAbort
+    val explicit =
+      for
+        pattern <- QuasiTypePattern.repr(patternText)
+        result <- pattern.matchSource(targetText)
+      yield result.map(_.bindingsSummary).getOrElse("no-match")
+    val wrapped =
+      for
+        pattern <- QuasiTypequotes.tqq(patternText)
+        result <- pattern.matchSource(targetText)
+      yield result.map(_.bindingsSummary).getOrElse("no-match")
+    Expr(s"explicit=${explicit.fold(_.message, identity)} tqq=${wrapped.fold(_.message, identity)}")
 
   private def typePatternBindingSummaryImpl(patternSource: Expr[String], targetSource: Expr[String], bindingName: Expr[String])(using Quotes): Expr[String] =
     val patternText = patternSource.valueOrAbort

@@ -125,6 +125,34 @@ class QuasiTypeReprTest extends munit.FunSuite:
     assertEquals(QuasiTypeExamples.typePatternMatchSummary("($a, $b)", "(Int, String)"), "matched=true bindings=a=STypeIdent(Int), b=STypeIdent(String)")
   }
 
+  test("tqq function syntax delegates to type-hole pattern matching") {
+    assertEquals(QuasiTypeExamples.tqqTypePatternMatchSummary("$t", "Int"), "matched=true bindings=t=STypeIdent(Int)")
+    assertEquals(QuasiTypeExamples.tqqTypePatternMatchSummary("List[$t]", "List[Int]"), "matched=true bindings=t=STypeIdent(Int)")
+    assertEquals(QuasiTypeExamples.tqqTypePatternMatchSummary("Option[$t]", "Option[String]"), "matched=true bindings=t=STypeIdent(String)")
+    assertEquals(QuasiTypeExamples.tqqTypePatternMatchSummary("($a, $b)", "(Int, String)"), "matched=true bindings=a=STypeIdent(Int), b=STypeIdent(String)")
+    assertEquals(QuasiTypeExamples.tqqTypePatternMatchSummary("($t, $t)", "(Int, Int)"), "matched=true bindings=t=STypeIdent(Int)")
+    assertEquals(QuasiTypeExamples.tqqTypePatternMatchSummary("$t => $t", "Int => Int"), "matched=true bindings=t=STypeIdent(Int)")
+  }
+
+  test("tqq function syntax preserves rejected and unsupported boundaries") {
+    assertEquals(QuasiTypeExamples.tqqTypePatternMatchSummary("($t, $t)", "(Int, String)"), "matched=false")
+    assertEquals(QuasiTypeExamples.tqqTypePatternMatchSummary("$t => $t", "Int => String"), "matched=false")
+    assertEquals(QuasiTypeExamples.tqqTypePatternMatchSummary("List[$t]", "Option[Int]"), "matched=false")
+    assert(QuasiTypeExamples.tqqTypePatternMatchSummary("List[$t]", "scala.Int").contains("Selected type syntax is not supported"))
+    assert(QuasiTypeExamples.tqqTypePatternMatchSummary("List[$t]", "List[?]").contains("Unsupported type shape"))
+  }
+
+  test("tqq function syntax matches explicit QuasiTypePattern repr behavior") {
+    assertEquals(
+      QuasiTypeExamples.tqqEquivalenceSummary("List[$t]", "List[Int]"),
+      "explicit=t=STypeIdent(Int) tqq=t=STypeIdent(Int)"
+    )
+    assertEquals(
+      QuasiTypeExamples.tqqEquivalenceSummary("($t, $t)", "(Int, String)"),
+      "explicit=no-match tqq=no-match"
+    )
+  }
+
   test("repeated type holes enforce structural normal-form equality") {
     assertEquals(QuasiTypeExamples.typePatternMatchSummary("($t, $t)", "(Int, Int)"), "matched=true bindings=t=STypeIdent(Int)")
     assertEquals(QuasiTypeExamples.typePatternMatchSummary("$t => $t", "Int => Int"), "matched=true bindings=t=STypeIdent(Int)")
