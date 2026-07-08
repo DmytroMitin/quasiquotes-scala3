@@ -153,6 +153,63 @@ class QuasiTypeReprTest extends munit.FunSuite:
     )
   }
 
+  test("constructs type templates with explicit type-hole bindings") {
+    assertEquals(
+      QuasiTypeConstruct.fromTemplate("$t", "t" -> TypeNormalForm.STypeIdent("Int")).map(_.normalForm.render),
+      Right("STypeIdent(Int)")
+    )
+    assertEquals(
+      QuasiTypeConstruct.fromTemplate("List[$t]", "t" -> TypeNormalForm.STypeIdent("Int")).map(_.source),
+      Right("List[Int]")
+    )
+    assertEquals(
+      QuasiTypeConstruct.fromTemplate("Option[$t]", "t" -> TypeNormalForm.STypeIdent("String")).map(_.source),
+      Right("Option[String]")
+    )
+    assertEquals(
+      QuasiTypeConstruct.fromTemplate("($a, $b)", "a" -> TypeNormalForm.STypeIdent("Int"), "b" -> TypeNormalForm.STypeIdent("String")).map(_.source),
+      Right("(Int, String)")
+    )
+    assertEquals(
+      QuasiTypeConstruct.fromTemplate("$a => $b", "a" -> TypeNormalForm.STypeIdent("Int"), "b" -> TypeNormalForm.STypeIdent("String")).map(_.source),
+      Right("Int => String")
+    )
+    assertEquals(
+      QuasiTypeConstruct.fromTemplate("($t, $t)", "t" -> TypeNormalForm.STypeIdent("Int")).map(_.source),
+      Right("(Int, Int)")
+    )
+  }
+
+  test("tqr function delegates to type-template construction") {
+    assertEquals(
+      QuasiTypequotes.tqr("List[$t]", "t" -> TypeNormalForm.STypeIdent("Int")).map(_.source),
+      Right("List[Int]")
+    )
+  }
+
+  test("type construction rejects missing, extra, unsupported template, and unsupported binding cases") {
+    assertEquals(
+      QuasiTypeConstruct.fromTemplate("List[$t]").left.map(_.message),
+      Left("Missing type-construction binding `t`")
+    )
+    assertEquals(
+      QuasiTypeConstruct.fromTemplate("List[$t]", "t" -> TypeNormalForm.STypeIdent("Int"), "extra" -> TypeNormalForm.STypeIdent("String")).left.map(_.message),
+      Left("Extra type-construction binding(s): extra")
+    )
+    assert(QuasiTypeConstruct.fromTemplate("List[?]", "t" -> TypeNormalForm.STypeIdent("Int")).left.exists(_.message.contains("Unsupported type construction template shape")))
+    assert(QuasiTypeConstruct.fromTemplate("scala.Int").left.exists(_.message.contains("Selected type syntax is not supported")))
+    assert(QuasiTypeConstruct.fromTemplate("A.B").left.exists(_.message.contains("Selected type syntax is not supported")))
+    assertEquals(
+      QuasiTypeConstruct.fromTemplate("List[$t]", "t" -> TypeNormalForm.STypeIdent("AnyVal")).left.map(_.message),
+      Left("Unsupported constructed type identifier for Phase 21: AnyVal")
+    )
+  }
+
+  test("type construction and type matching are dual over TypeNormalForm bindings") {
+    assertEquals(QuasiTypeExamples.typeConstructionDualitySummary("List[$t]", "List[Int]"), "List[Int]")
+    assertEquals(QuasiTypeExamples.typeConstructionDualitySummary("($a, $b)", "(Int, String)"), "(Int, String)")
+  }
+
   test("repeated type holes enforce structural normal-form equality") {
     assertEquals(QuasiTypeExamples.typePatternMatchSummary("($t, $t)", "(Int, Int)"), "matched=true bindings=t=STypeIdent(Int)")
     assertEquals(QuasiTypeExamples.typePatternMatchSummary("$t => $t", "Int => Int"), "matched=true bindings=t=STypeIdent(Int)")

@@ -39,6 +39,9 @@ object QuasiTypeExamples:
   inline def tqqEquivalenceSummary(patternSource: String, targetSource: String): String =
     ${ tqqEquivalenceSummaryImpl('patternSource, 'targetSource) }
 
+  inline def typeConstructionDualitySummary(patternSource: String, targetSource: String): String =
+    ${ typeConstructionDualitySummaryImpl('patternSource, 'targetSource) }
+
   inline def typePatternBindingSummary(patternSource: String, targetSource: String, bindingName: String): String =
     ${ typePatternBindingSummaryImpl('patternSource, 'targetSource, 'bindingName) }
 
@@ -152,6 +155,18 @@ object QuasiTypeExamples:
         result <- pattern.matchSource(targetText)
       yield result.map(_.bindingsSummary).getOrElse("no-match")
     Expr(s"explicit=${explicit.fold(_.message, identity)} tqq=${wrapped.fold(_.message, identity)}")
+
+  private def typeConstructionDualitySummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =
+    val patternText = patternSource.valueOrAbort
+    val targetText = targetSource.valueOrAbort
+    val summary =
+      for
+        pattern <- QuasiTypePattern.repr(patternText)
+        result <- pattern.matchSource(targetText)
+        matchResult <- result.toRight(TypeQuasiquoteError("type pattern did not match target"))
+        constructed <- QuasiTypeConstruct.fromTemplate(patternText, matchResult.bindings)
+      yield constructed.source
+    Expr(summary.fold(_.message, identity))
 
   private def typePatternBindingSummaryImpl(patternSource: Expr[String], targetSource: Expr[String], bindingName: Expr[String])(using Quotes): Expr[String] =
     val patternText = patternSource.valueOrAbort
