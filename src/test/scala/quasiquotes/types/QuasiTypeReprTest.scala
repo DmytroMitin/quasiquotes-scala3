@@ -144,6 +144,17 @@ class QuasiTypeReprTest extends munit.FunSuite:
     assertEquals(QuasiTypeExamples.typePatternBindingSummary("List[$t]", "List[Int]", "$t"), "STypeIdent(Int)")
   }
 
+  test("type-hole required binding reports missing names clearly") {
+    val result = TypeMatchResult(Map("t" -> TypeNormalForm.STypeIdent("Int")))
+
+    assertEquals(result.requiredBinding("t").map(_.render), Right("STypeIdent(Int)"))
+    assertEquals(result.requiredBinding("$t").map(_.render), Right("STypeIdent(Int)"))
+    assertEquals(
+      result.requiredBinding("$missing").left.map(_.message),
+      Left("Missing type-hole binding `missing`; available bindings: t")
+    )
+  }
+
   test("unsupported type syntax fails clearly") {
     assert(QuasiTypeExamples.unsupportedMessage("List[?]").contains("Unsupported type shape"))
     assert(QuasiTypeExamples.structuralNormalFormSummary("List[?]").contains("Unsupported type shape"))
