@@ -210,6 +210,91 @@ class QuasiTypeReprTest extends munit.FunSuite:
     assertEquals(QuasiTypeExamples.typeConstructionDualitySummary("($a, $b)", "(Int, String)"), "(Int, String)")
   }
 
+  test("constructed simple type normal forms lower to TypeRepr and inspect back") {
+    assertEquals(
+      QuasiTypeExamples.constructedTypeReprRoundtripSummary("$t", "t", "Int"),
+      "constructed=STypeIdent(Int) inspected=STypeIdent(Int) matched=true"
+    )
+  }
+
+  test("constructed applied type normal forms lower to TypeRepr and inspect back") {
+    assertEquals(
+      QuasiTypeExamples.constructedTypeReprRoundtripSummary("List[$t]", "t", "Int"),
+      "constructed=STypeApply(STypeIdent(List), [STypeIdent(Int)]) inspected=STypeApply(STypeIdent(List), [STypeIdent(Int)]) matched=true"
+    )
+    assertEquals(
+      QuasiTypeExamples.constructedTypeReprRoundtripSummary("Option[$t]", "t", "String"),
+      "constructed=STypeApply(STypeIdent(Option), [STypeIdent(String)]) inspected=STypeApply(STypeIdent(Option), [STypeIdent(String)]) matched=true"
+    )
+  }
+
+  test("constructed tuple type normal forms lower to TypeRepr and inspect back") {
+    assertEquals(
+      QuasiTypeExamples.constructedTypeReprRoundtripSummary("($a, $b)", "a", "Int", "b", "String"),
+      "constructed=STypeTuple([STypeIdent(Int), STypeIdent(String)]) inspected=STypeTuple([STypeIdent(Int), STypeIdent(String)]) matched=true"
+    )
+  }
+
+  test("constructed function type normal forms lower to TypeRepr and inspect back") {
+    assertEquals(
+      QuasiTypeExamples.constructedTypeReprRoundtripSummary("$a => $b", "a", "Int", "b", "String"),
+      "constructed=STypeFunction([STypeIdent(Int)], STypeIdent(String)) inspected=STypeFunction([STypeIdent(Int)], STypeIdent(String)) matched=true"
+    )
+  }
+
+  test("constructed repeated type holes lower to TypeRepr and inspect back") {
+    assertEquals(
+      QuasiTypeExamples.constructedTypeReprRoundtripSummary("($t, $t)", "t", "Int"),
+      "constructed=STypeTuple([STypeIdent(Int), STypeIdent(Int)]) inspected=STypeTuple([STypeIdent(Int), STypeIdent(Int)]) matched=true"
+    )
+  }
+
+  test("type matching construction and TypeRepr lowering are dual over TypeNormalForm") {
+    assertEquals(
+      QuasiTypeExamples.typeConstructionLoweringDualitySummary("List[$t]", "List[Int]"),
+      "constructed=STypeApply(STypeIdent(List), [STypeIdent(Int)]) inspected=STypeApply(STypeIdent(List), [STypeIdent(Int)]) matched=true"
+    )
+  }
+
+  test("constructed TypeRepr lowering rejects unsupported normal forms clearly") {
+    assertEquals(
+      QuasiTypeExamples.normalFormLoweringMessage("AnyVal"),
+      "Cannot lower unsupported constructed type normal form to TypeRepr: AnyVal"
+    )
+    assertEquals(
+      QuasiTypeExamples.rawIdentifierLoweringMessage("MyType"),
+      "Cannot lower unsupported constructed type normal form to TypeRepr: MyType"
+    )
+    assertEquals(
+      QuasiTypeExamples.rawAppliedLoweringMessage("Either", "Int"),
+      "Cannot lower unsupported constructed type normal form to TypeRepr: Either[Int]"
+    )
+    assertEquals(
+      QuasiTypeExamples.normalFormLoweringMessage("List[List[Int]]"),
+      "Cannot lower unsupported constructed type normal form to TypeRepr: List[List[Int]]"
+    )
+    assertEquals(
+      QuasiTypeExamples.normalFormLoweringMessage("(Int, Boolean)"),
+      "Cannot lower unsupported constructed type normal form to TypeRepr: (Int, Boolean)"
+    )
+    assertEquals(
+      QuasiTypeExamples.normalFormLoweringMessage("Boolean => Int"),
+      "Cannot lower unsupported constructed type normal form to TypeRepr: Boolean => Int"
+    )
+    assertEquals(
+      QuasiTypeExamples.rawTupleArityLoweringMessage,
+      "Cannot lower unsupported constructed type normal form to TypeRepr: (Int, String, Boolean)"
+    )
+    assertEquals(
+      QuasiTypeExamples.rawFunctionArityLoweringMessage,
+      "Cannot lower unsupported constructed type normal form to TypeRepr: (Int, String) => Boolean"
+    )
+    assertEquals(
+      QuasiTypeExamples.constructedTypeReprLoweringMessage("List[$t]", "t", "AnyVal"),
+      "Unsupported constructed type identifier for Phase 21: AnyVal"
+    )
+  }
+
   test("repeated type holes enforce structural normal-form equality") {
     assertEquals(QuasiTypeExamples.typePatternMatchSummary("($t, $t)", "(Int, Int)"), "matched=true bindings=t=STypeIdent(Int)")
     assertEquals(QuasiTypeExamples.typePatternMatchSummary("$t => $t", "Int => Int"), "matched=true bindings=t=STypeIdent(Int)")

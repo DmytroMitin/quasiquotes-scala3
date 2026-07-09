@@ -1,8 +1,13 @@
 package quasiquotes.types
 
+import scala.quoted.*
+
 final case class ConstructedType(normalForm: TypeNormalForm):
   def source: String =
     ConstructedType.renderSource(normalForm)
+
+  def toTypeRepr(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
+    TypeReprLowerer.lowerNormalForm(normalForm)
 
 object ConstructedType:
   def renderSource(normalForm: TypeNormalForm): String =

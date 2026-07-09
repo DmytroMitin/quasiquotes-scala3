@@ -42,6 +42,39 @@ object QuasiTypeExamples:
   inline def typeConstructionDualitySummary(patternSource: String, targetSource: String): String =
     ${ typeConstructionDualitySummaryImpl('patternSource, 'targetSource) }
 
+  inline def constructedTypeReprRoundtripSummary(templateSource: String, bindingName: String, bindingSource: String): String =
+    ${ constructedTypeReprRoundtripSummaryImpl('templateSource, 'bindingName, 'bindingSource) }
+
+  inline def constructedTypeReprRoundtripSummary(
+      templateSource: String,
+      firstBindingName: String,
+      firstBindingSource: String,
+      secondBindingName: String,
+      secondBindingSource: String
+  ): String =
+    ${ constructedTypeReprRoundtripSummaryImpl('templateSource, 'firstBindingName, 'firstBindingSource, 'secondBindingName, 'secondBindingSource) }
+
+  inline def constructedTypeReprLoweringMessage(templateSource: String, bindingName: String, bindingSource: String): String =
+    ${ constructedTypeReprLoweringMessageImpl('templateSource, 'bindingName, 'bindingSource) }
+
+  inline def normalFormLoweringMessage(source: String): String =
+    ${ normalFormLoweringMessageImpl('source) }
+
+  inline def rawIdentifierLoweringMessage(name: String): String =
+    ${ rawIdentifierLoweringMessageImpl('name) }
+
+  inline def rawAppliedLoweringMessage(constructorName: String, argumentName: String): String =
+    ${ rawAppliedLoweringMessageImpl('constructorName, 'argumentName) }
+
+  inline def rawTupleArityLoweringMessage: String =
+    ${ rawTupleArityLoweringMessageImpl }
+
+  inline def rawFunctionArityLoweringMessage: String =
+    ${ rawFunctionArityLoweringMessageImpl }
+
+  inline def typeConstructionLoweringDualitySummary(patternSource: String, targetSource: String): String =
+    ${ typeConstructionLoweringDualitySummaryImpl('patternSource, 'targetSource) }
+
   inline def typePatternBindingSummary(patternSource: String, targetSource: String, bindingName: String): String =
     ${ typePatternBindingSummaryImpl('patternSource, 'targetSource, 'bindingName) }
 
@@ -166,6 +199,110 @@ object QuasiTypeExamples:
         matchResult <- result.toRight(TypeQuasiquoteError("type pattern did not match target"))
         constructed <- QuasiTypeConstruct.fromTemplate(patternText, matchResult.bindings)
       yield constructed.source
+    Expr(summary.fold(_.message, identity))
+
+  private def constructedTypeReprRoundtripSummaryImpl(templateSource: Expr[String], bindingName: Expr[String], bindingSource: Expr[String])(using Quotes): Expr[String] =
+    val templateText = templateSource.valueOrAbort
+    val bindingText = bindingName.valueOrAbort
+    val bindingSourceText = bindingSource.valueOrAbort
+    val summary =
+      for
+        binding <- TypeNormalForm.fromSource(bindingSourceText)
+        constructed <- QuasiTypequotes.tqr(templateText, bindingText -> binding)
+        lowered <- constructed.toTypeRepr
+        inspected <- TargetTypeReprInspector.inspect(lowered)
+      yield s"constructed=${constructed.normalForm.render} inspected=${inspected.render} matched=${constructed.normalForm == inspected}"
+    Expr(summary.fold(_.message, identity))
+
+  private def constructedTypeReprRoundtripSummaryImpl(
+      templateSource: Expr[String],
+      firstBindingName: Expr[String],
+      firstBindingSource: Expr[String],
+      secondBindingName: Expr[String],
+      secondBindingSource: Expr[String]
+  )(using Quotes): Expr[String] =
+    val templateText = templateSource.valueOrAbort
+    val firstBindingText = firstBindingName.valueOrAbort
+    val firstBindingSourceText = firstBindingSource.valueOrAbort
+    val secondBindingText = secondBindingName.valueOrAbort
+    val secondBindingSourceText = secondBindingSource.valueOrAbort
+    val summary =
+      for
+        firstBinding <- TypeNormalForm.fromSource(firstBindingSourceText)
+        secondBinding <- TypeNormalForm.fromSource(secondBindingSourceText)
+        constructed <- QuasiTypequotes.tqr(templateText, firstBindingText -> firstBinding, secondBindingText -> secondBinding)
+        lowered <- QuasiTypeConstruct.toTypeRepr(constructed)
+        inspected <- TargetTypeReprInspector.inspect(lowered)
+      yield s"constructed=${constructed.normalForm.render} inspected=${inspected.render} matched=${constructed.normalForm == inspected}"
+    Expr(summary.fold(_.message, identity))
+
+  private def constructedTypeReprLoweringMessageImpl(templateSource: Expr[String], bindingName: Expr[String], bindingSource: Expr[String])(using Quotes): Expr[String] =
+    import quotes.reflect.*
+
+    val templateText = templateSource.valueOrAbort
+    val bindingText = bindingName.valueOrAbort
+    val bindingSourceText = bindingSource.valueOrAbort
+    val summary =
+      for
+        binding <- TypeNormalForm.fromSource(bindingSourceText)
+        constructed <- QuasiTypequotes.tqr(templateText, bindingText -> binding)
+        lowered <- constructed.toTypeRepr
+      yield lowered.show
+    Expr(summary.fold(_.message, identity))
+
+  private def normalFormLoweringMessageImpl(source: Expr[String])(using Quotes): Expr[String] =
+    import quotes.reflect.*
+
+    val sourceText = source.valueOrAbort
+    val summary =
+      for
+        normalForm <- TypeNormalForm.fromSource(sourceText)
+        lowered <- TypeReprLowerer.lowerNormalForm(normalForm)
+      yield lowered.show
+    Expr(summary.fold(_.message, identity))
+
+  private def rawIdentifierLoweringMessageImpl(name: Expr[String])(using Quotes): Expr[String] =
+    import quotes.reflect.*
+
+    val nameText = name.valueOrAbort
+    val summary = TypeReprLowerer.lowerNormalForm(TypeNormalForm.STypeIdent(nameText)).map(_.show)
+    Expr(summary.fold(_.message, identity))
+
+  private def rawAppliedLoweringMessageImpl(constructorName: Expr[String], argumentName: Expr[String])(using Quotes): Expr[String] =
+    import quotes.reflect.*
+
+    val constructorText = constructorName.valueOrAbort
+    val argumentText = argumentName.valueOrAbort
+    val normalForm = TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent(constructorText), List(TypeNormalForm.STypeIdent(argumentText)))
+    val summary = TypeReprLowerer.lowerNormalForm(normalForm).map(_.show)
+    Expr(summary.fold(_.message, identity))
+
+  private def rawTupleArityLoweringMessageImpl(using Quotes): Expr[String] =
+    import quotes.reflect.*
+
+    val normalForm = TypeNormalForm.STypeTuple(List(TypeNormalForm.STypeIdent("Int"), TypeNormalForm.STypeIdent("String"), TypeNormalForm.STypeIdent("Boolean")))
+    val summary = TypeReprLowerer.lowerNormalForm(normalForm).map(_.show)
+    Expr(summary.fold(_.message, identity))
+
+  private def rawFunctionArityLoweringMessageImpl(using Quotes): Expr[String] =
+    import quotes.reflect.*
+
+    val normalForm = TypeNormalForm.STypeFunction(List(TypeNormalForm.STypeIdent("Int"), TypeNormalForm.STypeIdent("String")), TypeNormalForm.STypeIdent("Boolean"))
+    val summary = TypeReprLowerer.lowerNormalForm(normalForm).map(_.show)
+    Expr(summary.fold(_.message, identity))
+
+  private def typeConstructionLoweringDualitySummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =
+    val patternText = patternSource.valueOrAbort
+    val targetText = targetSource.valueOrAbort
+    val summary =
+      for
+        pattern <- QuasiTypePattern.repr(patternText)
+        result <- pattern.matchSource(targetText)
+        matchResult <- result.toRight(TypeQuasiquoteError("type pattern did not match target"))
+        constructed <- QuasiTypeConstruct.fromTemplate(patternText, matchResult.bindings)
+        lowered <- constructed.toTypeRepr
+        inspected <- TargetTypeReprInspector.inspect(lowered)
+      yield s"constructed=${constructed.normalForm.render} inspected=${inspected.render} matched=${constructed.normalForm == inspected}"
     Expr(summary.fold(_.message, identity))
 
   private def typePatternBindingSummaryImpl(patternSource: Expr[String], targetSource: Expr[String], bindingName: Expr[String])(using Quotes): Expr[String] =

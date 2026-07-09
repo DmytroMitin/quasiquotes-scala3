@@ -1,5 +1,7 @@
 package quasiquotes.types
 
+import scala.quoted.*
+
 object QuasiTypeConstruct:
   def fromTemplate(
       templateSource: String,
@@ -17,6 +19,9 @@ object QuasiTypeConstruct:
       bindings: (String, TypeNormalForm)*
   ): Either[TypeQuasiquoteError, ConstructedType] =
     fromTemplate(templateSource, bindings.toMap)
+
+  def toTypeRepr(constructed: ConstructedType)(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
+    constructed.toTypeRepr
 
   private def rejectExtraBindings(template: TypeTemplate, bindings: Map[String, TypeNormalForm]): Either[TypeQuasiquoteError, Unit] =
     val expectedNames = TypeTemplate.holeNames(template)

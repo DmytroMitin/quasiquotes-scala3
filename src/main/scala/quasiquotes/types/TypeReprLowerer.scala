@@ -26,6 +26,24 @@ object TypeReprLowerer:
       case unsupported =>
         Left(TypeQuasiquoteError(s"Unsupported type shape for Phase 13 TypeRepr lowering: ${unsupported.render}"))
 
+  def lowerNormalForm(normalForm: TypeNormalForm)(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
+    import quotes.reflect.*
+
+    normalForm match
+      case TypeNormalForm.STypeIdent("Int") => Right(TypeRepr.of[Int])
+      case TypeNormalForm.STypeIdent("String") => Right(TypeRepr.of[String])
+      case TypeNormalForm.STypeIdent("Boolean") => Right(TypeRepr.of[Boolean])
+      case TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent("List"), argument :: Nil) =>
+        lowerNormalFormList(argument)
+      case TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent("Option"), argument :: Nil) =>
+        lowerNormalFormOption(argument)
+      case TypeNormalForm.STypeTuple(first :: second :: Nil) =>
+        lowerNormalFormTuple(first, second)
+      case TypeNormalForm.STypeFunction(argument :: Nil, result) =>
+        lowerNormalFormFunction(argument, result)
+      case unsupported =>
+        unsupportedNormalForm(unsupported)
+
   private def lowerList(argument: TypeShape)(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
     import quotes.reflect.*
     argument match
@@ -61,3 +79,39 @@ object TypeReprLowerer:
 
   private def unsupportedApplied(constructor: String, argument: TypeShape): Either[TypeQuasiquoteError, Nothing] =
     Left(TypeQuasiquoteError(s"Unsupported type shape for Phase 13 TypeRepr lowering: ${TypeShape.Apply(TypeShape.Identifier(constructor), List(argument)).render}"))
+
+  private def lowerNormalFormList(argument: TypeNormalForm)(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
+    import quotes.reflect.*
+    argument match
+      case TypeNormalForm.STypeIdent("Int") => Right(TypeRepr.of[List[Int]])
+      case TypeNormalForm.STypeIdent("String") => Right(TypeRepr.of[List[String]])
+      case TypeNormalForm.STypeIdent("Boolean") => Right(TypeRepr.of[List[Boolean]])
+      case _ => unsupportedNormalForm(TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent("List"), List(argument)))
+
+  private def lowerNormalFormOption(argument: TypeNormalForm)(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
+    import quotes.reflect.*
+    argument match
+      case TypeNormalForm.STypeIdent("Int") => Right(TypeRepr.of[Option[Int]])
+      case TypeNormalForm.STypeIdent("String") => Right(TypeRepr.of[Option[String]])
+      case TypeNormalForm.STypeIdent("Boolean") => Right(TypeRepr.of[Option[Boolean]])
+      case _ => unsupportedNormalForm(TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent("Option"), List(argument)))
+
+  private def lowerNormalFormTuple(first: TypeNormalForm, second: TypeNormalForm)(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
+    import quotes.reflect.*
+    (first, second) match
+      case (TypeNormalForm.STypeIdent("Int"), TypeNormalForm.STypeIdent("String")) => Right(TypeRepr.of[(Int, String)])
+      case (TypeNormalForm.STypeIdent("String"), TypeNormalForm.STypeIdent("Int")) => Right(TypeRepr.of[(String, Int)])
+      case (TypeNormalForm.STypeIdent("Int"), TypeNormalForm.STypeIdent("Int")) => Right(TypeRepr.of[(Int, Int)])
+      case (TypeNormalForm.STypeIdent("String"), TypeNormalForm.STypeIdent("String")) => Right(TypeRepr.of[(String, String)])
+      case _ => unsupportedNormalForm(TypeNormalForm.STypeTuple(List(first, second)))
+
+  private def lowerNormalFormFunction(argument: TypeNormalForm, result: TypeNormalForm)(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
+    import quotes.reflect.*
+    (argument, result) match
+      case (TypeNormalForm.STypeIdent("Int"), TypeNormalForm.STypeIdent("String")) => Right(TypeRepr.of[Int => String])
+      case (TypeNormalForm.STypeIdent("Int"), TypeNormalForm.STypeIdent("Int")) => Right(TypeRepr.of[Int => Int])
+      case (TypeNormalForm.STypeIdent("String"), TypeNormalForm.STypeIdent("Int")) => Right(TypeRepr.of[String => Int])
+      case _ => unsupportedNormalForm(TypeNormalForm.STypeFunction(List(argument), result))
+
+  private def unsupportedNormalForm(normalForm: TypeNormalForm): Either[TypeQuasiquoteError, Nothing] =
+    Left(TypeQuasiquoteError(s"Cannot lower unsupported constructed type normal form to TypeRepr: ${ConstructedType.renderSource(normalForm)}"))
