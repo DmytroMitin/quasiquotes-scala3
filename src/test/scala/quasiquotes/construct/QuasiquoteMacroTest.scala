@@ -87,6 +87,67 @@ class QuasiquoteMacroTest extends munit.FunSuite:
     assertEquals(QuasiquoteMacroExamples.typedHoleApplication(2), 3)
   }
 
+  test("constructed types can ascribe terms with simple type normal forms") {
+    assertEquals(
+      TypedTermConstructExamples.typedAscriptionSummary("int", "$t", "t", "Int"),
+      "term=typed=true constructed=STypeIdent(Int) inspected=STypeIdent(Int) matched=true"
+    )
+  }
+
+  test("constructed types can ascribe terms with applied type normal forms") {
+    assertEquals(
+      TypedTermConstructExamples.typedAscriptionSummary("listInt", "List[$t]", "t", "Int"),
+      "term=typed=true constructed=STypeApply(STypeIdent(List), [STypeIdent(Int)]) inspected=STypeApply(STypeIdent(List), [STypeIdent(Int)]) matched=true"
+    )
+    assertEquals(
+      TypedTermConstructExamples.typedAscriptionSummary("optionString", "Option[$t]", "t", "String"),
+      "term=typed=true constructed=STypeApply(STypeIdent(Option), [STypeIdent(String)]) inspected=STypeApply(STypeIdent(Option), [STypeIdent(String)]) matched=true"
+    )
+  }
+
+  test("constructed types can ascribe terms with tuple type normal forms") {
+    assertEquals(
+      TypedTermConstructExamples.typedAscriptionSummary("tupleIntString", "($a, $b)", "a", "Int", "b", "String"),
+      "term=typed=true constructed=STypeTuple([STypeIdent(Int), STypeIdent(String)]) inspected=STypeTuple([STypeIdent(Int), STypeIdent(String)]) matched=true"
+    )
+  }
+
+  test("constructed types can ascribe terms with function type normal forms") {
+    assertEquals(
+      TypedTermConstructExamples.typedAscriptionSummary("functionIntString", "$a => $b", "a", "Int", "b", "String"),
+      "term=typed=true constructed=STypeFunction([STypeIdent(Int)], STypeIdent(String)) inspected=STypeFunction([STypeIdent(Int)], STypeIdent(String)) matched=true"
+    )
+  }
+
+  test("constructed repeated type holes can ascribe terms") {
+    assertEquals(
+      TypedTermConstructExamples.typedAscriptionSummary("tupleIntInt", "($t, $t)", "t", "Int"),
+      "term=typed=true constructed=STypeTuple([STypeIdent(Int), STypeIdent(Int)]) inspected=STypeTuple([STypeIdent(Int), STypeIdent(Int)]) matched=true"
+    )
+  }
+
+  test("constructed typed/ascription integration preserves rejected type-construction boundaries") {
+    assertEquals(
+      TypedTermConstructExamples.typedAscriptionMissingBindingMessage("List[$t]"),
+      "Missing type-construction binding `t`"
+    )
+    assertEquals(
+      TypedTermConstructExamples.typedAscriptionMessage("List[$t]", "t", "Int", "extra", "String"),
+      "Extra type-construction binding(s): extra"
+    )
+    assert(TypedTermConstructExamples.typedAscriptionMessage("scala.Int", "t", "Int").contains("Selected type syntax is not supported"))
+    assert(TypedTermConstructExamples.typedAscriptionMessage("List[?]", "t", "Int").contains("Unsupported type construction template shape"))
+    assertEquals(
+      TypedTermConstructExamples.typedAscriptionUnsupportedNormalFormMessage("AnyVal"),
+      "Cannot lower unsupported constructed type normal form to TypeRepr: AnyVal"
+    )
+  }
+
+  test("constructed typed/ascription integration does not add selected-alias equality or direct interpolators") {
+    assert(TypedTermConstructExamples.typedAscriptionMessage("scala.Int", "t", "Int").contains("Selected type syntax is not supported"))
+    assert(!quasiquotes.types.QuasiTypeExamples.matches("Int", "scala.Int"))
+  }
+
   test("qr can construct a tuple expression from holes") {
     assertEquals(QuasiquoteMacroExamples.tupleHoles(2, 3), (2, 3))
   }
