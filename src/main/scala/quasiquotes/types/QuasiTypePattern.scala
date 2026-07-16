@@ -38,7 +38,8 @@ final case class QuasiTypePattern(
     yield result
 
 object QuasiTypePattern:
-  def repr(source: String)(using Quotes): Either[TypeQuasiquoteError, QuasiTypePattern] =
+  /** Canonical explicit constructor for a supported type pattern. */
+  def pattern(source: String)(using Quotes): Either[TypeQuasiquoteError, QuasiTypePattern] =
     for
       typePattern <- TypePattern.fromSource(source)
       expected <- expectedTypeRepr(source, typePattern)
@@ -46,6 +47,10 @@ object QuasiTypePattern:
         case Some(expectedType) => TypeNormalForm.fromShape(expectedType.shape).map(Some(_))
         case None => Right(None)
     yield QuasiTypePattern(source, expected, expectedNormalForm, typePattern)
+
+  /** Compatibility alias retained for the original research API. */
+  def repr(source: String)(using Quotes): Either[TypeQuasiquoteError, QuasiTypePattern] =
+    pattern(source)
 
   def reprOrThrow(source: String)(using Quotes): QuasiTypePattern =
     repr(source).fold(throw _, identity)

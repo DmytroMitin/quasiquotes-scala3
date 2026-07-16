@@ -21,6 +21,12 @@ object ConstructedTypeBridgeExamples:
   inline def unsupportedNormalFormMessage(source: String): String =
     ${ unsupportedNormalFormMessageImpl('source) }
 
+  inline def normalFormBridgeSummary(source: String): String =
+    ${ normalFormBridgeSummaryImpl('source) }
+
+  inline def templateBridgeSummary(templateSource: String, bindingName: String, bindingSource: String): String =
+    ${ templateBridgeSummaryImpl('templateSource, 'bindingName, 'bindingSource) }
+
   private def bridgeSummaryImpl(
       templateSource: Expr[String],
       bindingName: Expr[String],
@@ -73,6 +79,41 @@ object ConstructedTypeBridgeExamples:
         bridged <- ConstructedTypeBridge.withNormalFormType(normalForm) {
           [t] => (evidence: Type[t]) ?=> Type.show[t]
         }
+      yield bridged
+    Expr(summary.fold(_.message, identity))
+
+  private def normalFormBridgeSummaryImpl(source: Expr[String])(using Quotes): Expr[String] =
+    val sourceText = source.valueOrAbort
+    val summary =
+      for
+        normalForm <- TypeNormalForm.fromSource(sourceText)
+        bridged <- ConstructedTypeBridge.withNormalFormType(normalForm) {
+          [t] => (evidence: Type[t]) ?=>
+            TargetTypeReprInspector.inspect(quotes.reflect.TypeRepr.of[t]).map { inspected =>
+              s"normalForm=${normalForm.render} evidence=${inspected.render} matched=${normalForm == inspected}"
+            }
+        }.flatten
+      yield bridged
+    Expr(summary.fold(_.message, identity))
+
+  private def templateBridgeSummaryImpl(
+      templateSource: Expr[String],
+      bindingName: Expr[String],
+      bindingSource: Expr[String]
+  )(using Quotes): Expr[String] =
+    val templateText = templateSource.valueOrAbort
+    val bindingText = bindingName.valueOrAbort
+    val bindingSourceText = bindingSource.valueOrAbort
+    val summary =
+      for
+        binding <- TypeNormalForm.fromSource(bindingSourceText)
+        expected <- QuasiTypequotes.tqr(templateText, bindingText -> binding)
+        bridged <- ConstructedTypeBridge.withTemplateType(templateText, bindingText -> binding) {
+          [t] => (evidence: Type[t]) ?=>
+            TargetTypeReprInspector.inspect(quotes.reflect.TypeRepr.of[t]).map { inspected =>
+              s"constructed=${expected.normalForm.render} evidence=${inspected.render} matched=${expected.normalForm == inspected}"
+            }
+        }.flatten
       yield bridged
     Expr(summary.fold(_.message, identity))
 

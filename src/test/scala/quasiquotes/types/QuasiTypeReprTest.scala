@@ -153,6 +153,13 @@ class QuasiTypeReprTest extends munit.FunSuite:
     )
   }
 
+  test("QuasiTypePattern pattern alias preserves repr compatibility") {
+    assertEquals(
+      QuasiTypeExamples.patternAliasEquivalenceSummary("List[$t]", "List[Int]"),
+      "pattern=t=STypeIdent(Int) repr=t=STypeIdent(Int)"
+    )
+  }
+
   test("constructs type templates with explicit type-hole bindings") {
     assertEquals(
       QuasiTypeConstruct.fromTemplate("$t", "t" -> TypeNormalForm.STypeIdent("Int")).map(_.normalForm.render),
@@ -299,6 +306,20 @@ class QuasiTypeReprTest extends munit.FunSuite:
     assertEquals(
       ConstructedTypeBridgeExamples.bridgeSummary("$t", "t", "Int"),
       "constructed=STypeIdent(Int) evidence=STypeIdent(Int) matched=true"
+    )
+  }
+
+  test("normal-form convenience bridges to the same scoped high-level Type evidence") {
+    assertEquals(
+      ConstructedTypeBridgeExamples.normalFormBridgeSummary("Int"),
+      "normalForm=STypeIdent(Int) evidence=STypeIdent(Int) matched=true"
+    )
+  }
+
+  test("template convenience bridges to the same scoped high-level Type evidence") {
+    assertEquals(
+      ConstructedTypeBridgeExamples.templateBridgeSummary("List[$t]", "t", "Int"),
+      "constructed=STypeApply(STypeIdent(List), [STypeIdent(Int)]) evidence=STypeApply(STypeIdent(List), [STypeIdent(Int)]) matched=true"
     )
   }
 

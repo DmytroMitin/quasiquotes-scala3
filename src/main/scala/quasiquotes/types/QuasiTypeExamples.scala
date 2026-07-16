@@ -39,6 +39,9 @@ object QuasiTypeExamples:
   inline def tqqEquivalenceSummary(patternSource: String, targetSource: String): String =
     ${ tqqEquivalenceSummaryImpl('patternSource, 'targetSource) }
 
+  inline def patternAliasEquivalenceSummary(patternSource: String, targetSource: String): String =
+    ${ patternAliasEquivalenceSummaryImpl('patternSource, 'targetSource) }
+
   inline def typeConstructionDualitySummary(patternSource: String, targetSource: String): String =
     ${ typeConstructionDualitySummaryImpl('patternSource, 'targetSource) }
 
@@ -188,6 +191,18 @@ object QuasiTypeExamples:
         result <- pattern.matchSource(targetText)
       yield result.map(_.bindingsSummary).getOrElse("no-match")
     Expr(s"explicit=${explicit.fold(_.message, identity)} tqq=${wrapped.fold(_.message, identity)}")
+
+  private def patternAliasEquivalenceSummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =
+    val patternText = patternSource.valueOrAbort
+    val targetText = targetSource.valueOrAbort
+    def bindingsSummary(result: Either[TypeQuasiquoteError, QuasiTypePattern]): String =
+      (for
+        pattern <- result
+        matched <- pattern.matchSource(targetText)
+      yield matched.map(_.bindingsSummary).getOrElse("no-match")).fold(_.message, identity)
+    val canonical = bindingsSummary(QuasiTypePattern.pattern(patternText))
+    val compatibility = bindingsSummary(QuasiTypePattern.repr(patternText))
+    Expr(s"pattern=$canonical repr=$compatibility")
 
   private def typeConstructionDualitySummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =
     val patternText = patternSource.valueOrAbort
