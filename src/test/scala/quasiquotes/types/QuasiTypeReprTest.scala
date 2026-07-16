@@ -295,6 +295,66 @@ class QuasiTypeReprTest extends munit.FunSuite:
     )
   }
 
+  test("constructed simple types bridge to scoped high-level Type evidence") {
+    assertEquals(
+      ConstructedTypeBridgeExamples.bridgeSummary("$t", "t", "Int"),
+      "constructed=STypeIdent(Int) evidence=STypeIdent(Int) matched=true"
+    )
+  }
+
+  test("constructed applied types bridge to scoped high-level Type evidence") {
+    assertEquals(
+      ConstructedTypeBridgeExamples.bridgeSummary("List[$t]", "t", "Int"),
+      "constructed=STypeApply(STypeIdent(List), [STypeIdent(Int)]) evidence=STypeApply(STypeIdent(List), [STypeIdent(Int)]) matched=true"
+    )
+    assertEquals(
+      ConstructedTypeBridgeExamples.bridgeSummary("Option[$t]", "t", "String"),
+      "constructed=STypeApply(STypeIdent(Option), [STypeIdent(String)]) evidence=STypeApply(STypeIdent(Option), [STypeIdent(String)]) matched=true"
+    )
+  }
+
+  test("constructed tuple and function types bridge to scoped high-level Type evidence") {
+    assertEquals(
+      ConstructedTypeBridgeExamples.bridgeSummary("($a, $b)", "a", "Int", "b", "String"),
+      "constructed=STypeTuple([STypeIdent(Int), STypeIdent(String)]) evidence=STypeTuple([STypeIdent(Int), STypeIdent(String)]) matched=true"
+    )
+    assertEquals(
+      ConstructedTypeBridgeExamples.bridgeSummary("$a => $b", "a", "Int", "b", "String"),
+      "constructed=STypeFunction([STypeIdent(Int)], STypeIdent(String)) evidence=STypeFunction([STypeIdent(Int)], STypeIdent(String)) matched=true"
+    )
+  }
+
+  test("constructed repeated holes bridge to scoped high-level Type evidence") {
+    assertEquals(
+      ConstructedTypeBridgeExamples.bridgeSummary("($t, $t)", "t", "Int"),
+      "constructed=STypeTuple([STypeIdent(Int), STypeIdent(Int)]) evidence=STypeTuple([STypeIdent(Int), STypeIdent(Int)]) matched=true"
+    )
+  }
+
+  test("high-level Type bridge preserves construction and lowering failures") {
+    assertEquals(
+      ConstructedTypeBridgeExamples.missingBindingMessage("List[$t]"),
+      "Missing type-construction binding `t`"
+    )
+    assertEquals(
+      ConstructedTypeBridgeExamples.bridgeSummary("List[$t]", "t", "Int", "extra", "String"),
+      "Extra type-construction binding(s): extra"
+    )
+    assert(ConstructedTypeBridgeExamples.bridgeSummary("scala.Int", "t", "Int").contains("Selected type syntax is not supported"))
+    assert(ConstructedTypeBridgeExamples.bridgeSummary("List[?]", "t", "Int").contains("Unsupported type construction template shape"))
+    assertEquals(
+      ConstructedTypeBridgeExamples.unsupportedNormalFormMessage("AnyVal"),
+      "Cannot lower unsupported constructed type normal form to TypeRepr: AnyVal"
+    )
+  }
+
+  test("high-level Type bridge leaves equality and syntax boundaries unchanged") {
+    assert(!QuasiTypeExamples.matches("Int", "scala.Int"))
+    assert(ConstructedTypeBridgeExamples.bridgeSummary("scala.Int", "t", "Int").contains("Selected type syntax is not supported"))
+    // The continuation returns this stable String; its dependent Type[t] evidence does not escape.
+    assert(ConstructedTypeBridgeExamples.bridgeSummary("$t", "t", "Int").isInstanceOf[String])
+  }
+
   test("repeated type holes enforce structural normal-form equality") {
     assertEquals(QuasiTypeExamples.typePatternMatchSummary("($t, $t)", "(Int, Int)"), "matched=true bindings=t=STypeIdent(Int)")
     assertEquals(QuasiTypeExamples.typePatternMatchSummary("$t => $t", "Int => Int"), "matched=true bindings=t=STypeIdent(Int)")
