@@ -1,9 +1,19 @@
 package quasiquotes.matching
 
 import dotty.tools.dotc.ast.untpd
+import quasiquotes.parser.DottySourceSpanAdapter
+import quasiquotes.source.SourceSpan
+
+private[matching] final case class PatternCompileFailure(
+    error: PatternError,
+    generatedSpan: Option[SourceSpan]
+)
 
 object PatternCompiler:
   def compile(tree: untpd.Tree): Either[PatternError, TermPattern] =
+    compileLocated(tree).left.map(_.error)
+
+  private[matching] def compileLocated(tree: untpd.Tree): Either[PatternCompileFailure, TermPattern] =
     tree match
       case untpd.Ident(name) =>
         PatternSource.extractHoleName(name.toString) match
@@ -14,36 +24,41 @@ object PatternCompiler:
       case untpd.Number(digits, _) =>
         Right(TermPattern.Literal(digits))
       case untpd.Select(qualifier, name) =>
-        compile(qualifier).map(TermPattern.Select(_, name.toString))
+        compileLocated(qualifier).map(TermPattern.Select(_, name.toString))
       case untpd.Apply(function, arguments) =>
         for
-          compiledFunction <- compile(function)
-          compiledArguments <- sequence(arguments.map(compile))
+          compiledFunction <- compileLocated(function)
+          compiledArguments <- sequence(arguments.map(compileLocated))
         yield TermPattern.Apply(compiledFunction, compiledArguments)
       case untpd.InfixOp(left, op, right) =>
         for
-          compiledLeft <- compile(left)
-          compiledRight <- compile(right)
+          compiledLeft <- compileLocated(left)
+          compiledRight <- compileLocated(right)
         yield TermPattern.Infix(compiledLeft, op.name.toString, compiledRight)
       case untpd.Typed(expression, typeTree) =>
-        compile(expression).map(TermPattern.Typed(_, renderType(typeTree)))
+        compileLocated(expression).map(TermPattern.Typed(_, renderType(typeTree)))
       case untpd.Tuple(elements) =>
-        sequence(elements.map(compile)).map(TermPattern.Tuple.apply)
+        sequence(elements.map(compileLocated)).map(TermPattern.Tuple.apply)
       case untpd.If(condition, thenBranch, elseBranch) =>
         for
-          compiledCondition <- compile(condition)
-          compiledThenBranch <- compile(thenBranch)
-          compiledElseBranch <- compile(elseBranch)
+          compiledCondition <- compileLocated(condition)
+          compiledThenBranch <- compileLocated(thenBranch)
+          compiledElseBranch <- compileLocated(elseBranch)
         yield TermPattern.If(compiledCondition, compiledThenBranch, compiledElseBranch)
       case untpd.Parens(inner) =>
-        compile(inner).map(TermPattern.Parenthesized.apply)
+        compileLocated(inner).map(TermPattern.Parenthesized.apply)
       case untpd.TypedSplice(inner) =>
-        compile(inner)
+        compileLocated(inner)
       case other =>
-        Left(PatternError.UnsupportedPatternShape(other.getClass.getSimpleName, other.toString))
+        Left(
+          PatternCompileFailure(
+            PatternError.UnsupportedPatternShape(other.getClass.getSimpleName, other.toString),
+            DottySourceSpanAdapter.fromTree(other).filter(!_.isEmpty)
+          )
+        )
 
-  private def sequence[A](values: List[Either[PatternError, A]]): Either[PatternError, List[A]] =
-    values.foldRight(Right(Nil): Either[PatternError, List[A]]) { (next, acc) =>
+  private def sequence[A](values: List[Either[PatternCompileFailure, A]]): Either[PatternCompileFailure, List[A]] =
+    values.foldRight(Right(Nil): Either[PatternCompileFailure, List[A]]) { (next, acc) =>
       for
         head <- next
         tail <- acc

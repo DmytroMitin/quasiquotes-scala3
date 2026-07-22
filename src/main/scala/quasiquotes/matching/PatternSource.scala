@@ -13,6 +13,9 @@ object PatternSource:
     synthesizeMapped(pattern).map(_.patternSource)
 
   def synthesizeMapped(pattern: String): Either[PatternError, MappedPatternSource] =
+    synthesizeMappedLocated(pattern).left.map(_.diagnostic)
+
+  def synthesizeMappedLocated(pattern: String): Either[LocatedDiagnostic[PatternError], MappedPatternSource] =
     var index = 0
 
     while index < pattern.length do
@@ -21,7 +24,13 @@ object PatternSource:
         // Task 3 keeps pattern syntax tiny: a hole is just `$` plus an identifier.
         val start = index + 1
         if start >= pattern.length || !isIdentifierStart(pattern.charAt(start)) then
-          return Left(PatternError.InvalidHoleName(pattern.drop(index).take(2)))
+          val span = SourceSpan(index, math.min(index + 2, pattern.length))
+          val location = DiagnosticLocation(
+            SourceId.TermPattern,
+            span,
+            Vector(SourceOrigin.OriginalText(SourceId.TermPattern, span))
+          )
+          return Left(LocatedDiagnostic(PatternError.InvalidHoleName(pattern.drop(index).take(2)), Some(location)))
         var end = start + 1
         while end < pattern.length && isIdentifierPart(pattern.charAt(end)) do end += 1
         index = end

@@ -15,7 +15,7 @@ object ParsedTermLowerer:
   ): Either[QuasiquoteError, q.reflect.Term] =
     lowerLocated(tree, bindings, literalCategorizedNames).left.map(_.error)
 
-  def lowerLocated(using q: Quotes)(
+  private[construct] def lowerLocated(using q: Quotes)(
       tree: untpd.Tree,
       bindings: Vector[PlaceholderBinding[q.reflect.Term]],
       literalCategorizedNames: Set[String] = Set.empty

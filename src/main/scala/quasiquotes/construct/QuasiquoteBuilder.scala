@@ -12,7 +12,7 @@ object QuasiquoteBuilder:
   ): Either[QuasiquoteError, q.reflect.Term] =
     buildLocated(parts, arguments).left.map(_.error)
 
-  def buildLocated(using q: Quotes)(
+  private[construct] def buildLocated(using q: Quotes)(
       parts: Seq[String],
       arguments: Seq[q.reflect.Term | QuasiTypeSplice]
   ): Either[QuasiquoteBuildFailure, q.reflect.Term] =

@@ -1,7 +1,8 @@
 package quasiquotes.types
 
 import scala.quoted.*
-import quasiquotes.parser.TinyTypeParser
+import quasiquotes.parser.{DiagnosticLocationMapper, TinyTypeParser}
+import quasiquotes.source.{LocatedDiagnostic, MappedHoleSource}
 
 final case class QuasiTypePattern(
     source: String,
@@ -40,13 +41,22 @@ final case class QuasiTypePattern(
 object QuasiTypePattern:
   /** Canonical explicit constructor for a supported type pattern. */
   def pattern(source: String)(using Quotes): Either[TypeQuasiquoteError, QuasiTypePattern] =
-    for
-      typePattern <- TypePattern.fromSource(source)
-      expected <- expectedTypeRepr(source, typePattern)
-      expectedNormalForm <- expected match
-        case Some(expectedType) => TypeNormalForm.fromShape(expectedType.shape).map(Some(_))
-        case None => Right(None)
-    yield QuasiTypePattern(source, expected, expectedNormalForm, typePattern)
+    patternLocated(source).left.map(_.diagnostic)
+
+  def patternLocated(source: String)(using Quotes): Either[LocatedDiagnostic[TypeQuasiquoteError], QuasiTypePattern] =
+    val mapped = TypePattern.rewriteSourceMapped(source)
+    TypePattern.fromSourceLocated(source).flatMap { typePattern =>
+      expectedTypeRepr(source, typePattern)
+        .left.map(locatedWhole(_, mapped))
+        .flatMap { expected =>
+          val expectedNormalForm = expected match
+            case Some(expectedType) => TypeNormalForm.fromShape(expectedType.shape).map(Some(_))
+            case None => Right(None)
+          expectedNormalForm
+            .left.map(locatedWhole(_, mapped))
+            .map(QuasiTypePattern(source, expected, _, typePattern))
+        }
+    }
 
   /** Compatibility alias retained for the original research API. */
   def repr(source: String)(using Quotes): Either[TypeQuasiquoteError, QuasiTypePattern] =
@@ -70,3 +80,9 @@ object QuasiTypePattern:
 
   private def expectedTypeRepr(source: String, typePattern: TypePattern)(using Quotes): Either[TypeQuasiquoteError, Option[QuasiTypeRepr]] =
     if typePattern.containsHole then Right(None) else QuasiTypeRepr.fromSource(source).map(Some(_))
+
+  private def locatedWhole(
+      error: TypeQuasiquoteError,
+      mapped: MappedHoleSource
+  ): LocatedDiagnostic[TypeQuasiquoteError] =
+    LocatedDiagnostic(error, DiagnosticLocationMapper.wholeGeneratedSource(mapped.originMap))

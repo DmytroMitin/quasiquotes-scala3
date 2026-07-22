@@ -16,9 +16,28 @@ object TypePattern:
   private val HolePrefix = "__tqhole_"
 
   def fromSource(source: String): Either[TypeQuasiquoteError, TypePattern] =
-    TinyTypeParser.parse(rewriteSourceMapped(source).generatedSource)
-      .left.map(error => TypeQuasiquoteError(error.summary))
-      .flatMap(parsed => fromShape(parsed.shape))
+    fromSourceLocated(source).left.map(_.diagnostic)
+
+  def fromSourceLocated(source: String): Either[LocatedDiagnostic[TypeQuasiquoteError], TypePattern] =
+    val mapped = rewriteSourceMapped(source)
+    TinyTypeParser.parse(mapped.generatedSource) match
+      case Left(error) =>
+        Left(
+          LocatedDiagnostic(
+            TypeQuasiquoteError(error.summary),
+            DiagnosticLocationMapper.fromParseError(error, mapped.originMap)
+          )
+        )
+      case Right(parsed) =>
+        fromShape(parsed.shape).left.map { error =>
+          LocatedDiagnostic(
+            error,
+            DiagnosticLocationMapper.wholeGeneratedSource(
+              mapped.originMap,
+              DottySourceSpanAdapter.fromTree(parsed.rawTree)
+            )
+          )
+        }
 
   def rewriteSourceMapped(source: String): MappedHoleSource =
     HoleSourceRewriter.rewrite(

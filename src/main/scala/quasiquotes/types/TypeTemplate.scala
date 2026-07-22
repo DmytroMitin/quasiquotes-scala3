@@ -17,9 +17,28 @@ object TypeTemplate:
   private val ConstructibleTypeConstructors = Set("List", "Option")
 
   def fromSource(source: String): Either[TypeQuasiquoteError, TypeTemplate] =
-    TinyTypeParser.parse(rewriteSourceMapped(source).generatedSource)
-      .left.map(error => TypeQuasiquoteError(error.summary))
-      .flatMap(parsed => fromShape(parsed.shape))
+    fromSourceLocated(source).left.map(_.diagnostic)
+
+  def fromSourceLocated(source: String): Either[LocatedDiagnostic[TypeQuasiquoteError], TypeTemplate] =
+    val mapped = rewriteSourceMapped(source)
+    TinyTypeParser.parse(mapped.generatedSource) match
+      case Left(error) =>
+        Left(
+          LocatedDiagnostic(
+            TypeQuasiquoteError(error.summary),
+            DiagnosticLocationMapper.fromParseError(error, mapped.originMap)
+          )
+        )
+      case Right(parsed) =>
+        fromShape(parsed.shape).left.map { error =>
+          LocatedDiagnostic(
+            error,
+            DiagnosticLocationMapper.wholeGeneratedSource(
+              mapped.originMap,
+              DottySourceSpanAdapter.fromTree(parsed.rawTree)
+            )
+          )
+        }
 
   def rewriteSourceMapped(source: String): MappedHoleSource =
     HoleSourceRewriter.rewrite(
@@ -109,9 +128,29 @@ object TypeTemplate:
       case TTTuple(elements) => elements.flatMap(holeNames).toSet
       case TTFunction(arguments, result) => arguments.flatMap(holeNames).toSet ++ holeNames(result)
 
+  private[types] def firstMissingHole(
+      template: TypeTemplate,
+      bindings: Map[String, TypeNormalForm]
+  ): Option[String] =
+    template match
+      case TTHole(name) => Option.when(!bindings.contains(name))(name)
+      case TTIdent(_) => None
+      case TTApply(constructor, arguments) =>
+        firstMissingHole(constructor, bindings).orElse(firstMissingIn(arguments, bindings))
+      case TTTuple(elements) =>
+        firstMissingIn(elements, bindings)
+      case TTFunction(arguments, result) =>
+        firstMissingIn(arguments, bindings).orElse(firstMissingHole(result, bindings))
+
   private def validateTemplateIdentifier(name: String): Either[TypeQuasiquoteError, Unit] =
     if ConstructibleIdentifiers(name) then Right(())
     else Left(TypeQuasiquoteError(s"Unsupported type construction template identifier for Phase 21: $name"))
+
+  private def firstMissingIn(
+      templates: List[TypeTemplate],
+      bindings: Map[String, TypeNormalForm]
+  ): Option[String] =
+    templates.iterator.flatMap(firstMissingHole(_, bindings)).nextOption()
 
   private def collect[A](values: List[Either[TypeQuasiquoteError, A]]): Either[TypeQuasiquoteError, List[A]] =
     values.foldRight[Either[TypeQuasiquoteError, List[A]]](Right(Nil)) { (value, accumulated) =>

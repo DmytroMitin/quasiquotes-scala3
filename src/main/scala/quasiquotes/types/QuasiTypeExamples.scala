@@ -42,6 +42,9 @@ object QuasiTypeExamples:
   inline def patternAliasEquivalenceSummary(patternSource: String, targetSource: String): String =
     ${ patternAliasEquivalenceSummaryImpl('patternSource, 'targetSource) }
 
+  inline def locatedPatternSummary(patternSource: String): String =
+    ${ locatedPatternSummaryImpl('patternSource) }
+
   inline def typeConstructionDualitySummary(patternSource: String, targetSource: String): String =
     ${ typeConstructionDualitySummaryImpl('patternSource, 'targetSource) }
 
@@ -203,6 +206,19 @@ object QuasiTypeExamples:
     val canonical = bindingsSummary(QuasiTypePattern.pattern(patternText))
     val compatibility = bindingsSummary(QuasiTypePattern.repr(patternText))
     Expr(s"pattern=$canonical repr=$compatibility")
+
+  private def locatedPatternSummaryImpl(patternSource: Expr[String])(using Quotes): Expr[String] =
+    val patternText = patternSource.valueOrAbort
+    val legacy = QuasiTypePattern.pattern(patternText)
+    val summary = QuasiTypePattern.patternLocated(patternText) match
+      case Right(pattern) =>
+        s"success=true legacySuccess=${legacy.isRight} expected=${pattern.expected.isDefined} holes=${pattern.typePattern.containsHole}"
+      case Left(located) =>
+        val location = located.location.fold("none") { value =>
+          s"${value.generatedSourceId.value}:${value.generatedSpan.start}-${value.generatedSpan.end}:origins=${value.origins.size}"
+        }
+        s"error=true legacySame=${legacy.left.exists(_.message == located.diagnostic.message)} location=$location message=${located.diagnostic.message}"
+    Expr(summary)
 
   private def typeConstructionDualitySummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =
     val patternText = patternSource.valueOrAbort
