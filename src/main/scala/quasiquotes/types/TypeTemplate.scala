@@ -1,6 +1,7 @@
 package quasiquotes.types
 
 import quasiquotes.parser.*
+import quasiquotes.source.*
 
 sealed trait TypeTemplate derives CanEqual
 
@@ -12,14 +13,22 @@ object TypeTemplate:
   final case class TTFunction(arguments: List[TypeTemplate], result: TypeTemplate) extends TypeTemplate
 
   private val HolePrefix = "__tqconstructhole_"
-  private val HoleSyntax = "\\$([A-Za-z_][A-Za-z0-9_]*)".r
   private val ConstructibleIdentifiers = Set("Int", "String", "Boolean")
   private val ConstructibleTypeConstructors = Set("List", "Option")
 
   def fromSource(source: String): Either[TypeQuasiquoteError, TypeTemplate] =
-    TinyTypeParser.parse(rewriteHoles(source))
+    TinyTypeParser.parse(rewriteSourceMapped(source).generatedSource)
       .left.map(error => TypeQuasiquoteError(error.summary))
       .flatMap(parsed => fromShape(parsed.shape))
+
+  def rewriteSourceMapped(source: String): MappedHoleSource =
+    HoleSourceRewriter.rewrite(
+      source,
+      HolePrefix,
+      HoleRole.TypeTemplate,
+      SourceId.TypeTemplate,
+      SourceId.VirtualTypeTemplateParserInput
+    )
 
   def fromShape(shape: TypeShape): Either[TypeQuasiquoteError, TypeTemplate] =
     shape match
@@ -99,9 +108,6 @@ object TypeTemplate:
       case TTApply(constructor, arguments) => holeNames(constructor) ++ arguments.flatMap(holeNames).toSet
       case TTTuple(elements) => elements.flatMap(holeNames).toSet
       case TTFunction(arguments, result) => arguments.flatMap(holeNames).toSet ++ holeNames(result)
-
-  private def rewriteHoles(source: String): String =
-    HoleSyntax.replaceAllIn(source, matched => s"$HolePrefix${matched.group(1)}")
 
   private def validateTemplateIdentifier(name: String): Either[TypeQuasiquoteError, Unit] =
     if ConstructibleIdentifiers(name) then Right(())

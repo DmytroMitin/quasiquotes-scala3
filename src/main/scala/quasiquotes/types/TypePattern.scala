@@ -1,6 +1,7 @@
 package quasiquotes.types
 
 import quasiquotes.parser.*
+import quasiquotes.source.*
 
 sealed trait TypePattern derives CanEqual:
   final def containsHole: Boolean = TypePattern.containsHole(this)
@@ -13,12 +14,20 @@ object TypePattern:
   final case class TPFunction(arguments: List[TypePattern], result: TypePattern) extends TypePattern
 
   private val HolePrefix = "__tqhole_"
-  private val HoleSyntax = "\\$([A-Za-z_][A-Za-z0-9_]*)".r
 
   def fromSource(source: String): Either[TypeQuasiquoteError, TypePattern] =
-    TinyTypeParser.parse(rewriteHoles(source))
+    TinyTypeParser.parse(rewriteSourceMapped(source).generatedSource)
       .left.map(error => TypeQuasiquoteError(error.summary))
       .flatMap(parsed => fromShape(parsed.shape))
+
+  def rewriteSourceMapped(source: String): MappedHoleSource =
+    HoleSourceRewriter.rewrite(
+      source,
+      HolePrefix,
+      HoleRole.TypePattern,
+      SourceId.TypePattern,
+      SourceId.VirtualTypePatternParserInput
+    )
 
   def fromShape(shape: TypeShape): Either[TypeQuasiquoteError, TypePattern] =
     shape match
@@ -63,9 +72,6 @@ object TypePattern:
       case TPApply(constructor, arguments) => containsHole(constructor) || arguments.exists(containsHole)
       case TPTuple(elements) => elements.exists(containsHole)
       case TPFunction(arguments, result) => arguments.exists(containsHole) || containsHole(result)
-
-  private def rewriteHoles(source: String): String =
-    HoleSyntax.replaceAllIn(source, matched => s"$HolePrefix${matched.group(1)}")
 
   private def matchInto(
       pattern: TypePattern,
