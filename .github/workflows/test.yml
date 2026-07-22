@@ -8,7 +8,23 @@ on:
 
 jobs:
   test:
+    name: Scala ${{ matrix.scala }} (${{ matrix.role }})
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.experimental }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scala: "3.8.4"
+            experimental: false
+            role: required-stable
+          - scala: "3.9.0-RC1"
+            experimental: true
+            role: forward-probe
+          - scala: "3.3.8"
+            experimental: true
+            role: lts-feasibility
 
     steps:
       - name: Checkout repository
@@ -24,5 +40,8 @@ jobs:
       - name: Set up sbt
         uses: sbt/setup-sbt@v1
 
-      - name: Run tests
-        run: sbt test
+      - name: Report compatibility lane
+        run: echo "Scala ${{ matrix.scala }} / ${{ matrix.role }} / experimental=${{ matrix.experimental }}"
+
+      - name: Run clean tests with Scala ${{ matrix.scala }}
+        run: sbt -batch "++${{ matrix.scala }}! clean test"
