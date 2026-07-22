@@ -2,6 +2,9 @@ package quasiquotes.construct
 
 import dotty.tools.dotc.ast.untpd
 
+import quasiquotes.parser.DottySourceSpanAdapter
+import quasiquotes.source.SourceSpan
+
 private[construct] enum PlaceholderCategory derives CanEqual:
   case TermSplice
   case ConstructedTypeSplice
@@ -23,6 +26,21 @@ private[construct] enum PlaceholderPosition derives CanEqual:
       case ExpressionAscriptionType => "as the complete type of an expression ascription"
       case UnsupportedType(context) => s"inside $context"
       case UnsupportedTerm(context) => s"inside $context"
+
+private[construct] final case class PlaceholderOccurrence[+T](
+    binding: PlaceholderBinding[T],
+    generatedSpan: Option[SourceSpan]
+)
+
+private[construct] final case class UnknownPlaceholderOccurrence(
+    name: String,
+    generatedSpan: Option[SourceSpan]
+)
+
+private[construct] final case class UntypedIdentifierOccurrence(
+    name: String,
+    generatedSpan: Option[SourceSpan]
+)
 
 private[construct] final class CategorizedPlaceholderIndex[T](
     val bindings: Vector[PlaceholderBinding[T]],
@@ -54,10 +72,21 @@ private[construct] final class CategorizedPlaceholderIndex[T](
       case None => Right(None)
 
   def findIn(tree: untpd.Tree): List[PlaceholderBinding[T]] =
-    UntypedPlaceholderTraversal.identifierNames(tree).flatMap(bindingsByName.get)
+    findOccurrences(tree).map(_.binding)
+
+  def findOccurrences(tree: untpd.Tree): List[PlaceholderOccurrence[T]] =
+    UntypedPlaceholderTraversal.identifierOccurrences(tree).flatMap { occurrence =>
+      bindingsByName.get(occurrence.name).map(PlaceholderOccurrence(_, occurrence.generatedSpan))
+    }
 
   def firstUnknownIn(tree: untpd.Tree): Option[String] =
-    UntypedPlaceholderTraversal.identifierNames(tree).find(isUnknownCategorizedName)
+    firstUnknownOccurrence(tree).map(_.name)
+
+  def firstUnknownOccurrence(tree: untpd.Tree): Option[UnknownPlaceholderOccurrence] =
+    UntypedPlaceholderTraversal.identifierOccurrences(tree).collectFirst {
+      case occurrence if isUnknownCategorizedName(occurrence.name) =>
+        UnknownPlaceholderOccurrence(occurrence.name, occurrence.generatedSpan)
+    }
 
   def categoryOf(hole: QuasiquoteHole[T]): PlaceholderCategory =
     hole match
@@ -71,23 +100,26 @@ private[construct] final class CategorizedPlaceholderIndex[T](
 
 private[construct] object UntypedPlaceholderTraversal:
   def identifierNames(tree: untpd.Tree): List[String] =
+    identifierOccurrences(tree).map(_.name)
+
+  def identifierOccurrences(tree: untpd.Tree): List[UntypedIdentifierOccurrence] =
     tree match
-      case untpd.Ident(name) => name.toString :: Nil
-      case untpd.Select(qualifier, _) => identifierNames(qualifier)
+      case ident @ untpd.Ident(name) => UntypedIdentifierOccurrence(name.toString, DottySourceSpanAdapter.fromTree(ident)) :: Nil
+      case untpd.Select(qualifier, _) => identifierOccurrences(qualifier)
       case untpd.TypeApply(function, arguments) =>
-        identifierNames(function) ++ arguments.flatMap(identifierNames)
+        identifierOccurrences(function) ++ arguments.flatMap(identifierOccurrences)
       case untpd.Apply(function, arguments) =>
-        identifierNames(function) ++ arguments.flatMap(identifierNames)
+        identifierOccurrences(function) ++ arguments.flatMap(identifierOccurrences)
       case untpd.Typed(expression, typeTree) =>
-        identifierNames(expression) ++ identifierNames(typeTree)
+        identifierOccurrences(expression) ++ identifierOccurrences(typeTree)
       case untpd.InfixOp(left, operator, right) =>
-        identifierNames(left) ++ identifierNames(operator) ++ identifierNames(right)
-      case untpd.Tuple(elements) => elements.flatMap(identifierNames)
-      case untpd.Parens(inner) => identifierNames(inner)
-      case untpd.TypedSplice(inner) => identifierNames(inner)
-      case untpd.New(typeTree) => identifierNames(typeTree)
+        identifierOccurrences(left) ++ identifierOccurrences(operator) ++ identifierOccurrences(right)
+      case untpd.Tuple(elements) => elements.flatMap(identifierOccurrences)
+      case untpd.Parens(inner) => identifierOccurrences(inner)
+      case untpd.TypedSplice(inner) => identifierOccurrences(inner)
+      case untpd.New(typeTree) => identifierOccurrences(typeTree)
       case untpd.AppliedTypeTree(constructor, arguments) =>
-        identifierNames(constructor) ++ arguments.flatMap(identifierNames)
-      case untpd.SingletonTypeTree(reference) => identifierNames(reference)
-      case untpd.ByNameTypeTree(result) => identifierNames(result)
+        identifierOccurrences(constructor) ++ arguments.flatMap(identifierOccurrences)
+      case untpd.SingletonTypeTree(reference) => identifierOccurrences(reference)
+      case untpd.ByNameTypeTree(result) => identifierOccurrences(result)
       case _ => Nil

@@ -21,7 +21,8 @@ final case class SourceSpan(start: Int, end: Int) derives CanEqual:
   def length: Int = end - start
   def isEmpty: Boolean = start == end
   def contains(offset: Int): Boolean = !isEmpty && start <= offset && offset < end
-  def overlaps(other: SourceSpan): Boolean = start < other.end && other.start < end
+  def overlaps(other: SourceSpan): Boolean =
+    !isEmpty && !other.isEmpty && start < other.end && other.start < end
 
   def intersection(other: SourceSpan): Option[SourceSpan] =
     val intersectionStart = math.max(start, other.start)

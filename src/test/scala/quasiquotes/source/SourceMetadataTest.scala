@@ -34,6 +34,16 @@ class SourceMetadataTest extends munit.FunSuite:
     assertEquals(left.intersection(crossing), Some(SourceSpan(3, 4)))
   }
 
+  test("empty insertion-point spans never overlap in either direction") {
+    val empty = SourceSpan(2, 2)
+    val containing = SourceSpan(1, 3)
+
+    assert(!empty.overlaps(containing))
+    assert(!containing.overlaps(empty))
+    assert(!empty.overlaps(empty))
+    assertEquals(empty.intersection(containing), None)
+  }
+
   test("generated segments enforce ordering range and non-overlap") {
     val first = GeneratedSegment(SourceSpan(0, 2), SourceOrigin.OriginalText(originalId, SourceSpan(0, 2)))
     val second = GeneratedSegment(SourceSpan(2, 4), SourceOrigin.OriginalText(originalId, SourceSpan(2, 4)))
