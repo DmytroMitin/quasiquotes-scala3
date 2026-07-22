@@ -6,15 +6,24 @@ import scala.quoted.{Expr, Quotes}
 import dotty.tools.dotc.ast.untpd
 
 object ParsedTermLowerer:
-  def lower(using q: Quotes)(tree: untpd.Tree, holes: Vector[q.reflect.Term]): Either[QuasiquoteError, q.reflect.Term] =
+  def lower(using q: Quotes)(
+      tree: untpd.Tree,
+      bindings: Vector[PlaceholderBinding[q.reflect.Term]]
+  ): Either[QuasiquoteError, q.reflect.Term] =
     import q.reflect.*
+
+    val bindingsByName = bindings.map(binding => binding.name -> binding.hole).toMap
 
     def lowerTerm(tree: untpd.Tree): Either[QuasiquoteError, Term] =
       tree match
         case untpd.Ident(name) =>
           val text = name.toString
-          if quasiquotes.parser.Placeholder.isPlaceholder(text) then resolvePlaceholder(text, holes)
-          else IdentifierResolver.resolve(text)
+          bindingsByName.get(text) match
+            case Some(QuasiquoteHole.Term(term)) => Right(term)
+            case Some(_: QuasiquoteHole.ConstructedTypeSplice) =>
+              Left(QuasiquoteError.PlaceholderCategoryMismatch(text, "Constructed-type splice", "term"))
+            case None if isCategorizedPlaceholder(text) => Left(QuasiquoteError.UnknownPlaceholder(text))
+            case None => IdentifierResolver.resolve(text)
         case untpd.Literal(constant) =>
           constant.value match
             case value: String => Right(Literal(StringConstant(value)))
@@ -43,7 +52,7 @@ object ParsedTermLowerer:
         case untpd.Typed(expression, typeTree) =>
           for
             loweredExpression <- lowerTerm(expression)
-            loweredType <- lowerType(typeTree)
+            loweredType <- lowerType(typeTree, bindingsByName)
           yield Typed(loweredExpression, loweredType)
         case untpd.Tuple(elements) =>
           for
@@ -61,28 +70,45 @@ object ParsedTermLowerer:
         case untpd.TypedSplice(tree) =>
           lowerTerm(tree)
         case other =>
-          Left(QuasiquoteError.UnsupportedTree(other.getClass.getSimpleName, other.toString))
+          firstConstructedTypeSplice(other, bindings) match
+            case Some(name) =>
+              Left(QuasiquoteError.UnsupportedConstructedTypeSplicePosition(name, other.getClass.getSimpleName))
+            case None => Left(QuasiquoteError.UnsupportedTree(other.getClass.getSimpleName, other.toString))
 
     lowerTerm(tree)
 
-  private def lowerType(using q: Quotes)(tree: untpd.Tree): Either[QuasiquoteError, q.reflect.TypeTree] =
+  private def lowerType(using q: Quotes)(
+      tree: untpd.Tree,
+      bindingsByName: Map[String, QuasiquoteHole[q.reflect.Term]]
+  ): Either[QuasiquoteError, q.reflect.TypeTree] =
+    import q.reflect.*
+    tree match
+      case untpd.Ident(name) =>
+        val text = name.toString
+        bindingsByName.get(text) match
+          case Some(QuasiquoteHole.ConstructedTypeSplice(constructedType)) =>
+            constructedType.toTypeRepr
+              .left.map(error => QuasiquoteError.TypeSpliceLoweringFailure(error.message))
+              .map(Inferred.apply)
+          case Some(_: QuasiquoteHole.Term[?]) =>
+            Left(QuasiquoteError.PlaceholderCategoryMismatch(text, "Term splice", "type-ascription"))
+          case None if isCategorizedPlaceholder(text) => Left(QuasiquoteError.UnknownPlaceholder(text))
+          case None => lowerLiteralType(tree)
+      case _ =>
+        val rendered = renderType(tree)
+        bindingsByName.collectFirst {
+          case (name, _: QuasiquoteHole.ConstructedTypeSplice) if rendered.contains(name) => name
+        } match
+          case Some(name) => Left(QuasiquoteError.UnsupportedConstructedTypeSplicePosition(name, "nested type syntax"))
+          case None => lowerLiteralType(tree)
+
+  private def lowerLiteralType(using q: Quotes)(tree: untpd.Tree): Either[QuasiquoteError, q.reflect.TypeTree] =
     import q.reflect.*
     renderType(tree) match
       case "Int" | "scala.Int" => Right(TypeTree.of[Int])
       case "String" | "scala.String" => Right(TypeTree.of[String])
       case "Boolean" | "scala.Boolean" => Right(TypeTree.of[Boolean])
       case other => Left(QuasiquoteError.UnsupportedTree("TypeTree", s"Unsupported type ascription: $other"))
-
-  private def resolvePlaceholder(
-      using q: Quotes
-  )(
-      name: String,
-      holes: Vector[q.reflect.Term]
-  ): Either[QuasiquoteError, q.reflect.Term] =
-    val indexText = name.stripPrefix("__hole")
-    scala.util.Try(indexText.toInt).toEither.left.map(_ => QuasiquoteError.InvalidPlaceholderName(name)).flatMap { index =>
-      holes.lift(index).toRight(QuasiquoteError.MissingPlaceholder(index))
-    }
 
   private def selectMember(
       using q: Quotes
@@ -160,6 +186,15 @@ object ParsedTermLowerer:
       case untpd.Ident(name) => name.toString
       case untpd.Select(qualifier, name) => s"${renderType(qualifier)}.${name.toString}"
       case other => other.toString
+
+  private def isCategorizedPlaceholder(name: String): Boolean =
+    name.startsWith("__qq_term_hole_") || name.startsWith("__qq_type_hole_")
+
+  private def firstConstructedTypeSplice[T](tree: untpd.Tree, bindings: Vector[PlaceholderBinding[T]]): Option[String] =
+    val rendered = tree.toString
+    bindings.collectFirst {
+      case PlaceholderBinding(name, _: QuasiquoteHole.ConstructedTypeSplice) if rendered.contains(name) => name
+    }
 
   private def sequence[A](values: List[Either[QuasiquoteError, A]]): Either[QuasiquoteError, List[A]] =
     values.foldRight(Right(Nil): Either[QuasiquoteError, List[A]]) { (next, acc) =>

@@ -87,6 +87,82 @@ class QuasiquoteMacroTest extends munit.FunSuite:
     assertEquals(QuasiquoteMacroExamples.typedHoleApplication(2), 3)
   }
 
+  test("qr splices a constructed simple type into an expression ascription") {
+    assertEquals(
+      QuasiTypeSpliceExamples.spliceSummary("int", "$t", "t", "Int"),
+      "typed=true constructed=STypeIdent(Int) inspected=STypeIdent(Int) matched=true"
+    )
+  }
+
+  test("qr splices constructed applied types into expression ascriptions") {
+    assertEquals(
+      QuasiTypeSpliceExamples.spliceSummary("listInt", "List[$t]", "t", "Int"),
+      "typed=true constructed=STypeApply(STypeIdent(List), [STypeIdent(Int)]) inspected=STypeApply(STypeIdent(List), [STypeIdent(Int)]) matched=true"
+    )
+    assertEquals(
+      QuasiTypeSpliceExamples.spliceSummary("optionString", "Option[$t]", "t", "String"),
+      "typed=true constructed=STypeApply(STypeIdent(Option), [STypeIdent(String)]) inspected=STypeApply(STypeIdent(Option), [STypeIdent(String)]) matched=true"
+    )
+  }
+
+  test("qr splices constructed tuple and function types into expression ascriptions") {
+    assertEquals(
+      QuasiTypeSpliceExamples.spliceSummary("tupleIntString", "($a, $b)", "a", "Int", "b", "String"),
+      "typed=true constructed=STypeTuple([STypeIdent(Int), STypeIdent(String)]) inspected=STypeTuple([STypeIdent(Int), STypeIdent(String)]) matched=true"
+    )
+    assertEquals(
+      QuasiTypeSpliceExamples.spliceSummary("functionIntString", "$a => $b", "a", "Int", "b", "String"),
+      "typed=true constructed=STypeFunction([STypeIdent(Int)], STypeIdent(String)) inspected=STypeFunction([STypeIdent(Int)], STypeIdent(String)) matched=true"
+    )
+  }
+
+  test("qr splices a constructed type containing a repeated type-template hole") {
+    assertEquals(
+      QuasiTypeSpliceExamples.spliceSummary("tupleIntInt", "($t, $t)", "t", "Int"),
+      "typed=true constructed=STypeTuple([STypeIdent(Int), STypeIdent(Int)]) inspected=STypeTuple([STypeIdent(Int), STypeIdent(Int)]) matched=true"
+    )
+  }
+
+  test("qr supports a normal term splice and a constructed-type splice in a nested term context") {
+    assertEquals(QuasiTypeSpliceExamples.nestedAppliedSplice(List(1, 2)), List(1, 2))
+    assertEquals(
+      QuasiTypeSpliceExamples.placeholderSourceSummary,
+      "(__qq_term_hole_0: __qq_type_hole_1)"
+    )
+  }
+
+  test("qr controlled type-splice path agrees structurally with TypedTermConstruct.ascribe") {
+    assertEquals(
+      QuasiTypeSpliceExamples.equivalenceSummary(List(1)),
+      "sameStructure=true sameNormalForm=true typed=true"
+    )
+  }
+
+  test("qr rejects placeholder categories in the wrong syntactic position") {
+    assert(QuasiTypeSpliceExamples.markerInTermPositionMessage.contains("Constructed-type splice"))
+    assert(QuasiTypeSpliceExamples.markerInTermPositionMessage.contains("not valid in term position"))
+    assert(QuasiTypeSpliceExamples.termInTypePositionMessage.contains("Term splice"))
+    assert(QuasiTypeSpliceExamples.termInTypePositionMessage.contains("not valid in type-ascription position"))
+  }
+
+  test("qr rejects constructed-type splices outside the complete ascription type position") {
+    assert(QuasiTypeSpliceExamples.unsupportedTypePositionMessage.contains("Phase 26 supports it only"))
+  }
+
+  test("qr propagates existing ConstructedType lowering failures") {
+    assertEquals(
+      QuasiTypeSpliceExamples.unsupportedNormalFormMessage,
+      "Cannot lower unsupported constructed type normal form to TypeRepr: AnyVal"
+    )
+  }
+
+  test("qr reports unknown categorized placeholders clearly") {
+    assertEquals(
+      QuasiTypeSpliceExamples.unknownPlaceholderMessage,
+      "Unknown quasiquote placeholder: __qq_type_hole_99"
+    )
+  }
+
   test("constructed types can ascribe terms with simple type normal forms") {
     assertEquals(
       TypedTermConstructExamples.typedAscriptionSummary("int", "$t", "t", "Int"),
