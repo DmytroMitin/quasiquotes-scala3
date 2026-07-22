@@ -10,13 +10,44 @@ final case class HoleOccurrence(
     role: HoleRole
 ) derives CanEqual
 
+final case class GeneratedHoleIndex private (private val semanticNamesByGeneratedName: Map[String, String])
+    derives CanEqual:
+  def semanticNameFor(generatedIdentifier: String): Option[String] =
+    semanticNamesByGeneratedName.get(generatedIdentifier)
+
+  def generatedNameFor(semanticName: String): Option[String] =
+    semanticNamesByGeneratedName.collectFirst { case (generatedName, `semanticName`) => generatedName }
+
+object GeneratedHoleIndex:
+  val empty: GeneratedHoleIndex = GeneratedHoleIndex(Map.empty)
+
+  def fromOccurrences(occurrences: Iterable[HoleOccurrence]): GeneratedHoleIndex =
+    val bindings = occurrences.iterator.map(occurrence => occurrence.generatedName -> occurrence.name).toVector
+    require(
+      bindings.groupMap(_._1)(_._2).values.forall(_.distinct.size == 1),
+      "A generated hole identifier must map to exactly one semantic hole name"
+    )
+    require(
+      bindings.groupMap(_._2)(_._1).values.forall(_.distinct.size == 1),
+      "A semantic hole name must reuse exactly one generated identifier"
+    )
+    GeneratedHoleIndex(bindings.toMap)
+
 final case class MappedHoleSource(
     generatedSource: String,
     occurrences: Vector[HoleOccurrence],
     originMap: GeneratedSourceMap
-) derives CanEqual
+) derives CanEqual:
+  lazy val generatedHoleIndex: GeneratedHoleIndex = GeneratedHoleIndex.fromOccurrences(occurrences)
 
 object HoleSourceRewriter:
+  private final case class ScannedHole(name: String, start: Int, end: Int)
+
+  private final case class SourceScan(
+      literalIdentifiers: Set[String],
+      holes: Vector[ScannedHole]
+  )
+
   def rewrite(
       source: String,
       generatedPrefix: String,
@@ -25,10 +56,11 @@ object HoleSourceRewriter:
       generatedSourceId: SourceId,
       allowUnicodeIdentifiers: Boolean = false
   ): MappedHoleSource =
+    val scan = scanSource(source, allowUnicodeIdentifiers)
+    val generatedNames = assignGeneratedNames(scan, generatedPrefix)
     val builder = new StringBuilder
     val segments = mutable.ArrayBuffer.empty[GeneratedSegment]
     val occurrences = mutable.ArrayBuffer.empty[HoleOccurrence]
-    var index = 0
     var literalStart = 0
 
     def appendOriginal(start: Int, end: Int): Unit =
@@ -40,30 +72,20 @@ object HoleSourceRewriter:
           SourceOrigin.OriginalText(originalSourceId, SourceSpan(start, end))
         )
 
-    while index < source.length do
-      if source.charAt(index) == '$' &&
-          index + 1 < source.length &&
-          isIdentifierStart(source.charAt(index + 1), allowUnicodeIdentifiers)
-      then
-        appendOriginal(literalStart, index)
-        val nameStart = index + 1
-        var end = nameStart + 1
-        while end < source.length && isIdentifierPart(source.charAt(end), allowUnicodeIdentifiers) do end += 1
-        val name = source.substring(nameStart, end)
-        val generatedName = s"$generatedPrefix$name"
-        val generatedStart = builder.length
-        builder.append(generatedName)
-        val originalSpan = SourceSpan(index, end)
-        val generatedSpan = SourceSpan(generatedStart, builder.length)
-        segments += GeneratedSegment(
-          generatedSpan,
-          SourceOrigin.RewrittenHole(originalSourceId, originalSpan, name, role)
-        )
-        occurrences += HoleOccurrence(name, generatedName, originalSpan, generatedSpan, role)
-        index = end
-        literalStart = end
-      else
-        index += 1
+    scan.holes.foreach { hole =>
+      appendOriginal(literalStart, hole.start)
+      val generatedName = generatedNames(hole.name)
+      val generatedStart = builder.length
+      builder.append(generatedName)
+      val originalSpan = SourceSpan(hole.start, hole.end)
+      val generatedSpan = SourceSpan(generatedStart, builder.length)
+      segments += GeneratedSegment(
+        generatedSpan,
+        SourceOrigin.RewrittenHole(originalSourceId, originalSpan, hole.name, role)
+      )
+      occurrences += HoleOccurrence(hole.name, generatedName, originalSpan, generatedSpan, role)
+      literalStart = hole.end
+    }
 
     appendOriginal(literalStart, source.length)
     val generatedSource = builder.toString
@@ -72,6 +94,93 @@ object HoleSourceRewriter:
       occurrences.toVector,
       GeneratedSourceMap(generatedSource, generatedSourceId, segments.toVector)
     )
+
+  private def assignGeneratedNames(scan: SourceScan, generatedPrefix: String): Map[String, String] =
+    val usedNames = mutable.Set.from(scan.literalIdentifiers)
+    val generatedNames = mutable.LinkedHashMap.empty[String, String]
+
+    scan.holes.foreach { hole =>
+      generatedNames.getOrElseUpdate(
+        hole.name,
+        freshName(s"$generatedPrefix${hole.name}", usedNames)
+      )
+    }
+    generatedNames.toMap
+
+  private def freshName(baseName: String, usedNames: mutable.Set[String]): String =
+    var suffix = 0
+    var candidate = baseName
+    while usedNames(candidate) do
+      suffix += 1
+      candidate = s"${baseName}_$suffix"
+    usedNames += candidate
+    candidate
+
+  private def scanSource(source: String, allowUnicodeIdentifiers: Boolean): SourceScan =
+    val literalIdentifiers = mutable.Set.empty[String]
+    val holes = mutable.ArrayBuffer.empty[ScannedHole]
+    var index = 0
+
+    while index < source.length do
+      val current = source.charAt(index)
+      if current == '"' then
+        index = skipQuoted(source, index, '"')
+      else if current == '\'' then
+        index = skipQuoted(source, index, '\'')
+      else if current == '`' then
+        val end = source.indexOf('`', index + 1)
+        if end < 0 then index = source.length
+        else
+          literalIdentifiers += source.substring(index + 1, end)
+          index = end + 1
+      else if current == '/' && index + 1 < source.length && source.charAt(index + 1) == '/' then
+        val end = source.indexOf('\n', index + 2)
+        index = if end < 0 then source.length else end + 1
+      else if current == '/' && index + 1 < source.length && source.charAt(index + 1) == '*' then
+        index = skipBlockComment(source, index)
+      else if current == '$' &&
+          index + 1 < source.length &&
+          isIdentifierStart(source.charAt(index + 1), allowUnicodeIdentifiers)
+      then
+        val nameStart = index + 1
+        var end = nameStart + 1
+        while end < source.length && isIdentifierPart(source.charAt(end), allowUnicodeIdentifiers) do end += 1
+        holes += ScannedHole(source.substring(nameStart, end), index, end)
+        index = end
+      else if isIdentifierStart(current, allowUnicodeIdentifiers) then
+        val start = index
+        index += 1
+        while index < source.length && isIdentifierPart(source.charAt(index), allowUnicodeIdentifiers) do index += 1
+        literalIdentifiers += source.substring(start, index)
+      else
+        index += 1
+
+    SourceScan(literalIdentifiers.toSet, holes.toVector)
+
+  private def skipQuoted(source: String, start: Int, delimiter: Char): Int =
+    var index = start + 1
+    var escaped = false
+    while index < source.length do
+      val current = source.charAt(index)
+      if escaped then escaped = false
+      else if current == '\\' then escaped = true
+      else if current == delimiter then return index + 1
+      index += 1
+    source.length
+
+  private def skipBlockComment(source: String, start: Int): Int =
+    var index = start + 2
+    var depth = 1
+    while index < source.length && depth > 0 do
+      if index + 1 < source.length && source.charAt(index) == '/' && source.charAt(index + 1) == '*' then
+        depth += 1
+        index += 2
+      else if index + 1 < source.length && source.charAt(index) == '*' && source.charAt(index + 1) == '/' then
+        depth -= 1
+        index += 2
+      else
+        index += 1
+    index
 
   private def isIdentifierStart(char: Char, allowUnicodeIdentifiers: Boolean): Boolean =
     char == '_' ||

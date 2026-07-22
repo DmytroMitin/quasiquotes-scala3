@@ -32,7 +32,7 @@ object QuasiPattern:
             )
           )
         case Right(parsed) =>
-          PatternCompiler.compileLocated(parsed.rawTree) match
+          PatternCompiler.compileLocated(parsed.rawTree, mapped.generatedHoleIndex) match
             case Left(failure) =>
               Left(
                 LocatedDiagnostic(

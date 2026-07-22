@@ -15,8 +15,9 @@ object QuasiTypeConstruct:
       templateSource: String,
       bindings: Map[String, TypeNormalForm]
   ): Either[LocatedDiagnostic[TypeQuasiquoteError], ConstructedType] =
-    val mapped = TypeTemplate.rewriteSourceMapped(templateSource)
-    TypeTemplate.fromSourceLocated(templateSource).flatMap { template =>
+    TypeTemplate.fromSourceWithMappingLocated(templateSource).flatMap { parsed =>
+      val template = parsed.template
+      val mapped = parsed.mappedSource
       rejectExtraBindings(template, bindings)
         .left.map(LocatedDiagnostic(_, None))
         .flatMap { _ =>

@@ -142,7 +142,12 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     assertEquals(validation.location.map(_.generatedSpan), Some(SourceSpan(0, mapped.generatedSource.length)))
   }
 
-  test("prefix-like literals preserve their existing interpretation without spurious locations") {
-    assert(TypePattern.fromSourceLocated("__tqhole_x").isRight)
-    assert(TypeTemplate.fromSourceLocated("__tqconstructhole_x").isRight)
+  test("prefix-like literals use ordinary identifier validation without spurious locations") {
+    val pattern = TypePattern.fromSourceLocated("__tqhole_x").swap.toOption.get
+    val template = TypeTemplate.fromSourceLocated("__tqconstructhole_x").swap.toOption.get
+
+    assertEquals(pattern.diagnostic.message, "Unsupported type identifier for Phase 15 structural normal form: __tqhole_x")
+    assertEquals(template.diagnostic.message, "Unsupported type construction template identifier for Phase 21: __tqconstructhole_x")
+    assert(pattern.location.nonEmpty)
+    assert(template.location.nonEmpty)
   }

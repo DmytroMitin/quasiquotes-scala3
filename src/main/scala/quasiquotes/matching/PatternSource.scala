@@ -4,7 +4,8 @@ import quasiquotes.source.*
 
 final case class PatternSource(source: String, holes: Vector[String])
 
-final case class MappedPatternSource(patternSource: PatternSource, originMap: GeneratedSourceMap, occurrences: Vector[HoleOccurrence])
+final case class MappedPatternSource(patternSource: PatternSource, originMap: GeneratedSourceMap, occurrences: Vector[HoleOccurrence]):
+  lazy val generatedHoleIndex: GeneratedHoleIndex = GeneratedHoleIndex.fromOccurrences(occurrences)
 
 object PatternSource:
   private val HolePrefix = "__qqhole_"

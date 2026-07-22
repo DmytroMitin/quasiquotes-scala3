@@ -5,6 +5,11 @@ import quasiquotes.source.*
 
 sealed trait TypeTemplate derives CanEqual
 
+private[types] final case class MappedTypeTemplate(
+    template: TypeTemplate,
+    mappedSource: MappedHoleSource
+)
+
 object TypeTemplate:
   final case class TTHole(name: String) extends TypeTemplate
   final case class TTIdent(name: String) extends TypeTemplate
@@ -20,7 +25,17 @@ object TypeTemplate:
     fromSourceLocated(source).left.map(_.diagnostic)
 
   def fromSourceLocated(source: String): Either[LocatedDiagnostic[TypeQuasiquoteError], TypeTemplate] =
+    fromSourceWithMappingLocated(source).map(_.template)
+
+  private[types] def fromSourceWithMappingLocated(
+      source: String
+  ): Either[LocatedDiagnostic[TypeQuasiquoteError], MappedTypeTemplate] =
     val mapped = rewriteSourceMapped(source)
+    fromMappedSourceLocated(mapped)
+
+  private def fromMappedSourceLocated(
+      mapped: MappedHoleSource
+  ): Either[LocatedDiagnostic[TypeQuasiquoteError], MappedTypeTemplate] =
     TinyTypeParser.parse(mapped.generatedSource) match
       case Left(error) =>
         Left(
@@ -30,7 +45,7 @@ object TypeTemplate:
           )
         )
       case Right(parsed) =>
-        fromShape(parsed.shape).left.map { error =>
+        fromShapeWithHoles(parsed.shape, mapped.generatedHoleIndex).left.map { error =>
           LocatedDiagnostic(
             error,
             DiagnosticLocationMapper.wholeGeneratedSource(
@@ -38,7 +53,7 @@ object TypeTemplate:
               DottySourceSpanAdapter.fromTree(parsed.rawTree)
             )
           )
-        }
+        }.map(MappedTypeTemplate(_, mapped))
 
   def rewriteSourceMapped(source: String): MappedHoleSource =
     HoleSourceRewriter.rewrite(
@@ -50,30 +65,42 @@ object TypeTemplate:
     )
 
   def fromShape(shape: TypeShape): Either[TypeQuasiquoteError, TypeTemplate] =
+    fromShapeUsing(shape, name => Option.when(name.startsWith(HolePrefix))(name.drop(HolePrefix.length)))
+
+  private[types] def fromShapeWithHoles(
+      shape: TypeShape,
+      generatedHoles: GeneratedHoleIndex
+  ): Either[TypeQuasiquoteError, TypeTemplate] =
+    fromShapeUsing(shape, generatedHoles.semanticNameFor)
+
+  private def fromShapeUsing(
+      shape: TypeShape,
+      semanticHoleName: String => Option[String]
+  ): Either[TypeQuasiquoteError, TypeTemplate] =
     shape match
-      case TypeShape.Identifier(name) if name.startsWith(HolePrefix) =>
-        Right(TTHole(name.drop(HolePrefix.length)))
       case TypeShape.Identifier(name) =>
-        validateTemplateIdentifier(name).map(_ => TTIdent(name))
+        semanticHoleName(name) match
+          case Some(holeName) => Right(TTHole(holeName))
+          case None => validateTemplateIdentifier(name).map(_ => TTIdent(name))
       case TypeShape.Parenthesized(typeShape) =>
-        fromShape(typeShape)
+        fromShapeUsing(typeShape, semanticHoleName)
       case TypeShape.Apply(TypeShape.Identifier("List"), argument :: Nil) =>
-        fromShape(argument).map(argumentTemplate => TTApply(TTIdent("List"), List(argumentTemplate)))
+        fromShapeUsing(argument, semanticHoleName).map(argumentTemplate => TTApply(TTIdent("List"), List(argumentTemplate)))
       case TypeShape.Apply(TypeShape.Identifier("Option"), argument :: Nil) =>
-        fromShape(argument).map(argumentTemplate => TTApply(TTIdent("Option"), List(argumentTemplate)))
+        fromShapeUsing(argument, semanticHoleName).map(argumentTemplate => TTApply(TTIdent("Option"), List(argumentTemplate)))
       case TypeShape.Apply(constructor, arguments) =>
         Left(TypeQuasiquoteError(s"Unsupported type construction template shape for Phase 21: ${TypeShape.Apply(constructor, arguments).render}"))
       case TypeShape.Tuple(first :: second :: Nil) =>
         for
-          firstTemplate <- fromShape(first)
-          secondTemplate <- fromShape(second)
+          firstTemplate <- fromShapeUsing(first, semanticHoleName)
+          secondTemplate <- fromShapeUsing(second, semanticHoleName)
         yield TTTuple(List(firstTemplate, secondTemplate))
       case TypeShape.Tuple(elements) =>
         Left(TypeQuasiquoteError(s"Unsupported tuple type construction template shape for Phase 21: ${TypeShape.Tuple(elements).render}"))
       case TypeShape.Function(argument :: Nil, result) =>
         for
-          argumentTemplate <- fromShape(argument)
-          resultTemplate <- fromShape(result)
+          argumentTemplate <- fromShapeUsing(argument, semanticHoleName)
+          resultTemplate <- fromShapeUsing(result, semanticHoleName)
         yield TTFunction(List(argumentTemplate), resultTemplate)
       case TypeShape.Function(arguments, result) =>
         Left(TypeQuasiquoteError(s"Unsupported function type construction template shape for Phase 21: ${TypeShape.Function(arguments, result).render}"))
