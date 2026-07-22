@@ -17,15 +17,23 @@ object QuasiquoteError:
     def message: String = s"Missing term hole for placeholder __hole$index"
 
   final case class UnknownPlaceholder(name: String) extends QuasiquoteError:
-    def message: String = s"Unknown quasiquote placeholder: $name"
+    def message: String = s"Unknown categorized quasiquote placeholder `$name`."
 
-  final case class PlaceholderCategoryMismatch(name: String, category: String, position: String) extends QuasiquoteError:
+  final case class PlaceholderCategoryMismatch(
+      name: String,
+      actual: PlaceholderCategory,
+      position: PlaceholderPosition
+  ) extends QuasiquoteError:
     def message: String =
-      s"$category placeholder $name is not valid in $position position"
+      s"${actual.label} `$name` is not valid ${position.invalidPhrase}."
 
-  final case class UnsupportedConstructedTypeSplicePosition(name: String, nodeKind: String) extends QuasiquoteError:
+  final case class UnsupportedPlaceholderPosition(
+      name: String,
+      actual: PlaceholderCategory,
+      position: PlaceholderPosition
+  ) extends QuasiquoteError:
     def message: String =
-      s"Constructed-type splice $name is not supported in $nodeKind; Phase 26 supports it only as the complete type of an expression ascription"
+      s"${actual.label} `$name` is not supported ${position.invalidPhrase}; only the complete type of an expression ascription is supported."
 
   final case class TypeSpliceLoweringFailure(detail: String) extends QuasiquoteError:
     def message: String = detail

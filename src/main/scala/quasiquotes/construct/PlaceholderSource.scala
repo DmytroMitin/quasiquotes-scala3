@@ -14,10 +14,13 @@ private[construct] final case class PlaceholderBinding[+T](name: String, hole: Q
 
 private[construct] final case class CategorizedPlaceholderSource[+T](
     source: String,
-    bindings: Vector[PlaceholderBinding[T]]
+    bindings: Vector[PlaceholderBinding[T]],
+    literalCategorizedNames: Set[String]
 )
 
 object PlaceholderSource:
+  private val CategorizedNamePattern = "__qq_(?:term|type)_hole_[0-9]+(?:_[0-9]+)*".r
+
   def synthesize[T](parts: Seq[String], holes: Seq[T]): Either[QuasiquoteError, PlaceholderSource[T]] =
     if parts.length != holes.length + 1 then
       Left(
@@ -47,12 +50,26 @@ object PlaceholderSource:
       )
     else
       val builder = new StringBuilder(parts.head)
+      val literalSource = parts.mkString
+      val literalCategorizedNames = CategorizedNamePattern.findAllIn(literalSource).toSet
+      var generatedNames = Set.empty[String]
       val bindings = holes.zipWithIndex.map { (hole, index) =>
-        val name = hole match
+        val baseName = hole match
           case _: QuasiquoteHole.Term[?] => s"__qq_term_hole_$index"
           case _: QuasiquoteHole.ConstructedTypeSplice => s"__qq_type_hole_$index"
+        val name = freshCategorizedName(baseName, literalSource, generatedNames)
+        generatedNames += name
         builder.append(name)
         builder.append(parts(index + 1))
         PlaceholderBinding(name, hole)
       }
-      Right(CategorizedPlaceholderSource(builder.result(), bindings.toVector))
+      Right(CategorizedPlaceholderSource(builder.result(), bindings.toVector, literalCategorizedNames))
+
+  private[construct] def isCategorizedName(name: String): Boolean =
+    CategorizedNamePattern.matches(name)
+
+  private def freshCategorizedName(baseName: String, literalSource: String, generatedNames: Set[String]): String =
+    Iterator.from(0)
+      .map(attempt => if attempt == 0 then baseName else s"${baseName}_$attempt")
+      .find(candidate => !literalSource.contains(candidate) && !generatedNames.contains(candidate))
+      .get

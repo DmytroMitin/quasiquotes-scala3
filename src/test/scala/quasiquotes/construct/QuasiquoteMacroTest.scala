@@ -42,7 +42,19 @@ private object IfApplicationScope:
   private def foo(value: Int): Int = value + 10
   val demo: QuasiquoteMacroExamples.DemoCase = QuasiquoteMacroExamples.ifApplicationSummary(true, 2, 3)
 
+private object TermPlaceholderCollisionScope:
+  private val __qq_term_hole_0 = 7
+  val result: Int = QuasiTypeSpliceExamples.literalTermCandidateCollision(3)
+
+private object TypePlaceholderCollisionScope:
+  private val __qq_type_hole_1 = 4
+  val result: Int = QuasiTypeSpliceExamples.literalTypeCandidateCollision(3)
+
 class QuasiquoteMacroTest extends munit.FunSuite:
+  private val constructedInt = quasiquotes.types.ConstructedType(
+    quasiquotes.types.TypeNormalForm.STypeIdent("Int")
+  )
+
   test("qr can emit an integer literal as a Term") {
     assertEquals(QuasiquoteMacroExamples.emitIntLiteral, 1)
   }
@@ -131,6 +143,80 @@ class QuasiquoteMacroTest extends munit.FunSuite:
     )
   }
 
+  test("categorized term placeholder generation avoids literal source collisions") {
+    val synthesized = PlaceholderSource.synthesizeCategorized(
+      Seq("foo(__qq_term_hole_0, ", ")"),
+      Seq(QuasiquoteHole.Term("actual-term"))
+    ).toOption.get
+
+    assertEquals(synthesized.source, "foo(__qq_term_hole_0, __qq_term_hole_0_1)")
+    assertEquals(synthesized.bindings.map(_.name), Vector("__qq_term_hole_0_1"))
+  }
+
+  test("literal term-candidate identifiers remain resolvable beside a real term splice") {
+    assertEquals(TermPlaceholderCollisionScope.result, 10)
+  }
+
+  test("categorized type placeholder generation avoids literal source collisions") {
+    val synthesized = PlaceholderSource.synthesizeCategorized(
+      Seq("(__qq_type_hole_1, ", ": ", ")"),
+      Seq(
+        QuasiquoteHole.Term("actual-term"),
+        QuasiquoteHole.ConstructedTypeSplice(constructedInt)
+      )
+    ).toOption.get
+
+    assertEquals(
+      synthesized.source,
+      "(__qq_type_hole_1, __qq_term_hole_0: __qq_type_hole_1_1)"
+    )
+    assertEquals(
+      synthesized.bindings.map(_.name),
+      Vector("__qq_term_hole_0", "__qq_type_hole_1_1")
+    )
+  }
+
+  test("literal type-candidate identifiers remain resolvable beside real term and type splices") {
+    assertEquals(TypePlaceholderCollisionScope.result, 7)
+  }
+
+  test("categorized placeholders stay unique and deterministic across mixed splices") {
+    val parts = Seq("(", ", ", ", ", ": ", ")")
+    val holes = Seq(
+      QuasiquoteHole.Term("first-term"),
+      QuasiquoteHole.ConstructedTypeSplice(constructedInt),
+      QuasiquoteHole.Term("second-term"),
+      QuasiquoteHole.ConstructedTypeSplice(constructedInt)
+    )
+
+    val first = PlaceholderSource.synthesizeCategorized(parts, holes).toOption.get
+    val second = PlaceholderSource.synthesizeCategorized(parts, holes).toOption.get
+
+    assertEquals(first, second)
+    assertEquals(first.bindings.map(_.name).distinct.size, holes.size)
+    assertEquals(
+      first.bindings.map(_.name),
+      Vector("__qq_term_hole_0", "__qq_type_hole_1", "__qq_term_hole_2", "__qq_type_hole_3")
+    )
+  }
+
+  test("categorized placeholder lookup detects exact identifiers structurally") {
+    val binding = PlaceholderBinding(
+      "__qq_type_hole_1",
+      QuasiquoteHole.ConstructedTypeSplice(constructedInt)
+    )
+    val index = new CategorizedPlaceholderIndex(Vector(binding))
+    val exactTree = quasiquotes.parser.TinyTermParser
+      .parse("identity[__qq_type_hole_1](1)")
+      .toOption.get.rawTree
+    val substringTree = quasiquotes.parser.TinyTermParser
+      .parse("identity[prefix__qq_type_hole_1suffix](1)")
+      .toOption.get.rawTree
+
+    assertEquals(index.findIn(exactTree).map(_.name), List("__qq_type_hole_1"))
+    assertEquals(index.findIn(substringTree), Nil)
+  }
+
   test("qr controlled type-splice path agrees structurally with TypedTermConstruct.ascribe") {
     assertEquals(
       QuasiTypeSpliceExamples.equivalenceSummary(List(1)),
@@ -139,14 +225,21 @@ class QuasiquoteMacroTest extends munit.FunSuite:
   }
 
   test("qr rejects placeholder categories in the wrong syntactic position") {
-    assert(QuasiTypeSpliceExamples.markerInTermPositionMessage.contains("Constructed-type splice"))
-    assert(QuasiTypeSpliceExamples.markerInTermPositionMessage.contains("not valid in term position"))
-    assert(QuasiTypeSpliceExamples.termInTypePositionMessage.contains("Term splice"))
-    assert(QuasiTypeSpliceExamples.termInTypePositionMessage.contains("not valid in type-ascription position"))
+    assertEquals(
+      QuasiTypeSpliceExamples.markerInTermPositionMessage,
+      "Constructed-type splice `__qq_type_hole_0` is not valid in term position."
+    )
+    assertEquals(
+      QuasiTypeSpliceExamples.termInTypePositionMessage,
+      "Term splice `__qq_term_hole_1` is not valid as the complete type of an expression ascription."
+    )
   }
 
   test("qr rejects constructed-type splices outside the complete ascription type position") {
-    assert(QuasiTypeSpliceExamples.unsupportedTypePositionMessage.contains("Phase 26 supports it only"))
+    assertEquals(
+      QuasiTypeSpliceExamples.unsupportedTypePositionMessage,
+      "Constructed-type splice `__qq_type_hole_0` is not supported inside method type arguments; only the complete type of an expression ascription is supported."
+    )
   }
 
   test("qr propagates existing ConstructedType lowering failures") {
@@ -159,7 +252,7 @@ class QuasiquoteMacroTest extends munit.FunSuite:
   test("qr reports unknown categorized placeholders clearly") {
     assertEquals(
       QuasiTypeSpliceExamples.unknownPlaceholderMessage,
-      "Unknown quasiquote placeholder: __qq_type_hole_99"
+      "Unknown categorized quasiquote placeholder `__qq_type_hole_99`."
     )
   }
 

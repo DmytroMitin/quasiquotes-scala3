@@ -16,5 +16,5 @@ object QuasiquoteBuilder:
     for
       synthesized <- PlaceholderSource.synthesizeCategorized(parts, holes)
       parsed <- TinyTermParser.parse(synthesized.source).left.map(QuasiquoteError.ParseFailure.apply)
-      lowered <- ParsedTermLowerer.lower(parsed.rawTree, synthesized.bindings)
+      lowered <- ParsedTermLowerer.lower(parsed.rawTree, synthesized.bindings, synthesized.literalCategorizedNames)
     yield lowered

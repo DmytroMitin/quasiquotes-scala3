@@ -2,6 +2,7 @@ package quasiquotes.construct
 
 import scala.quoted.*
 
+import quasiquotes.parser.TinyTermParser
 import quasiquotes.types.*
 
 object QuasiTypeSpliceExamples:
@@ -31,6 +32,12 @@ object QuasiTypeSpliceExamples:
 
   inline def placeholderSourceSummary: String =
     ${ placeholderSourceSummaryImpl }
+
+  inline def literalTermCandidateCollision(value: Int): Int =
+    ${ literalTermCandidateCollisionImpl('value) }
+
+  inline def literalTypeCandidateCollision(value: Int): Int =
+    ${ literalTypeCandidateCollisionImpl('value) }
 
   inline def markerInTermPositionMessage: String =
     ${ markerInTermPositionMessageImpl }
@@ -126,6 +133,22 @@ object QuasiTypeSpliceExamples:
     )
     Expr(source.source)
 
+  private def literalTermCandidateCollisionImpl(value: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    import Quasiquotes.*
+
+    val valueTerm = value.asTerm
+    qr"__qq_term_hole_0 + $valueTerm".asExprOf[Int]
+
+  private def literalTypeCandidateCollisionImpl(value: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    import Quasiquotes.*
+    import QuasiTypeSplices.typeSplice
+
+    val valueTerm = value.asTerm
+    val constructed = ConstructedType(TypeNormalForm.STypeIdent("Int"))
+    qr"__qq_type_hole_1 + (${valueTerm}: ${typeSplice(constructed)})".asExprOf[Int]
+
   private def markerInTermPositionMessageImpl(using Quotes): Expr[String] =
     val constructed = ConstructedType(TypeNormalForm.STypeIdent("Int"))
     errorMessage(QuasiquoteBuilder.build(Seq("", ""), Seq(QuasiTypeSplices.typeSplice(constructed))))
@@ -155,7 +178,11 @@ object QuasiTypeSpliceExamples:
     )
 
   private def unknownPlaceholderMessageImpl(using Quotes): Expr[String] =
-    errorMessage(QuasiquoteBuilder.build(Seq("__qq_type_hole_99"), Nil))
+    val parsed = TinyTermParser.parse("__qq_type_hole_99").fold(
+      error => throw new IllegalArgumentException(error.summary),
+      identity
+    )
+    errorMessage(ParsedTermLowerer.lower(parsed.rawTree, Vector.empty))
 
   private def buildTypeSplice(using q: Quotes)(
       term: q.reflect.Term,
