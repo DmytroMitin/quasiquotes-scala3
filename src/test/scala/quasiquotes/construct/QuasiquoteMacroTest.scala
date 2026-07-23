@@ -376,6 +376,21 @@ class QuasiquoteMacroTest extends munit.FunSuite:
     assertEquals(QuasiquoteMacroExamples.ifHoles(false, 2, 3), 3)
   }
 
+  test("qr constructs the exact bounded unary operator set") {
+    assertEquals(QuasiquoteMacroExamples.unaryPlus(2), 2)
+    assertEquals(QuasiquoteMacroExamples.unaryMinus(2), -2)
+    assertEquals(QuasiquoteMacroExamples.unaryNot(true), false)
+    assertEquals(QuasiquoteMacroExamples.unaryComplement(1), -2)
+    assertEquals(QuasiquoteMacroExamples.nestedUnaryMinus(2), 2)
+  }
+
+  test("qr composes unary operations through applications, tuples, and if expressions") {
+    assertEquals(QuasiquoteMacroExamples.unaryApplication(2), 8)
+    assertEquals(QuasiquoteMacroExamples.unaryTuple(2, true), (-2, false))
+    assertEquals(QuasiquoteMacroExamples.unaryIf(false, 2, 3), -2)
+    assertEquals(QuasiquoteMacroExamples.unaryIf(true, 2, 3), 3)
+  }
+
   test("qr can construct an application with an if argument") {
     assertEquals(IfApplicationScope.demo.input, "foo(if $cond then $x else $y)")
     assertEquals(IfApplicationScope.demo.placeholderSource, "foo(if __hole0 then __hole1 else __hole2)")

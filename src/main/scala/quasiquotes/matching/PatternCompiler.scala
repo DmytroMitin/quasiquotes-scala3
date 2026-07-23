@@ -10,6 +10,8 @@ private[matching] final case class PatternCompileFailure(
 )
 
 object PatternCompiler:
+  private val SupportedUnaryOperators = Set("+", "-", "!", "~")
+
   def compile(tree: untpd.Tree): Either[PatternError, TermPattern] =
     compileLocatedUsing(tree, PatternSource.extractHoleName).left.map(_.error)
 
@@ -48,6 +50,8 @@ object PatternCompiler:
           compiledLeft <- compileLocatedUsing(left, semanticHoleName)
           compiledRight <- compileLocatedUsing(right, semanticHoleName)
         yield TermPattern.Infix(compiledLeft, op.name.toString, compiledRight)
+      case untpd.PrefixOp(untpd.Ident(operator), operand) if SupportedUnaryOperators(operator.toString) =>
+        compileLocatedUsing(operand, semanticHoleName).map(TermPattern.Unary(operator.toString, _))
       case untpd.Typed(expression, typeTree) =>
         compileLocatedUsing(expression, semanticHoleName).map(TermPattern.Typed(_, renderType(typeTree)))
       case untpd.Tuple(elements) =>

@@ -5,6 +5,8 @@ import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Names.Name
 
 object TermShapeInspector:
+  private val SupportedUnaryOperators = Set("+", "-", "!", "~")
+
   def inspect(tree: untpd.Tree): TermShape =
     tree match
       case untpd.Ident(name) =>
@@ -20,6 +22,8 @@ object TermShapeInspector:
         TermShape.Apply(inspect(function), arguments.map(inspect))
       case untpd.InfixOp(left, op, right) =>
         TermShape.Infix(inspect(left), op.name.toString, inspect(right))
+      case untpd.PrefixOp(untpd.Ident(operator), operand) if SupportedUnaryOperators(operator.toString) =>
+        TermShape.Unary(operator.toString, inspect(operand))
       case untpd.Typed(expression, typeTree) =>
         TermShape.Typed(inspect(expression), inspectType(typeTree))
       case untpd.Tuple(elements) =>
@@ -47,6 +51,8 @@ object TermShapeInspector:
         s"Apply(${rawStructure(function)}, [${arguments.map(rawStructure).mkString(", ")}])"
       case untpd.InfixOp(left, op, right) =>
         s"InfixOp(${rawStructure(left)},${rawStructure(op)},${rawStructure(right)})"
+      case untpd.PrefixOp(untpd.Ident(operator), operand) if SupportedUnaryOperators(operator.toString) =>
+        s"PrefixOp(${operator.toString},${rawStructure(operand)})"
       case untpd.Typed(expression, typeTree) =>
         s"Typed(${rawStructure(expression)},${rawTypeStructure(typeTree)})"
       case untpd.Tuple(elements) =>

@@ -42,6 +42,24 @@ object QuasiquoteMacroExamples:
 
   inline def ifHoles(cond: Boolean, x: Int, y: Int): Int = ${ ifHolesImpl('cond, 'x, 'y) }
 
+  private[quasiquotes] inline def unaryPlus(x: Int): Int = ${ unaryPlusImpl('x) }
+
+  private[quasiquotes] inline def unaryMinus(x: Int): Int = ${ unaryMinusImpl('x) }
+
+  private[quasiquotes] inline def unaryNot(value: Boolean): Boolean = ${ unaryNotImpl('value) }
+
+  private[quasiquotes] inline def unaryComplement(x: Int): Int = ${ unaryComplementImpl('x) }
+
+  private[quasiquotes] inline def nestedUnaryMinus(x: Int): Int = ${ nestedUnaryMinusImpl('x) }
+
+  private[quasiquotes] inline def unaryApplication(x: Int): Int = ${ unaryApplicationImpl('x) }
+
+  private[quasiquotes] inline def unaryTuple(x: Int, value: Boolean): (Int, Boolean) =
+    ${ unaryTupleImpl('x, 'value) }
+
+  private[quasiquotes] inline def unaryIf(condition: Boolean, x: Int, y: Int): Int =
+    ${ unaryIfImpl('condition, 'x, 'y) }
+
   inline def holeInfixSummary(x: Int, y: Int): DemoCase = ${ holeInfixSummaryImpl('x, 'y) }
 
   inline def nestedFunctionHoleSummary(x: Int): DemoCase = ${ nestedFunctionHoleSummaryImpl('x) }
@@ -147,6 +165,47 @@ object QuasiquoteMacroExamples:
     import quotes.reflect.*
     import quasiquotes.construct.Quasiquotes.*
     qr"if ${cond.asTerm} then ${x.asTerm} else ${y.asTerm}".asExprOf[Int]
+
+  private def unaryPlusImpl(x: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    qr"+${x.asTerm}".asExprOf[Int]
+
+  private def unaryMinusImpl(x: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    qr"-${x.asTerm}".asExprOf[Int]
+
+  private def unaryNotImpl(value: Expr[Boolean])(using Quotes): Expr[Boolean] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    qr"!${value.asTerm}".asExprOf[Boolean]
+
+  private def unaryComplementImpl(x: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    qr"~${x.asTerm}".asExprOf[Int]
+
+  private def nestedUnaryMinusImpl(x: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    qr"-(-${x.asTerm})".asExprOf[Int]
+
+  private def unaryApplicationImpl(x: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    val function = Select.unique('{ (value: Int) => value + 10 }.asTerm, "apply")
+    qr"$function(-${x.asTerm})".asExprOf[Int]
+
+  private def unaryTupleImpl(x: Expr[Int], value: Expr[Boolean])(using Quotes): Expr[(Int, Boolean)] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    qr"(-${x.asTerm}, !${value.asTerm})".asExprOf[(Int, Boolean)]
+
+  private def unaryIfImpl(condition: Expr[Boolean], x: Expr[Int], y: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    qr"if !${condition.asTerm} then -${x.asTerm} else +${y.asTerm}".asExprOf[Int]
 
   private def holeInfixSummaryImpl(x: Expr[Int], y: Expr[Int])(using Quotes): Expr[DemoCase] =
     import quotes.reflect.*

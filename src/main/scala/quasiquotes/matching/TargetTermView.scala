@@ -8,11 +8,19 @@ sealed trait TargetTermView[+T] derives CanEqual:
   final def render: String = TargetTermView.render(this)
 
 object TargetTermView:
+  private val UnaryOperatorByMethod = Map(
+    "unary_+" -> "+",
+    "unary_-" -> "-",
+    "unary_!" -> "!",
+    "unary_~" -> "~"
+  )
+
   final case class Identifier[T](name: String, original: T) extends TargetTermView[T]
   final case class Literal[T](value: String, original: T) extends TargetTermView[T]
   final case class Select[T](qualifier: TargetTermView[T], name: String, original: T) extends TargetTermView[T]
   final case class Apply[T](function: TargetTermView[T], arguments: List[TargetTermView[T]], original: T) extends TargetTermView[T]
   final case class Infix[T](left: TargetTermView[T], operator: String, right: TargetTermView[T], original: T) extends TargetTermView[T]
+  final case class Unary[T](operator: String, operand: TargetTermView[T], original: T) extends TargetTermView[T]
   final case class Typed[T](expression: TargetTermView[T], typeName: String, original: T) extends TargetTermView[T]
   final case class Tuple[T](elements: List[TargetTermView[T]], original: T) extends TargetTermView[T]
   final case class If[T](condition: TargetTermView[T], thenBranch: TargetTermView[T], elseBranch: TargetTermView[T], original: T) extends TargetTermView[T]
@@ -36,6 +44,9 @@ object TargetTermView:
         case q.reflect.Literal(BooleanConstant(value)) =>
           val current = unwrapWrappers(term)
           Right(TargetTermView.Literal(value.toString, current))
+        case q.reflect.Select(operand, name) if UnaryOperatorByMethod.contains(name) =>
+          val current = unwrapWrappers(term)
+          extract(operand).map(TargetTermView.Unary(UnaryOperatorByMethod(name), _, current))
         case q.reflect.Select(qualifier, name) =>
           val current = unwrapWrappers(term)
           extract(qualifier).map(TargetTermView.Select(_, name, current))
@@ -72,6 +83,8 @@ object TargetTermView:
         s"Apply(${render(function)}, [${arguments.map(render).mkString(", ")}])"
       case Infix(left, operator, right, _) =>
         s"Infix(${render(left)}, $operator, ${render(right)})"
+      case Unary(operator, operand, _) =>
+        s"Unary($operator, ${render(operand)})"
       case Typed(expression, typeName, _) =>
         s"Typed(${render(expression)}, Type($typeName))"
       case Tuple(elements, _) =>

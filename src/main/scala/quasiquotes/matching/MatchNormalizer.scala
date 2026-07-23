@@ -15,6 +15,8 @@ object MatchNormalizer:
         TermPattern.Apply(normalizePattern(function), arguments.map(normalizePattern))
       case TermPattern.Infix(left, operator, right) =>
         TermPattern.Infix(normalizePattern(left), operator, normalizePattern(right))
+      case TermPattern.Unary(operator, operand) =>
+        TermPattern.Unary(operator, normalizePattern(operand))
       case TermPattern.Typed(expression, typeName) =>
         TermPattern.Typed(normalizePattern(expression), typeName)
       case TermPattern.Tuple(elements) =>
@@ -31,6 +33,8 @@ object MatchNormalizer:
       case TargetTermView.Apply(TargetTermView.Select(left, operator, _), right :: Nil, original) if SymbolicOperators.contains(operator) =>
         // Task 3.5: normalize the reflect-level method-call encoding of infix syntax.
         TargetTermView.Infix(normalizeTarget(left), operator, normalizeTarget(right), original)
+      case TargetTermView.Unary(operator, operand, original) =>
+        TargetTermView.Unary(operator, normalizeTarget(operand), original)
       case TargetTermView.Apply(function, arguments, original) =>
         TargetTermView.Apply(normalizeTarget(function), arguments.map(normalizeTarget), original)
       case TargetTermView.Typed(expression, typeName, original) =>

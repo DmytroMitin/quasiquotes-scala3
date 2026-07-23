@@ -11,6 +11,7 @@ object CanonicalTerm:
   final case class Select(qualifier: CanonicalTerm, name: String) extends CanonicalTerm
   final case class Apply(function: CanonicalTerm, arguments: List[CanonicalTerm]) extends CanonicalTerm
   final case class Infix(left: CanonicalTerm, operator: String, right: CanonicalTerm) extends CanonicalTerm
+  final case class Unary(operator: String, operand: CanonicalTerm) extends CanonicalTerm
   final case class Typed(expression: CanonicalTerm, typeName: String) extends CanonicalTerm
   final case class Tuple(elements: List[CanonicalTerm]) extends CanonicalTerm
   final case class If(condition: CanonicalTerm, thenBranch: CanonicalTerm, elseBranch: CanonicalTerm) extends CanonicalTerm
@@ -24,6 +25,8 @@ object CanonicalTerm:
         s"CApply(${render(function)}, [${arguments.map(render).mkString(", ")}])"
       case Infix(left, operator, right) =>
         s"CInfix(${render(left)}, $operator, ${render(right)})"
+      case Unary(operator, operand) =>
+        s"CUnary($operator, ${render(operand)})"
       case Typed(expression, typeName) =>
         s"CTyped(${render(expression)}, Type($typeName))"
       case Tuple(elements) =>
@@ -62,6 +65,8 @@ object TermCanonicalizer:
           canonicalLeft <- canonicalizeView(left)
           canonicalRight <- canonicalizeView(right)
         yield CanonicalTerm.Infix(canonicalLeft, operator, canonicalRight)
+      case TargetTermView.Unary(operator, operand, _) =>
+        canonicalizeView(operand).map(CanonicalTerm.Unary(operator, _))
       case TargetTermView.Typed(expression, typeName, _) =>
         canonicalizeView(expression).map(CanonicalTerm.Typed(_, typeName))
       case TargetTermView.Tuple(elements, _) =>

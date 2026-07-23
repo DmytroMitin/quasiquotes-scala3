@@ -67,6 +67,36 @@ object HoleSourceRewriter:
       generatedSourceId
     )
 
+  /** Restores semantic `$hole` spellings in user-facing text without changing
+    * prefix-, suffix-, or substring-sharing literal identifiers.
+    *
+    * This deliberately uses the same identifier policy as source scanning.
+    */
+  private[quasiquotes] def restoreSemanticHoleIdentifiers(
+      text: String,
+      mapped: MappedHoleSource,
+      allowUnicodeIdentifiers: Boolean
+  ): String =
+    val builder = new StringBuilder
+    var index = 0
+
+    while index < text.length do
+      val current = text.charAt(index)
+      if isIdentifierStart(current, allowUnicodeIdentifiers) then
+        val start = index
+        index += 1
+        while index < text.length && isIdentifierPart(text.charAt(index), allowUnicodeIdentifiers) do
+          index += 1
+        val identifier = text.substring(start, index)
+        mapped.generatedHoleIndex.semanticNameFor(identifier) match
+          case Some(semanticName) => builder.append('$').append(semanticName)
+          case None => builder.append(identifier)
+      else
+        builder.append(current)
+        index += 1
+
+    builder.toString
+
   private[quasiquotes] def rewriteScanned(
       source: String,
       scan: SourceScan,

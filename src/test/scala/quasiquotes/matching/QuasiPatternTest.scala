@@ -112,6 +112,44 @@ private object MatchIfScope:
   val tupleBranches: QuasiquoteMatchExamples.MatchDemo =
     QuasiquoteMatchExamples.summarizeMatchNormalized("if $c then ($a, $b) else ($d, $e)", if cond then (a, b) else (b, a))
 
+private object MatchUnaryScope:
+  private val a = 2
+  private val b = 3
+  private val flag = true
+
+  val plus = QuasiquoteMatchExamples.summarizeMatchNormalized("+$x", +a)
+  val minus = QuasiquoteMatchExamples.summarizeMatchNormalized("-$x", -a)
+  val not = QuasiquoteMatchExamples.summarizeMatchNormalized("!$x", !flag)
+  val complement = QuasiquoteMatchExamples.summarizeMatchNormalized("~$x", ~a)
+  val operatorMismatch = QuasiquoteMatchExamples.summarizeMatchNormalized("-$x", +a)
+  val nested = QuasiquoteMatchExamples.summarizeMatchNormalized("-(-$x)", -(-a))
+  val tuple = QuasiquoteMatchExamples.summarizeMatchNormalized("(-$x, !$b)", (-a, !flag))
+  val conditional = QuasiquoteMatchExamples.summarizeMatchNormalized(
+    "if !$c then -$x else +$y",
+    if !flag then -a else +b
+  )
+  val wholeCapture = QuasiquoteMatchExamples.summarizeMatchNormalized("$x", -a)
+  val repeatedSame = QuasiquoteMatchExamples.summarizeMatchNormalized("(-$x, -$x)", (-a, -a))
+  val repeatedDifferent = QuasiquoteMatchExamples.summarizeMatchNormalized("(-$x, -$x)", (-a, -b))
+  val repeatedMixed = QuasiquoteMatchExamples.summarizeMatchNormalized("(-$x, +$x)", (-a, +a))
+  val repeatedMixedFailure = QuasiquoteMatchExamples.summarizeMatchNormalized("(-$x, +$x)", (-a, +b))
+  val foldedPlusLiteral = QuasiquoteMatchExamples.summarizeMatchNormalized("+$x", +1)
+  val foldedNotLiteral = QuasiquoteMatchExamples.summarizeMatchNormalized("!$x", !true)
+  val foldedComplementLiteral = QuasiquoteMatchExamples.summarizeMatchNormalized("~$x", ~1)
+  val signedLiteral = QuasiquoteMatchExamples.summarizeMatchNormalized("-1", -1)
+
+private object UnaryCanonicalEqualityScope:
+  private val a = 2
+  private val b = 3
+  private val flag = true
+  val sameMinus = QuasiquoteMatchExamples.compareEquality(-a, -a)
+  val differentOperand = QuasiquoteMatchExamples.compareEquality(-a, -b)
+  val differentOperator = QuasiquoteMatchExamples.compareEquality(-a, +a)
+  val parens = QuasiquoteMatchExamples.compareEquality(-(a), -a)
+  val nestedVsPlain = QuasiquoteMatchExamples.compareEquality(-(-a), a)
+  val doubleNotVsPlain = QuasiquoteMatchExamples.compareEquality(!(!flag), flag)
+  val plusVsPlain = QuasiquoteMatchExamples.compareEquality(+a, a)
+
 private object MatchMacroProofScope:
   private val a = 2
   private val b = 3
@@ -394,6 +432,32 @@ class QuasiPatternTest extends munit.FunSuite:
     assert(MatchIfScope.repeatedFailure.detail.contains("Repeated hole"))
   }
 
+  test("unary patterns match the exact four-operator structural tranche") {
+    assert(MatchUnaryScope.plus.success)
+    assert(MatchUnaryScope.minus.success)
+    assert(MatchUnaryScope.not.success)
+    assert(MatchUnaryScope.complement.success)
+    assert(!MatchUnaryScope.operatorMismatch.success)
+    assert(MatchUnaryScope.nested.success)
+    assert(MatchUnaryScope.tuple.success)
+    assert(MatchUnaryScope.conditional.success)
+    assert(MatchUnaryScope.wholeCapture.success)
+  }
+
+  test("unary repeated holes use normalized structural equality") {
+    assert(MatchUnaryScope.repeatedSame.success)
+    assert(!MatchUnaryScope.repeatedDifferent.success)
+    assert(MatchUnaryScope.repeatedMixed.success)
+    assert(!MatchUnaryScope.repeatedMixedFailure.success)
+  }
+
+  test("folded typed literals are not reconstructed as source unary syntax") {
+    assert(!MatchUnaryScope.foldedPlusLiteral.success)
+    assert(!MatchUnaryScope.foldedNotLiteral.success)
+    assert(!MatchUnaryScope.foldedComplementLiteral.success)
+    assert(MatchUnaryScope.signedLiteral.success)
+  }
+
   test("matching API works inside real macros") {
     assert(MatchMacroProofScope.infix.startsWith("infix-match("))
     assert(MatchMacroProofScope.nested.startsWith("nested-match("))
@@ -447,6 +511,23 @@ class QuasiPatternTest extends munit.FunSuite:
     assert(!CanonicalEqualityScope.algebraicSimplification.canonicalEqual)
     assert(!CanonicalEqualityScope.semanticEquality.normalizedEqual)
     assert(!CanonicalEqualityScope.semanticEquality.canonicalEqual)
+  }
+
+  test("unary canonical and normalized equality are operator-sensitive and non-algebraic") {
+    assert(UnaryCanonicalEqualityScope.sameMinus.normalizedEqual)
+    assert(UnaryCanonicalEqualityScope.sameMinus.canonicalEqual)
+    assert(!UnaryCanonicalEqualityScope.differentOperand.normalizedEqual)
+    assert(!UnaryCanonicalEqualityScope.differentOperand.canonicalEqual)
+    assert(!UnaryCanonicalEqualityScope.differentOperator.normalizedEqual)
+    assert(!UnaryCanonicalEqualityScope.differentOperator.canonicalEqual)
+    assert(UnaryCanonicalEqualityScope.parens.normalizedEqual)
+    assert(UnaryCanonicalEqualityScope.parens.canonicalEqual)
+    assert(!UnaryCanonicalEqualityScope.nestedVsPlain.normalizedEqual)
+    assert(!UnaryCanonicalEqualityScope.nestedVsPlain.canonicalEqual)
+    assert(!UnaryCanonicalEqualityScope.doubleNotVsPlain.normalizedEqual)
+    assert(!UnaryCanonicalEqualityScope.doubleNotVsPlain.canonicalEqual)
+    assert(!UnaryCanonicalEqualityScope.plusVsPlain.normalizedEqual)
+    assert(!UnaryCanonicalEqualityScope.plusVsPlain.canonicalEqual)
   }
 
   test("typed expression equality preserves ascription boundaries") {

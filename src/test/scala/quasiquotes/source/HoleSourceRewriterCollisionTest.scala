@@ -95,6 +95,18 @@ class HoleSourceRewriterCollisionTest extends munit.FunSuite:
     assertEquals(mapped.generatedHoleIndex.generatedNameFor("x"), Some("__testhole_x_1"))
   }
 
+  test("semantic restoration replaces exact generated identifiers only") {
+    val mapped = rewrite("(__testhole_x, __testhole_x_1, $x)")
+    val generated = mapped.occurrences.head.generatedName
+    val text =
+      s"($generated, prefix${generated}suffix, ${generated}_tail, __testhole_x, __testhole_x_1)"
+
+    assertEquals(
+      HoleSourceRewriter.restoreSemanticHoleIdentifiers(text, mapped, allowUnicodeIdentifiers = true),
+      s"($$x, prefix${generated}suffix, ${generated}_tail, __testhole_x, __testhole_x_1)"
+    )
+  }
+
   test("term, type-pattern, and type-template rewrites retain isolated roles and identities") {
     val source = "(__qqhole_x, __tqhole_x, __tqconstructhole_x, $x)"
     val term = rewrite(source, "__qqhole_", HoleRole.TermPattern, SourceId.TermPattern, SourceId.VirtualTermPatternParserInput)

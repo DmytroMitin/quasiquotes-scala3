@@ -8,6 +8,13 @@ import dotty.tools.dotc.ast.untpd
 import quasiquotes.parser.DottySourceSpanAdapter
 
 object ParsedTermLowerer:
+  private val UnaryMethodByOperator = Map(
+    "+" -> "unary_+",
+    "-" -> "unary_-",
+    "!" -> "unary_!",
+    "~" -> "unary_~"
+  )
+
   def lower(using q: Quotes)(
       tree: untpd.Tree,
       bindings: Vector[PlaceholderBinding[q.reflect.Term]],
@@ -63,6 +70,11 @@ object ParsedTermLowerer:
             loweredRight <- lowerTerm(right)
             applied <- applyInfix(loweredLeft, op.name.toString, loweredRight).left.map(located(_, tree))
           yield applied
+        case untpd.PrefixOp(untpd.Ident(operator), operand) if UnaryMethodByOperator.contains(operator.toString) =>
+          for
+            loweredOperand <- lowerTerm(operand)
+            loweredUnary <- applyUnary(loweredOperand, operator.toString).left.map(located(_, tree))
+          yield loweredUnary
         case untpd.Typed(expression, typeTree) =>
           for
             loweredExpression <- lowerTerm(expression)
@@ -177,6 +189,22 @@ object ParsedTermLowerer:
         Left(
           QuasiquoteError.UnsupportedApplication(
             s"Could not lower infix operator $name on ${qualifier.tpe.show}: ${error.getMessage.nn}"
+          )
+        )
+
+  private def applyUnary(
+      using q: Quotes
+  )(
+      operand: q.reflect.Term,
+      operator: String
+  ): Either[QuasiquoteError, q.reflect.Term] =
+    UnaryMethodByOperator.get(operator) match
+      case Some(methodName) => selectMember(operand, methodName)
+      case None =>
+        Left(
+          QuasiquoteError.UnsupportedTree(
+            "PrefixOp",
+            s"Unsupported unary operator: $operator"
           )
         )
 

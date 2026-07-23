@@ -254,3 +254,63 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     assert(pattern.location.nonEmpty)
     assert(template.location.nonEmpty)
   }
+
+  test("collision-safe type-pattern restoration preserves prefix-sharing literal identifiers") {
+    val sources = List(
+      "(__tqhole_t_1, $t, Int, String)",
+      "(__tqhole_t, __tqhole_t_1, $t, Int)"
+    )
+
+    sources.foreach { source =>
+      val mapped = TypePattern.rewriteSourceMapped(source)
+      val generated = mapped.occurrences.head.generatedName
+      val located = TypePattern.fromSourceLocated(source).swap.toOption.get
+      val literalSourceIdentifiers =
+        HoleSourceRewriter.scan(source, allowUnicodeIdentifiers = false).literalIdentifiers
+      val messageIdentifiers =
+        HoleSourceRewriter.scan(located.diagnostic.message, allowUnicodeIdentifiers = false).literalIdentifiers
+
+      assertEquals(TypePattern.fromSource(source).swap.toOption, Some(located.diagnostic))
+      assert(located.diagnostic.message.contains("$t"))
+      assert(located.diagnostic.message.contains("__tqhole_t"))
+      assert(located.diagnostic.message.contains("__tqhole_t_1"))
+      assert(!messageIdentifiers.contains(generated) || literalSourceIdentifiers.contains(generated))
+      assertEquals(located.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
+      assertEquals(
+        located.location.toVector.flatMap(_.origins).collect {
+          case origin: SourceOrigin.RewrittenHole => origin.originalSpan
+        },
+        Vector(SourceSpan(source.indexOf("$t"), source.indexOf("$t") + 2))
+      )
+    }
+  }
+
+  test("collision-safe type-template restoration preserves prefix-sharing literal identifiers") {
+    val sources = List(
+      "(__tqconstructhole_t_1, $t, Int, String)",
+      "(__tqconstructhole_t, __tqconstructhole_t_1, $t, Int)"
+    )
+
+    sources.foreach { source =>
+      val mapped = TypeTemplate.rewriteSourceMapped(source)
+      val generated = mapped.occurrences.head.generatedName
+      val located = TypeTemplate.fromSourceLocated(source).swap.toOption.get
+      val literalSourceIdentifiers =
+        HoleSourceRewriter.scan(source, allowUnicodeIdentifiers = false).literalIdentifiers
+      val messageIdentifiers =
+        HoleSourceRewriter.scan(located.diagnostic.message, allowUnicodeIdentifiers = false).literalIdentifiers
+
+      assertEquals(TypeTemplate.fromSource(source).swap.toOption, Some(located.diagnostic))
+      assert(located.diagnostic.message.contains("$t"))
+      assert(located.diagnostic.message.contains("__tqconstructhole_t"))
+      assert(located.diagnostic.message.contains("__tqconstructhole_t_1"))
+      assert(!messageIdentifiers.contains(generated) || literalSourceIdentifiers.contains(generated))
+      assertEquals(located.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
+      assertEquals(
+        located.location.toVector.flatMap(_.origins).collect {
+          case origin: SourceOrigin.RewrittenHole => origin.originalSpan
+        },
+        Vector(SourceSpan(source.indexOf("$t"), source.indexOf("$t") + 2))
+      )
+    }
+  }

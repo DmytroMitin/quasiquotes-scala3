@@ -56,6 +56,48 @@ class LocatedPatternDiagnosticTest extends munit.FunSuite:
     assertEquals(QuasiPattern.term(source).swap.toOption, Some(located.diagnostic))
   }
 
+  test("malformed unary syntax preserves located and legacy parse diagnostics") {
+    val source = "-("
+    val located = QuasiPattern.termLocated(source).swap.toOption.get
+
+    assert(located.diagnostic.isInstanceOf[PatternError.ParseFailure])
+    assertEquals(QuasiPattern.term(source).swap.toOption, Some(located.diagnostic))
+    assert(located.location.forall(_.precision == DiagnosticPrecision.ExactOccurrence))
+  }
+
+  test("unsupported unary operands point at the deepest offending subtree") {
+    val source = "-({ val x = 1; x })"
+    val located = QuasiPattern.termLocated(source).swap.toOption.get
+    val span = located.location.map(_.span).get
+
+    assert(located.diagnostic.isInstanceOf[PatternError.UnsupportedPatternShape])
+    assertEquals(located.location.map(_.precision), Some(DiagnosticPrecision.ExactOccurrence))
+    assert(source.slice(span.start, span.end).contains("val x"))
+    assert(span.length < source.length)
+    assertEquals(QuasiPattern.term(source).swap.toOption, Some(located.diagnostic))
+  }
+
+  test("unary holes retain one and repeated original origins") {
+    val one = PatternSource.synthesizeMapped("-$x").toOption.get
+    val repeated = PatternSource.synthesizeMapped("(-$x, +$x)").toOption.get
+
+    assertEquals(one.occurrences.map(_.originalSpan), Vector(SourceSpan(1, 3)))
+    assertEquals(
+      repeated.occurrences.map(_.originalSpan),
+      Vector(SourceSpan(2, 4), SourceSpan(7, 9))
+    )
+  }
+
+  test("unary pattern compilation remains collision-safe beside literal generated-prefix identifiers") {
+    val pattern = QuasiPattern.termOrThrow("(__qqhole_x, -$x)")
+
+    assertEquals(pattern.placeholderSource, "(__qqhole_x, -__qqhole_x_1)")
+    assertEquals(
+      pattern.pattern.render,
+      "Tuple([Ident(__qqhole_x), Unary(-, Hole($x))])"
+    )
+  }
+
   test("whole unsupported patterns retain all repeated-hole origins") {
     val source = "($x, $x) match { case _ => 1 }"
     val located = QuasiPattern.termLocated(source).swap.toOption.get

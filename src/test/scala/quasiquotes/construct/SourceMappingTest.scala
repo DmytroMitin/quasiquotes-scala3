@@ -99,10 +99,33 @@ class SourceMappingTest extends munit.FunSuite:
     )
   }
 
+  test("a term splice under a unary prefix retains its interpolation origin") {
+    val synthesized = PlaceholderSource.synthesizeCategorized(
+      Seq("-", ""),
+      Seq(QuasiquoteHole.Term("operand"))
+    ).toOption.get
+    val raw = TinyTermParser.parseOrThrow(synthesized.source).rawTree
+    val operandSpan = identifierSpan(raw, synthesized.bindings.head.name).get
+
+    assertEquals(
+      synthesized.originMap.originsFor(operandSpan).map(_.origin),
+      Vector(SourceOrigin.InterpolationArgument(
+        SourceId.TermConstructionTemplate,
+        0,
+        InterpolationCategory.TermSplice
+      ))
+    )
+    assertEquals(
+      synthesized.originMap.originAt(0),
+      Some(SourceOrigin.LiteralPart(SourceId.TermConstructionTemplate, 0, SourceSpan(0, 1)))
+    )
+  }
+
   private def identifierSpan(tree: untpd.Tree, expected: String): Option[SourceSpan] =
     tree match
       case ident @ untpd.Ident(name) if name.toString == expected => DottySourceSpanAdapter.fromTree(ident)
       case untpd.Typed(expression, typeTree) => identifierSpan(expression, expected).orElse(identifierSpan(typeTree, expected))
+      case untpd.PrefixOp(_, operand) => identifierSpan(operand, expected)
       case untpd.Parens(inner) => identifierSpan(inner, expected)
       case untpd.TypedSplice(inner) => identifierSpan(inner, expected)
       case _ => None

@@ -1,11 +1,24 @@
 package quasiquotes.parser
 
+import dotty.tools.dotc.ast.untpd
+import quasiquotes.source.SourceSpan
+
 class TinyTermParserTest extends munit.FunSuite:
   private val acceptedShapes = List(
     "foo" -> "Ident(foo)",
     "1" -> "Literal(1)",
     "\"abc\"" -> "Literal(\"abc\")",
     "true" -> "Literal(true)",
+    "+x" -> "Unary(+, Ident(x))",
+    "-x" -> "Unary(-, Ident(x))",
+    "!x" -> "Unary(!, Ident(x))",
+    "~x" -> "Unary(~, Ident(x))",
+    "+1" -> "Unary(+, Literal(1))",
+    "-1" -> "Literal(-1)",
+    "!true" -> "Unary(!, Literal(true))",
+    "~1" -> "Unary(~, Literal(1))",
+    "-(-x)" -> "Unary(-, Parens(Unary(-, Ident(x))))",
+    "!(!x)" -> "Unary(!, Parens(Unary(!, Ident(x))))",
     "foo.bar" -> "Select(Ident(foo), bar)",
     "foo(x)" -> "Apply(Ident(foo), [Ident(x)])",
     "foo.bar(x)" -> "Apply(Select(Ident(foo), bar), [Ident(x)])",
@@ -28,7 +41,10 @@ class TinyTermParserTest extends munit.FunSuite:
     "(a, b)" -> "Tuple([Ident(a), Ident(b)])",
     "(a, (b, c))" -> "Tuple([Ident(a), Tuple([Ident(b), Ident(c)])])",
     "foo((a, b))" -> "Apply(Ident(foo), [Tuple([Ident(a), Ident(b)])])",
+    "foo(-x)" -> "Apply(Ident(foo), [Unary(-, Ident(x))])",
+    "(-x, !b)" -> "Tuple([Unary(-, Ident(x)), Unary(!, Ident(b))])",
     "if cond then a else b" -> "If(Ident(cond), Ident(a), Ident(b))",
+    "if !cond then -a else +b" -> "If(Unary(!, Ident(cond)), Unary(-, Ident(a)), Unary(+, Ident(b)))",
     "if (cond) a else b" -> "If(Parens(Ident(cond)), Ident(a), Ident(b))",
     "foo(if cond then a else b)" -> "Apply(Ident(foo), [If(Ident(cond), Ident(a), Ident(b))])"
   )
@@ -39,7 +55,8 @@ class TinyTermParserTest extends munit.FunSuite:
     "foo; bar" -> ParseErrorKind.TrailingInput,
     "foo)" -> ParseErrorKind.TrailingInput,
     "foo(__hole0) junk" -> ParseErrorKind.SyntaxError,
-    "__hole0 __hole1" -> ParseErrorKind.SyntaxError
+    "__hole0 __hole1" -> ParseErrorKind.SyntaxError,
+    "!!x" -> ParseErrorKind.SyntaxError
   )
 
   acceptedShapes.foreach { (input, expected) =>
@@ -54,6 +71,23 @@ class TinyTermParserTest extends munit.FunSuite:
     assertEquals(parsed.rawTree.getClass.getSimpleName.nonEmpty, true)
     assert(clue(parsed.rawStructure).contains("Apply"))
     assert(clue(parsed.rawStructure).contains("__hole0"))
+  }
+
+  test("unary raw trees retain exact operator and operand spans") {
+    val parsed = TinyTermParser.parseOrThrow("-(-x)")
+    assert(clue(parsed.rawStructure).contains("PrefixOp(-"))
+    assertEquals(DottySourceSpanAdapter.fromTree(parsed.rawTree), Some(SourceSpan(0, 5)))
+    parsed.rawTree match
+      case untpd.PrefixOp(_, outerOperand @ untpd.Parens(untpd.PrefixOp(_, innerOperand))) =>
+        assertEquals(DottySourceSpanAdapter.fromTree(outerOperand), Some(SourceSpan(1, 5)))
+        assertEquals(DottySourceSpanAdapter.fromTree(innerOperand), Some(SourceSpan(3, 4)))
+      case other => fail(s"expected nested PrefixOp tree, got ${other.getClass.getSimpleName}")
+  }
+
+  test("interpolated strings remain an audited unsupported boundary") {
+    val parsed = TinyTermParser.parseOrThrow("""s"a$x"""")
+    assert(parsed.shape.isInstanceOf[TermShape.Unsupported])
+    assert(clue(parsed.rawStructure).contains("InterpolatedString"))
   }
 
   test("placeholder helper recognizes synthetic holes") {

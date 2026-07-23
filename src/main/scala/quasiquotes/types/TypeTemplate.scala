@@ -40,14 +40,14 @@ object TypeTemplate:
       case Left(error) =>
         Left(
           LocatedDiagnostic(
-            TypeQuasiquoteError(restoreHoleNames(error.summary, mapped)),
+            TypeQuasiquoteError(HoleSourceRewriter.restoreSemanticHoleIdentifiers(error.summary, mapped, allowUnicodeIdentifiers = false)),
             DiagnosticLocationMapper.fromParseError(error, mapped.originMap)
           )
         )
       case Right(parsed) =>
         fromShapeWithHoles(parsed.shape, mapped.generatedHoleIndex).left.map { error =>
           LocatedDiagnostic(
-            TypeQuasiquoteError(restoreHoleNames(error.message, mapped)),
+            TypeQuasiquoteError(HoleSourceRewriter.restoreSemanticHoleIdentifiers(error.message, mapped, allowUnicodeIdentifiers = false)),
             DiagnosticLocationMapper.wholeSource(
               mapped.originMap,
               DottySourceSpanAdapter.fromTree(parsed.rawTree)
@@ -183,12 +183,3 @@ object TypeTemplate:
         tail <- accumulated
       yield head :: tail
     }
-
-  private def restoreHoleNames(message: String, mapped: MappedHoleSource): String =
-    mapped.occurrences
-      .map(occurrence => occurrence.generatedName -> occurrence.name)
-      .distinct
-      .sortBy { (generatedName, _) => -generatedName.length }
-      .foldLeft(message) { case (current, (generatedName, semanticName)) =>
-        current.replace(generatedName, "$" + semanticName)
-      }
