@@ -40,14 +40,14 @@ object TypePattern:
       case Left(error) =>
         Left(
           LocatedDiagnostic(
-            TypeQuasiquoteError(error.summary),
+            TypeQuasiquoteError(restoreHoleNames(error.summary, mapped)),
             DiagnosticLocationMapper.fromParseError(error, mapped.originMap)
           )
         )
       case Right(parsed) =>
         fromShapeWithHoles(parsed.shape, mapped.generatedHoleIndex).left.map { error =>
           LocatedDiagnostic(
-            error,
+            TypeQuasiquoteError(restoreHoleNames(error.message, mapped)),
             DiagnosticLocationMapper.wholeSource(
               mapped.originMap,
               DottySourceSpanAdapter.fromTree(parsed.rawTree)
@@ -90,18 +90,15 @@ object TypePattern:
         fromShapeUsing(argument, semanticHoleName).map(argumentPattern => TPApply(TPIdent("Option"), List(argumentPattern)))
       case TypeShape.Apply(constructor, arguments) =>
         Left(TypeQuasiquoteError(s"Unsupported type pattern shape for Phase 18 type-hole matching: ${TypeShape.Apply(constructor, arguments).render}"))
-      case TypeShape.Tuple(first :: second :: Nil) =>
-        for
-          firstPattern <- fromShapeUsing(first, semanticHoleName)
-          secondPattern <- fromShapeUsing(second, semanticHoleName)
-        yield TPTuple(List(firstPattern, secondPattern))
+      case TypeShape.Tuple(elements) if elements.size == 2 || elements.size == 3 =>
+        collect(elements.map(fromShapeUsing(_, semanticHoleName))).map(TPTuple(_))
       case TypeShape.Tuple(elements) =>
         Left(TypeQuasiquoteError(s"Unsupported tuple type pattern shape for Phase 18 type-hole matching: ${TypeShape.Tuple(elements).render}"))
-      case TypeShape.Function(argument :: Nil, result) =>
+      case TypeShape.Function(arguments, result) if arguments.size == 1 || arguments.size == 2 =>
         for
-          argumentPattern <- fromShapeUsing(argument, semanticHoleName)
+          argumentPatterns <- collect(arguments.map(fromShapeUsing(_, semanticHoleName)))
           resultPattern <- fromShapeUsing(result, semanticHoleName)
-        yield TPFunction(List(argumentPattern), resultPattern)
+        yield TPFunction(argumentPatterns, resultPattern)
       case TypeShape.Function(arguments, result) =>
         Left(TypeQuasiquoteError(s"Unsupported function type pattern shape for Phase 18 type-hole matching: ${TypeShape.Function(arguments, result).render}"))
       case TypeShape.Select(_, _) =>
@@ -157,3 +154,20 @@ object TypePattern:
         }.flatMap(matchInto(patternResult, targetResult, _))
       case _ =>
         None
+
+  private def collect[A](values: List[Either[TypeQuasiquoteError, A]]): Either[TypeQuasiquoteError, List[A]] =
+    values.foldRight[Either[TypeQuasiquoteError, List[A]]](Right(Nil)) { (value, accumulated) =>
+      for
+        head <- value
+        tail <- accumulated
+      yield head :: tail
+    }
+
+  private def restoreHoleNames(message: String, mapped: MappedHoleSource): String =
+    mapped.occurrences
+      .map(occurrence => occurrence.generatedName -> occurrence.name)
+      .distinct
+      .sortBy { (generatedName, _) => -generatedName.length }
+      .foldLeft(message) { case (current, (generatedName, semanticName)) =>
+        current.replace(generatedName, "$" + semanticName)
+      }

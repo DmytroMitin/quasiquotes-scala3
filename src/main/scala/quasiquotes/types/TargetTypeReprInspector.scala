@@ -19,10 +19,22 @@ object TargetTypeReprInspector:
           firstForm <- inspect(first)
           secondForm <- inspect(second)
         yield TypeNormalForm.STypeTuple(List(firstForm, secondForm))
+      case AppliedType(TypeRef(_, "Tuple3"), first :: second :: third :: Nil) =>
+        for
+          firstForm <- inspect(first)
+          secondForm <- inspect(second)
+          thirdForm <- inspect(third)
+        yield TypeNormalForm.STypeTuple(List(firstForm, secondForm, thirdForm))
       case AppliedType(TypeRef(_, "Function1"), argument :: result :: Nil) =>
         for
           argumentForm <- inspect(argument)
           resultForm <- inspect(result)
         yield TypeNormalForm.STypeFunction(List(argumentForm), resultForm)
+      case AppliedType(TypeRef(_, "Function2"), first :: second :: result :: Nil) =>
+        for
+          firstForm <- inspect(first)
+          secondForm <- inspect(second)
+          resultForm <- inspect(result)
+        yield TypeNormalForm.STypeFunction(List(firstForm, secondForm), resultForm)
       case other =>
         Left(TypeQuasiquoteError(s"Unsupported target TypeRepr shape for Phase 17 normal-form inspection: ${other.show}"))

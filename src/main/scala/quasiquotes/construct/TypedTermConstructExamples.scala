@@ -151,4 +151,7 @@ object TypedTermConstructExamples:
       case "tupleIntString" => Right('{ (1, "value") }.asTerm)
       case "functionIntString" => Right('{ (value: Int) => value.toString }.asTerm)
       case "tupleIntInt" => Right('{ (1, 1) }.asTerm)
+      case "tuple3IntStringBoolean" => Right('{ (1, "value", true) }.asTerm)
+      case "function2IntStringBoolean" =>
+        Right('{ (number: Int, text: String) => number > 0 && text.nonEmpty }.asTerm)
       case other => Left(TypeQuasiquoteError(s"Unknown typed-term example kind: $other"))

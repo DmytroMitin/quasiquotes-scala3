@@ -227,4 +227,7 @@ object QuasiTypeSpliceExamples:
       case "tupleIntString" => Right('{ (1, "value") }.asTerm)
       case "functionIntString" => Right('{ (value: Int) => value.toString }.asTerm)
       case "tupleIntInt" => Right('{ (1, 1) }.asTerm)
+      case "tuple3IntStringBoolean" => Right('{ (1, "value", true) }.asTerm)
+      case "function2IntStringBoolean" =>
+        Right('{ (number: Int, text: String) => number > 0 && text.nonEmpty }.asTerm)
       case other => Left(TypeQuasiquoteError(s"Unknown controlled type-splice example kind: $other"))

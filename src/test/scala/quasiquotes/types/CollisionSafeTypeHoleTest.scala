@@ -45,7 +45,7 @@ class CollisionSafeTypeHoleTest extends munit.FunSuite:
   }
 
   test("type-pattern located and legacy failures retain messages and origins") {
-    val source = "(__tqhole_t, $t, $t)"
+    val source = "(__tqhole_t, $t, $t, $t)"
     val located = TypePattern.fromSourceLocated(source).swap.toOption.get
     val rewritten = located.location.toVector.flatMap(_.origins).collect {
       case origin: SourceOrigin.RewrittenHole => origin
@@ -53,8 +53,11 @@ class CollisionSafeTypeHoleTest extends munit.FunSuite:
 
     assertEquals(located.diagnostic, TypePattern.fromSource(source).swap.toOption.get)
     assert(located.diagnostic.message.contains("Unsupported tuple type pattern shape for Phase 18 type-hole matching"))
-    assertEquals(rewritten.map(_.holeName), Vector("t", "t"))
-    assertEquals(rewritten.map(_.originalSpan), Vector(SourceSpan(13, 15), SourceSpan(17, 19)))
+    assertEquals(rewritten.map(_.holeName), Vector("t", "t", "t"))
+    assertEquals(
+      rewritten.map(_.originalSpan),
+      Vector(SourceSpan(13, 15), SourceSpan(17, 19), SourceSpan(21, 23))
+    )
   }
 
   test("Int versus scala.Int and unsupported syntax boundaries remain unchanged") {

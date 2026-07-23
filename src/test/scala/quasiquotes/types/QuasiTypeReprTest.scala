@@ -45,6 +45,22 @@ class QuasiTypeReprTest extends munit.FunSuite:
     assertEquals(QuasiTypeExamples.structuralNormalFormSummary("Option[String]"), "STypeApply(STypeIdent(Option), [STypeIdent(String)])")
     assertEquals(QuasiTypeExamples.structuralNormalFormSummary("(Int, String)"), "STypeTuple([STypeIdent(Int), STypeIdent(String)])")
     assertEquals(QuasiTypeExamples.structuralNormalFormSummary("Int => String"), "STypeFunction([STypeIdent(Int)], STypeIdent(String))")
+    assertEquals(
+      QuasiTypeExamples.structuralNormalFormSummary("(Int, String, Boolean)"),
+      "STypeTuple([STypeIdent(Int), STypeIdent(String), STypeIdent(Boolean)])"
+    )
+    assertEquals(
+      QuasiTypeExamples.structuralNormalFormSummary("(Int, String) => Boolean"),
+      "STypeFunction([STypeIdent(Int), STypeIdent(String)], STypeIdent(Boolean))"
+    )
+  }
+
+  test("Tuple3 and Function2 structural equality preserves order and shape") {
+    assert(QuasiTypeExamples.structuralMatches("(Int, String, Boolean)", "(Int, String, Boolean)"))
+    assert(!QuasiTypeExamples.structuralMatches("(Int, String, Boolean)", "(String, Int, Boolean)"))
+    assert(QuasiTypeExamples.structuralMatches("(Int, String) => Boolean", "(Int, String) => Boolean"))
+    assert(!QuasiTypeExamples.structuralMatches("(Int, String) => Boolean", "(String, Int) => Boolean"))
+    assert(!QuasiTypeExamples.structuralMatches("(Int, String) => Boolean", "((Int, String)) => Boolean"))
   }
 
   test("matches supported structural type normal forms") {
@@ -125,6 +141,71 @@ class QuasiTypeReprTest extends munit.FunSuite:
     assertEquals(QuasiTypeExamples.typePatternMatchSummary("($a, $b)", "(Int, String)"), "matched=true bindings=a=STypeIdent(Int), b=STypeIdent(String)")
   }
 
+  test("Tuple3 and Function2 patterns support distinct and repeated holes") {
+    assertEquals(
+      QuasiTypeExamples.typePatternMatchSummary("($a, $b, $c)", "(Int, String, Boolean)"),
+      "matched=true bindings=a=STypeIdent(Int), b=STypeIdent(String), c=STypeIdent(Boolean)"
+    )
+    assertEquals(
+      QuasiTypeExamples.typePatternMatchSummary("($t, $t, $u)", "(Int, Int, String)"),
+      "matched=true bindings=t=STypeIdent(Int), u=STypeIdent(String)"
+    )
+    assertEquals(
+      QuasiTypeExamples.typePatternMatchSummary("($t, $t, $u)", "(Int, String, String)"),
+      "matched=false"
+    )
+    assertEquals(
+      QuasiTypeExamples.typePatternMatchSummary("($a, $b) => $a", "(Int, String) => Int"),
+      "matched=true bindings=a=STypeIdent(Int), b=STypeIdent(String)"
+    )
+    assertEquals(
+      QuasiTypeExamples.typePatternMatchSummary("($a, $b) => $a", "(Int, String) => String"),
+      "matched=false"
+    )
+  }
+
+  test("Tuple3 and Function2 flow through tqq pattern and repr compatibility paths") {
+    assertEquals(
+      QuasiTypeExamples.tqqTypePatternMatchSummary("($a, $b, $c)", "(Int, String, Boolean)"),
+      "matched=true bindings=a=STypeIdent(Int), b=STypeIdent(String), c=STypeIdent(Boolean)"
+    )
+    assertEquals(
+      QuasiTypeExamples.tqqTypePatternMatchSummary("($a, $b) => $a", "(Int, String) => Int"),
+      "matched=true bindings=a=STypeIdent(Int), b=STypeIdent(String)"
+    )
+    assertEquals(
+      QuasiTypeExamples.patternAliasEquivalenceSummary("($a, $b, $c)", "(Int, String, Boolean)"),
+      "pattern=a=STypeIdent(Int), b=STypeIdent(String), c=STypeIdent(Boolean) repr=a=STypeIdent(Int), b=STypeIdent(String), c=STypeIdent(Boolean)"
+    )
+    assertEquals(
+      QuasiTypeExamples.locatedPatternSummary("(Int, String, Boolean)"),
+      "success=true legacySuccess=true expected=true holes=false"
+    )
+    assertEquals(
+      QuasiTypeExamples.locatedPatternSummary("($a, $b) => $r"),
+      "success=true legacySuccess=true expected=false holes=true"
+    )
+  }
+
+  test("Tuple3 and Function2 patterns match real TypeRepr targets") {
+    assertEquals(
+      QuasiTypeExamples.typePatternTypeReprMatchSummary("($a, $b, $c)", "(Int, String, Boolean)"),
+      "matched=true bindings=a=STypeIdent(Int), b=STypeIdent(String), c=STypeIdent(Boolean)"
+    )
+    assertEquals(
+      QuasiTypeExamples.typePatternTypeReprMatchSummary("($t, $t, $u)", "(Int, Int, String)"),
+      "matched=true bindings=t=STypeIdent(Int), u=STypeIdent(String)"
+    )
+    assertEquals(
+      QuasiTypeExamples.typePatternTypeReprMatchSummary("($a, $b) => $a", "(Int, String) => Int"),
+      "matched=true bindings=a=STypeIdent(Int), b=STypeIdent(String)"
+    )
+    assertEquals(
+      QuasiTypeExamples.typePatternTypeReprMatchSummary("($a, $b) => $a", "(Int, String) => String"),
+      "matched=false"
+    )
+  }
+
   test("tqq function syntax delegates to type-hole pattern matching") {
     assertEquals(QuasiTypeExamples.tqqTypePatternMatchSummary("$t", "Int"), "matched=true bindings=t=STypeIdent(Int)")
     assertEquals(QuasiTypeExamples.tqqTypePatternMatchSummary("List[$t]", "List[Int]"), "matched=true bindings=t=STypeIdent(Int)")
@@ -184,6 +265,35 @@ class QuasiTypeReprTest extends munit.FunSuite:
     assertEquals(
       QuasiTypeConstruct.fromTemplate("($t, $t)", "t" -> TypeNormalForm.STypeIdent("Int")).map(_.source),
       Right("(Int, Int)")
+    )
+  }
+
+  test("constructs Tuple3 and Function2 templates with stable source rendering") {
+    val intForm = TypeNormalForm.STypeIdent("Int")
+    val stringForm = TypeNormalForm.STypeIdent("String")
+    val booleanForm = TypeNormalForm.STypeIdent("Boolean")
+
+    assertEquals(
+      QuasiTypeConstruct.fromTemplate(
+        "($a, $b, $c)",
+        "a" -> intForm,
+        "b" -> stringForm,
+        "c" -> booleanForm
+      ).map(_.source),
+      Right("(Int, String, Boolean)")
+    )
+    assertEquals(
+      QuasiTypeConstruct.fromTemplate(
+        "($a, $b) => $r",
+        "a" -> intForm,
+        "b" -> stringForm,
+        "r" -> booleanForm
+      ).map(_.source),
+      Right("(Int, String) => Boolean")
+    )
+    assertEquals(
+      QuasiTypeConstruct.fromTemplate("($t, $t, $u)", "t" -> intForm, "u" -> stringForm).map(_.source),
+      Right("(Int, Int, String)")
     )
   }
 
@@ -249,6 +359,39 @@ class QuasiTypeReprTest extends munit.FunSuite:
     )
   }
 
+  test("constructed Tuple3 and Function2 normal forms lower and inspect back") {
+    assertEquals(
+      QuasiTypeExamples.constructedTypeReprRoundtripSummary("($a, String, Boolean)", "a", "Int"),
+      "constructed=STypeTuple([STypeIdent(Int), STypeIdent(String), STypeIdent(Boolean)]) inspected=STypeTuple([STypeIdent(Int), STypeIdent(String), STypeIdent(Boolean)]) matched=true"
+    )
+    assertEquals(
+      QuasiTypeExamples.constructedTypeReprRoundtripSummary("($a, String) => Boolean", "a", "Int"),
+      "constructed=STypeFunction([STypeIdent(Int), STypeIdent(String)], STypeIdent(Boolean)) inspected=STypeFunction([STypeIdent(Int), STypeIdent(String)], STypeIdent(Boolean)) matched=true"
+    )
+  }
+
+  test("Tuple3 and Function2 compose existing List and Option components") {
+    assertEquals(
+      QuasiTypeExamples.targetNormalFormSummary("(List[Int], Option[String], Boolean)"),
+      "STypeTuple([STypeApply(STypeIdent(List), [STypeIdent(Int)]), STypeApply(STypeIdent(Option), [STypeIdent(String)]), STypeIdent(Boolean)])"
+    )
+    assertEquals(
+      QuasiTypeExamples.targetNormalFormSummary("(List[Int], String) => Option[Boolean]"),
+      "STypeFunction([STypeApply(STypeIdent(List), [STypeIdent(Int)]), STypeIdent(String)], STypeApply(STypeIdent(Option), [STypeIdent(Boolean)]))"
+    )
+  }
+
+  test("direct real Tuple3 and Function2 TypeRepr values inspect structurally") {
+    assertEquals(
+      QuasiTypeExamples.phase37DirectTargetNormalFormSummary("tuple3"),
+      "STypeTuple([STypeIdent(Int), STypeIdent(String), STypeIdent(Boolean)])"
+    )
+    assertEquals(
+      QuasiTypeExamples.phase37DirectTargetNormalFormSummary("function2"),
+      "STypeFunction([STypeIdent(Int), STypeIdent(String)], STypeIdent(Boolean))"
+    )
+  }
+
   test("constructed repeated type holes lower to TypeRepr and inspect back") {
     assertEquals(
       QuasiTypeExamples.constructedTypeReprRoundtripSummary("($t, $t)", "t", "Int"),
@@ -290,11 +433,11 @@ class QuasiTypeReprTest extends munit.FunSuite:
     )
     assertEquals(
       QuasiTypeExamples.rawTupleArityLoweringMessage,
-      "Cannot lower unsupported constructed type normal form to TypeRepr: (Int, String, Boolean)"
+      "Cannot lower unsupported constructed type normal form to TypeRepr: (Int, String, Boolean, Int)"
     )
     assertEquals(
       QuasiTypeExamples.rawFunctionArityLoweringMessage,
-      "Cannot lower unsupported constructed type normal form to TypeRepr: (Int, String) => Boolean"
+      "Cannot lower unsupported constructed type normal form to TypeRepr: (Int, String, Boolean) => Int"
     )
     assertEquals(
       QuasiTypeExamples.constructedTypeReprLoweringMessage("List[$t]", "t", "AnyVal"),
@@ -345,6 +488,17 @@ class QuasiTypeReprTest extends munit.FunSuite:
     )
   }
 
+  test("constructed Tuple3 and Function2 bridge to scoped high-level Type evidence") {
+    assertEquals(
+      ConstructedTypeBridgeExamples.bridgeSummary("($a, String, Boolean)", "a", "Int"),
+      "constructed=STypeTuple([STypeIdent(Int), STypeIdent(String), STypeIdent(Boolean)]) evidence=STypeTuple([STypeIdent(Int), STypeIdent(String), STypeIdent(Boolean)]) matched=true"
+    )
+    assertEquals(
+      ConstructedTypeBridgeExamples.bridgeSummary("($a, String) => Boolean", "a", "Int"),
+      "constructed=STypeFunction([STypeIdent(Int), STypeIdent(String)], STypeIdent(Boolean)) evidence=STypeFunction([STypeIdent(Int), STypeIdent(String)], STypeIdent(Boolean)) matched=true"
+    )
+  }
+
   test("constructed repeated holes bridge to scoped high-level Type evidence") {
     assertEquals(
       ConstructedTypeBridgeExamples.bridgeSummary("($t, $t)", "t", "Int"),
@@ -388,6 +542,45 @@ class QuasiTypeReprTest extends munit.FunSuite:
     assert(QuasiTypeExamples.typePatternMatchSummary("List[$t]", "List[?]").contains("Unsupported type shape"))
     assert(QuasiTypeExamples.typePatternMatchSummary("List[$t]", "scala.Int").contains("Selected type syntax is not supported"))
     assert(QuasiTypeExamples.typePatternMatchSummary("List[$t]", "A.B").contains("Selected type syntax is not supported"))
+  }
+
+  test("Tuple4 and Function3 remain unsupported across normal forms patterns and templates") {
+    val tuple4 = "(Int, String, Boolean, Int)"
+    val function3 = "(Int, String, Boolean) => Int"
+
+    assert(TypeNormalForm.fromSource(tuple4).left.exists(_.message.contains("Unsupported tuple type shape")))
+    assert(TypeNormalForm.fromSource(function3).left.exists(_.message.contains("Unsupported function type shape")))
+    assert(TypePattern.fromSource(tuple4).left.exists(_.message.contains("Unsupported tuple type pattern shape")))
+    assert(TypePattern.fromSource(function3).left.exists(_.message.contains("Unsupported function type pattern shape")))
+    assert(TypeTemplate.fromSource(tuple4).left.exists(_.message.contains("Unsupported tuple type construction template shape")))
+    assert(TypeTemplate.fromSource(function3).left.exists(_.message.contains("Unsupported function type construction template shape")))
+
+    val tuple4Form = TypeNormalForm.STypeTuple(List(
+      TypeNormalForm.STypeIdent("Int"),
+      TypeNormalForm.STypeIdent("String"),
+      TypeNormalForm.STypeIdent("Boolean"),
+      TypeNormalForm.STypeIdent("Int")
+    ))
+    val function3Form = TypeNormalForm.STypeFunction(
+      List(
+        TypeNormalForm.STypeIdent("Int"),
+        TypeNormalForm.STypeIdent("String"),
+        TypeNormalForm.STypeIdent("Boolean")
+      ),
+      TypeNormalForm.STypeIdent("Int")
+    )
+    assertEquals(
+      TypeTemplate.validateConstructed(tuple4Form).left.map(_.message),
+      Left("Unsupported constructed tuple type for Phase 21: (Int, String, Boolean, Int)")
+    )
+    assertEquals(
+      TypeTemplate.validateConstructed(function3Form).left.map(_.message),
+      Left("Unsupported constructed function type for Phase 21: (Int, String, Boolean) => Int")
+    )
+    assert(QuasiTypeExamples.unsupportedMessage("(Int, String, Boolean, Int)").contains("Unsupported type shape for Phase 13 TypeRepr lowering"))
+    assert(QuasiTypeExamples.unsupportedMessage("(Int, String, Boolean) => Int").contains("Unsupported type shape for Phase 13 TypeRepr lowering"))
+    assert(QuasiTypeExamples.phase37DirectTargetNormalFormSummary("tuple4").contains("Unsupported target TypeRepr shape"))
+    assert(QuasiTypeExamples.phase37DirectTargetNormalFormSummary("function3").contains("Unsupported target TypeRepr shape"))
   }
 
   test("type-hole binding lookup accepts bare and dollar-prefixed names") {

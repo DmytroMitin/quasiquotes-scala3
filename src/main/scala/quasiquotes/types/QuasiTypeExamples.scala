@@ -27,11 +27,17 @@ object QuasiTypeExamples:
   inline def targetNormalFormSummary(source: String): String =
     ${ targetNormalFormSummaryImpl('source) }
 
+  private[quasiquotes] inline def phase37DirectTargetNormalFormSummary(kind: String): String =
+    ${ phase37DirectTargetNormalFormSummaryImpl('kind) }
+
   inline def targetInspectionComparisonSummary(patternSource: String, targetSource: String): String =
     ${ targetInspectionComparisonSummaryImpl('patternSource, 'targetSource) }
 
   inline def typePatternMatchSummary(patternSource: String, targetSource: String): String =
     ${ typePatternMatchSummaryImpl('patternSource, 'targetSource) }
+
+  private[quasiquotes] inline def typePatternTypeReprMatchSummary(patternSource: String, targetSource: String): String =
+    ${ typePatternTypeReprMatchSummaryImpl('patternSource, 'targetSource) }
 
   inline def tqqTypePatternMatchSummary(patternSource: String, targetSource: String): String =
     ${ tqqTypePatternMatchSummaryImpl('patternSource, 'targetSource) }
@@ -89,7 +95,17 @@ object QuasiTypeExamples:
 
   private def supportedConstructionSummaryImpl(using Quotes): Expr[List[String]] =
     import quotes.reflect.*
-    val sources = List("Int", "String", "Boolean", "List[Int]", "Option[String]", "(Int, String)", "Int => String")
+    val sources = List(
+      "Int",
+      "String",
+      "Boolean",
+      "List[Int]",
+      "Option[String]",
+      "(Int, String)",
+      "(Int, String, Boolean)",
+      "Int => String",
+      "(Int, String) => Boolean"
+    )
     val rendered = sources.map { source =>
       QuasiTypeRepr.fromSource(source) match
         case Right(quasiType) => s"$source -> ${quasiType.renderedTypeRepr}"
@@ -140,6 +156,17 @@ object QuasiTypeExamples:
       yield targetNormalForm
     Expr(inspected.fold(_.message, _.render))
 
+  private def phase37DirectTargetNormalFormSummaryImpl(kind: Expr[String])(using Quotes): Expr[String] =
+    import quotes.reflect.*
+
+    val target = kind.valueOrAbort match
+      case "tuple3" => TypeRepr.of[(Int, String, Boolean)]
+      case "function2" => TypeRepr.of[(Int, String) => Boolean]
+      case "tuple4" => TypeRepr.of[(Int, String, Boolean, Int)]
+      case "function3" => TypeRepr.of[(Int, String, Boolean) => Int]
+      case other => report.errorAndAbort(s"Unknown Phase 37 direct target kind: $other")
+    Expr(TargetTypeReprInspector.inspect(target).fold(_.message, _.render))
+
   private def targetInspectionComparisonSummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =
     val patternText = patternSource.valueOrAbort
     val targetText = targetSource.valueOrAbort
@@ -165,6 +192,25 @@ object QuasiTypeExamples:
         case Some(matchResult) if matchResult.bindings.nonEmpty => s"matched=true bindings=${matchResult.bindingsSummary}"
         case Some(_) => "matched=true bindings="
         case None => "matched=false"
+    Expr(summary.fold(_.message, identity))
+
+  private def typePatternTypeReprMatchSummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =
+    val patternText = patternSource.valueOrAbort
+    val targetText = targetSource.valueOrAbort
+    val summary =
+      for
+        pattern <- QuasiTypePattern.pattern(patternText)
+        target <- QuasiTypeRepr.fromSource(targetText)
+        targetRepr <- TypeReprLowerer.lower(target.shape)
+      yield
+        val matched = pattern.matchTypeRepr(targetRepr)
+        pattern.matchTypeReprResult(targetRepr) match
+          case Some(matchResult) if matched && matchResult.bindings.nonEmpty =>
+            s"matched=true bindings=${matchResult.bindingsSummary}"
+          case Some(_) if matched => "matched=true bindings="
+          case Some(_) => "matched=false inconsistent-result"
+          case None if matched => "matched=true inconsistent-result"
+          case None => "matched=false"
     Expr(summary.fold(_.message, identity))
 
   private def tqqTypePatternMatchSummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =
@@ -240,7 +286,7 @@ object QuasiTypeExamples:
       for
         binding <- TypeNormalForm.fromSource(bindingSourceText)
         constructed <- QuasiTypequotes.tqr(templateText, bindingText -> binding)
-        lowered <- constructed.toTypeRepr
+        lowered <- QuasiTypeConstruct.toTypeRepr(constructed)
         inspected <- TargetTypeReprInspector.inspect(lowered)
       yield s"constructed=${constructed.normalForm.render} inspected=${inspected.render} matched=${constructed.normalForm == inspected}"
     Expr(summary.fold(_.message, identity))
@@ -311,14 +357,26 @@ object QuasiTypeExamples:
   private def rawTupleArityLoweringMessageImpl(using Quotes): Expr[String] =
     import quotes.reflect.*
 
-    val normalForm = TypeNormalForm.STypeTuple(List(TypeNormalForm.STypeIdent("Int"), TypeNormalForm.STypeIdent("String"), TypeNormalForm.STypeIdent("Boolean")))
+    val normalForm = TypeNormalForm.STypeTuple(List(
+      TypeNormalForm.STypeIdent("Int"),
+      TypeNormalForm.STypeIdent("String"),
+      TypeNormalForm.STypeIdent("Boolean"),
+      TypeNormalForm.STypeIdent("Int")
+    ))
     val summary = TypeReprLowerer.lowerNormalForm(normalForm).map(_.show)
     Expr(summary.fold(_.message, identity))
 
   private def rawFunctionArityLoweringMessageImpl(using Quotes): Expr[String] =
     import quotes.reflect.*
 
-    val normalForm = TypeNormalForm.STypeFunction(List(TypeNormalForm.STypeIdent("Int"), TypeNormalForm.STypeIdent("String")), TypeNormalForm.STypeIdent("Boolean"))
+    val normalForm = TypeNormalForm.STypeFunction(
+      List(
+        TypeNormalForm.STypeIdent("Int"),
+        TypeNormalForm.STypeIdent("String"),
+        TypeNormalForm.STypeIdent("Boolean")
+      ),
+      TypeNormalForm.STypeIdent("Int")
+    )
     val summary = TypeReprLowerer.lowerNormalForm(normalForm).map(_.show)
     Expr(summary.fold(_.message, identity))
 

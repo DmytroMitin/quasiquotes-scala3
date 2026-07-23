@@ -126,6 +126,24 @@ class QuasiquoteMacroTest extends munit.FunSuite:
       QuasiTypeSpliceExamples.spliceSummary("functionIntString", "$a => $b", "a", "Int", "b", "String"),
       "typed=true constructed=STypeFunction([STypeIdent(Int)], STypeIdent(String)) inspected=STypeFunction([STypeIdent(Int)], STypeIdent(String)) matched=true"
     )
+    assertEquals(
+      QuasiTypeSpliceExamples.spliceSummary(
+        "tuple3IntStringBoolean",
+        "($a, String, Boolean)",
+        "a",
+        "Int"
+      ),
+      "typed=true constructed=STypeTuple([STypeIdent(Int), STypeIdent(String), STypeIdent(Boolean)]) inspected=STypeTuple([STypeIdent(Int), STypeIdent(String), STypeIdent(Boolean)]) matched=true"
+    )
+    assertEquals(
+      QuasiTypeSpliceExamples.spliceSummary(
+        "function2IntStringBoolean",
+        "($a, String) => Boolean",
+        "a",
+        "Int"
+      ),
+      "typed=true constructed=STypeFunction([STypeIdent(Int), STypeIdent(String)], STypeIdent(Boolean)) inspected=STypeFunction([STypeIdent(Int), STypeIdent(String)], STypeIdent(Boolean)) matched=true"
+    )
   }
 
   test("qr splices a constructed type containing a repeated type-template hole") {
@@ -285,6 +303,27 @@ class QuasiquoteMacroTest extends munit.FunSuite:
     assertEquals(
       TypedTermConstructExamples.typedAscriptionSummary("functionIntString", "$a => $b", "a", "Int", "b", "String"),
       "term=typed=true constructed=STypeFunction([STypeIdent(Int)], STypeIdent(String)) inspected=STypeFunction([STypeIdent(Int)], STypeIdent(String)) matched=true"
+    )
+  }
+
+  test("constructed Tuple3 and Function2 types can ascribe matching terms") {
+    assertEquals(
+      TypedTermConstructExamples.typedAscriptionSummary(
+        "tuple3IntStringBoolean",
+        "($a, String, Boolean)",
+        "a",
+        "Int"
+      ),
+      "term=typed=true constructed=STypeTuple([STypeIdent(Int), STypeIdent(String), STypeIdent(Boolean)]) inspected=STypeTuple([STypeIdent(Int), STypeIdent(String), STypeIdent(Boolean)]) matched=true"
+    )
+    assertEquals(
+      TypedTermConstructExamples.typedAscriptionSummary(
+        "function2IntStringBoolean",
+        "($a, String) => Boolean",
+        "a",
+        "Int"
+      ),
+      "term=typed=true constructed=STypeFunction([STypeIdent(Int), STypeIdent(String)], STypeIdent(Boolean)) inspected=STypeFunction([STypeIdent(Int), STypeIdent(String)], STypeIdent(Boolean)) matched=true"
     )
   }
 

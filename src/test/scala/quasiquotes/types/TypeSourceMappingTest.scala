@@ -20,6 +20,22 @@ class TypeSourceMappingTest extends munit.FunSuite:
     assertEquals(mapped.occurrences.map(_.role), Vector(HoleRole.TypePattern, HoleRole.TypePattern))
   }
 
+  test("Tuple3 and Function2 holes retain ordered source occurrences") {
+    val tuple = TypeTemplate.rewriteSourceMapped("($a, $b, $c)")
+    val function = TypePattern.rewriteSourceMapped("($a, $b) => $r")
+
+    assertEquals(tuple.occurrences.map(_.name), Vector("a", "b", "c"))
+    assertEquals(
+      tuple.occurrences.map(_.originalSpan),
+      Vector(SourceSpan(1, 3), SourceSpan(5, 7), SourceSpan(9, 11))
+    )
+    assertEquals(function.occurrences.map(_.name), Vector("a", "b", "r"))
+    assertEquals(
+      function.occurrences.map(_.originalSpan),
+      Vector(SourceSpan(1, 3), SourceSpan(5, 7), SourceSpan(12, 14))
+    )
+  }
+
   test("type pattern and construction template use distinct source identities and roles") {
     val pattern = TypePattern.rewriteSourceMapped("List[$t]")
     val template = TypeTemplate.rewriteSourceMapped("List[$t]")

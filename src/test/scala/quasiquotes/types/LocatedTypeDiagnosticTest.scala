@@ -37,7 +37,7 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     assertEquals(selectedLocated.location.map(_.span), Some(SourceSpan(0, selected.length)))
     assertEquals(selectedLocated.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
 
-    val repeatedSource = "($t, $t, $t)"
+    val repeatedSource = "($t, $t, $t, $t)"
     val mapped = TypePattern.rewriteSourceMapped(repeatedSource)
     val repeatedLocated = TypePattern.fromSourceLocated(repeatedSource).swap.toOption.get
     val repeatedOrigins = repeatedLocated.location.toVector.flatMap(_.origins).collect {
@@ -45,12 +45,15 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     }
     assertEquals(repeatedLocated.location.map(_.span), Some(SourceSpan(0, mapped.generatedSource.length)))
     assertEquals(repeatedLocated.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
-    assertEquals(repeatedOrigins, Vector(SourceSpan(1, 3), SourceSpan(5, 7), SourceSpan(9, 11)))
+    assertEquals(
+      repeatedOrigins,
+      Vector(SourceSpan(1, 3), SourceSpan(5, 7), SourceSpan(9, 11), SourceSpan(13, 15))
+    )
     assert(repeatedLocated.diagnostic.message.contains("Unsupported tuple type pattern shape"))
   }
 
   test("type-template located failures use distinct role and source identity") {
-    val source = "($t, $t, $t)"
+    val source = "($t, $t, $t, $t)"
     val mapped = TypeTemplate.rewriteSourceMapped(source)
     val located = TypeTemplate.fromSourceLocated(source).swap.toOption.get
     val rewritten = located.location.toVector.flatMap(_.origins).collect {
@@ -63,6 +66,28 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     assertEquals(rewritten.map(_.role).distinct, Vector(HoleRole.TypeTemplate))
     assert(located.diagnostic.message.contains("Unsupported tuple type construction template shape"))
     assertEquals(TypeTemplate.fromSource(source).swap.toOption, Some(located.diagnostic))
+  }
+
+  test("Tuple3 and Function2 mapped holes retain ordered distinct origins") {
+    val tuple = TypePattern.rewriteSourceMapped("($a, $b, $c)")
+    val function = TypeTemplate.rewriteSourceMapped("($a, $b) => $r")
+
+    assertEquals(
+      tuple.occurrences.map(occurrence => occurrence.name -> occurrence.originalSpan),
+      Vector(
+        "a" -> SourceSpan(1, 3),
+        "b" -> SourceSpan(5, 7),
+        "c" -> SourceSpan(9, 11)
+      )
+    )
+    assertEquals(
+      function.occurrences.map(occurrence => occurrence.name -> occurrence.originalSpan),
+      Vector(
+        "a" -> SourceSpan(1, 3),
+        "b" -> SourceSpan(5, 7),
+        "r" -> SourceSpan(12, 14)
+      )
+    )
   }
 
   test("type-template parse diagnostics and selected-shape messages remain compatible") {
@@ -105,6 +130,31 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     assertEquals(located.toOption.map(_.source), Some("List[Int]"))
   }
 
+  test("Tuple3 and Function2 located map and varargs construction agree") {
+    val bindings = Map(
+      "a" -> TypeNormalForm.STypeIdent("Int"),
+      "b" -> TypeNormalForm.STypeIdent("String"),
+      "c" -> TypeNormalForm.STypeIdent("Boolean")
+    )
+    val tupleMap = QuasiTypeConstruct.fromTemplateLocated("($a, $b, $c)", bindings)
+    val tupleVarargs = QuasiTypeConstruct.fromTemplateLocated(
+      "($a, $b, $c)",
+      "a" -> bindings("a"),
+      "b" -> bindings("b"),
+      "c" -> bindings("c")
+    )
+    val function = QuasiTypeConstruct.fromTemplateLocated(
+      "($a, $b) => $c",
+      bindings
+    )
+
+    assertEquals(tupleMap, tupleVarargs)
+    assertEquals(tupleMap.map(_.source), Right("(Int, String, Boolean)"))
+    assertEquals(function.map(_.source), Right("(Int, String) => Boolean"))
+    assertEquals(tupleMap.left.map(_.diagnostic), QuasiTypeConstruct.fromTemplate("($a, $b, $c)", bindings))
+    assertEquals(function.left.map(_.diagnostic), QuasiTypeConstruct.fromTemplate("($a, $b) => $c", bindings))
+  }
+
   test("a unique missing binding points at its exact rewritten-hole occurrence") {
     val source = "List[$t]"
     val located = QuasiTypeConstruct.fromTemplateLocated(source, Map.empty).swap.toOption.get
@@ -129,6 +179,50 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     assertEquals(located.location.map(_.span), Some(SourceSpan(0, mapped.generatedSource.length)))
     assertEquals(located.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
     assertEquals(occurrences, Vector(SourceSpan(1, 3), SourceSpan(5, 7)))
+  }
+
+  test("Tuple3 unique and repeated missing bindings retain exact and whole precision") {
+    val unique = QuasiTypeConstruct
+      .fromTemplateLocated("($a, $b, $c)", "a" -> intForm, "b" -> intForm)
+      .swap.toOption.get
+    val repeated = QuasiTypeConstruct
+      .fromTemplateLocated("($t, $t, $u)", "u" -> intForm)
+      .swap.toOption.get
+
+    assertEquals(unique.diagnostic.message, "Missing type-construction binding `c`")
+    assertEquals(unique.location.map(_.precision), Some(DiagnosticPrecision.ExactOccurrence))
+    assertEquals(
+      unique.location.toVector.flatMap(_.origins).collect {
+        case origin: SourceOrigin.RewrittenHole => origin.originalSpan
+      },
+      Vector(SourceSpan(9, 11))
+    )
+    assertEquals(repeated.diagnostic.message, "Missing type-construction binding `t`")
+    assertEquals(repeated.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
+    assertEquals(
+      repeated.location.toVector.flatMap(_.origins).collect {
+        case origin: SourceOrigin.RewrittenHole => origin.originalSpan
+      },
+      Vector(SourceSpan(1, 3), SourceSpan(5, 7), SourceSpan(9, 11))
+    )
+  }
+
+  test("unsupported Tuple4 and Function3 keep whole-source located diagnostics") {
+    val tupleSource = "($a, $b, $c, $d)"
+    val functionSource = "($a, $b, $c) => $r"
+    val tuple = TypePattern.fromSourceLocated(tupleSource).swap.toOption.get
+    val function = TypeTemplate.fromSourceLocated(functionSource).swap.toOption.get
+
+    assert(tuple.diagnostic.message.contains("Unsupported tuple type pattern shape"))
+    assert(!tuple.diagnostic.message.contains("__tqhole_"))
+    assertEquals(tuple.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
+    assertEquals(tuple.location.map(_.span), Some(SourceSpan(0, TypePattern.rewriteSourceMapped(tupleSource).generatedSource.length)))
+    assert(function.diagnostic.message.contains("Unsupported function type construction template shape"))
+    assert(!function.diagnostic.message.contains("__tqconstructhole_"))
+    assertEquals(function.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
+    assertEquals(function.location.map(_.span), Some(SourceSpan(0, TypeTemplate.rewriteSourceMapped(functionSource).generatedSource.length)))
+    assertEquals(TypePattern.fromSource(tupleSource).swap.toOption, Some(tuple.diagnostic))
+    assertEquals(TypeTemplate.fromSource(functionSource).swap.toOption, Some(function.diagnostic))
   }
 
   test("extra bindings have no location and validation failures use the whole template") {

@@ -24,18 +24,15 @@ object TypeNormalForm:
         fromShape(argument).map(argumentForm => STypeApply(STypeIdent("Option"), List(argumentForm)))
       case TypeShape.Apply(constructor, arguments) =>
         Left(TypeQuasiquoteError(s"Unsupported type shape for Phase 15 structural normal form: ${TypeShape.Apply(constructor, arguments).render}"))
-      case TypeShape.Tuple(first :: second :: Nil) =>
-        for
-          firstForm <- fromShape(first)
-          secondForm <- fromShape(second)
-        yield STypeTuple(List(firstForm, secondForm))
+      case TypeShape.Tuple(elements) if elements.size == 2 || elements.size == 3 =>
+        collect(elements.map(fromShape)).map(STypeTuple(_))
       case TypeShape.Tuple(elements) =>
         Left(TypeQuasiquoteError(s"Unsupported tuple type shape for Phase 15 structural normal form: ${TypeShape.Tuple(elements).render}"))
-      case TypeShape.Function(argument :: Nil, result) =>
+      case TypeShape.Function(arguments, result) if arguments.size == 1 || arguments.size == 2 =>
         for
-          argumentForm <- fromShape(argument)
+          argumentForms <- collect(arguments.map(fromShape))
           resultForm <- fromShape(result)
-        yield STypeFunction(List(argumentForm), resultForm)
+        yield STypeFunction(argumentForms, resultForm)
       case TypeShape.Function(arguments, result) =>
         Left(TypeQuasiquoteError(s"Unsupported function type shape for Phase 15 structural normal form: ${TypeShape.Function(arguments, result).render}"))
       case TypeShape.Select(_, _) =>
@@ -63,3 +60,11 @@ object TypeNormalForm:
     name match
       case "Int" | "String" | "Boolean" | "AnyVal" => Right(STypeIdent(name))
       case other => Left(TypeQuasiquoteError(s"Unsupported type identifier for Phase 15 structural normal form: $other"))
+
+  private def collect[A](values: List[Either[TypeQuasiquoteError, A]]): Either[TypeQuasiquoteError, List[A]] =
+    values.foldRight[Either[TypeQuasiquoteError, List[A]]](Right(Nil)) { (value, accumulated) =>
+      for
+        head <- value
+        tail <- accumulated
+      yield head :: tail
+    }

@@ -40,14 +40,14 @@ object TypeTemplate:
       case Left(error) =>
         Left(
           LocatedDiagnostic(
-            TypeQuasiquoteError(error.summary),
+            TypeQuasiquoteError(restoreHoleNames(error.summary, mapped)),
             DiagnosticLocationMapper.fromParseError(error, mapped.originMap)
           )
         )
       case Right(parsed) =>
         fromShapeWithHoles(parsed.shape, mapped.generatedHoleIndex).left.map { error =>
           LocatedDiagnostic(
-            error,
+            TypeQuasiquoteError(restoreHoleNames(error.message, mapped)),
             DiagnosticLocationMapper.wholeSource(
               mapped.originMap,
               DottySourceSpanAdapter.fromTree(parsed.rawTree)
@@ -90,18 +90,15 @@ object TypeTemplate:
         fromShapeUsing(argument, semanticHoleName).map(argumentTemplate => TTApply(TTIdent("Option"), List(argumentTemplate)))
       case TypeShape.Apply(constructor, arguments) =>
         Left(TypeQuasiquoteError(s"Unsupported type construction template shape for Phase 21: ${TypeShape.Apply(constructor, arguments).render}"))
-      case TypeShape.Tuple(first :: second :: Nil) =>
-        for
-          firstTemplate <- fromShapeUsing(first, semanticHoleName)
-          secondTemplate <- fromShapeUsing(second, semanticHoleName)
-        yield TTTuple(List(firstTemplate, secondTemplate))
+      case TypeShape.Tuple(elements) if elements.size == 2 || elements.size == 3 =>
+        collect(elements.map(fromShapeUsing(_, semanticHoleName))).map(TTTuple(_))
       case TypeShape.Tuple(elements) =>
         Left(TypeQuasiquoteError(s"Unsupported tuple type construction template shape for Phase 21: ${TypeShape.Tuple(elements).render}"))
-      case TypeShape.Function(argument :: Nil, result) =>
+      case TypeShape.Function(arguments, result) if arguments.size == 1 || arguments.size == 2 =>
         for
-          argumentTemplate <- fromShapeUsing(argument, semanticHoleName)
+          argumentTemplates <- collect(arguments.map(fromShapeUsing(_, semanticHoleName)))
           resultTemplate <- fromShapeUsing(result, semanticHoleName)
-        yield TTFunction(List(argumentTemplate), resultTemplate)
+        yield TTFunction(argumentTemplates, resultTemplate)
       case TypeShape.Function(arguments, result) =>
         Left(TypeQuasiquoteError(s"Unsupported function type construction template shape for Phase 21: ${TypeShape.Function(arguments, result).render}"))
       case TypeShape.Select(_, _) =>
@@ -138,12 +135,12 @@ object TypeTemplate:
         validateConstructed(argument)
       case TypeNormalForm.STypeApply(constructor, arguments) =>
         Left(TypeQuasiquoteError(s"Unsupported constructed applied type for Phase 21: ${ConstructedType.renderSource(TypeNormalForm.STypeApply(constructor, arguments))}"))
-      case TypeNormalForm.STypeTuple(first :: second :: Nil) =>
-        collect(List(validateConstructed(first), validateConstructed(second))).map(_ => ())
+      case TypeNormalForm.STypeTuple(elements) if elements.size == 2 || elements.size == 3 =>
+        collect(elements.map(validateConstructed)).map(_ => ())
       case TypeNormalForm.STypeTuple(elements) =>
         Left(TypeQuasiquoteError(s"Unsupported constructed tuple type for Phase 21: ${ConstructedType.renderSource(TypeNormalForm.STypeTuple(elements))}"))
-      case TypeNormalForm.STypeFunction(argument :: Nil, result) =>
-        collect(List(validateConstructed(argument), validateConstructed(result))).map(_ => ())
+      case TypeNormalForm.STypeFunction(arguments, result) if arguments.size == 1 || arguments.size == 2 =>
+        collect(arguments.map(validateConstructed) :+ validateConstructed(result)).map(_ => ())
       case TypeNormalForm.STypeFunction(arguments, result) =>
         Left(TypeQuasiquoteError(s"Unsupported constructed function type for Phase 21: ${ConstructedType.renderSource(TypeNormalForm.STypeFunction(arguments, result))}"))
 
@@ -186,3 +183,12 @@ object TypeTemplate:
         tail <- accumulated
       yield head :: tail
     }
+
+  private def restoreHoleNames(message: String, mapped: MappedHoleSource): String =
+    mapped.occurrences
+      .map(occurrence => occurrence.generatedName -> occurrence.name)
+      .distinct
+      .sortBy { (generatedName, _) => -generatedName.length }
+      .foldLeft(message) { case (current, (generatedName, semanticName)) =>
+        current.replace(generatedName, "$" + semanticName)
+      }
