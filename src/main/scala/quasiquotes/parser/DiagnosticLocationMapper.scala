@@ -7,14 +7,26 @@ object DiagnosticLocationMapper:
   def fromParseError(error: ParseError, sourceMap: GeneratedSourceMap): Option[DiagnosticLocation] =
     error.diagnostics.iterator
       .flatMap(_.generatedSpan)
-      .find(span => !span.isEmpty && span.end <= sourceMap.generatedSource.length)
-      .flatMap(DiagnosticLocation.from(sourceMap, _))
+      .flatMap(
+        DiagnosticLocation.fromGeneratedMap(
+          sourceMap,
+          _,
+          DiagnosticPrecision.ExactOccurrence
+        )
+      )
+      .nextOption()
 
-  def wholeGeneratedSource(
+  def wholeSource(
       sourceMap: GeneratedSourceMap,
       preferredSpan: Option[SourceSpan] = None
   ): Option[DiagnosticLocation] =
-    preferredSpan
-      .filter(span => !span.isEmpty && span.end <= sourceMap.generatedSource.length)
-      .orElse(Option.when(sourceMap.generatedSource.nonEmpty)(SourceSpan(0, sourceMap.generatedSource.length)))
-      .flatMap(DiagnosticLocation.from(sourceMap, _))
+    val fullSpan = Option.when(sourceMap.generatedSource.nonEmpty)(SourceSpan(0, sourceMap.generatedSource.length))
+    (preferredSpan.toList ++ fullSpan.toList).iterator
+      .flatMap(
+        DiagnosticLocation.fromGeneratedMap(
+          sourceMap,
+          _,
+          DiagnosticPrecision.WholeSource
+        )
+      )
+      .nextOption()

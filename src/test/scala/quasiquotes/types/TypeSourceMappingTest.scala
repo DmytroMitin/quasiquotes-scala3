@@ -45,3 +45,26 @@ class TypeSourceMappingTest extends munit.FunSuite:
     assert(TypePattern.fromSource("$\u00e9").isLeft)
     assert(TypeTemplate.fromSource("$\u00e9").isLeft)
   }
+
+  test("mapped type-pattern processing retains one parsed result and one source map") {
+    val source = "List[$t]"
+    val result = TypePattern.fromSourceWithMappingLocated(source).toOption.get
+
+    assertEquals(result.pattern, TypePattern.fromSource(source).toOption.get)
+    assertEquals(result.parsedType.source, result.mappedSource.generatedSource)
+    assertEquals(result.mappedSource.occurrences.map(_.name), Vector("t"))
+    assertEquals(
+      result.mappedSource.originMap.generatedSourceId,
+      SourceId.VirtualTypePatternParserInput
+    )
+  }
+
+  test("mapped type-template processing retains the parsing map consumed by construction") {
+    val source = "List[$t]"
+    val result = TypeTemplate.fromSourceWithMappingLocated(source).toOption.get
+    val constructed = QuasiTypeConstruct.fromTemplateLocated(source, "t" -> TypeNormalForm.STypeIdent("Int"))
+
+    assertEquals(result.template, TypeTemplate.fromSource(source).toOption.get)
+    assertEquals(result.mappedSource.occurrences.map(_.name), Vector("t"))
+    assertEquals(constructed.toOption.map(_.source), Some("List[Int]"))
+  }

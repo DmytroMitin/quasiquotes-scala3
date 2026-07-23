@@ -3,7 +3,7 @@ package quasiquotes.matching
 import scala.quoted.Quotes
 
 import quasiquotes.parser.{DiagnosticLocationMapper, TinyTermParser}
-import quasiquotes.source.{DiagnosticLocation, LocatedDiagnostic}
+import quasiquotes.source.{DiagnosticLocation, DiagnosticPrecision, LocatedDiagnostic}
 
 final case class QuasiPattern(
     input: String,
@@ -37,7 +37,13 @@ object QuasiPattern:
               Left(
                 LocatedDiagnostic(
                   failure.error,
-                  failure.generatedSpan.flatMap(DiagnosticLocation.from(mapped.originMap, _))
+                  failure.generatedSpan.flatMap(
+                    DiagnosticLocation.fromGeneratedMap(
+                      mapped.originMap,
+                      _,
+                      DiagnosticPrecision.ExactOccurrence
+                    )
+                  )
                 )
               )
             case Right(compiled) =>

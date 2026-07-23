@@ -21,9 +21,10 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     val located = TypePattern.fromSourceLocated(source).swap.toOption.get
 
     assertEquals(located.diagnostic, TypePattern.fromSource(source).swap.toOption.get)
-    assertEquals(located.location.map(_.generatedSourceId), Some(SourceId.VirtualTypePatternParserInput))
-    assertEquals(located.location.map(_.generatedSpan.end), Some(source.length))
-    assert(located.location.exists(location => location.generatedSpan.start > 0 && !location.generatedSpan.isEmpty))
+    assertEquals(located.location.map(_.sourceId), Some(SourceId.VirtualTypePatternParserInput))
+    assertEquals(located.location.map(_.span.end), Some(source.length))
+    assertEquals(located.location.map(_.precision), Some(DiagnosticPrecision.ExactOccurrence))
+    assert(located.location.exists(location => location.span.start > 0 && !location.span.isEmpty))
   }
 
   test("type-pattern shape failures keep exact messages and conservative whole-pattern locations") {
@@ -33,7 +34,8 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
       selectedLocated.diagnostic.message,
       "Selected type syntax is not supported for Phase 18 type-hole matching; `scala.Int` vs `Int` remains an explicit TODO."
     )
-    assertEquals(selectedLocated.location.map(_.generatedSpan), Some(SourceSpan(0, selected.length)))
+    assertEquals(selectedLocated.location.map(_.span), Some(SourceSpan(0, selected.length)))
+    assertEquals(selectedLocated.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
 
     val repeatedSource = "($t, $t, $t)"
     val mapped = TypePattern.rewriteSourceMapped(repeatedSource)
@@ -41,7 +43,8 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     val repeatedOrigins = repeatedLocated.location.toVector.flatMap(_.origins).collect {
       case origin: SourceOrigin.RewrittenHole => origin.originalSpan
     }
-    assertEquals(repeatedLocated.location.map(_.generatedSpan), Some(SourceSpan(0, mapped.generatedSource.length)))
+    assertEquals(repeatedLocated.location.map(_.span), Some(SourceSpan(0, mapped.generatedSource.length)))
+    assertEquals(repeatedLocated.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
     assertEquals(repeatedOrigins, Vector(SourceSpan(1, 3), SourceSpan(5, 7), SourceSpan(9, 11)))
     assert(repeatedLocated.diagnostic.message.contains("Unsupported tuple type pattern shape"))
   }
@@ -54,8 +57,9 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
       case origin: SourceOrigin.RewrittenHole => origin
     }
 
-    assertEquals(located.location.map(_.generatedSourceId), Some(SourceId.VirtualTypeTemplateParserInput))
-    assertEquals(located.location.map(_.generatedSpan), Some(SourceSpan(0, mapped.generatedSource.length)))
+    assertEquals(located.location.map(_.sourceId), Some(SourceId.VirtualTypeTemplateParserInput))
+    assertEquals(located.location.map(_.span), Some(SourceSpan(0, mapped.generatedSource.length)))
+    assertEquals(located.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
     assertEquals(rewritten.map(_.role).distinct, Vector(HoleRole.TypeTemplate))
     assert(located.diagnostic.message.contains("Unsupported tuple type construction template shape"))
     assertEquals(TypeTemplate.fromSource(source).swap.toOption, Some(located.diagnostic))
@@ -64,8 +68,9 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
   test("type-template parse diagnostics and selected-shape messages remain compatible") {
     val parseSource = "Int)"
     val parsed = TypeTemplate.fromSourceLocated(parseSource).swap.toOption.get
-    assertEquals(parsed.location.map(_.generatedSourceId), Some(SourceId.VirtualTypeTemplateParserInput))
-    assertEquals(parsed.location.map(_.generatedSpan.end), Some(parseSource.length))
+    assertEquals(parsed.location.map(_.sourceId), Some(SourceId.VirtualTypeTemplateParserInput))
+    assertEquals(parsed.location.map(_.span.end), Some(parseSource.length))
+    assertEquals(parsed.location.map(_.precision), Some(DiagnosticPrecision.ExactOccurrence))
     assertEquals(TypeTemplate.fromSourceLocated("Int String").swap.toOption.flatMap(_.location), None)
 
     val selected = TypeTemplate.fromSourceLocated("scala.Int").swap.toOption.get
@@ -73,7 +78,8 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
       selected.diagnostic.message,
       "Selected type syntax is not supported for Phase 21 type construction; `scala.Int` vs `Int` remains an explicit TODO."
     )
-    assertEquals(selected.location.map(_.generatedSpan), Some(SourceSpan(0, "scala.Int".length)))
+    assertEquals(selected.location.map(_.span), Some(SourceSpan(0, "scala.Int".length)))
+    assertEquals(selected.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
   }
 
   test("higher-level located type patterns preserve hole and no-hole construction") {
@@ -104,7 +110,8 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     val located = QuasiTypeConstruct.fromTemplateLocated(source, Map.empty).swap.toOption.get
 
     assertEquals(located.diagnostic.message, "Missing type-construction binding `t`")
-    assertEquals(located.location.map(_.generatedSourceId), Some(SourceId.VirtualTypeTemplateParserInput))
+    assertEquals(located.location.map(_.sourceId), Some(SourceId.VirtualTypeTemplateParserInput))
+    assertEquals(located.location.map(_.precision), Some(DiagnosticPrecision.ExactOccurrence))
     assertEquals(located.location.map(_.origins), Some(Vector(
       SourceOrigin.RewrittenHole(SourceId.TypeTemplate, SourceSpan(5, 7), "t", HoleRole.TypeTemplate)
     )))
@@ -119,7 +126,8 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
       case origin: SourceOrigin.RewrittenHole => origin.originalSpan
     }
 
-    assertEquals(located.location.map(_.generatedSpan), Some(SourceSpan(0, mapped.generatedSource.length)))
+    assertEquals(located.location.map(_.span), Some(SourceSpan(0, mapped.generatedSource.length)))
+    assertEquals(located.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
     assertEquals(occurrences, Vector(SourceSpan(1, 3), SourceSpan(5, 7)))
   }
 
@@ -139,7 +147,8 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
       "t" -> TypeNormalForm.STypeIdent("AnyVal")
     ).swap.toOption.get
     assertEquals(validation.diagnostic.message, "Unsupported constructed type identifier for Phase 21: AnyVal")
-    assertEquals(validation.location.map(_.generatedSpan), Some(SourceSpan(0, mapped.generatedSource.length)))
+    assertEquals(validation.location.map(_.span), Some(SourceSpan(0, mapped.generatedSource.length)))
+    assertEquals(validation.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
   }
 
   test("prefix-like literals use ordinary identifier validation without spurious locations") {

@@ -11,7 +11,10 @@ final case class QuasiTypeRepr(
 
 object QuasiTypeRepr:
   def fromSource(source: String)(using Quotes): Either[TypeQuasiquoteError, QuasiTypeRepr] =
-    import quotes.reflect.*
     TinyTypeParser.parse(source).left.map(error => TypeQuasiquoteError(error.summary)).flatMap { parsed =>
-      TypeReprLowerer.lower(parsed.shape).map(repr => QuasiTypeRepr(source, parsed.shape, repr.show))
+      fromShape(source, parsed.shape)
     }
+
+  private[types] def fromShape(source: String, shape: TypeShape)(using Quotes): Either[TypeQuasiquoteError, QuasiTypeRepr] =
+    import quotes.reflect.*
+    TypeReprLowerer.lower(shape).map(repr => QuasiTypeRepr(source, shape, repr.show))

@@ -6,6 +6,12 @@ import quasiquotes.source.*
 sealed trait TypePattern derives CanEqual:
   final def containsHole: Boolean = TypePattern.containsHole(this)
 
+private[types] final case class MappedTypePattern(
+    pattern: TypePattern,
+    mappedSource: MappedHoleSource,
+    parsedType: ParsedType
+)
+
 object TypePattern:
   final case class TPHole(name: String) extends TypePattern
   final case class TPIdent(name: String) extends TypePattern
@@ -19,7 +25,17 @@ object TypePattern:
     fromSourceLocated(source).left.map(_.diagnostic)
 
   def fromSourceLocated(source: String): Either[LocatedDiagnostic[TypeQuasiquoteError], TypePattern] =
+    fromSourceWithMappingLocated(source).map(_.pattern)
+
+  private[types] def fromSourceWithMappingLocated(
+      source: String
+  ): Either[LocatedDiagnostic[TypeQuasiquoteError], MappedTypePattern] =
     val mapped = rewriteSourceMapped(source)
+    fromMappedSourceLocated(mapped)
+
+  private def fromMappedSourceLocated(
+      mapped: MappedHoleSource
+  ): Either[LocatedDiagnostic[TypeQuasiquoteError], MappedTypePattern] =
     TinyTypeParser.parse(mapped.generatedSource) match
       case Left(error) =>
         Left(
@@ -32,12 +48,12 @@ object TypePattern:
         fromShapeWithHoles(parsed.shape, mapped.generatedHoleIndex).left.map { error =>
           LocatedDiagnostic(
             error,
-            DiagnosticLocationMapper.wholeGeneratedSource(
+            DiagnosticLocationMapper.wholeSource(
               mapped.originMap,
               DottySourceSpanAdapter.fromTree(parsed.rawTree)
             )
           )
-        }
+        }.map(MappedTypePattern(_, mapped, parsed))
 
   def rewriteSourceMapped(source: String): MappedHoleSource =
     HoleSourceRewriter.rewrite(

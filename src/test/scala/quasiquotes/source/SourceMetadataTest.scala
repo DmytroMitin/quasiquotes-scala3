@@ -82,13 +82,90 @@ class SourceMetadataTest extends munit.FunSuite:
     assertEquals(map.generatedSpansFor(_ == holeOrigin), Vector(SourceSpan(1, 3), SourceSpan(4, 6)))
   }
 
-  test("located diagnostics combine a neutral generated span with mapped origins") {
+  test("generated-map locations use truthful coordinates explicit precision and mapped origins") {
     val origin = SourceOrigin.OriginalText(originalId, SourceSpan(2, 4))
     val map = GeneratedSourceMap("xy", generatedId, Vector(GeneratedSegment(SourceSpan(0, 2), origin)))
-    val location = DiagnosticLocation.from(map, SourceSpan(0, 1))
+    val location = DiagnosticLocation.fromGeneratedMap(
+      map,
+      SourceSpan(0, 1),
+      DiagnosticPrecision.ExactOccurrence
+    )
 
-    assertEquals(location.map(_.generatedSourceId), Some(generatedId))
+    assertEquals(location.map(_.sourceId), Some(generatedId))
+    assertEquals(location.map(_.span), Some(SourceSpan(0, 1)))
     assertEquals(location.map(_.origins), Some(Vector(origin)))
+    assertEquals(location.map(_.precision), Some(DiagnosticPrecision.ExactOccurrence))
     assertEquals(LocatedDiagnostic("problem", location).diagnostic, "problem")
-    assertEquals(DiagnosticLocation.from(map, SourceSpan(1, 3)), None)
+    assertEquals(
+      DiagnosticLocation.fromGeneratedMap(map, SourceSpan(1, 3), DiagnosticPrecision.ExactOccurrence),
+      None
+    )
+  }
+
+  test("direct locations keep one coherent original source identity and origin") {
+    val span = SourceSpan(2, 4)
+    val location = DiagnosticLocation.direct(
+      originalId,
+      span,
+      DiagnosticPrecision.ExactOccurrence
+    )
+
+    assertEquals(
+      location,
+      Some(
+        DiagnosticLocation(
+          originalId,
+          span,
+          Vector(SourceOrigin.OriginalText(originalId, span)),
+          DiagnosticPrecision.ExactOccurrence
+        )
+      )
+    )
+  }
+
+  test("location helpers reject empty out-of-range and originless spans") {
+    val origin = SourceOrigin.OriginalText(originalId, SourceSpan(0, 1))
+    val map = GeneratedSourceMap(
+      "abc",
+      generatedId,
+      Vector(GeneratedSegment(SourceSpan(0, 1), origin))
+    )
+
+    assertEquals(
+      DiagnosticLocation.fromGeneratedMap(map, SourceSpan(0, 0), DiagnosticPrecision.ExactOccurrence),
+      None
+    )
+    assertEquals(
+      DiagnosticLocation.fromGeneratedMap(map, SourceSpan(2, 4), DiagnosticPrecision.ExactOccurrence),
+      None
+    )
+    assertEquals(
+      DiagnosticLocation.fromGeneratedMap(map, SourceSpan(1, 2), DiagnosticPrecision.ExactOccurrence),
+      None
+    )
+    assertEquals(
+      DiagnosticLocation.direct(originalId, SourceSpan(1, 1), DiagnosticPrecision.ExactOccurrence),
+      None
+    )
+  }
+
+  test("raw location construction enforces present-location invariants") {
+    val origin = SourceOrigin.OriginalText(originalId, SourceSpan(0, 1))
+
+    intercept[IllegalArgumentException] {
+      DiagnosticLocation(
+        generatedId,
+        SourceSpan(0, 0),
+        Vector(origin),
+        DiagnosticPrecision.ExactOccurrence
+      )
+    }
+    intercept[IllegalArgumentException] {
+      DiagnosticLocation(
+        generatedId,
+        SourceSpan(0, 1),
+        Vector.empty,
+        DiagnosticPrecision.WholeSource
+      )
+    }
   }

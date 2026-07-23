@@ -44,9 +44,10 @@ object QuasiTypePattern:
     patternLocated(source).left.map(_.diagnostic)
 
   def patternLocated(source: String)(using Quotes): Either[LocatedDiagnostic[TypeQuasiquoteError], QuasiTypePattern] =
-    val mapped = TypePattern.rewriteSourceMapped(source)
-    TypePattern.fromSourceLocated(source).flatMap { typePattern =>
-      expectedTypeRepr(source, typePattern)
+    TypePattern.fromSourceWithMappingLocated(source).flatMap { parsed =>
+      val typePattern = parsed.pattern
+      val mapped = parsed.mappedSource
+      expectedTypeRepr(source, parsed)
         .left.map(locatedWhole(_, mapped))
         .flatMap { expected =>
           val expectedNormalForm = expected match
@@ -78,11 +79,15 @@ object QuasiTypePattern:
       targetRepr <- TypeReprLowerer.lower(targetShape)
     yield pattern.exactRenderedTypeReprMatches(targetRepr)
 
-  private def expectedTypeRepr(source: String, typePattern: TypePattern)(using Quotes): Either[TypeQuasiquoteError, Option[QuasiTypeRepr]] =
-    if typePattern.containsHole then Right(None) else QuasiTypeRepr.fromSource(source).map(Some(_))
+  private def expectedTypeRepr(
+      source: String,
+      parsed: MappedTypePattern
+  )(using Quotes): Either[TypeQuasiquoteError, Option[QuasiTypeRepr]] =
+    if parsed.pattern.containsHole then Right(None)
+    else QuasiTypeRepr.fromShape(source, parsed.parsedType.shape).map(Some(_))
 
   private def locatedWhole(
       error: TypeQuasiquoteError,
       mapped: MappedHoleSource
   ): LocatedDiagnostic[TypeQuasiquoteError] =
-    LocatedDiagnostic(error, DiagnosticLocationMapper.wholeGeneratedSource(mapped.originMap))
+    LocatedDiagnostic(error, DiagnosticLocationMapper.wholeSource(mapped.originMap))

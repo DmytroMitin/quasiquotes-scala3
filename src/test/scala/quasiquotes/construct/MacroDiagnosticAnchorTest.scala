@@ -7,7 +7,14 @@ class MacroDiagnosticAnchorTest extends munit.FunSuite:
   private val templateId = SourceId.TermConstructionTemplate
 
   private def location(origins: Vector[SourceOrigin]): Option[DiagnosticLocation] =
-    Some(DiagnosticLocation(generatedId, SourceSpan(0, 1), origins))
+    Some(
+      DiagnosticLocation(
+        generatedId,
+        SourceSpan(0, 1),
+        origins,
+        DiagnosticPrecision.ExactOccurrence
+      )
+    )
 
   test("one term interpolation selects its argument index") {
     assertEquals(
@@ -16,14 +23,13 @@ class MacroDiagnosticAnchorTest extends munit.FunSuite:
     )
   }
 
-  test("constructed-type interpolation literal absence and empty origins select macro expansion") {
+  test("constructed-type interpolation literal and location absence select macro expansion") {
     val constructed = SourceOrigin.InterpolationArgument(templateId, 0, InterpolationCategory.ConstructedTypeSplice)
     val literal = SourceOrigin.LiteralPart(templateId, 0, SourceSpan(0, 1))
 
     assertEquals(MacroDiagnosticAnchorSelector.select(location(Vector(constructed))), MacroDiagnosticAnchor.MacroExpansion)
     assertEquals(MacroDiagnosticAnchorSelector.select(location(Vector(literal))), MacroDiagnosticAnchor.MacroExpansion)
     assertEquals(MacroDiagnosticAnchorSelector.select(None), MacroDiagnosticAnchor.MacroExpansion)
-    assertEquals(MacroDiagnosticAnchorSelector.select(location(Vector.empty)), MacroDiagnosticAnchor.MacroExpansion)
   }
 
   test("literal plus term and two different term indices are ambiguous") {

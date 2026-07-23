@@ -77,7 +77,7 @@ class CollisionSafePatternTest extends munit.FunSuite:
   test("invalid-hole diagnostics and legacy projections remain unchanged") {
     val invalid = PatternSource.synthesizeMappedLocated("foo($1)").swap.toOption.get
     assertEquals(invalid.diagnostic.message, "Invalid pattern hole name: $1")
-    assertEquals(invalid.location.map(_.generatedSpan), Some(SourceSpan(4, 6)))
+    assertEquals(invalid.location.map(_.span), Some(SourceSpan(4, 6)))
 
     val source = "(__qqhole_x, $x)"
     assertEquals(QuasiPattern.termLocated(source).left.map(_.diagnostic), QuasiPattern.term(source))

@@ -48,7 +48,7 @@ object TypeTemplate:
         fromShapeWithHoles(parsed.shape, mapped.generatedHoleIndex).left.map { error =>
           LocatedDiagnostic(
             error,
-            DiagnosticLocationMapper.wholeGeneratedSource(
+            DiagnosticLocationMapper.wholeSource(
               mapped.originMap,
               DottySourceSpanAdapter.fromTree(parsed.rawTree)
             )

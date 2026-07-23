@@ -41,11 +41,12 @@ final case class MappedHoleSource(
   lazy val generatedHoleIndex: GeneratedHoleIndex = GeneratedHoleIndex.fromOccurrences(occurrences)
 
 object HoleSourceRewriter:
-  private final case class ScannedHole(name: String, start: Int, end: Int)
+  private[quasiquotes] final case class ScannedHole(name: String, start: Int, end: Int)
 
-  private final case class SourceScan(
+  private[quasiquotes] final case class SourceScan(
       literalIdentifiers: Set[String],
-      holes: Vector[ScannedHole]
+      holes: Vector[ScannedHole],
+      invalidDollarSpans: Vector[SourceSpan]
   )
 
   def rewrite(
@@ -56,7 +57,24 @@ object HoleSourceRewriter:
       generatedSourceId: SourceId,
       allowUnicodeIdentifiers: Boolean = false
   ): MappedHoleSource =
-    val scan = scanSource(source, allowUnicodeIdentifiers)
+    val sourceScan = scan(source, allowUnicodeIdentifiers)
+    rewriteScanned(
+      source,
+      sourceScan,
+      generatedPrefix,
+      role,
+      originalSourceId,
+      generatedSourceId
+    )
+
+  private[quasiquotes] def rewriteScanned(
+      source: String,
+      scan: SourceScan,
+      generatedPrefix: String,
+      role: HoleRole,
+      originalSourceId: SourceId,
+      generatedSourceId: SourceId
+  ): MappedHoleSource =
     val generatedNames = assignGeneratedNames(scan, generatedPrefix)
     val builder = new StringBuilder
     val segments = mutable.ArrayBuffer.empty[GeneratedSegment]
@@ -116,9 +134,10 @@ object HoleSourceRewriter:
     usedNames += candidate
     candidate
 
-  private def scanSource(source: String, allowUnicodeIdentifiers: Boolean): SourceScan =
+  private[quasiquotes] def scan(source: String, allowUnicodeIdentifiers: Boolean): SourceScan =
     val literalIdentifiers = mutable.Set.empty[String]
     val holes = mutable.ArrayBuffer.empty[ScannedHole]
+    val invalidDollarSpans = mutable.ArrayBuffer.empty[SourceSpan]
     var index = 0
 
     while index < source.length do
@@ -147,6 +166,9 @@ object HoleSourceRewriter:
         while end < source.length && isIdentifierPart(source.charAt(end), allowUnicodeIdentifiers) do end += 1
         holes += ScannedHole(source.substring(nameStart, end), index, end)
         index = end
+      else if current == '$' then
+        invalidDollarSpans += SourceSpan(index, math.min(index + 2, source.length))
+        index += 1
       else if isIdentifierStart(current, allowUnicodeIdentifiers) then
         val start = index
         index += 1
@@ -155,7 +177,7 @@ object HoleSourceRewriter:
       else
         index += 1
 
-    SourceScan(literalIdentifiers.toSet, holes.toVector)
+    SourceScan(literalIdentifiers.toSet, holes.toVector, invalidDollarSpans.toVector)
 
   private def skipQuoted(source: String, start: Int, delimiter: Char): Int =
     var index = start + 1

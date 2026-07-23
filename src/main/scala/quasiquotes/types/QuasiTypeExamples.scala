@@ -215,7 +215,7 @@ object QuasiTypeExamples:
         s"success=true legacySuccess=${legacy.isRight} expected=${pattern.expected.isDefined} holes=${pattern.typePattern.containsHole}"
       case Left(located) =>
         val location = located.location.fold("none") { value =>
-          s"${value.generatedSourceId.value}:${value.generatedSpan.start}-${value.generatedSpan.end}:origins=${value.origins.size}"
+          s"${value.sourceId.value}:${value.span.start}-${value.span.end}:origins=${value.origins.size}"
         }
         s"error=true legacySame=${legacy.left.exists(_.message == located.diagnostic.message)} location=$location message=${located.diagnostic.message}"
     Expr(summary)

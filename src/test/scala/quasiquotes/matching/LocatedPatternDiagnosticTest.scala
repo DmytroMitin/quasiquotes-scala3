@@ -8,13 +8,14 @@ class LocatedPatternDiagnosticTest extends munit.FunSuite:
       case (source, expectedSpan) =>
         val located = PatternSource.synthesizeMappedLocated(source).swap.toOption.get
         assertEquals(located.diagnostic, PatternError.InvalidHoleName(source))
-        assertEquals(located.location.map(_.generatedSourceId), Some(SourceId.TermPattern))
-        assertEquals(located.location.map(_.generatedSpan), Some(expectedSpan))
+        assertEquals(located.location.map(_.sourceId), Some(SourceId.TermPattern))
+        assertEquals(located.location.map(_.span), Some(expectedSpan))
+        assertEquals(located.location.map(_.precision), Some(DiagnosticPrecision.ExactOccurrence))
         assertEquals(
           located.location.map(_.origins),
           Some(Vector(SourceOrigin.OriginalText(SourceId.TermPattern, expectedSpan)))
         )
-        assert(located.location.forall(_.generatedSpan.end <= source.length))
+        assert(located.location.forall(_.span.end <= source.length))
     }
   }
 
@@ -31,9 +32,10 @@ class LocatedPatternDiagnosticTest extends munit.FunSuite:
     val located = QuasiPattern.termLocated(source).swap.toOption.get
 
     assert(located.diagnostic.isInstanceOf[PatternError.ParseFailure])
-    assertEquals(located.location.map(_.generatedSourceId), Some(SourceId.VirtualTermPatternParserInput))
-    assertEquals(located.location.map(_.generatedSpan.end), Some(source.length))
-    assert(located.location.exists(location => location.generatedSpan.start > 0 && !location.generatedSpan.isEmpty))
+    assertEquals(located.location.map(_.sourceId), Some(SourceId.VirtualTermPatternParserInput))
+    assertEquals(located.location.map(_.span.end), Some(source.length))
+    assertEquals(located.location.map(_.precision), Some(DiagnosticPrecision.ExactOccurrence))
+    assert(located.location.exists(location => location.span.start > 0 && !location.span.isEmpty))
     assertEquals(
       located.location.map(_.origins),
       Some(Vector(SourceOrigin.OriginalText(SourceId.TermPattern, SourceSpan(0, source.length))))
@@ -45,9 +47,10 @@ class LocatedPatternDiagnosticTest extends munit.FunSuite:
   test("located compiler failures retain the deepest offending tree span") {
     val source = "foo((x => x))"
     val located = QuasiPattern.termLocated(source).swap.toOption.get
-    val span = located.location.map(_.generatedSpan).get
+    val span = located.location.map(_.span).get
 
     assert(located.diagnostic.isInstanceOf[PatternError.UnsupportedPatternShape])
+    assertEquals(located.location.map(_.precision), Some(DiagnosticPrecision.ExactOccurrence))
     assert(source.slice(span.start, span.end).contains("x => x"))
     assert(span.length < source.length)
     assertEquals(QuasiPattern.term(source).swap.toOption, Some(located.diagnostic))
@@ -61,7 +64,7 @@ class LocatedPatternDiagnosticTest extends munit.FunSuite:
     }
 
     assertEquals(repeated, Vector(SourceSpan(1, 3), SourceSpan(5, 7)))
-    assertEquals(located.location.map(_.generatedSourceId), Some(SourceId.VirtualTermPatternParserInput))
+    assertEquals(located.location.map(_.sourceId), Some(SourceId.VirtualTermPatternParserInput))
   }
 
   test("located integration preserves unsupported binder, control-flow, and prefix-collision boundaries") {
@@ -73,4 +76,41 @@ class LocatedPatternDiagnosticTest extends munit.FunSuite:
       )
     }
     assert(QuasiPattern.termLocated("__qqhole_x").isRight)
+  }
+
+  test("quoted and commented dollar text is literal under the shared lexical policy") {
+    assertEquals(
+      QuasiPattern.termOrThrow("\"$1\"").pattern,
+      TermPattern.Literal("\"$1\"")
+    )
+    assertEquals(
+      QuasiPattern.termOrThrow("\"$x\"").pattern,
+      TermPattern.Literal("\"$x\"")
+    )
+    assertEquals(
+      QuasiPattern.termOrThrow("'$'").pattern,
+      TermPattern.Literal("$")
+    )
+    assertEquals(
+      QuasiPattern.termOrThrow("foo /* $1 */").pattern,
+      TermPattern.Identifier("foo")
+    )
+    assertEquals(
+      QuasiPattern.termOrThrow("foo /* outer /* $1 */ inner */").pattern,
+      TermPattern.Identifier("foo")
+    )
+    assertEquals(
+      QuasiPattern.termOrThrow("foo // $-\n").pattern,
+      TermPattern.Identifier("foo")
+    )
+  }
+
+  test("quoted valid hole spelling is not semantic while code holes remain semantic") {
+    val quoted = PatternSource.synthesizeMapped("\"$x\"").toOption.get
+    val code = PatternSource.synthesizeMapped("$x").toOption.get
+
+    assertEquals(quoted.occurrences, Vector.empty)
+    assertEquals(quoted.patternSource.holes, Vector.empty)
+    assertEquals(code.occurrences.map(_.name), Vector("x"))
+    assertEquals(QuasiPattern.termOrThrow("$x").pattern, TermPattern.Hole("x"))
   }

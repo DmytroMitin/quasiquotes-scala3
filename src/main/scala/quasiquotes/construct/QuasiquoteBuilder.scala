@@ -2,8 +2,8 @@ package quasiquotes.construct
 
 import scala.quoted.Quotes
 
-import quasiquotes.parser.TinyTermParser
-import quasiquotes.source.DiagnosticLocation
+import quasiquotes.parser.{DiagnosticLocationMapper, TinyTermParser}
+import quasiquotes.source.{DiagnosticLocation, DiagnosticPrecision}
 
 object QuasiquoteBuilder:
   def build(using q: Quotes)(
@@ -26,15 +26,18 @@ object QuasiquoteBuilder:
       case Right(synthesized) =>
         TinyTermParser.parse(synthesized.source) match
           case Left(parseError) =>
-            val generatedSpan = parseError.diagnostics.iterator
-              .flatMap(_.generatedSpan)
-              .find(!_.isEmpty)
-            val location = generatedSpan.flatMap(DiagnosticLocation.from(synthesized.originMap, _))
+            val location = DiagnosticLocationMapper.fromParseError(parseError, synthesized.originMap)
             Left(QuasiquoteBuildFailure(QuasiquoteError.ParseFailure(parseError), location))
           case Right(parsed) =>
             ParsedTermLowerer
               .lowerLocated(parsed.rawTree, synthesized.bindings, synthesized.literalCategorizedNames)
               .left.map { failure =>
-                val location = failure.generatedSpan.flatMap(DiagnosticLocation.from(synthesized.originMap, _))
+                val location = failure.generatedSpan.flatMap(
+                  DiagnosticLocation.fromGeneratedMap(
+                    synthesized.originMap,
+                    _,
+                    DiagnosticPrecision.ExactOccurrence
+                  )
+                )
                 QuasiquoteBuildFailure(failure.error, location)
               }

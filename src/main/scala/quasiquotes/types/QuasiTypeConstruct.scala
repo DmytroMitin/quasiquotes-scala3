@@ -2,7 +2,7 @@ package quasiquotes.types
 
 import scala.quoted.*
 import quasiquotes.parser.DiagnosticLocationMapper
-import quasiquotes.source.{DiagnosticLocation, LocatedDiagnostic, MappedHoleSource}
+import quasiquotes.source.{DiagnosticLocation, DiagnosticPrecision, LocatedDiagnostic, MappedHoleSource}
 
 object QuasiTypeConstruct:
   def fromTemplate(
@@ -27,7 +27,7 @@ object QuasiTypeConstruct:
             }
             .flatMap { normalForm =>
               TypeTemplate.validateConstructed(normalForm)
-                .left.map(error => LocatedDiagnostic(error, DiagnosticLocationMapper.wholeGeneratedSource(mapped.originMap)))
+                .left.map(error => LocatedDiagnostic(error, DiagnosticLocationMapper.wholeSource(mapped.originMap)))
                 .map(_ => ConstructedType(normalForm))
             }
         }
@@ -62,9 +62,13 @@ object QuasiTypeConstruct:
     TypeTemplate.firstMissingHole(template, bindings).flatMap { missingName =>
       mapped.occurrences.filter(_.name == missingName) match
         case Vector(occurrence) =>
-          DiagnosticLocation.from(mapped.originMap, occurrence.generatedSpan)
+          DiagnosticLocation.fromGeneratedMap(
+            mapped.originMap,
+            occurrence.generatedSpan,
+            DiagnosticPrecision.ExactOccurrence
+          )
         case occurrences if occurrences.nonEmpty =>
-          DiagnosticLocationMapper.wholeGeneratedSource(mapped.originMap)
+          DiagnosticLocationMapper.wholeSource(mapped.originMap)
         case _ =>
           None
     }

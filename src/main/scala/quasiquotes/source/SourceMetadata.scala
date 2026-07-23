@@ -100,20 +100,44 @@ final case class GeneratedSourceMap(
   def generatedSpansFor(predicate: SourceOrigin => Boolean): Vector[SourceSpan] =
     segments.collect { case segment if predicate(segment.origin) => segment.generatedSpan }
 
+enum DiagnosticPrecision derives CanEqual:
+  case ExactOccurrence
+  case WholeSource
+
 final case class DiagnosticLocation(
-    generatedSourceId: SourceId,
-    generatedSpan: SourceSpan,
-    origins: Vector[SourceOrigin]
-) derives CanEqual
+    sourceId: SourceId,
+    span: SourceSpan,
+    origins: Vector[SourceOrigin],
+    precision: DiagnosticPrecision
+) derives CanEqual:
+  require(!span.isEmpty, "DiagnosticLocation span must not be empty")
+  require(origins.nonEmpty, "DiagnosticLocation origins must not be empty")
 
 object DiagnosticLocation:
-  def from(sourceMap: GeneratedSourceMap, generatedSpan: SourceSpan): Option[DiagnosticLocation] =
-    Option.when(generatedSpan.end <= sourceMap.generatedSource.length) {
+  def direct(
+      sourceId: SourceId,
+      span: SourceSpan,
+      precision: DiagnosticPrecision
+  ): Option[DiagnosticLocation] =
+    Option.when(!span.isEmpty) {
       DiagnosticLocation(
-        sourceMap.generatedSourceId,
-        generatedSpan,
-        sourceMap.originsFor(generatedSpan).map(_.origin)
+        sourceId,
+        span,
+        Vector(SourceOrigin.OriginalText(sourceId, span)),
+        precision
       )
     }
+
+  def fromGeneratedMap(
+      sourceMap: GeneratedSourceMap,
+      span: SourceSpan,
+      precision: DiagnosticPrecision
+  ): Option[DiagnosticLocation] =
+    Option
+      .when(!span.isEmpty && span.end <= sourceMap.generatedSource.length) {
+        sourceMap.originsFor(span).map(_.origin)
+      }
+      .filter(_.nonEmpty)
+      .map(origins => DiagnosticLocation(sourceMap.generatedSourceId, span, origins, precision))
 
 final case class LocatedDiagnostic[+E](diagnostic: E, location: Option[DiagnosticLocation])
