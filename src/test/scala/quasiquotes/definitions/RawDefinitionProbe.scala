@@ -1,11 +1,11 @@
 package quasiquotes.definitions
 
-import dotty.tools.dotc.ast.untpd
-import dotty.tools.dotc.core.Contexts.{Context, ContextBase}
-import dotty.tools.dotc.core.Flags
-import dotty.tools.dotc.parsing.Parsers.Parser
-import dotty.tools.dotc.reporting.StoreReporter
-import dotty.tools.dotc.util.SourceFile
+import _root_.dotty.tools.dotc.ast.untpd
+import _root_.dotty.tools.dotc.core.Contexts.{Context, ContextBase}
+import _root_.dotty.tools.dotc.core.Flags
+import _root_.dotty.tools.dotc.parsing.Parsers.Parser
+import _root_.dotty.tools.dotc.reporting.StoreReporter
+import _root_.dotty.tools.dotc.util.SourceFile
 
 import quasiquotes.parser.DottySourceSpanAdapter
 import quasiquotes.source.SourceSpan

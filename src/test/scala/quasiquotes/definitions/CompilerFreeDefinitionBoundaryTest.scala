@@ -38,3 +38,23 @@ class CompilerFreeDefinitionBoundaryTest extends munit.FunSuite:
     assert(metadataSource.contains("final class DefinitionComponentSpans private ("))
     assert(metadataSource.contains("final class LocatedDefinitionShape private ("))
   }
+
+  test("definition compiler coupling is confined to the exact-version dotty package") {
+    val root = Path.of("src", "main", "scala", "quasiquotes", "definitions")
+    val stream = Files.walk(root)
+    try
+      val compilerFreeSources =
+        stream
+          .filter(path => path.toString.endsWith(".scala"))
+          .filter(path => !path.startsWith(root.resolve("dotty")))
+          .toList
+
+      compilerFreeSources.forEach { path =>
+        val source = Files.readString(path, StandardCharsets.UTF_8)
+        assert(!source.contains("dotty."), clues(path))
+        assert(!source.contains("scala.quoted"), clues(path))
+        assert(!source.contains("quotes.reflect"), clues(path))
+        assert(!source.contains("macroparadise"), clues(path))
+      }
+    finally stream.close()
+  }
