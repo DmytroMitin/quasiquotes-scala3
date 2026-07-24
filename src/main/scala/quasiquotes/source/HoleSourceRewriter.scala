@@ -67,10 +67,12 @@ object HoleSourceRewriter:
       generatedSourceId
     )
 
-  /** Restores semantic `$hole` spellings in user-facing text without changing
-    * prefix-, suffix-, or substring-sharing literal identifiers.
+  /** Restores semantic `$hole` spellings for exact identifier tokens in
+    * user-facing diagnostic text without changing prefix-, suffix-, or
+    * substring-sharing identifiers.
     *
-    * This deliberately uses the same identifier policy as source scanning.
+    * Diagnostic quote and comment characters are formatting, not Scala lexical
+    * state. This is deliberately not a source lexer.
     */
   private[quasiquotes] def restoreSemanticHoleIdentifiers(
       text: String,

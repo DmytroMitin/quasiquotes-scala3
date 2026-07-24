@@ -107,6 +107,28 @@ class HoleSourceRewriterCollisionTest extends munit.FunSuite:
     )
   }
 
+  test("diagnostic restoration is exact identifier-token restoration, not source-lexical scanning") {
+    val mapped = rewrite("$x")
+    val generated = mapped.occurrences.head.generatedName
+    val diagnostic =
+      s"""'$generated'
+         |"$generated"
+         |/* $generated */
+         |prefix${generated}suffix
+         |${generated}_tail
+         |$generated""".stripMargin
+
+    assertEquals(
+      HoleSourceRewriter.restoreSemanticHoleIdentifiers(diagnostic, mapped, allowUnicodeIdentifiers = true),
+      """'$x'
+        |"$x"
+        |/* $x */
+        |prefix__testhole_xsuffix
+        |__testhole_x_tail
+        |$x""".stripMargin
+    )
+  }
+
   test("term, type-pattern, and type-template rewrites retain isolated roles and identities") {
     val source = "(__qqhole_x, __tqhole_x, __tqconstructhole_x, $x)"
     val term = rewrite(source, "__qqhole_", HoleRole.TermPattern, SourceId.TermPattern, SourceId.VirtualTermPatternParserInput)
