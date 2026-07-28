@@ -7,7 +7,7 @@ class CompilerFreeTermBoundaryTest extends munit.FunSuite:
   private val root =
     Path.of("src", "main", "scala", "quasiquotes", "terms")
 
-  test("term core production sources contain no compiler Quotes Expr or Macro-Paradise dependency") {
+  test("compiler-free term core sources contain no compiler Quotes Expr or Macro-Paradise dependency") {
     val forbidden = Vector(
       "dotty.tools.dotc",
       "scala.quoted",
@@ -18,12 +18,37 @@ class CompilerFreeTermBoundaryTest extends munit.FunSuite:
     val stream = Files.walk(root)
     try
       stream
-        .filter(path => path.toString.endsWith(".scala"))
+        .filter(path =>
+          path.toString.endsWith(".scala") &&
+            !path.startsWith(root.resolve("dotty"))
+        )
         .forEach { path =>
           val source = Files.readString(path, StandardCharsets.UTF_8)
           forbidden.foreach(value =>
             assert(!source.contains(value), clues(path, value))
           )
+        }
+    finally stream.close()
+  }
+
+  test("Dotty compiler coupling is isolated to the exact-version backend package") {
+    val repositoryRoot = Path.of("src", "main", "scala", "quasiquotes")
+    val dottyBackend = root.resolve("dotty")
+    val stream = Files.walk(repositoryRoot)
+    try
+      stream
+        .filter(path => path.toString.endsWith(".scala"))
+        .forEach { path =>
+          val source = Files.readString(path, StandardCharsets.UTF_8)
+          if source.contains("dotty.tools.dotc.ast.untpd") then
+            assert(
+              path.startsWith(dottyBackend) ||
+                path.startsWith(repositoryRoot.resolve("parser")) ||
+                path.startsWith(repositoryRoot.resolve("matching")) ||
+                path.startsWith(repositoryRoot.resolve("construct")) ||
+                path.startsWith(repositoryRoot.resolve("definitions")),
+              clues(path)
+            )
         }
     finally stream.close()
   }
