@@ -50,6 +50,11 @@ private[quasiquotes] object TermConstructionError:
     def message: String =
       s"Identifier ordinal $identifierOrdinal uses type-hole transport for term occurrence `$name`."
 
+  final case class TypeHoleMarkerInTermPosition(identifierOrdinal: Int)
+      extends TermConstructionError:
+    def message: String =
+      s"Type-hole generated marker appears in ordinary term identifier position at identifier ordinal $identifierOrdinal."
+
   final case class InvalidTermHolePosition(name: String) extends TermConstructionError:
     def message: String =
       s"Term hole `$name` must occupy a complete identifier term position."

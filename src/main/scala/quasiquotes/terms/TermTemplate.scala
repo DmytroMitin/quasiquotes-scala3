@@ -9,6 +9,41 @@ private[quasiquotes] final case class TermHoleOccurrence(
     identifierOrdinal: Int
 ) derives CanEqual
 
+private sealed trait SemanticTermKey derives CanEqual
+
+private object SemanticTermKey:
+  final case class Identifier(name: String) extends SemanticTermKey
+  final case class TermHole(name: String) extends SemanticTermKey
+  final case class Literal(value: String) extends SemanticTermKey
+  final case class Select(qualifier: SemanticTermKey, name: String)
+      extends SemanticTermKey
+  final case class Apply(
+      function: SemanticTermKey,
+      arguments: Vector[SemanticTermKey]
+  ) extends SemanticTermKey
+  final case class Infix(
+      left: SemanticTermKey,
+      operator: String,
+      right: SemanticTermKey
+  ) extends SemanticTermKey
+  final case class Unary(operator: String, operand: SemanticTermKey)
+      extends SemanticTermKey
+  final case class Typed(
+      expression: SemanticTermKey,
+      ascription: TypeTemplate
+  ) extends SemanticTermKey
+  final case class Tuple(elements: Vector[SemanticTermKey])
+      extends SemanticTermKey
+  final case class If(
+      condition: SemanticTermKey,
+      thenBranch: SemanticTermKey,
+      elseBranch: SemanticTermKey
+  ) extends SemanticTermKey
+  final case class Parenthesized(expression: SemanticTermKey)
+      extends SemanticTermKey
+  final case class Unsupported(nodeKind: String, detail: String)
+      extends SemanticTermKey
+
 private[quasiquotes] final class TermTemplate private (
     val root: TermShape,
     val termHoleIndex: GeneratedHoleIndex,
@@ -21,7 +56,7 @@ private[quasiquotes] final class TermTemplate private (
       occurrence.identifierOrdinal -> occurrence.name
     ).toMap
 
-  private lazy val semanticKey: String =
+  private lazy val semanticKey: SemanticTermKey =
     semanticShapeKey(root, 0, 0)._1
 
   def complete(
@@ -382,19 +417,25 @@ private[quasiquotes] final class TermTemplate private (
       shape: TermShape,
       identifierOrdinal: Int,
       typedOrdinal: Int
-  ): (String, Int, Int) =
+  ): (SemanticTermKey, Int, Int) =
     shape match
       case TermShape.Identifier(name, _) =>
         val key = occurrenceByOrdinal
           .get(identifierOrdinal)
-          .fold(s"Ident($name)")(holeName => s"TermHole($holeName)")
+          .fold[SemanticTermKey](SemanticTermKey.Identifier(name))(
+            SemanticTermKey.TermHole.apply
+          )
         (key, identifierOrdinal + 1, typedOrdinal)
       case TermShape.Literal(value) =>
-        (s"Literal($value)", identifierOrdinal, typedOrdinal)
+        (SemanticTermKey.Literal(value), identifierOrdinal, typedOrdinal)
       case TermShape.Select(qualifier, name) =>
         val (qualifierKey, nextIdentifier, nextTyped) =
           semanticShapeKey(qualifier, identifierOrdinal, typedOrdinal)
-        (s"Select($qualifierKey,$name)", nextIdentifier, nextTyped)
+        (
+          SemanticTermKey.Select(qualifierKey, name),
+          nextIdentifier,
+          nextTyped
+        )
       case TermShape.Apply(function, arguments) =>
         val (functionKey, afterFunctionIdentifier, afterFunctionTyped) =
           semanticShapeKey(function, identifierOrdinal, typedOrdinal)
@@ -405,7 +446,7 @@ private[quasiquotes] final class TermTemplate private (
             afterFunctionTyped
           )
         (
-          s"Apply($functionKey,[${argumentKeys.mkString(",")}])",
+          SemanticTermKey.Apply(functionKey, argumentKeys),
           nextIdentifier,
           nextTyped
         )
@@ -415,23 +456,26 @@ private[quasiquotes] final class TermTemplate private (
         val (rightKey, nextIdentifier, nextTyped) =
           semanticShapeKey(right, afterLeftIdentifier, afterLeftTyped)
         (
-          s"Infix($leftKey,$operator,$rightKey)",
+          SemanticTermKey.Infix(leftKey, operator, rightKey),
           nextIdentifier,
           nextTyped
         )
       case TermShape.Unary(operator, operand) =>
         val (operandKey, nextIdentifier, nextTyped) =
           semanticShapeKey(operand, identifierOrdinal, typedOrdinal)
-        (s"Unary($operator,$operandKey)", nextIdentifier, nextTyped)
+        (
+          SemanticTermKey.Unary(operator, operandKey),
+          nextIdentifier,
+          nextTyped
+        )
       case TermShape.Typed(expression, _) =>
-        val typeKey =
-          TermShapeTraversal.renderLogicalTypeTemplate(
-            ascriptionTypes(typedOrdinal)
-          )
         val (expressionKey, nextIdentifier, nextTyped) =
           semanticShapeKey(expression, identifierOrdinal, typedOrdinal + 1)
         (
-          s"Typed($expressionKey,$typeKey)",
+          SemanticTermKey.Typed(
+            expressionKey,
+            ascriptionTypes(typedOrdinal)
+          ),
           nextIdentifier,
           nextTyped
         )
@@ -439,7 +483,7 @@ private[quasiquotes] final class TermTemplate private (
         val (elementKeys, nextIdentifier, nextTyped) =
           semanticChildrenKey(elements, identifierOrdinal, typedOrdinal)
         (
-          s"Tuple([${elementKeys.mkString(",")}])",
+          SemanticTermKey.Tuple(elementKeys),
           nextIdentifier,
           nextTyped
         )
@@ -459,23 +503,33 @@ private[quasiquotes] final class TermTemplate private (
             afterThenTyped
           )
         (
-          s"If($conditionKey,$thenKey,$elseKey)",
+          SemanticTermKey.If(conditionKey, thenKey, elseKey),
           nextIdentifier,
           nextTyped
         )
       case TermShape.Parenthesized(expression) =>
         val (expressionKey, nextIdentifier, nextTyped) =
           semanticShapeKey(expression, identifierOrdinal, typedOrdinal)
-        (s"Parens($expressionKey)", nextIdentifier, nextTyped)
-      case TermShape.Unsupported(_, _) =>
-        ("Unsupported", identifierOrdinal, typedOrdinal)
+        (
+          SemanticTermKey.Parenthesized(expressionKey),
+          nextIdentifier,
+          nextTyped
+        )
+      case TermShape.Unsupported(nodeKind, detail) =>
+        (
+          SemanticTermKey.Unsupported(nodeKind, detail),
+          identifierOrdinal,
+          typedOrdinal
+        )
 
   private def semanticChildrenKey(
       shapes: List[TermShape],
       identifierOrdinal: Int,
       typedOrdinal: Int
-  ): (List[String], Int, Int) =
-    shapes.foldLeft((List.empty[String], identifierOrdinal, typedOrdinal)) {
+  ): (Vector[SemanticTermKey], Int, Int) =
+    shapes.foldLeft(
+      (Vector.empty[SemanticTermKey], identifierOrdinal, typedOrdinal)
+    ) {
       case ((keys, nextIdentifier, nextTyped), child) =>
         val (key, afterIdentifier, afterTyped) =
           semanticShapeKey(child, nextIdentifier, nextTyped)
@@ -609,6 +663,14 @@ private[quasiquotes] object TermTemplate:
             Left(
               TermConstructionError.UnownedGeneratedMarker(
                 identifier.name,
+                identifier.ordinal
+              )
+            )
+          else if typeHoleIndex.semanticNameFor(identifier.name).nonEmpty &&
+              !occurrenceByOrdinal.contains(identifier.ordinal)
+          then
+            Left(
+              TermConstructionError.TypeHoleMarkerInTermPosition(
                 identifier.ordinal
               )
             )

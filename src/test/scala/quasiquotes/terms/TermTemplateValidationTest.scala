@@ -169,6 +169,20 @@ class TermTemplateValidationTest extends munit.FunSuite:
     )
   }
 
+  test("rejects type-hole transport in an ordinary term identifier position") {
+    val typeGenerated = "__type_transport"
+    val result =
+      template(
+        ident(typeGenerated),
+        typeEntries = Vector("tpe" -> typeGenerated)
+      )
+
+    assertEquals(
+      result,
+      Left(TermConstructionError.TypeHoleMarkerInTermPosition(0))
+    )
+  }
+
   test("rejects a registered term hole with no occurrence") {
     val result =
       template(
