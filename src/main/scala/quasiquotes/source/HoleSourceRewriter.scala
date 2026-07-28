@@ -18,6 +18,17 @@ final case class GeneratedHoleIndex private (private val semanticNamesByGenerate
   def generatedNameFor(semanticName: String): Option[String] =
     semanticNamesByGeneratedName.collectFirst { case (generatedName, `semanticName`) => generatedName }
 
+  private[quasiquotes] def entries: Vector[(String, String)] =
+    semanticNamesByGeneratedName.toVector.sortBy { case (generatedName, semanticName) =>
+      (semanticName, generatedName)
+    }
+
+  private[quasiquotes] def generatedNames: Set[String] =
+    semanticNamesByGeneratedName.keySet
+
+  private[quasiquotes] def semanticNames: Set[String] =
+    semanticNamesByGeneratedName.values.toSet
+
 object GeneratedHoleIndex:
   val empty: GeneratedHoleIndex = GeneratedHoleIndex(Map.empty)
 

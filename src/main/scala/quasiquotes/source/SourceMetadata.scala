@@ -34,6 +34,7 @@ enum InterpolationCategory derives CanEqual:
   case ConstructedTypeSplice
 
 enum HoleRole derives CanEqual:
+  case TermTemplate
   case TermPattern
   case TypePattern
   case TypeTemplate
