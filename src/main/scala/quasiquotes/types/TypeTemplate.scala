@@ -67,7 +67,7 @@ object TypeTemplate:
   def fromShape(shape: TypeShape): Either[TypeQuasiquoteError, TypeTemplate] =
     fromShapeUsing(shape, name => Option.when(name.startsWith(HolePrefix))(name.drop(HolePrefix.length)))
 
-  private[types] def fromShapeWithHoles(
+  private[quasiquotes] def fromShapeWithHoles(
       shape: TypeShape,
       generatedHoles: GeneratedHoleIndex
   ): Either[TypeQuasiquoteError, TypeTemplate] =

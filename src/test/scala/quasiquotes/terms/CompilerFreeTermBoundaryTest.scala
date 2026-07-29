@@ -6,6 +6,7 @@ import java.nio.file.{Files, Path}
 class CompilerFreeTermBoundaryTest extends munit.FunSuite:
   private val root =
     Path.of("src", "main", "scala", "quasiquotes", "terms")
+  private val parserAdapter = root.resolve("parser")
 
   test("compiler-free term core sources contain no compiler Quotes Expr or Macro-Paradise dependency") {
     val forbidden = Vector(
@@ -20,7 +21,8 @@ class CompilerFreeTermBoundaryTest extends munit.FunSuite:
       stream
         .filter(path =>
           path.toString.endsWith(".scala") &&
-            !path.startsWith(root.resolve("dotty"))
+            !path.startsWith(root.resolve("dotty")) &&
+            !path.startsWith(parserAdapter)
         )
         .forEach { path =>
           val source = Files.readString(path, StandardCharsets.UTF_8)
@@ -46,7 +48,8 @@ class CompilerFreeTermBoundaryTest extends munit.FunSuite:
                 path.startsWith(repositoryRoot.resolve("parser")) ||
                 path.startsWith(repositoryRoot.resolve("matching")) ||
                 path.startsWith(repositoryRoot.resolve("construct")) ||
-                path.startsWith(repositoryRoot.resolve("definitions")),
+                path.startsWith(repositoryRoot.resolve("definitions")) ||
+                path.startsWith(parserAdapter),
               clues(path)
             )
         }

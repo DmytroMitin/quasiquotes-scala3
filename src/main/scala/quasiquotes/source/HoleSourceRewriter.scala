@@ -51,6 +51,19 @@ final case class MappedHoleSource(
 ) derives CanEqual:
   lazy val generatedHoleIndex: GeneratedHoleIndex = GeneratedHoleIndex.fromOccurrences(occurrences)
 
+private[quasiquotes] final case class CategorizedMappedHoleSource(
+    generatedSource: String,
+    occurrences: Vector[HoleOccurrence],
+    originMap: GeneratedSourceMap
+) derives CanEqual:
+  def generatedHoleIndex(role: HoleRole): GeneratedHoleIndex =
+    GeneratedHoleIndex.fromOccurrences(occurrences.filter(_.role == role))
+
+  def semanticNameFor(generatedIdentifier: String): Option[String] =
+    occurrences.iterator
+      .find(_.generatedName == generatedIdentifier)
+      .map(_.name)
+
 object HoleSourceRewriter:
   private[quasiquotes] final case class ScannedHole(name: String, start: Int, end: Int)
 
@@ -90,6 +103,28 @@ object HoleSourceRewriter:
       mapped: MappedHoleSource,
       allowUnicodeIdentifiers: Boolean
   ): String =
+    restoreSemanticHoleIdentifiers(
+      text,
+      mapped.generatedHoleIndex.semanticNameFor,
+      allowUnicodeIdentifiers
+    )
+
+  private[quasiquotes] def restoreSemanticHoleIdentifiers(
+      text: String,
+      mapped: CategorizedMappedHoleSource,
+      allowUnicodeIdentifiers: Boolean
+  ): String =
+    restoreSemanticHoleIdentifiers(
+      text,
+      mapped.semanticNameFor,
+      allowUnicodeIdentifiers
+    )
+
+  private def restoreSemanticHoleIdentifiers(
+      text: String,
+      semanticNameFor: String => Option[String],
+      allowUnicodeIdentifiers: Boolean
+  ): String =
     val builder = new StringBuilder
     var index = 0
 
@@ -101,7 +136,7 @@ object HoleSourceRewriter:
         while index < text.length && isIdentifierPart(text.charAt(index), allowUnicodeIdentifiers) do
           index += 1
         val identifier = text.substring(start, index)
-        mapped.generatedHoleIndex.semanticNameFor(identifier) match
+        semanticNameFor(identifier) match
           case Some(semanticName) => builder.append('$').append(semanticName)
           case None => builder.append(identifier)
       else
@@ -156,6 +191,73 @@ object HoleSourceRewriter:
       GeneratedSourceMap(generatedSource, generatedSourceId, segments.toVector)
     )
 
+  private[quasiquotes] def rewriteScannedCategorized(
+      source: String,
+      scan: SourceScan,
+      roles: Vector[HoleRole],
+      generatedPrefix: HoleRole => String,
+      originalSourceId: SourceId,
+      generatedSourceId: SourceId
+  ): CategorizedMappedHoleSource =
+    require(
+      roles.size == scan.holes.size,
+      "Categorized rewrite roles must match scanned hole occurrences"
+    )
+
+    val generatedNames =
+      assignCategorizedGeneratedNames(scan, roles, generatedPrefix)
+    val builder = new StringBuilder
+    val segments = mutable.ArrayBuffer.empty[GeneratedSegment]
+    val occurrences = mutable.ArrayBuffer.empty[HoleOccurrence]
+    var literalStart = 0
+
+    def appendOriginal(start: Int, end: Int): Unit =
+      if start < end then
+        val generatedStart = builder.length
+        builder.append(source.substring(start, end))
+        segments += GeneratedSegment(
+          SourceSpan(generatedStart, builder.length),
+          SourceOrigin.OriginalText(originalSourceId, SourceSpan(start, end))
+        )
+
+    scan.holes.zip(roles).foreach { case (hole, role) =>
+      appendOriginal(literalStart, hole.start)
+      val generatedName = generatedNames((role, hole.name))
+      val generatedStart = builder.length
+      builder.append(generatedName)
+      val originalSpan = SourceSpan(hole.start, hole.end)
+      val generatedSpan = SourceSpan(generatedStart, builder.length)
+      segments += GeneratedSegment(
+        generatedSpan,
+        SourceOrigin.RewrittenHole(
+          originalSourceId,
+          originalSpan,
+          hole.name,
+          role
+        )
+      )
+      occurrences += HoleOccurrence(
+        hole.name,
+        generatedName,
+        originalSpan,
+        generatedSpan,
+        role
+      )
+      literalStart = hole.end
+    }
+
+    appendOriginal(literalStart, source.length)
+    val generatedSource = builder.toString
+    CategorizedMappedHoleSource(
+      generatedSource,
+      occurrences.toVector,
+      GeneratedSourceMap(
+        generatedSource,
+        generatedSourceId,
+        segments.toVector
+      )
+    )
+
   private def assignGeneratedNames(scan: SourceScan, generatedPrefix: String): Map[String, String] =
     val usedNames = mutable.Set.from(scan.literalIdentifiers)
     val generatedNames = mutable.LinkedHashMap.empty[String, String]
@@ -164,6 +266,24 @@ object HoleSourceRewriter:
       generatedNames.getOrElseUpdate(
         hole.name,
         freshName(s"$generatedPrefix${hole.name}", usedNames)
+      )
+    }
+    generatedNames.toMap
+
+  private def assignCategorizedGeneratedNames(
+      scan: SourceScan,
+      roles: Vector[HoleRole],
+      generatedPrefix: HoleRole => String
+  ): Map[(HoleRole, String), String] =
+    val usedNames = mutable.Set.from(scan.literalIdentifiers)
+    val generatedNames =
+      mutable.LinkedHashMap.empty[(HoleRole, String), String]
+
+    scan.holes.zip(roles).foreach { case (hole, role) =>
+      val key = role -> hole.name
+      generatedNames.getOrElseUpdate(
+        key,
+        freshName(s"${generatedPrefix(role)}${hole.name}", usedNames)
       )
     }
     generatedNames.toMap
