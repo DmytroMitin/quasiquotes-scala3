@@ -1,7 +1,16 @@
 package quasiquotes.parser
 
 import dotty.tools.dotc.ast.untpd
-import dotty.tools.dotc.core.Constants.Constant
+import dotty.tools.dotc.core.Constants.{
+  BooleanTag,
+  CharTag,
+  Constant,
+  DoubleTag,
+  FloatTag,
+  LongTag,
+  NullTag,
+  StringTag
+}
 import dotty.tools.dotc.core.Names.Name
 
 object TermShapeInspector:
@@ -13,9 +22,15 @@ object TermShapeInspector:
         val text = name.toString
         TermShape.Identifier(text, Placeholder.isPlaceholder(text))
       case untpd.Literal(constant) =>
-        TermShape.Literal(renderConstant(constant))
-      case untpd.Number(digits, _) =>
+        inspectConstant(constant)
+      case untpd.Number(digits, untpd.NumberKind.Whole(10)) =>
         TermShape.Literal(digits)
+      case untpd.Number(_, untpd.NumberKind.Whole(radix)) =>
+        TermShape.Unsupported("NonDecimalIntegerLiteral", s"radix=$radix")
+      case untpd.Number(_, untpd.NumberKind.Decimal) =>
+        TermShape.Unsupported("DecimalNumberLiteral", "numberKind=Decimal")
+      case untpd.Number(_, untpd.NumberKind.Floating) =>
+        TermShape.Unsupported("FloatingNumberLiteral", "numberKind=Floating")
       case untpd.Select(qualifier, name) =>
         TermShape.Select(inspect(qualifier), name.toString)
       case untpd.Apply(function, arguments) =>
@@ -42,7 +57,7 @@ object TermShapeInspector:
       case untpd.Ident(name) =>
         s"Ident(${name.toString})"
       case untpd.Literal(constant) =>
-        s"Literal(${renderConstant(constant)})"
+        rawConstantStructure(constant)
       case untpd.Number(digits, kind) =>
         s"Number($digits,$kind)"
       case untpd.Select(qualifier, name) =>
@@ -66,10 +81,55 @@ object TermShapeInspector:
       case other =>
         other.getClass.getSimpleName
 
-  private def renderConstant(constant: Constant): String =
-    constant.value match
-      case value: String => "\"" + value + "\""
-      case value => String.valueOf(value)
+  private def inspectConstant(constant: Constant): TermShape =
+    constant.tag match
+      case BooleanTag =>
+        TermShape.Literal(constant.booleanValue.toString)
+      case StringTag =>
+        TermShape.Literal(renderStringConstant(constant))
+      case LongTag =>
+        unsupportedConstant("Long")
+      case CharTag =>
+        unsupportedConstant("Character")
+      case FloatTag =>
+        unsupportedConstant("Float")
+      case DoubleTag =>
+        unsupportedConstant("Double")
+      case NullTag =>
+        unsupportedConstant("Null")
+      case tag =>
+        TermShape.Unsupported(
+          "UnsupportedConstantLiteral",
+          s"constantTag=$tag"
+        )
+
+  private def unsupportedConstant(kind: String): TermShape.Unsupported =
+    TermShape.Unsupported(
+      s"${kind}Literal",
+      s"parser-origin constant kind $kind is not supported"
+    )
+
+  private def rawConstantStructure(constant: Constant): String =
+    constant.tag match
+      case BooleanTag =>
+        s"Literal(Boolean(${constant.booleanValue}))"
+      case StringTag =>
+        s"Literal(String(${renderStringConstant(constant)}))"
+      case LongTag =>
+        "Literal(Long)"
+      case CharTag =>
+        "Literal(Character)"
+      case FloatTag =>
+        "Literal(Float)"
+      case DoubleTag =>
+        "Literal(Double)"
+      case NullTag =>
+        "Literal(Null)"
+      case tag =>
+        s"Literal(UnsupportedConstantTag($tag))"
+
+  private def renderStringConstant(constant: Constant): String =
+    "\"" + constant.value.asInstanceOf[String] + "\""
 
   private def inspectType(tree: untpd.Tree): String =
     normalizeTypeName(renderTypeShape(TypeShapeInspector.inspect(tree)))
