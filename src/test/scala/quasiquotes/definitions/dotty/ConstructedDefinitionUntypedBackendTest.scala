@@ -322,6 +322,7 @@ class ConstructedDefinitionUntypedBackendTest extends munit.FunSuite:
         "TypeRepr",
         "untpd",
         "ConstructedDefinitionUntypedBackend",
+        "ConstructedDefinitionGeneratedOriginAdapter",
         "macroparadise"
       )
     Vector(
