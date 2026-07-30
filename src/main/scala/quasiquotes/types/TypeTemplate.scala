@@ -152,6 +152,35 @@ object TypeTemplate:
       case TTTuple(elements) => elements.flatMap(holeNames).toSet
       case TTFunction(arguments, result) => arguments.flatMap(holeNames).toSet ++ holeNames(result)
 
+  /** Logical hole names in first structural occurrence order.
+    *
+    * This is deterministic internal traversal evidence, not a stable public
+    * ordering promise.
+    */
+  private[quasiquotes] def requiredBindings(
+      template: TypeTemplate
+  ): Vector[String] =
+    holeOccurrences(template).distinct
+
+  private[quasiquotes] def validateTemplate(
+      template: TypeTemplate
+  ): Either[TypeQuasiquoteError, Unit] =
+    val required = requiredBindings(template)
+    required
+      .find(name => !isValidHoleName(name))
+      .map(name =>
+        Left(
+          TypeQuasiquoteError(
+            s"Invalid type-construction hole name `$name`: expected a nonempty ASCII identifier."
+          )
+        )
+      )
+      .getOrElse {
+        val bindings =
+          required.map(_ -> TypeNormalForm.STypeIdent("Int")).toMap
+        construct(template, bindings).flatMap(validateConstructed)
+      }
+
   private[types] def firstMissingHole(
       template: TypeTemplate,
       bindings: Map[String, TypeNormalForm]
@@ -170,11 +199,39 @@ object TypeTemplate:
     if ConstructibleIdentifiers(name) then Right(())
     else Left(TypeQuasiquoteError(s"Unsupported type construction template identifier for Phase 21: $name"))
 
+  private def isValidHoleName(name: String): Boolean =
+    name.nonEmpty &&
+      isAsciiIdentifierStart(name.head) &&
+      name.tail.forall(isAsciiIdentifierPart)
+
+  private def isAsciiIdentifierStart(char: Char): Boolean =
+    char == '_' ||
+      ('A' <= char && char <= 'Z') ||
+      ('a' <= char && char <= 'z')
+
+  private def isAsciiIdentifierPart(char: Char): Boolean =
+    isAsciiIdentifierStart(char) || ('0' <= char && char <= '9')
+
   private def firstMissingIn(
       templates: List[TypeTemplate],
       bindings: Map[String, TypeNormalForm]
   ): Option[String] =
     templates.iterator.flatMap(firstMissingHole(_, bindings)).nextOption()
+
+  private def holeOccurrences(template: TypeTemplate): Vector[String] =
+    template match
+      case TTHole(name) =>
+        Vector(name)
+      case TTIdent(_) =>
+        Vector.empty
+      case TTApply(constructor, arguments) =>
+        holeOccurrences(constructor) ++ arguments.toVector.flatMap(
+          holeOccurrences
+        )
+      case TTTuple(elements) =>
+        elements.toVector.flatMap(holeOccurrences)
+      case TTFunction(arguments, result) =>
+        arguments.toVector.flatMap(holeOccurrences) ++ holeOccurrences(result)
 
   private def collect[A](values: List[Either[TypeQuasiquoteError, A]]): Either[TypeQuasiquoteError, List[A]] =
     values.foldRight[Either[TypeQuasiquoteError, List[A]]](Right(Nil)) { (value, accumulated) =>

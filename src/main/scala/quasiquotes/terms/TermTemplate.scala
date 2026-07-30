@@ -59,6 +59,22 @@ private[quasiquotes] final class TermTemplate private (
   private lazy val semanticKey: SemanticTermKey =
     semanticShapeKey(root, 0, 0)._1
 
+  /** Logical term-hole names in first identifier-occurrence order.
+    *
+    * This is deterministic internal traversal evidence, not a stable public
+    * ordering promise.
+    */
+  def requiredTermBindings: Vector[String] =
+    termHoleOccurrences.map(_.name).distinct
+
+  /** Logical type-hole names in first typed-sidecar occurrence order.
+    *
+    * This is deterministic internal traversal evidence, not a stable public
+    * ordering promise.
+    */
+  def requiredTypeBindings: Vector[String] =
+    ascriptionTypes.flatMap(TypeTemplate.requiredBindings).distinct
+
   def complete(
       termBindings: Map[String, ConstructedTerm],
       typeBindings: Map[String, TypeNormalForm]
