@@ -55,8 +55,8 @@ private[quasiquotes] final class LocatedDefinitionTemplate private (
   private def locationFor(
       error: DefinitionConstructionError
   ): Option[DiagnosticLocation] =
-    semanticName(error)
-      .flatMap(uniqueOccurrenceSpan)
+    bindingLocationRequest(error)
+      .flatMap(uniqueRelevantOccurrenceSpan)
       .flatMap(
         DiagnosticLocation.fromGeneratedMap(
           sourceMap,
@@ -66,33 +66,42 @@ private[quasiquotes] final class LocatedDefinitionTemplate private (
       )
       .orElse(wholeDefinitionLocation)
 
-  private def semanticName(
+  private enum BindingLocationRequest:
+    case Term(name: String)
+    case Type(name: String)
+
+  private def bindingLocationRequest(
       error: DefinitionConstructionError
-  ): Option[String] =
+  ): Option[BindingLocationRequest] =
     error match
       case DefinitionConstructionError.MissingTermBinding(name) =>
-        Some(name)
+        Some(BindingLocationRequest.Term(name))
       case DefinitionConstructionError.MissingTypeBinding(name) =>
-        Some(name)
+        Some(BindingLocationRequest.Type(name))
       case DefinitionConstructionError.InvalidTypeBinding(name, _) =>
-        Some(name)
+        Some(BindingLocationRequest.Type(name))
       case _ =>
         None
 
-  private def uniqueOccurrenceSpan(name: String): Option[SourceSpan] =
+  private def uniqueRelevantOccurrenceSpan(
+      request: BindingLocationRequest
+  ): Option[SourceSpan] =
     val spans =
-      body.termOccurrences.collect {
-        case occurrence if occurrence.semantic.name == name =>
-          occurrence.source.generatedSpan
-      } ++
-        definitionTypeOccurrences.collect {
-          case occurrence if occurrence.name == name =>
-            occurrence.generatedSpan
-        } ++
-        body.typeOccurrences.collect {
-          case occurrence if occurrence.name == name =>
-            occurrence.generatedSpan
-        }
+      request match
+        case BindingLocationRequest.Term(name) =>
+          body.termOccurrences.collect {
+            case occurrence if occurrence.semantic.name == name =>
+              occurrence.source.generatedSpan
+          }
+        case BindingLocationRequest.Type(name) =>
+          definitionTypeOccurrences.collect {
+            case occurrence if occurrence.name == name =>
+              occurrence.generatedSpan
+          } ++
+            body.typeOccurrences.collect {
+              case occurrence if occurrence.name == name =>
+                occurrence.generatedSpan
+            }
     Option.when(spans.size == 1)(spans.head)
 
   private def wholeDefinitionLocation: Option[DiagnosticLocation] =
