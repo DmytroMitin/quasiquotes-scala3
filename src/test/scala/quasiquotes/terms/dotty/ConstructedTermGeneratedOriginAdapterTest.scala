@@ -16,6 +16,11 @@ import quasiquotes.parser.{
   TinyTermParser
 }
 import quasiquotes.terms.ConstructedTerm
+import quasiquotes.terms.parser.{
+  CategorizedHoleOccurrence,
+  TermTemplateHoleCategory,
+  TermTemplateSourceAdapter
+}
 import quasiquotes.types.TypeNormalForm
 
 class ConstructedTermGeneratedOriginAdapterTest extends munit.FunSuite:
@@ -52,6 +57,105 @@ class ConstructedTermGeneratedOriginAdapterTest extends munit.FunSuite:
 
       assertEquals(nodes.size, 9)
       assertPositionedResult(result, peerFixture)
+    }
+  }
+
+  test("delimits every supported prefix from a negative decimal operand") {
+    val expected = Vector(
+      "-" -> "-(-1)",
+      "+" -> "+(-1)",
+      "!" -> "!(-1)",
+      "~" -> "~(-1)"
+    )
+
+    withContext {
+      expected.zipWithIndex.foreach { case ((operator, source), index) =>
+        val constructed =
+          fromShape(
+            TermShape.Unary(operator, TermShape.Literal("-1"))
+          )
+        val result =
+          ConstructedTermGeneratedOriginAdapter
+            .lower(constructed, s"<generated-origin-prefix-negative-$index>")
+            .toOption
+            .get
+
+        assertEquals(result.generatedSource, source)
+        result.tree match
+          case root @ untpd.PrefixOp(rawOperator, operand) =>
+            assertSpan(root, 0, 5, 0)
+            assertSpan(rawOperator, 0, 1, 0)
+            assertSpan(operand, 2, 4, 2)
+          case other =>
+            fail(s"expected PrefixOp, found ${other.getClass.getSimpleName}")
+        assertPositionedResult(result, constructed)
+      }
+    }
+  }
+
+  test("repairs a realistic categorized term-template completion") {
+    val template =
+      TermTemplateSourceAdapter
+        .parse(
+          "-$x",
+          Vector(
+            CategorizedHoleOccurrence(
+              "x",
+              TermTemplateHoleCategory.Term
+            )
+          )
+        )
+        .toOption
+        .get
+    val negativeOne =
+      fromShape(TermShape.Literal("-1"))
+    val completed =
+      template
+        .complete(Map("x" -> negativeOne), Map.empty)
+        .toOption
+        .get
+
+    assertEquals(
+      completed.root,
+      TermShape.Unary("-", TermShape.Literal("-1"))
+    )
+    withContext {
+      val result =
+        ConstructedTermGeneratedOriginAdapter
+          .lower(completed, "<generated-origin-completed-prefix-negative>")
+          .toOption
+          .get
+      assertEquals(result.generatedSource, "-(-1)")
+      assertPositionedResult(result, completed)
+    }
+  }
+
+  test("keeps nested prefix operands lexically separated") {
+    val cases = Vector(
+      fromShape(
+        TermShape.Unary(
+          "-",
+          TermShape.Unary("-", ident("x"))
+        )
+      ) -> "-(-x)",
+      fromShape(
+        TermShape.Unary(
+          "!",
+          TermShape.Unary("~", ident("bits"))
+        )
+      ) -> "!(~bits)"
+    )
+
+    withContext {
+      cases.zipWithIndex.foreach { case ((constructed, expected), index) =>
+        val result =
+          ConstructedTermGeneratedOriginAdapter
+            .lower(constructed, s"<generated-origin-nested-prefix-$index>")
+            .toOption
+            .get
+        assertEquals(result.generatedSource, expected)
+        assertPositionedResult(result, constructed)
+      }
     }
   }
 
@@ -465,6 +569,11 @@ class ConstructedTermGeneratedOriginAdapterTest extends munit.FunSuite:
         root.resolve("GeneratedOriginTermResult.scala"),
         StandardCharsets.UTF_8
       )
+    val rawBackend =
+      Files.readString(
+        root.resolve("ConstructedTermUntypedBackend.scala"),
+        StandardCharsets.UTF_8
+      )
 
     assert(adapter.contains("private[quasiquotes] object ConstructedTermGeneratedOriginAdapter"))
     assert(result.contains("private[quasiquotes] final class GeneratedOriginTermResult"))
@@ -475,6 +584,8 @@ class ConstructedTermGeneratedOriginAdapterTest extends munit.FunSuite:
     assert(!adapter.contains("MacroParadise"))
     assert(!adapter.contains("trait Backend"))
     assert(!adapter.contains("ConstructedDefinition"))
+    assert(!rawBackend.contains("ConstructedTermGeneratedOriginAdapter"))
+    assert(!rawBackend.contains("GeneratedOriginTermResult"))
   }
 
   private def peerFixture: ConstructedTerm =

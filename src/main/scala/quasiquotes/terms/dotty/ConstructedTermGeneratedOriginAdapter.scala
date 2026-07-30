@@ -234,7 +234,7 @@ private[quasiquotes] object ConstructedTermGeneratedOriginAdapter:
                 start,
                 Vector.empty
               )
-            renderChild(operand, precedence = 81).map { rawOperand =>
+            renderPrefixOperand(operand).map { rawOperand =>
               node(
                 NodeKind.Prefix,
                 start,
@@ -303,6 +303,17 @@ private[quasiquotes] object ConstructedTermGeneratedOriginAdapter:
           plan
         }
       else renderTerm(shape)
+
+    private def renderPrefixOperand(
+        operand: TermShape
+    ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
+      if prefixOperandNeedsLexicalBoundary(operand) then
+        builder.append('(')
+        renderTerm(operand).map { plan =>
+          builder.append(')')
+          plan
+        }
+      else renderChild(operand, precedence = 81)
 
     private def renderSeparated(
         shapes: List[TermShape],
@@ -515,6 +526,35 @@ private[quasiquotes] object ConstructedTermGeneratedOriginAdapter:
         20
       case TermShape.Unsupported(_, _) =>
         0
+
+  /** Prefix precedence alone is insufficient when a high-precedence operand
+    * starts with a symbolic token: direct concatenation would merge the prefix
+    * and operand token streams. Under the current admitted grammar, negative
+    * decimal literals are the symbolic-leading atom; select/apply chains
+    * preserve the leading token of their qualifier/function.
+    */
+  private def prefixOperandNeedsLexicalBoundary(
+      operand: TermShape
+  ): Boolean =
+    termPrecedence(operand) >= 81 &&
+      renderedLeadingTokenStartsSymbolic(operand)
+
+  private def renderedLeadingTokenStartsSymbolic(
+      shape: TermShape
+  ): Boolean =
+    shape match
+      case TermShape.Literal(value) =>
+        value.startsWith("-") && DecimalInteger.matches(value)
+      case TermShape.Select(qualifier, _) =>
+        termPrecedence(qualifier) >= 90 &&
+          renderedLeadingTokenStartsSymbolic(qualifier)
+      case TermShape.Apply(function, _) =>
+        termPrecedence(function) >= 90 &&
+          renderedLeadingTokenStartsSymbolic(function)
+      case TermShape.Unary(_, _) =>
+        true
+      case _ =>
+        false
 
   private def validatePlan(
       root: NodePlan,
