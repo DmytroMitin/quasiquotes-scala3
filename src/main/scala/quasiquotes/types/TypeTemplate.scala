@@ -218,7 +218,9 @@ object TypeTemplate:
   ): Option[String] =
     templates.iterator.flatMap(firstMissingHole(_, bindings)).nextOption()
 
-  private def holeOccurrences(template: TypeTemplate): Vector[String] =
+  private[quasiquotes] def holeOccurrences(
+      template: TypeTemplate
+  ): Vector[String] =
     template match
       case TTHole(name) =>
         Vector(name)

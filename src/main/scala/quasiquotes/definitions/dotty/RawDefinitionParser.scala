@@ -16,6 +16,16 @@ private[quasiquotes] object RawDefinitionParser:
       source: String,
       sourceId: SourceId
   ): Either[LocatedDiagnostic[RawDefinitionAdapterError], LocatedDefinitionShape] =
+    parseEnvelopeStandalone(source, sourceId)
+      .flatMap(RawDefinitionAdapter.adaptEnvelope(_, sourceId))
+
+  private[quasiquotes] def parseEnvelopeStandalone(
+      source: String,
+      sourceId: SourceId
+  ): Either[
+    LocatedDiagnostic[RawDefinitionAdapterError],
+    RawDefinitionEnvelope
+  ] =
     val base = new ContextBase
     val reporter = new StoreReporter(null)
     given Context = base.initialCtx.fresh.setReporter(reporter)
@@ -38,7 +48,11 @@ private[quasiquotes] object RawDefinitionParser:
           case other => List(other)
         statements match
           case definition :: Nil =>
-            RawDefinitionAdapter.adaptIsolated(definition, source, sourceId)
+            RawDefinitionAdapter.extractEnvelope(
+              definition,
+              source,
+              sourceId
+            )
           case other =>
             val location =
               Option

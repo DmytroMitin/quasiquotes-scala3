@@ -1,0 +1,402 @@
+package quasiquotes.definitions
+
+import quasiquotes.source.*
+import quasiquotes.terms.{ConstructedTerm, LocatedTermTemplate}
+import quasiquotes.types.{TypeNormalForm, TypeTemplate}
+
+private[quasiquotes] final class LocatedDefinitionTemplate private (
+    val template: DefinitionTemplate,
+    val sourceId: SourceId,
+    val sourceMap: GeneratedSourceMap,
+    val components: DefinitionComponentSpans,
+    val definitionTypeOccurrences: Vector[HoleOccurrence],
+    val body: LocatedTermTemplate
+) derives CanEqual:
+  def complete(
+      termBindings: Map[String, ConstructedTerm],
+      typeBindings: Map[String, TypeNormalForm]
+  ): Either[
+    LocatedDiagnostic[DefinitionConstructionError],
+    ConstructedDefinition
+  ] =
+    template
+      .complete(termBindings, typeBindings)
+      .left
+      .map(error => LocatedDiagnostic(error, locationFor(error)))
+
+  def render: String =
+    s"LocatedDefinitionTemplate(template=${template.render}, sourceId=${sourceId.value}, sourceMetadata=present)"
+
+  override def equals(other: Any): Boolean =
+    other match
+      case that: LocatedDefinitionTemplate =>
+        template == that.template &&
+          sourceId == that.sourceId &&
+          sourceMap == that.sourceMap &&
+          components == that.components &&
+          definitionTypeOccurrences == that.definitionTypeOccurrences &&
+          body == that.body
+      case _ =>
+        false
+
+  override def hashCode: Int =
+    (
+      template,
+      sourceId,
+      sourceMap,
+      components,
+      definitionTypeOccurrences,
+      body
+    ).hashCode
+
+  override def toString: String =
+    render
+
+  private def locationFor(
+      error: DefinitionConstructionError
+  ): Option[DiagnosticLocation] =
+    semanticName(error)
+      .flatMap(uniqueOccurrenceSpan)
+      .flatMap(
+        DiagnosticLocation.fromGeneratedMap(
+          sourceMap,
+          _,
+          DiagnosticPrecision.ExactOccurrence
+        )
+      )
+      .orElse(wholeDefinitionLocation)
+
+  private def semanticName(
+      error: DefinitionConstructionError
+  ): Option[String] =
+    error match
+      case DefinitionConstructionError.MissingTermBinding(name) =>
+        Some(name)
+      case DefinitionConstructionError.MissingTypeBinding(name) =>
+        Some(name)
+      case DefinitionConstructionError.InvalidTypeBinding(name, _) =>
+        Some(name)
+      case _ =>
+        None
+
+  private def uniqueOccurrenceSpan(name: String): Option[SourceSpan] =
+    val spans =
+      body.termOccurrences.collect {
+        case occurrence if occurrence.semantic.name == name =>
+          occurrence.source.generatedSpan
+      } ++
+        definitionTypeOccurrences.collect {
+          case occurrence if occurrence.name == name =>
+            occurrence.generatedSpan
+        } ++
+        body.typeOccurrences.collect {
+          case occurrence if occurrence.name == name =>
+            occurrence.generatedSpan
+        }
+    Option.when(spans.size == 1)(spans.head)
+
+  private def wholeDefinitionLocation: Option[DiagnosticLocation] =
+    DiagnosticLocation.fromGeneratedMap(
+      sourceMap,
+      components.definition,
+      DiagnosticPrecision.WholeSource
+    )
+
+private[quasiquotes] object LocatedDefinitionTemplate:
+  def create(
+      template: DefinitionTemplate,
+      sourceId: SourceId,
+      sourceMap: GeneratedSourceMap,
+      components: DefinitionComponentSpans,
+      definitionTypeOccurrences: Vector[HoleOccurrence],
+      body: LocatedTermTemplate
+  ): Either[DefinitionError, LocatedDefinitionTemplate] =
+    for
+      _ <- validateIdentity(sourceId, sourceMap, body)
+      _ <- validateCoverage(
+        sourceMap.generatedSource.length,
+        sourceMap.segments.map(_.generatedSpan)
+      )
+      _ <- validateComponents(sourceMap, components)
+      _ <- validateName(template, sourceMap, components)
+      _ <- validateDefinitionTypeOccurrences(
+        template,
+        sourceMap,
+        components,
+        definitionTypeOccurrences
+      )
+      _ <- validateBody(template, sourceMap, components, body)
+      _ <- validateCompleteOccurrencePartition(
+        sourceMap,
+        definitionTypeOccurrences,
+        body
+      )
+    yield
+      new LocatedDefinitionTemplate(
+        template,
+        sourceId,
+        sourceMap,
+        components,
+        definitionTypeOccurrences,
+        body
+      )
+
+  private[quasiquotes] def validateCoverageForTest(
+      generatedSourceLength: Int,
+      spans: Vector[SourceSpan]
+  ): Either[DefinitionError, Unit] =
+    validateCoverage(generatedSourceLength, spans)
+
+  private def validateIdentity(
+      sourceId: SourceId,
+      sourceMap: GeneratedSourceMap,
+      body: LocatedTermTemplate
+  ): Either[DefinitionError, Unit] =
+    if sourceMap.generatedSourceId != sourceId then
+      invalid(
+        "the generated source map identity must equal the located definition source identity"
+      )
+    else if body.sourceMap != sourceMap then
+      invalid(
+        "the located body must retain the complete definition source map"
+      )
+    else Right(())
+
+  private def validateCoverage(
+      generatedSourceLength: Int,
+      spans: Vector[SourceSpan]
+  ): Either[DefinitionError, Unit] =
+    val complete =
+      if generatedSourceLength == 0 then spans.isEmpty
+      else
+        spans.nonEmpty &&
+          spans.head.start == 0 &&
+          spans.last.end == generatedSourceLength &&
+          spans.zip(spans.drop(1)).forall { case (left, right) =>
+            left.end == right.start
+          }
+    Either.cond(
+      complete,
+      (),
+      DefinitionError.InvalidSourceMetadata(
+        "the generated source map must cover the complete generated definition without gaps or overlaps"
+      )
+    )
+
+  private def validateComponents(
+      sourceMap: GeneratedSourceMap,
+      components: DefinitionComponentSpans
+  ): Either[DefinitionError, Unit] =
+    Either.cond(
+      components.definition.end <= sourceMap.generatedSource.length,
+      (),
+      DefinitionError.InvalidSourceMetadata(
+        "the definition component spans must fit inside the generated source"
+      )
+    )
+
+  private def validateName(
+      template: DefinitionTemplate,
+      sourceMap: GeneratedSourceMap,
+      components: DefinitionComponentSpans
+  ): Either[DefinitionError, Unit] =
+    val spelling =
+      sourceMap.generatedSource.slice(
+        components.name.start,
+        components.name.end
+      )
+    Either.cond(
+      spelling == template.name.source,
+      (),
+      DefinitionError.InvalidSourceMetadata(
+        "the name component must equal DefinitionName.source exactly"
+      )
+    )
+
+  private def validateDefinitionTypeOccurrences(
+      template: DefinitionTemplate,
+      sourceMap: GeneratedSourceMap,
+      components: DefinitionComponentSpans,
+      occurrences: Vector[HoleOccurrence]
+  ): Either[DefinitionError, Unit] =
+    val expected =
+      TypeTemplate.holeOccurrences(definitionType(template))
+    if occurrences.map(_.name) != expected then
+      invalid(
+        "definition-type occurrences must match the semantic type-template occurrence order"
+      )
+    else
+      occurrences.foldLeft[Either[DefinitionError, Unit]](Right(())) {
+        (result, occurrence) =>
+          result.flatMap { _ =>
+            if occurrence.role != HoleRole.DefinitionTypeTemplate then
+              invalid(
+                "definition-type occurrences must use the definition-type role"
+              )
+            else if !contains(
+                components.declaredType,
+                occurrence.generatedSpan
+              )
+            then
+              invalid(
+                "every definition-type occurrence must lie inside the explicit definition type"
+              )
+            else validateMappedOrigin(sourceMap, occurrence)
+          }
+      }
+
+  private def validateBody(
+      template: DefinitionTemplate,
+      sourceMap: GeneratedSourceMap,
+      components: DefinitionComponentSpans,
+      body: LocatedTermTemplate
+  ): Either[DefinitionError, Unit] =
+    val expectedBody =
+      template match
+        case method: DefinitionTemplate.ParameterlessDef => method.body
+        case value: DefinitionTemplate.ImmutableVal => value.rhs
+    val occurrences =
+      body.termOccurrences.map(_.source) ++ body.typeOccurrences
+    if body.template != expectedBody then
+      invalid(
+        "the located body template must equal the definition template body"
+      )
+    else if
+      occurrences.exists(occurrence =>
+        !contains(components.body, occurrence.generatedSpan)
+      )
+    then
+      invalid(
+        "every located body occurrence must lie inside the body component"
+      )
+    else if
+      body.termOccurrences.exists(
+        _.source.role != HoleRole.DefinitionBodyTermTemplate
+      )
+    then
+      invalid(
+        "located body term occurrences must use the definition-body-term role"
+      )
+    else if
+      body.typeOccurrences.exists(
+        _.role != HoleRole.DefinitionBodyTypeTemplate
+      )
+    then
+      invalid(
+        "located body type occurrences must use the definition-body-type role"
+      )
+    else Right(())
+
+  private def validateCompleteOccurrencePartition(
+      sourceMap: GeneratedSourceMap,
+      definitionTypeOccurrences: Vector[HoleOccurrence],
+      body: LocatedTermTemplate
+  ): Either[DefinitionError, Unit] =
+    val actual =
+      (
+        definitionTypeOccurrences ++
+          body.termOccurrences.map(_.source) ++
+          body.typeOccurrences
+      ).sortBy(_.generatedSpan.start)
+    val mapped =
+      sourceMap.segments.flatMap { segment =>
+        segment.origin match
+          case SourceOrigin.RewrittenHole(
+                sourceId,
+                originalSpan,
+                name,
+                role
+              ) =>
+            Some(
+              (
+                segment.generatedSpan,
+                sourceId,
+                originalSpan,
+                name,
+                role
+              )
+            )
+          case _ =>
+            None
+      }
+    val projected =
+      actual.map(occurrence =>
+        (
+          occurrence.generatedSpan,
+          sourceIdFrom(sourceMap, occurrence),
+          occurrence.originalSpan,
+          occurrence.name,
+          occurrence.role
+        )
+      )
+    Either.cond(
+      projected == mapped,
+      (),
+      DefinitionError.InvalidSourceMetadata(
+        "categorized definition occurrences must form one exact nonduplicated partition of rewritten-hole origins"
+      )
+    )
+
+  private def sourceIdFrom(
+      sourceMap: GeneratedSourceMap,
+      occurrence: HoleOccurrence
+  ): SourceId =
+    sourceMap
+      .originsFor(occurrence.generatedSpan)
+      .collectFirst {
+        case MappedOrigin(
+              _,
+              SourceOrigin.RewrittenHole(sourceId, _, _, _)
+            ) =>
+          sourceId
+      }
+      .getOrElse(sourceMap.generatedSourceId)
+
+  private def validateMappedOrigin(
+      sourceMap: GeneratedSourceMap,
+      occurrence: HoleOccurrence
+  ): Either[DefinitionError, Unit] =
+    val exact =
+      sourceMap.originsFor(occurrence.generatedSpan).exists {
+        case MappedOrigin(
+              _,
+              SourceOrigin.RewrittenHole(
+                _,
+                originalSpan,
+                name,
+                role
+              )
+            ) =>
+          originalSpan == occurrence.originalSpan &&
+          name == occurrence.name &&
+          role == occurrence.role
+        case _ =>
+          false
+      }
+    Either.cond(
+      exact,
+      (),
+      DefinitionError.InvalidSourceMetadata(
+        s"the `${occurrence.name}` occurrence must have exact mapped origin evidence"
+      )
+    )
+
+  private def definitionType(
+      template: DefinitionTemplate
+  ): TypeTemplate =
+    template match
+      case method: DefinitionTemplate.ParameterlessDef =>
+        method.resultType
+      case value: DefinitionTemplate.ImmutableVal =>
+        value.declaredType
+
+  private def contains(
+      outer: SourceSpan,
+      inner: SourceSpan
+  ): Boolean =
+    outer.start <= inner.start && inner.end <= outer.end
+
+  private def invalid(
+      detail: String
+  ): Left[DefinitionError, Nothing] =
+    Left(DefinitionError.InvalidSourceMetadata(detail))

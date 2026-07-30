@@ -8,10 +8,14 @@ object SourceId:
   val TermPattern: SourceId = SourceId("term-pattern")
   val TypePattern: SourceId = SourceId("type-pattern")
   val TypeTemplate: SourceId = SourceId("type-template")
+  val DefinitionConstructionTemplate: SourceId =
+    SourceId("definition-construction-template")
   val VirtualExpressionParserInput: SourceId = SourceId("virtual-expression-parser-input")
   val VirtualTermPatternParserInput: SourceId = SourceId("virtual-term-pattern-parser-input")
   val VirtualTypePatternParserInput: SourceId = SourceId("virtual-type-pattern-parser-input")
   val VirtualTypeTemplateParserInput: SourceId = SourceId("virtual-type-template-parser-input")
+  val VirtualDefinitionTemplateParserInput: SourceId =
+    SourceId("virtual-definition-template-parser-input")
 
 /** Zero-based, half-open UTF-16 code-unit offsets. */
 final case class SourceSpan(start: Int, end: Int) derives CanEqual:
@@ -38,6 +42,9 @@ enum HoleRole derives CanEqual:
   case TermPattern
   case TypePattern
   case TypeTemplate
+  case DefinitionTypeTemplate
+  case DefinitionBodyTermTemplate
+  case DefinitionBodyTypeTemplate
 
 sealed trait SourceOrigin derives CanEqual
 

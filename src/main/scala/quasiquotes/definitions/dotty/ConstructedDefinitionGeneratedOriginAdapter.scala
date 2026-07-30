@@ -49,7 +49,13 @@ private[quasiquotes] object ConstructedDefinitionGeneratedOriginAdapter:
       _ <- GeneratedOriginFragmentSupport
         .validateVirtualSourceName(virtualSourceName)
         .left
-        .map(error => InvalidVirtualSourceName(error.message))
+        .map {
+          case quasiquotes.terms.dotty.ConstructedTermGeneratedOriginError
+                .InvalidVirtualSourceName(detail) =>
+            InvalidVirtualSourceName(detail)
+          case other =>
+            InvalidVirtualSourceName(other.message)
+        }
       parts <- extractParts(constructed)
       _ <- validateName(parts.name)
       typeFragment <- GeneratedOriginFragmentSupport

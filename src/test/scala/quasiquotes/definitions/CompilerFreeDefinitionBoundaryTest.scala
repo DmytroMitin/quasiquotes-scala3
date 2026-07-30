@@ -10,6 +10,7 @@ class CompilerFreeDefinitionBoundaryTest extends munit.FunSuite:
     "DefinitionSourceMetadata.scala",
     "DefinitionError.scala",
     "DefinitionTemplate.scala",
+    "DefinitionTemplateSourceMetadata.scala",
     "ConstructedDefinition.scala",
     "DefinitionConstructionError.scala"
   )
@@ -26,6 +27,7 @@ class CompilerFreeDefinitionBoundaryTest extends munit.FunSuite:
       "ConstructedType",
       "ConstructedTermUntypedBackend",
       "TermTemplateSourceAdapter",
+      "DefinitionTemplateSourceAdapter",
       "RawDefinitionParserAdapter",
       "macroparadise"
     )
@@ -80,7 +82,7 @@ class CompilerFreeDefinitionBoundaryTest extends munit.FunSuite:
     )
   }
 
-  test("definition compiler coupling is confined to the exact-version dotty package") {
+  test("definition compiler coupling is confined to exact-version dotty and internal parser packages") {
     val root = Path.of("src", "main", "scala", "quasiquotes", "definitions")
     val stream = Files.walk(root)
     try
@@ -88,6 +90,7 @@ class CompilerFreeDefinitionBoundaryTest extends munit.FunSuite:
         stream
           .filter(path => path.toString.endsWith(".scala"))
           .filter(path => !path.startsWith(root.resolve("dotty")))
+          .filter(path => !path.startsWith(root.resolve("parser")))
           .toList
 
       compilerFreeSources.forEach { path =>

@@ -30,12 +30,12 @@ private[quasiquotes] object TermTemplateSourceAdapter:
   private val TermPrefix = "__qq_tt_term_"
   private val TypePrefix = "__qq_tt_type_"
 
-  private final case class RawIdentifier(
+  private[parser] final case class RawIdentifier(
       name: String,
       span: Option[SourceSpan]
   )
 
-  private final case class RawField(name: String)
+  private[parser] final case class RawField(name: String)
 
   def parse(
       source: String,
@@ -114,7 +114,27 @@ private[quasiquotes] object TermTemplateSourceAdapter:
               )
             )
           case Right(parsed) =>
-            adaptParsed(source, scan, mapped, parsed)
+            DottySourceSpanAdapter.fromTree(parsed.rawTree) match
+              case Some(componentSpan) =>
+                RawTermTemplateAdapter.adapt(
+                  scan,
+                  mapped,
+                  parsed.rawTree,
+                  parsed.shape,
+                  HoleRole.TermTemplate,
+                  HoleRole.TypeTemplate,
+                  componentSpan,
+                  Vector(termPrefix, typePrefix)
+                )
+              case None =>
+                Left(
+                  LocatedDiagnostic(
+                    InvalidSourceMetadata(
+                      "the parsed expression lacks an exact component span"
+                    ),
+                    wholeLocation(mapped.originMap)
+                  )
+                )
       }
     }
 
@@ -209,18 +229,84 @@ private[quasiquotes] object TermTemplateSourceAdapter:
         )
       }
 
-  private def adaptParsed(
-      source: String,
+  private def validateSourceMap(
+      mapped: CategorizedMappedHoleSource
+  ): Either[
+    LocatedDiagnostic[TermTemplateSourceAdapterError],
+    Unit
+  ] =
+    val spans = mapped.originMap.segments.map(_.generatedSpan)
+    val complete =
+      if mapped.generatedSource.isEmpty then spans.isEmpty
+      else
+        spans.nonEmpty &&
+          spans.head.start == 0 &&
+          spans.last.end == mapped.generatedSource.length &&
+          spans.zip(spans.drop(1)).forall { case (left, right) =>
+            left.end == right.start
+          }
+    Either.cond(
+      complete,
+      (),
+      LocatedDiagnostic(
+        InvalidSourceMetadata(
+          "the generated source map does not cover the complete source"
+        ),
+        wholeLocation(mapped.originMap)
+      )
+    )
+
+  private def wholeLocation(
+      sourceMap: GeneratedSourceMap
+  ): Option[DiagnosticLocation] =
+    DiagnosticLocationMapper.wholeSource(sourceMap)
+
+  private def wholeOriginalLocation(
+      source: String
+  ): Option[DiagnosticLocation] =
+    Option
+      .when(source.nonEmpty)(SourceSpan(0, source.length))
+      .flatMap(
+        DiagnosticLocation.direct(
+          SourceId.TermConstructionTemplate,
+          _,
+          DiagnosticPrecision.WholeSource
+        )
+      )
+
+  private def isValidHoleName(name: String): Boolean =
+    name.nonEmpty &&
+      isIdentifierStart(name.head) &&
+      name.tail.forall(isIdentifierPart)
+
+  private def isIdentifierStart(char: Char): Boolean =
+    char == '_' ||
+      ('A' <= char && char <= 'Z') ||
+      ('a' <= char && char <= 'z')
+
+  private def isIdentifierPart(char: Char): Boolean =
+    isIdentifierStart(char) || ('0' <= char && char <= '9')
+
+private[quasiquotes] object RawTermTemplateAdapter:
+  import TermTemplateSourceAdapter.{RawField, RawIdentifier}
+  import TermTemplateSourceAdapterError.*
+
+  def adapt(
       scan: HoleSourceRewriter.SourceScan,
       mapped: CategorizedMappedHoleSource,
-      parsed: ParsedExpression
+      rawTree: untpd.Tree,
+      shape: TermShape,
+      termRole: HoleRole,
+      typeRole: HoleRole,
+      componentSpan: SourceSpan,
+      generatedPrefixes: Vector[String]
   ): Either[
     LocatedDiagnostic[TermTemplateSourceAdapterError],
     LocatedTermTemplate
   ] =
-    val termIndex = mapped.generatedHoleIndex(HoleRole.TermTemplate)
-    val typeIndex = mapped.generatedHoleIndex(HoleRole.TypeTemplate)
-    val typedTypeTrees = rawTypedTypeTrees(parsed.rawTree)
+    val termIndex = mapped.generatedHoleIndex(termRole)
+    val typeIndex = mapped.generatedHoleIndex(typeRole)
+    val typedTypeTrees = rawTypedTypeTrees(rawTree)
     val typeTreeSpans =
       typedTypeTrees.flatMap(DottySourceSpanAdapter.fromTree)
 
@@ -240,63 +326,88 @@ private[quasiquotes] object TermTemplateSourceAdapter:
         )
       )
 
+    val outsideComponent =
+      mapped.occurrences.find(occurrence =>
+        (occurrence.role == termRole || occurrence.role == typeRole) &&
+          !contains(componentSpan, occurrence.generatedSpan)
+      )
     val duplicateGenerated =
       (termIndex.generatedNames intersect typeIndex.generatedNames)
         .toVector
         .sorted
         .headOption
-    duplicateGenerated match
-      case Some(name) =>
-        failure(DuplicateGeneratedIdentity(name))
+    outsideComponent match
+      case Some(occurrence) =>
+        failure(
+          InvalidSourceMetadata(
+            s"hole `$$${occurrence.name}` is outside the adapted raw component"
+          ),
+          Some(occurrence)
+        )
       case None =>
-        val termInsideType =
-          mapped.occurrences.find(occurrence =>
-            occurrence.role == HoleRole.TermTemplate &&
-              typeTreeSpans.exists(contains(_, occurrence.generatedSpan))
-          )
-        termInsideType match
+        duplicateGenerated match
           case Some(occurrence) =>
-            failure(TermMarkerInsideType(occurrence.name), Some(occurrence))
+            failure(DuplicateGeneratedIdentity(occurrence))
           case None =>
-            val typeOutsideAscription =
+            val termInsideType =
               mapped.occurrences.find(occurrence =>
-                occurrence.role == HoleRole.TypeTemplate &&
-                  !typeTreeSpans.exists(contains(_, occurrence.generatedSpan))
+                occurrence.role == termRole &&
+                  typeTreeSpans.exists(contains(_, occurrence.generatedSpan))
               )
-            typeOutsideAscription match
+            termInsideType match
               case Some(occurrence) =>
-                val rawTermNames =
-                  rawTermIdentifiers(parsed.rawTree).map(_.name).toSet
-                if rawTermNames(occurrence.generatedName) then
-                  failure(
-                    TypeMarkerInTermPosition(occurrence.name),
-                    Some(occurrence)
-                  )
-                else
-                  failure(
-                    TypeMarkerOutsideAscription(occurrence.name),
-                    Some(occurrence)
-                  )
-              case None =>
-                adaptOwnedParsed(
-                  source,
-                  scan,
-                  mapped,
-                  parsed,
-                  termIndex,
-                  typeIndex,
-                  typedTypeTrees,
-                  failure
+                failure(
+                  TermMarkerInsideType(occurrence.name),
+                  Some(occurrence)
                 )
+              case None =>
+                val typeOutsideAscription =
+                  mapped.occurrences.find(occurrence =>
+                    occurrence.role == typeRole &&
+                      !typeTreeSpans.exists(
+                        contains(_, occurrence.generatedSpan)
+                      )
+                  )
+                typeOutsideAscription match
+                  case Some(occurrence) =>
+                    val rawTermNames =
+                      rawTermIdentifiers(rawTree).map(_.name).toSet
+                    if rawTermNames(occurrence.generatedName) then
+                      failure(
+                        TypeMarkerInTermPosition(occurrence.name),
+                        Some(occurrence)
+                      )
+                    else
+                      failure(
+                        TypeMarkerOutsideAscription(occurrence.name),
+                        Some(occurrence)
+                      )
+                  case None =>
+                    adaptOwnedParsed(
+                      scan,
+                      mapped,
+                      rawTree,
+                      shape,
+                      termIndex,
+                      typeIndex,
+                      typedTypeTrees,
+                      termRole,
+                      typeRole,
+                      generatedPrefixes,
+                      failure
+                    )
 
   private def adaptOwnedParsed(
-      source: String,
       scan: HoleSourceRewriter.SourceScan,
       mapped: CategorizedMappedHoleSource,
-      parsed: ParsedExpression,
+      rawTree: untpd.Tree,
+      shape: TermShape,
       termIndex: GeneratedHoleIndex,
       typeIndex: GeneratedHoleIndex,
       typedTypeTrees: Vector[untpd.Tree],
+      termRole: HoleRole,
+      typeRole: HoleRole,
+      generatedPrefixes: Vector[String],
       failure: (
           TermTemplateSourceAdapterError,
           Option[HoleOccurrence]
@@ -308,13 +419,13 @@ private[quasiquotes] object TermTemplateSourceAdapter:
     LocatedDiagnostic[TermTemplateSourceAdapterError],
     LocatedTermTemplate
   ] =
-    firstUnsupported(parsed.shape) match
+    firstUnsupported(shape) match
       case Some(detail) =>
         failure(UnsupportedTermShape(detail), None)
       case None =>
-        val rawIdentifiers = rawTermIdentifiers(parsed.rawTree)
+        val rawIdentifiers = rawTermIdentifiers(rawTree)
         val shapeIdentifiers =
-          TermShapeTraversal.identifierEntries(parsed.shape)
+          TermShapeTraversal.identifierEntries(shape)
         if rawIdentifiers.map(_.name) != shapeIdentifiers.map(_.name) then
           failure(
             SidecarOrderMismatch(
@@ -324,7 +435,7 @@ private[quasiquotes] object TermTemplateSourceAdapter:
           )
         else
           val invalidTermField =
-            rawTermFields(parsed.rawTree)
+            rawTermFields(rawTree)
               .find(field => termIndex.semanticNameFor(field.name).nonEmpty)
           invalidTermField match
             case Some(field) =>
@@ -336,7 +447,7 @@ private[quasiquotes] object TermTemplateSourceAdapter:
               )
             case None =>
               val typeInTermField =
-                rawTermFields(parsed.rawTree)
+                rawTermFields(rawTree)
                   .find(field =>
                     typeIndex.semanticNameFor(field.name).nonEmpty
                   )
@@ -351,9 +462,9 @@ private[quasiquotes] object TermTemplateSourceAdapter:
                 case None =>
                   val unowned =
                     (rawIdentifiers.map(_.name) ++
-                      rawTermFields(parsed.rawTree).map(_.name))
+                      rawTermFields(rawTree).map(_.name))
                       .find(name =>
-                        isGeneratedName(name) &&
+                        isGeneratedName(name, generatedPrefixes) &&
                           !scan.literalIdentifiers(name) &&
                           termIndex.semanticNameFor(name).isEmpty &&
                           typeIndex.semanticNameFor(name).isEmpty
@@ -364,23 +475,27 @@ private[quasiquotes] object TermTemplateSourceAdapter:
                     case None =>
                       buildTemplate(
                         mapped,
-                        parsed,
+                        shape,
                         rawIdentifiers,
                         shapeIdentifiers,
                         typedTypeTrees,
                         termIndex,
                         typeIndex,
+                        termRole,
+                        typeRole,
                         failure
                       )
 
   private def buildTemplate(
       mapped: CategorizedMappedHoleSource,
-      parsed: ParsedExpression,
+      shape: TermShape,
       rawIdentifiers: Vector[RawIdentifier],
       shapeIdentifiers: Vector[TermShapeTraversal.IdentifierEntry],
       typedTypeTrees: Vector[untpd.Tree],
       termIndex: GeneratedHoleIndex,
       typeIndex: GeneratedHoleIndex,
+      termRole: HoleRole,
+      typeRole: HoleRole,
       failure: (
           TermTemplateSourceAdapterError,
           Option[HoleOccurrence]
@@ -410,7 +525,7 @@ private[quasiquotes] object TermTemplateSourceAdapter:
           InvalidSourceMetadata(
             s"term hole `$$$name` lacks exact parser-span ownership"
           ),
-          firstSemanticOccurrence(mapped, name, HoleRole.TermTemplate)
+          firstSemanticOccurrence(mapped, name, termRole)
         )
       case None =>
         val semanticTermOccurrences =
@@ -425,7 +540,7 @@ private[quasiquotes] object TermTemplateSourceAdapter:
             )
           }
         val mappedTerms =
-          mapped.occurrences.filter(_.role == HoleRole.TermTemplate)
+          mapped.occurrences.filter(_.role == termRole)
         if locatedTermOccurrences.map(_.source) != mappedTerms then
           val missing = mappedTerms.find(item =>
             !locatedTermOccurrences.exists(_.source == item)
@@ -439,23 +554,27 @@ private[quasiquotes] object TermTemplateSourceAdapter:
         else
           buildSidecars(
             mapped,
-            parsed,
+            shape,
             typedTypeTrees,
             termIndex,
             typeIndex,
             semanticTermOccurrences,
             locatedTermOccurrences,
+            termRole,
+            typeRole,
             failure
           )
 
   private def buildSidecars(
       mapped: CategorizedMappedHoleSource,
-      parsed: ParsedExpression,
+      shape: TermShape,
       typedTypeTrees: Vector[untpd.Tree],
       termIndex: GeneratedHoleIndex,
       typeIndex: GeneratedHoleIndex,
       semanticTermOccurrences: Vector[TermHoleOccurrence],
       locatedTermOccurrences: Vector[LocatedTermHoleOccurrence],
+      termRole: HoleRole,
+      typeRole: HoleRole,
       failure: (
           TermTemplateSourceAdapterError,
           Option[HoleOccurrence]
@@ -487,7 +606,7 @@ private[quasiquotes] object TermTemplateSourceAdapter:
       case Some(error @ TermMarkerInsideType(name)) =>
         failure(
           error,
-          firstSemanticOccurrence(mapped, name, HoleRole.TermTemplate)
+          firstSemanticOccurrence(mapped, name, termRole)
         )
       case Some(error) =>
         failure(error, None)
@@ -502,7 +621,7 @@ private[quasiquotes] object TermTemplateSourceAdapter:
               .flatMap { span =>
                 mapped.occurrences
                   .filter(occurrence =>
-                    occurrence.role == HoleRole.TypeTemplate &&
+                    occurrence.role == typeRole &&
                       contains(span, occurrence.generatedSpan)
                   )
                   .sortBy(_.generatedSpan.start)
@@ -520,7 +639,7 @@ private[quasiquotes] object TermTemplateSourceAdapter:
         else if
           orderedTypeOccurrences.toSet !=
             mapped.occurrences
-              .filter(_.role == HoleRole.TypeTemplate)
+              .filter(_.role == typeRole)
               .toSet
         then
           failure(
@@ -531,52 +650,27 @@ private[quasiquotes] object TermTemplateSourceAdapter:
           )
         else
           TermTemplate.create(
-            parsed.shape,
+            shape,
             termIndex,
             semanticTermOccurrences,
             typeIndex,
             sidecars
           ) match
             case Left(error) =>
-              failure(mapConstructionError(error, parsed.shape), None)
+              failure(mapConstructionError(error, shape), None)
             case Right(template) =>
               LocatedTermTemplate.create(
                 template,
                 mapped.originMap,
                 locatedTermOccurrences,
-                orderedTypeOccurrences
+                orderedTypeOccurrences,
+                termRole,
+                typeRole
               ) match
                 case Left(error) =>
                   failure(InvalidSourceMetadata(error.message), None)
                 case Right(located) =>
                   Right(located)
-
-  private def validateSourceMap(
-      mapped: CategorizedMappedHoleSource
-  ): Either[
-    LocatedDiagnostic[TermTemplateSourceAdapterError],
-    Unit
-  ] =
-    val spans = mapped.originMap.segments.map(_.generatedSpan)
-    val complete =
-      if mapped.generatedSource.isEmpty then spans.isEmpty
-      else
-        spans.nonEmpty &&
-          spans.head.start == 0 &&
-          spans.last.end == mapped.generatedSource.length &&
-          spans.zip(spans.drop(1)).forall { case (left, right) =>
-            left.end == right.start
-          }
-    Either.cond(
-      complete,
-      (),
-      LocatedDiagnostic(
-        InvalidSourceMetadata(
-          "the generated source map does not cover the complete source"
-        ),
-        wholeLocation(mapped.originMap)
-      )
-    )
 
   private def mapConstructionError(
       error: TermConstructionError,
@@ -768,34 +862,11 @@ private[quasiquotes] object TermTemplateSourceAdapter:
   ): Option[DiagnosticLocation] =
     DiagnosticLocationMapper.wholeSource(sourceMap)
 
-  private def wholeOriginalLocation(
-      source: String
-  ): Option[DiagnosticLocation] =
-    Option
-      .when(source.nonEmpty)(SourceSpan(0, source.length))
-      .flatMap(
-        DiagnosticLocation.direct(
-          SourceId.TermConstructionTemplate,
-          _,
-          DiagnosticPrecision.WholeSource
-        )
-      )
-
   private def contains(outer: SourceSpan, inner: SourceSpan): Boolean =
     outer.start <= inner.start && inner.end <= outer.end
 
-  private def isGeneratedName(name: String): Boolean =
-    name.startsWith(TermPrefix) || name.startsWith(TypePrefix)
-
-  private def isValidHoleName(name: String): Boolean =
-    name.nonEmpty &&
-      isIdentifierStart(name.head) &&
-      name.tail.forall(isIdentifierPart)
-
-  private def isIdentifierStart(char: Char): Boolean =
-    char == '_' ||
-      ('A' <= char && char <= 'Z') ||
-      ('a' <= char && char <= 'z')
-
-  private def isIdentifierPart(char: Char): Boolean =
-    isIdentifierStart(char) || ('0' <= char && char <= '9')
+  private def isGeneratedName(
+      name: String,
+      prefixes: Vector[String]
+  ): Boolean =
+    prefixes.exists(name.startsWith)

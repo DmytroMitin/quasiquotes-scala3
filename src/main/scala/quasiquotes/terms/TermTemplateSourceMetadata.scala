@@ -100,12 +100,24 @@ private[quasiquotes] object LocatedTermTemplate:
       template: TermTemplate,
       sourceMap: GeneratedSourceMap,
       termOccurrences: Vector[LocatedTermHoleOccurrence],
-      typeOccurrences: Vector[HoleOccurrence]
+      typeOccurrences: Vector[HoleOccurrence],
+      expectedTermRole: HoleRole = HoleRole.TermTemplate,
+      expectedTypeRole: HoleRole = HoleRole.TypeTemplate
   ): Either[TermConstructionError, LocatedTermTemplate] =
     for
       _ <- validateCoverage(sourceMap)
-      _ <- validateTermOccurrences(template, sourceMap, termOccurrences)
-      _ <- validateTypeOccurrences(template, sourceMap, typeOccurrences)
+      _ <- validateTermOccurrences(
+        template,
+        sourceMap,
+        termOccurrences,
+        expectedTermRole
+      )
+      _ <- validateTypeOccurrences(
+        template,
+        sourceMap,
+        typeOccurrences,
+        expectedTypeRole
+      )
     yield new LocatedTermTemplate(
       template,
       sourceMap,
@@ -137,7 +149,8 @@ private[quasiquotes] object LocatedTermTemplate:
   private def validateTermOccurrences(
       template: TermTemplate,
       sourceMap: GeneratedSourceMap,
-      occurrences: Vector[LocatedTermHoleOccurrence]
+      occurrences: Vector[LocatedTermHoleOccurrence],
+      expectedRole: HoleRole
   ): Either[TermConstructionError, Unit] =
     if occurrences.map(_.semantic) != template.termHoleOccurrences then
       invalid(
@@ -156,13 +169,15 @@ private[quasiquotes] object LocatedTermTemplate:
               invalid(
                 "located term occurrence generated names must agree with the term-hole index"
               )
-            else if occurrence.source.role != HoleRole.TermTemplate then
-              invalid("located term occurrences must use the term-template role")
+            else if occurrence.source.role != expectedRole then
+              invalid(
+                s"located term occurrences must use the $expectedRole role"
+              )
             else
               validateMappedOrigin(
                 sourceMap,
                 occurrence.source,
-                HoleRole.TermTemplate
+                expectedRole
               )
           }
       }
@@ -170,7 +185,8 @@ private[quasiquotes] object LocatedTermTemplate:
   private def validateTypeOccurrences(
       template: TermTemplate,
       sourceMap: GeneratedSourceMap,
-      occurrences: Vector[HoleOccurrence]
+      occurrences: Vector[HoleOccurrence],
+      expectedRole: HoleRole
   ): Either[TermConstructionError, Unit] =
     val expectedNames =
       template.ascriptionTypes.flatMap(
@@ -190,13 +206,15 @@ private[quasiquotes] object LocatedTermTemplate:
               invalid(
                 "located type occurrence generated names must agree with the type-hole index"
               )
-            else if occurrence.role != HoleRole.TypeTemplate then
-              invalid("located type occurrences must use the type-template role")
+            else if occurrence.role != expectedRole then
+              invalid(
+                s"located type occurrences must use the $expectedRole role"
+              )
             else
               validateMappedOrigin(
                 sourceMap,
                 occurrence,
-                HoleRole.TypeTemplate
+                expectedRole
               )
           }
       }

@@ -331,6 +331,25 @@ class ConstructedDefinitionGeneratedOriginAdapterTest extends munit.FunSuite:
     }
   }
 
+  test("empty virtual source name has one exact definition-specific wrapper") {
+    withContext {
+      val failure =
+        ConstructedDefinitionGeneratedOriginAdapter
+          .lower(
+            method(plain("value"), STypeIdent("Int"), term("1")),
+            ""
+          )
+          .left
+          .toOption
+          .get
+
+      assertEquals(
+        failure.message,
+        "Invalid generated-definition virtual source name: the name is empty."
+      )
+    }
+  }
+
   test("detects source-free source-mismatched out-of-bounds and noncontained maps") {
     val constructed =
       method(plain("value"), STypeIdent("Int"), term("1"))

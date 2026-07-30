@@ -5,7 +5,11 @@ import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Flags
 
 import quasiquotes.definitions.*
-import quasiquotes.parser.{DottySourceSpanAdapter, TermShape, TermShapeInspector, TypeShape, TypeShapeInspector}
+import quasiquotes.parser.{
+  DottySourceSpanAdapter,
+  TermShapeInspector,
+  TypeShapeInspector
+}
 import quasiquotes.source.*
 
 private[dotty] object RawDefinitionAdapter:
@@ -14,19 +18,82 @@ private[dotty] object RawDefinitionAdapter:
       source: String,
       sourceId: SourceId
   )(using Context): Either[LocatedDiagnostic[RawDefinitionAdapterError], LocatedDefinitionShape] =
+    extractEnvelope(tree, source, sourceId).flatMap(adaptEnvelope(_, sourceId))
+
+  private[quasiquotes] def extractEnvelope(
+      tree: untpd.Tree,
+      source: String,
+      sourceId: SourceId
+  )(using Context): Either[
+    LocatedDiagnostic[RawDefinitionAdapterError],
+    RawDefinitionEnvelope
+  ] =
     tree match
-      case definition: untpd.DefDef => adaptDef(definition, source, sourceId)
-      case definition: untpd.ValDef => adaptVal(definition, source, sourceId)
+      case definition: untpd.DefDef =>
+        extractDef(definition, source, sourceId)
+      case definition: untpd.ValDef =>
+        extractVal(definition, source, sourceId)
       case _: untpd.PatDef =>
         Left(located(RawDefinitionAdapterError.UnsupportedPatternValue, wholeLocation(source, sourceId)))
       case _ =>
         Left(located(RawDefinitionAdapterError.UnsupportedRawDefinitionKind, wholeLocation(source, sourceId)))
 
-  private def adaptDef(
+  private[quasiquotes] def adaptEnvelope(
+      envelope: RawDefinitionEnvelope,
+      sourceId: SourceId
+  ): Either[
+    LocatedDiagnostic[RawDefinitionAdapterError],
+    LocatedDefinitionShape
+  ] =
+    given Context = envelope.context
+    val definitionLocation =
+      exactLocation(sourceId, envelope.components.definition)
+    val typeShape = TypeShapeInspector.inspect(envelope.definitionType)
+    val termShape = TermShapeInspector.inspect(envelope.body)
+    val create =
+      envelope.variant match
+        case RawDefinitionVariant.ParameterlessDef =>
+          DefinitionShape.parameterlessDef
+        case RawDefinitionVariant.ImmutableVal =>
+          DefinitionShape.immutableVal
+    for
+      shape <- create(envelope.name, typeShape, termShape).left.map {
+        case error: DefinitionError.UnsupportedDefinitionType =>
+          LocatedDiagnostic(
+            RawDefinitionAdapterError.UnsupportedDefinitionType(error),
+            exactLocation(sourceId, envelope.components.declaredType)
+          )
+        case error: DefinitionError.UnsupportedDefinitionBody =>
+          LocatedDiagnostic(
+            RawDefinitionAdapterError.UnsupportedDefinitionBody(error),
+            exactLocation(sourceId, envelope.components.body)
+          )
+        case error =>
+          LocatedDiagnostic(
+            RawDefinitionAdapterError.IndefensibleComponentSpan(error.message),
+            definitionLocation
+          )
+      }
+      locatedShape <- liftDefinition(
+        LocatedDefinitionShape.create(
+          shape,
+          sourceId,
+          envelope.components
+        ),
+        error =>
+          RawDefinitionAdapterError.IndefensibleComponentSpan(error.message),
+        definitionLocation
+      )
+    yield locatedShape
+
+  private def extractDef(
       definition: untpd.DefDef,
       source: String,
       sourceId: SourceId
-  )(using Context): Either[LocatedDiagnostic[RawDefinitionAdapterError], LocatedDefinitionShape] =
+  )(using Context): Either[
+    LocatedDiagnostic[RawDefinitionAdapterError],
+    RawDefinitionEnvelope
+  ] =
     val definitionLocation = treeLocation(definition, sourceId, DiagnosticPrecision.WholeSource)
     if hasUnsupportedMethodModifiers(definition) then
       Left(located(RawDefinitionAdapterError.UnsupportedDefinitionModifiers, definitionLocation))
@@ -35,7 +102,7 @@ private[dotty] object RawDefinitionAdapter:
     else if definition.trailingParamss.nonEmpty then
       Left(located(RawDefinitionAdapterError.UnsupportedParameterClauses, definitionLocation))
     else
-      adaptComponents(
+      extractComponents(
         definition = definition,
         typeTree = definition.tpt,
         bodyTree = definition.rhs,
@@ -43,14 +110,17 @@ private[dotty] object RawDefinitionAdapter:
         decodedName = definition.name.toString,
         source = source,
         sourceId = sourceId,
-        create = DefinitionShape.parameterlessDef
+        variant = RawDefinitionVariant.ParameterlessDef
       )
 
-  private def adaptVal(
+  private def extractVal(
       definition: untpd.ValDef,
       source: String,
       sourceId: SourceId
-  )(using Context): Either[LocatedDiagnostic[RawDefinitionAdapterError], LocatedDefinitionShape] =
+  )(using Context): Either[
+    LocatedDiagnostic[RawDefinitionAdapterError],
+    RawDefinitionEnvelope
+  ] =
     val definitionLocation = treeLocation(definition, sourceId, DiagnosticPrecision.WholeSource)
     if definition.mods.is(Flags.Mutable) then
       Left(located(RawDefinitionAdapterError.UnsupportedMutableValue, definitionLocation))
@@ -59,7 +129,7 @@ private[dotty] object RawDefinitionAdapter:
     else if definition.mods.hasFlags || definition.mods.hasAnnotations || definition.mods.hasPrivateWithin then
       Left(located(RawDefinitionAdapterError.UnsupportedDefinitionModifiers, definitionLocation))
     else
-      adaptComponents(
+      extractComponents(
         definition = definition,
         typeTree = definition.tpt,
         bodyTree = definition.rhs,
@@ -67,10 +137,10 @@ private[dotty] object RawDefinitionAdapter:
         decodedName = definition.name.toString,
         source = source,
         sourceId = sourceId,
-        create = DefinitionShape.immutableVal
+        variant = RawDefinitionVariant.ImmutableVal
       )
 
-  private def adaptComponents(
+  private def extractComponents(
       definition: untpd.Tree,
       typeTree: untpd.Tree,
       bodyTree: untpd.Tree,
@@ -78,8 +148,11 @@ private[dotty] object RawDefinitionAdapter:
       decodedName: String,
       source: String,
       sourceId: SourceId,
-      create: (DefinitionName, TypeShape, TermShape) => Either[DefinitionError, DefinitionShape]
-  )(using Context): Either[LocatedDiagnostic[RawDefinitionAdapterError], LocatedDefinitionShape] =
+      variant: RawDefinitionVariant
+  )(using Context): Either[
+    LocatedDiagnostic[RawDefinitionAdapterError],
+    RawDefinitionEnvelope
+  ] =
     val definitionSpan = DottySourceSpanAdapter.fromTree(definition).filter(!_.isEmpty)
     val typeSpan = explicitTypeSpan(typeTree)
     val bodySpan = explicitBodySpan(bodyTree)
@@ -113,36 +186,21 @@ private[dotty] object RawDefinitionAdapter:
               RawDefinitionAdapterError.InvalidDefinitionName.apply,
               exactLocation(sourceId, nameEvidence.span)
             )
-            typeShape = TypeShapeInspector.inspect(typeTree)
-            termShape = TermShapeInspector.inspect(bodyTree)
-            shape <- create(name, typeShape, termShape).left.map {
-              case error: DefinitionError.UnsupportedDefinitionType =>
-                LocatedDiagnostic(
-                  RawDefinitionAdapterError.UnsupportedDefinitionType(error),
-                  exactLocation(sourceId, declaredType)
-                )
-              case error: DefinitionError.UnsupportedDefinitionBody =>
-                LocatedDiagnostic(
-                  RawDefinitionAdapterError.UnsupportedDefinitionBody(error),
-                  exactLocation(sourceId, body)
-                )
-              case error =>
-                LocatedDiagnostic(
-                  RawDefinitionAdapterError.IndefensibleComponentSpan(error.message),
-                  definitionLocation
-                )
-            }
             components <- liftDefinition(
               DefinitionComponentSpans.create(complete, nameEvidence.span, declaredType, body),
               error => RawDefinitionAdapterError.IndefensibleComponentSpan(error.message),
               definitionLocation
             )
-            locatedShape <- liftDefinition(
-              LocatedDefinitionShape.create(shape, sourceId, components),
-              error => RawDefinitionAdapterError.IndefensibleComponentSpan(error.message),
-              definitionLocation
+          yield
+            RawDefinitionEnvelope(
+              variant,
+              definition,
+              name,
+              typeTree,
+              bodyTree,
+              components,
+              summon[Context]
             )
-          yield locatedShape
         case _ =>
           Left(
             located(
