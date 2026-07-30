@@ -2,7 +2,7 @@ package quasiquotes.terms.dotty
 
 import dotty.tools.dotc.ast.untpd
 import dotty.tools.dotc.core.Constants.Constant
-import dotty.tools.dotc.core.Names.{termName, typeName}
+import dotty.tools.dotc.core.Names.termName
 import dotty.tools.dotc.util.{NoSource, SourceFile}
 
 import quasiquotes.parser.TermShape
@@ -91,7 +91,10 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
         for
           consumed <- state.consume
           (sidecar, afterSidecar) = consumed
-          rawType <- lowerType(sidecar, state.typedOrdinal)
+          rawType <- CompletedTypeUntypedLowerer
+            .lower(sidecar)
+            .left
+            .map(_ => UnsupportedTypeSidecar(state.typedOrdinal, sidecar.render))
           loweredExpression <- lowerTerm(expression, afterSidecar)
           (rawExpression, afterExpression) = loweredExpression
         yield untpd.Typed(rawExpression, rawType) -> afterExpression
@@ -156,48 +159,3 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
         )
       case unsupported =>
         Left(UnsupportedLiteral(unsupported))
-
-  private def lowerType(
-      normalForm: TypeNormalForm,
-      typedOrdinal: Int
-  )(using SourceFile): Either[ConstructedTermUntypedBackendError, untpd.Tree] =
-    normalForm match
-      case TypeNormalForm.STypeIdent(name @ ("Int" | "String" | "Boolean")) =>
-        Right(untpd.Ident(typeName(name)))
-      case TypeNormalForm.STypeApply(
-            TypeNormalForm.STypeIdent(name @ ("List" | "Option")),
-            argument :: Nil
-          ) =>
-        lowerType(argument, typedOrdinal).map { rawArgument =>
-          untpd.AppliedTypeTree(
-            untpd.Ident(typeName(name)),
-            rawArgument :: Nil
-          )
-        }
-      case TypeNormalForm.STypeTuple(elements)
-          if elements.size == 2 || elements.size == 3 =>
-        lowerTypes(elements, typedOrdinal).map(untpd.Tuple(_))
-      case TypeNormalForm.STypeFunction(arguments, result)
-          if arguments.size == 1 || arguments.size == 2 =>
-        for
-          rawArguments <- lowerTypes(arguments, typedOrdinal)
-          rawResult <- lowerType(result, typedOrdinal)
-        yield untpd.Function(rawArguments, rawResult)
-      case unsupported =>
-        Left(UnsupportedTypeSidecar(typedOrdinal, unsupported.render))
-
-  private def lowerTypes(
-      normalForms: List[TypeNormalForm],
-      typedOrdinal: Int
-  )(using SourceFile): Either[
-    ConstructedTermUntypedBackendError,
-    List[untpd.Tree]
-  ] =
-    normalForms.foldRight[
-      Either[ConstructedTermUntypedBackendError, List[untpd.Tree]]
-    ](Right(Nil)) { (normalForm, result) =>
-      for
-        raw <- lowerType(normalForm, typedOrdinal)
-        rest <- result
-      yield raw :: rest
-    }
