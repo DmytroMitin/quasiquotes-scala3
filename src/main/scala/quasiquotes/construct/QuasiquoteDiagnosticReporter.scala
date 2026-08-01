@@ -2,6 +2,23 @@ package quasiquotes.construct
 
 import scala.quoted.Quotes
 
+private[construct] object MacroArgumentPositionResolver:
+  def resolve(using q: Quotes)(
+      index: Int,
+      arguments: Seq[q.reflect.Term]
+  ): q.reflect.Position =
+    import q.reflect.*
+
+    val fallback = Position.ofMacroExpansion
+    arguments.lift(index) match
+      case Some(argument) =>
+        val position = argument.pos
+        if isUsableBounds(position.start, position.end) then position else fallback
+      case None => fallback
+
+  private[construct] def isUsableBounds(start: Int, end: Int): Boolean =
+    start >= 0 && end >= start
+
 private[construct] object MacroDiagnosticPositionResolver:
   def resolve(using q: Quotes)(
       anchor: MacroDiagnosticAnchor,
@@ -15,9 +32,13 @@ private[construct] object MacroDiagnosticPositionResolver:
         arguments.lift(index) match
           case Some(_: QuasiTypeSplice) => fallback
           case Some(argument) =>
-            val position = argument.asInstanceOf[Term].pos
-            if position.start >= 0 && position.end >= position.start then position else fallback
+            MacroArgumentPositionResolver.resolve(
+              index = 0,
+              arguments = Seq(argument.asInstanceOf[Term])
+            )
           case None => fallback
+      case MacroDiagnosticAnchor.DefinitionInterpolationArgument(_) =>
+        fallback
       case MacroDiagnosticAnchor.MacroExpansion =>
         fallback
 
