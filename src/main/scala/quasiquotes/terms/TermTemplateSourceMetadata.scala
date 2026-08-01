@@ -224,10 +224,10 @@ private[quasiquotes] object LocatedTermTemplate:
       occurrence: HoleOccurrence,
       expectedRole: HoleRole
   ): Either[TermConstructionError, Unit] =
-    val origins =
-      sourceMap.originsFor(occurrence.generatedSpan).map(_.origin)
     val exact =
-      origins.exists {
+      sourceMap.segments.exists { segment =>
+        segment.generatedSpan == occurrence.generatedSpan &&
+        (segment.origin match
         case SourceOrigin.RewrittenHole(
               _,
               originalSpan,
@@ -237,8 +237,11 @@ private[quasiquotes] object LocatedTermTemplate:
           originalSpan == occurrence.originalSpan &&
           name == occurrence.name &&
           role == expectedRole
+        case SourceOrigin.InterpolationArgument(_, argumentIndex, category) =>
+          occurrence.name == s"definitionArgument$argumentIndex" &&
+            definitionRole(category).contains(expectedRole)
         case _ =>
-          false
+          false)
       }
     Either.cond(
       !occurrence.generatedSpan.isEmpty &&
@@ -249,6 +252,18 @@ private[quasiquotes] object LocatedTermTemplate:
         s"the `${occurrence.name}` occurrence must have exact mapped origin evidence"
       )
     )
+
+  private def definitionRole(
+      category: InterpolationCategory
+  ): Option[HoleRole] =
+    category match
+      case InterpolationCategory.DefinitionTypeSplice =>
+        Some(HoleRole.DefinitionTypeTemplate)
+      case InterpolationCategory.DefinitionBodyTermSplice =>
+        Some(HoleRole.DefinitionBodyTermTemplate)
+      case InterpolationCategory.DefinitionBodyTypeSplice =>
+        Some(HoleRole.DefinitionBodyTypeTemplate)
+      case _ => None
 
   private def invalid(
       detail: String

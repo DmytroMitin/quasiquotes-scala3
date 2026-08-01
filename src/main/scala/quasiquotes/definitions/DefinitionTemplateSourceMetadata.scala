@@ -307,80 +307,71 @@ private[quasiquotes] object LocatedDefinitionTemplate:
           body.termOccurrences.map(_.source) ++
           body.typeOccurrences
       ).sortBy(_.generatedSpan.start)
-    val mapped =
-      sourceMap.segments.flatMap { segment =>
-        segment.origin match
-          case SourceOrigin.RewrittenHole(
-                sourceId,
-                originalSpan,
-                name,
-                role
-              ) =>
-            Some(
-              (
-                segment.generatedSpan,
-                sourceId,
-                originalSpan,
-                name,
-                role
-              )
-            )
-          case _ =>
-            None
-      }
-    val projected =
-      actual.map(occurrence =>
-        (
-          occurrence.generatedSpan,
-          sourceIdFrom(sourceMap, occurrence),
-          occurrence.originalSpan,
-          occurrence.name,
-          occurrence.role
-        )
-      )
+    val mapped = sourceMap.segments.filter(isDefinitionHoleOrigin)
     Either.cond(
-      projected == mapped,
+      actual.size == mapped.size &&
+        actual.zip(mapped).forall { case (occurrence, segment) =>
+          occurrenceMatchesOrigin(occurrence, segment)
+        },
       (),
       DefinitionError.InvalidSourceMetadata(
-        "categorized definition occurrences must form one exact nonduplicated partition of rewritten-hole origins"
+        "categorized definition occurrences must form one exact nonduplicated partition of raw or surface origins"
       )
     )
 
-  private def sourceIdFrom(
-      sourceMap: GeneratedSourceMap,
-      occurrence: HoleOccurrence
-  ): SourceId =
-    sourceMap
-      .originsFor(occurrence.generatedSpan)
-      .collectFirst {
-        case MappedOrigin(
+  private def isDefinitionHoleOrigin(segment: GeneratedSegment): Boolean =
+    segment.origin match
+      case _: SourceOrigin.RewrittenHole => true
+      case SourceOrigin.InterpolationArgument(_, _, category) =>
+        definitionRole(category).nonEmpty
+      case _ => false
+
+  private def occurrenceMatchesOrigin(
+      occurrence: HoleOccurrence,
+      segment: GeneratedSegment
+  ): Boolean =
+    occurrence.generatedSpan == segment.generatedSpan &&
+      (segment.origin match
+        case SourceOrigin.RewrittenHole(
               _,
-              SourceOrigin.RewrittenHole(sourceId, _, _, _)
+              originalSpan,
+              name,
+              role
             ) =>
-          sourceId
-      }
-      .getOrElse(sourceMap.generatedSourceId)
+          originalSpan == occurrence.originalSpan &&
+            name == occurrence.name &&
+            role == occurrence.role
+        case SourceOrigin.InterpolationArgument(_, argumentIndex, category) =>
+          occurrence.name == s"definitionArgument$argumentIndex" &&
+            definitionRole(category).contains(occurrence.role)
+        case _ => false)
 
   private def validateMappedOrigin(
       sourceMap: GeneratedSourceMap,
       occurrence: HoleOccurrence
   ): Either[DefinitionError, Unit] =
     val exact =
-      sourceMap.originsFor(occurrence.generatedSpan).exists {
-        case MappedOrigin(
+      sourceMap.segments.exists { segment =>
+        segment.generatedSpan == occurrence.generatedSpan &&
+        (segment.origin match
+        case SourceOrigin.RewrittenHole(
               _,
-              SourceOrigin.RewrittenHole(
-                _,
-                originalSpan,
-                name,
-                role
-              )
+              originalSpan,
+              name,
+              role
             ) =>
           originalSpan == occurrence.originalSpan &&
           name == occurrence.name &&
           role == occurrence.role
+        case SourceOrigin.InterpolationArgument(
+              _,
+              argumentIndex,
+              category
+            ) =>
+          occurrence.name == s"definitionArgument$argumentIndex" &&
+            definitionRole(category).contains(occurrence.role)
         case _ =>
-          false
+          false)
       }
     Either.cond(
       exact,
@@ -389,6 +380,18 @@ private[quasiquotes] object LocatedDefinitionTemplate:
         s"the `${occurrence.name}` occurrence must have exact mapped origin evidence"
       )
     )
+
+  private def definitionRole(
+      category: InterpolationCategory
+  ): Option[HoleRole] =
+    category match
+      case InterpolationCategory.DefinitionTypeSplice =>
+        Some(HoleRole.DefinitionTypeTemplate)
+      case InterpolationCategory.DefinitionBodyTermSplice =>
+        Some(HoleRole.DefinitionBodyTermTemplate)
+      case InterpolationCategory.DefinitionBodyTypeSplice =>
+        Some(HoleRole.DefinitionBodyTypeTemplate)
+      case _ => None
 
   private def definitionType(
       template: DefinitionTemplate

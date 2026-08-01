@@ -46,9 +46,59 @@ private[quasiquotes] object DefinitionTemplateSourceAdapter:
       RawDefinitionParser.parseEnvelopeStandalone
     )
 
+  private[quasiquotes] def parseLocatedMapped(
+      source: String,
+      occurrences: Vector[CategorizedDefinitionHoleOccurrence],
+      initialSourceMap: GeneratedSourceMap
+  ): Either[
+    LocatedDiagnostic[DefinitionTemplateSourceAdapterError],
+    LocatedDefinitionTemplate
+  ] =
+    parseLocatedMappedUsing(source, occurrences, initialSourceMap)(
+      RawDefinitionParser.parseEnvelopeStandalone
+    )
+
   private[parser] def parseLocatedUsing(
       source: String,
       occurrences: Vector[CategorizedDefinitionHoleOccurrence]
+  )(
+      parseGenerated: (
+          String,
+          SourceId
+      ) => Either[
+        LocatedDiagnostic[RawDefinitionAdapterError],
+        RawDefinitionEnvelope
+      ]
+  ): Either[
+    LocatedDiagnostic[DefinitionTemplateSourceAdapterError],
+    LocatedDefinitionTemplate
+  ] =
+    parseLocatedCore(source, occurrences, None)(parseGenerated)
+
+  private[parser] def parseLocatedMappedUsing(
+      source: String,
+      occurrences: Vector[CategorizedDefinitionHoleOccurrence],
+      initialSourceMap: GeneratedSourceMap
+  )(
+      parseGenerated: (
+          String,
+          SourceId
+      ) => Either[
+        LocatedDiagnostic[RawDefinitionAdapterError],
+        RawDefinitionEnvelope
+      ]
+  ): Either[
+    LocatedDiagnostic[DefinitionTemplateSourceAdapterError],
+    LocatedDefinitionTemplate
+  ] =
+    parseLocatedCore(source, occurrences, Some(initialSourceMap))(
+      parseGenerated
+    )
+
+  private def parseLocatedCore(
+      source: String,
+      occurrences: Vector[CategorizedDefinitionHoleOccurrence],
+      initialSourceMap: Option[GeneratedSourceMap]
   )(
       parseGenerated: (
           String,
@@ -84,7 +134,12 @@ private[quasiquotes] object DefinitionTemplateSourceAdapter:
           SourceId.VirtualDefinitionTemplateParserInput
         )
 
-      validateSourceMap(mapped).flatMap { _ =>
+      val composed =
+        initialSourceMap match
+          case None => Right(mapped)
+          case Some(initial) => composeSurfaceMap(source, mapped, initial)
+
+      composed.flatMap(mapped => validateSourceMap(mapped).map(_ => mapped)).flatMap { mapped =>
         parseGenerated(
           mapped.generatedSource,
           mapped.originMap.generatedSourceId
@@ -93,6 +148,175 @@ private[quasiquotes] object DefinitionTemplateSourceAdapter:
           .flatMap(adaptEnvelope(scan, mapped, _))
       }
     }
+
+  private def composeSurfaceMap(
+      source: String,
+      mapped: CategorizedMappedHoleSource,
+      initial: GeneratedSourceMap
+  ): Either[
+    LocatedDiagnostic[DefinitionTemplateSourceAdapterError],
+    CategorizedMappedHoleSource
+  ] =
+    if initial.generatedSource != source then
+      invalidComposedMap(
+        mapped,
+        "the initial surface map source must equal the assembled semantic-marker source"
+      )
+    else if initial.generatedSourceId != SourceId.DefinitionConstructionTemplate then
+      invalidComposedMap(
+        mapped,
+        "the initial surface map must use the definition-construction source identity"
+      )
+    else if !completeCoverage(initial) then
+      invalidComposedMap(
+        mapped,
+        "the initial surface map must cover the complete assembled source"
+      )
+    else
+      val projected =
+        mapped.originMap.segments.foldLeft[
+          Either[String, Vector[GeneratedSegment]]
+        ](Right(Vector.empty)) { (result, segment) =>
+          result.flatMap(values =>
+            projectSegment(initial, segment).map(values ++ _)
+          )
+        }
+      projected
+        .left
+        .map(detail =>
+          LocatedDiagnostic(
+            IncompleteDefinitionSourceMap(detail),
+            wholeLocation(mapped.originMap)
+          )
+        )
+        .flatMap { segments =>
+          val originMap = GeneratedSourceMap(
+            mapped.generatedSource,
+            mapped.originMap.generatedSourceId,
+            segments
+          )
+          Either.cond(
+            completeCoverage(originMap),
+            CategorizedMappedHoleSource(
+              mapped.generatedSource,
+              mapped.occurrences,
+              originMap
+            ),
+            LocatedDiagnostic(
+              IncompleteDefinitionSourceMap(
+                "the composed surface map must cover the complete rewritten definition"
+              ),
+              wholeLocation(originMap)
+            )
+          )
+        }
+
+  private def projectSegment(
+      initial: GeneratedSourceMap,
+      segment: GeneratedSegment
+  ): Either[String, Vector[GeneratedSegment]] =
+    segment.origin match
+      case SourceOrigin.OriginalText(_, originalSpan) =>
+        val projected = initial.segments.flatMap { initialSegment =>
+          initialSegment.generatedSpan.intersection(originalSpan).map {
+            intersection =>
+              val relativeStart = intersection.start - originalSpan.start
+              val relativeEnd = intersection.end - originalSpan.start
+              GeneratedSegment(
+                SourceSpan(
+                  segment.generatedSpan.start + relativeStart,
+                  segment.generatedSpan.start + relativeEnd
+                ),
+                projectInitialOrigin(initialSegment, intersection)
+              )
+          }
+        }
+        Either.cond(
+          projected.nonEmpty &&
+            projected.head.generatedSpan.start == segment.generatedSpan.start &&
+            projected.last.generatedSpan.end == segment.generatedSpan.end &&
+            projected.zip(projected.drop(1)).forall { case (left, right) =>
+              left.generatedSpan.end == right.generatedSpan.start
+            },
+          projected,
+          "a rewritten literal segment could not be composed through the initial surface map"
+        )
+      case SourceOrigin.RewrittenHole(_, originalSpan, name, role) =>
+        val origins = initial.segments.filter(
+          _.generatedSpan == originalSpan
+        )
+        origins match
+          case Vector(
+                GeneratedSegment(
+                  _,
+                  origin @ SourceOrigin.InterpolationArgument(
+                    _,
+                    argumentIndex,
+                    category
+                  )
+                )
+              )
+              if name == s"definitionArgument$argumentIndex" &&
+                roleFor(category).contains(role) =>
+            Right(Vector(GeneratedSegment(segment.generatedSpan, origin)))
+          case _ =>
+            Left(
+              "a rewritten definition marker lacks one exact category-compatible interpolation origin"
+            )
+      case _ =>
+        Left("the raw categorized rewrite produced an unsupported source origin")
+
+  private def projectInitialOrigin(
+      initialSegment: GeneratedSegment,
+      intersection: SourceSpan
+  ): SourceOrigin =
+    initialSegment.origin match
+      case SourceOrigin.LiteralPart(sourceId, partIndex, spanWithinPart) =>
+        val offset = intersection.start - initialSegment.generatedSpan.start
+        SourceOrigin.LiteralPart(
+          sourceId,
+          partIndex,
+          SourceSpan(
+            spanWithinPart.start + offset,
+            spanWithinPart.start + offset + intersection.length
+          )
+        )
+      case other => other
+
+  private def roleFor(category: InterpolationCategory): Option[HoleRole] =
+    category match
+      case InterpolationCategory.DefinitionTypeSplice =>
+        Some(HoleRole.DefinitionTypeTemplate)
+      case InterpolationCategory.DefinitionBodyTermSplice =>
+        Some(HoleRole.DefinitionBodyTermTemplate)
+      case InterpolationCategory.DefinitionBodyTypeSplice =>
+        Some(HoleRole.DefinitionBodyTypeTemplate)
+      case _ => None
+
+  private def completeCoverage(sourceMap: GeneratedSourceMap): Boolean =
+    val spans = sourceMap.segments.map(_.generatedSpan)
+    if sourceMap.generatedSource.isEmpty then spans.isEmpty
+    else
+      spans.nonEmpty &&
+        spans.head.start == 0 &&
+        spans.last.end == sourceMap.generatedSource.length &&
+        spans.zip(spans.drop(1)).forall { case (left, right) =>
+          left.end == right.start
+        }
+
+  private def invalidComposedMap(
+      mapped: CategorizedMappedHoleSource,
+      detail: String
+  ): Left[
+    LocatedDiagnostic[DefinitionTemplateSourceAdapterError],
+    Nothing
+  ] =
+    Left(
+      LocatedDiagnostic(
+        IncompleteDefinitionSourceMap(detail),
+        wholeLocation(mapped.originMap)
+      )
+    )
 
   private def adaptEnvelope(
       scan: HoleSourceRewriter.SourceScan,
