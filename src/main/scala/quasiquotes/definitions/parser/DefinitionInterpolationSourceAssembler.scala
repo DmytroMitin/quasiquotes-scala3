@@ -144,7 +144,7 @@ private[quasiquotes] object DefinitionInterpolationSourceAssembler:
     LocatedDiagnostic(
       DefinitionQuasiquoteError.CompletionFailure(
         failure.diagnostic,
-        sanitize(failure.diagnostic.message, assembly),
+        sanitizeCompletion(failure.diagnostic.message, occurrence),
         occurrence.map(_.argumentIndex),
         occurrence.map(item => DefinitionQuasiquoteAssembly.roleLabel(item.category))
       ),
@@ -158,12 +158,7 @@ private[quasiquotes] object DefinitionInterpolationSourceAssembler:
       case DefinitionConstructionError.MissingTermBinding(name) => Some(name)
       case DefinitionConstructionError.MissingTypeBinding(name) => Some(name)
       case DefinitionConstructionError.InvalidTypeBinding(name, _) => Some(name)
-      case DefinitionConstructionError.BodyConstructionFailure(detail) =>
-        assemblyIdentityIn(detail)
       case _ => None
-
-  private def assemblyIdentityIn(detail: String): Option[String] =
-    "definitionArgument[0-9]+".r.findFirstIn(detail)
 
   private def occurrenceFrom(
       location: Option[DiagnosticLocation],
@@ -194,6 +189,27 @@ private[quasiquotes] object DefinitionInterpolationSourceAssembler:
     }
     "__qq_dt_[A-Za-z0-9_]+".r.replaceAllIn(
       identitiesRestored,
+      "generated definition marker"
+    )
+
+  /**
+   * Completion attribution is resolved before presentation from structured
+   * error fields only. A non-name-bearing detail is preserved as literal
+   * presentation text while known generated transport prefixes are masked.
+   */
+  private def sanitizeCompletion(
+      message: String,
+      occurrence: Option[DefinitionQuasiquoteAssemblyOccurrence]
+  ): String =
+    val identitiesPresented = occurrence.fold(message) { resolved =>
+      val replacement =
+        s"definition interpolation argument ${resolved.argumentIndex}"
+      message
+        .replace(s"$$${resolved.semanticIdentity}", replacement)
+        .replace(resolved.semanticIdentity, replacement)
+    }
+    "__qq_dt_[A-Za-z0-9_]+".r.replaceAllIn(
+      identitiesPresented,
       "generated definition marker"
     )
 
