@@ -44,4 +44,4 @@ jobs:
         run: echo "Scala ${{ matrix.scala }} / ${{ matrix.role }} / experimental=${{ matrix.experimental }}"
 
       - name: Run clean tests with Scala ${{ matrix.scala }}
-        run: sbt -batch "++${{ matrix.scala }}!" clean test
+        run: sbt -batch "++${{ matrix.scala }}!" clean test core/verifyCoreBoundary verifyModuleGraph
