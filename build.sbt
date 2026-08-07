@@ -133,6 +133,15 @@ lazy val publicApiExamples = (project in file("public-api-examples"))
     Compile / sources := Nil
   )
 
+lazy val publicCoreExamples = (project in file("public-core-examples"))
+  .dependsOn(core)
+  .settings(commonSettings)
+  .settings(
+    name := "quasiquotes-scala3-public-core-examples",
+    publish / skip := true,
+    Compile / sources := Nil
+  )
+
 lazy val root = (project in file("."))
   .aggregate(core, frontend, dottyInternal)
   .settings(
@@ -151,6 +160,9 @@ lazy val root = (project in file("."))
         .map(_.data.getAbsolutePath.replace('\\', '/')).mkString("\n")
       val backendTest = (dottyInternal / Test / fullClasspath).value
         .map(_.data.getAbsolutePath.replace('\\', '/')).mkString("\n")
+      val publicCoreClasspath =
+        (publicCoreExamples / Test / fullClasspath).value
+          .map(_.data.getAbsolutePath.replace('\\', '/')).mkString("\n")
       var hiddenCycleViolations = Vector.empty[String]
       if (frontendCompile.contains("/dotty-internal/target/"))
         hiddenCycleViolations :+= "frontend compile -> dottyInternal"
@@ -160,6 +172,13 @@ lazy val root = (project in file("."))
         hiddenCycleViolations :+= "dottyInternal compile -> frontend"
       if (backendTest.contains("/frontend/target/"))
         hiddenCycleViolations :+= "dottyInternal test -> frontend"
+      if (publicCoreClasspath.contains("/frontend/target/"))
+        hiddenCycleViolations :+= "publicCoreExamples test -> frontend"
+      if (publicCoreClasspath.contains("/dotty-internal/target/"))
+        hiddenCycleViolations :+= "publicCoreExamples test -> dottyInternal"
+      if (Vector("scala3-compiler", "scala3-interfaces", "tasty-core", "scala-asm")
+          .exists(publicCoreClasspath.contains))
+        hiddenCycleViolations :+= "publicCoreExamples test -> compiler implementation"
       if (hiddenCycleViolations.nonEmpty) {
         sys.error(
           "Forbidden project/classpath edge(s):\n" + hiddenCycleViolations.mkString("\n")
@@ -196,6 +215,7 @@ lazy val root = (project in file("."))
       } finally archive.close()
       log.info(
         "Module graph verified: frontend -> core, dottyInternal -> core, " +
+          "publicCoreExamples -> core without compiler implementation, " +
           "core/frontend/dottyInternal production source roots are owned, " +
           "no sibling compile/test classpath edges or hidden production source reuse, " +
           "aggregate root packages no classes"
