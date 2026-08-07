@@ -124,6 +124,15 @@ lazy val dottyInternal = (project in file("dotty-internal"))
     publish / skip := true
   )
 
+lazy val publicApiExamples = (project in file("public-api-examples"))
+  .dependsOn(frontend)
+  .settings(commonSettings)
+  .settings(
+    name := "quasiquotes-scala3-public-api-examples",
+    publish / skip := true,
+    Compile / sources := Nil
+  )
+
 lazy val root = (project in file("."))
   .aggregate(core, frontend, dottyInternal)
   .settings(
@@ -157,10 +166,12 @@ lazy val root = (project in file("."))
         )
       }
 
+      val coreProduction = (core / Compile / sources).value
       val frontendProduction = (frontend / Compile / sources).value
       val backendProduction = (dottyInternal / Compile / sources).value
       val misplacedSources =
-        frontendProduction.filterNot(_.getAbsolutePath.contains("/frontend/src/main/")) ++
+        coreProduction.filterNot(_.getAbsolutePath.contains("/core/src/main/")) ++
+          frontendProduction.filterNot(_.getAbsolutePath.contains("/frontend/src/main/")) ++
           backendProduction.filterNot(_.getAbsolutePath.contains("/dotty-internal/src/main/"))
       if (misplacedSources.nonEmpty) {
         sys.error(
@@ -185,6 +196,7 @@ lazy val root = (project in file("."))
       } finally archive.close()
       log.info(
         "Module graph verified: frontend -> core, dottyInternal -> core, " +
+          "core/frontend/dottyInternal production source roots are owned, " +
           "no sibling compile/test classpath edges or hidden production source reuse, " +
           "aggregate root packages no classes"
       )
