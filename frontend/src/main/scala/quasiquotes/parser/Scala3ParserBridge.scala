@@ -34,11 +34,18 @@ object Scala3ParserBridge:
         )
       )
     else
+      val inspected = TermShapeInspector.inspect(rawTree) match
+        case _: TermShape.InterpolatedString if source.contains("s\"\"\"") =>
+          TermShape.Unsupported(
+            "InterpolatedStringSurface",
+            "triple-quoted interpolation is outside the bounded s tranche"
+          )
+        case other => other
       Right(
         ParsedExpression(
           source = source,
           rawTree = rawTree,
-          shape = TermShapeInspector.inspect(rawTree),
+          shape = inspected,
           rawStructure = TermShapeInspector.rawStructure(rawTree)
         )
       )

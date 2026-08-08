@@ -69,6 +69,23 @@ class TermTemplateCompletionTest extends munit.FunSuite:
     )
   }
 
+  test("substitutes a complete interpolation argument without altering semantic parts") {
+    val root = TermShape.InterpolatedString(
+      "s",
+      List("hello ", ""),
+      List(ident(generatedTerm))
+    )
+    val bound = constructed(TermShape.Apply(ident("name"), Nil))
+    val completed = oneTermHole(root)
+      .complete(Map("value" -> bound), Map.empty)
+      .toOption.get
+
+    assertEquals(
+      completed.root,
+      TermShape.InterpolatedString("s", List("hello ", ""), List(bound.root))
+    )
+  }
+
   test("rejects missing and extra term bindings") {
     val hole = oneTermHole(ident(generatedTerm))
     val value = constructed(TermShape.Literal("1"))

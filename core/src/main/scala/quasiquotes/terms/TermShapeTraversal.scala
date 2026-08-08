@@ -26,6 +26,12 @@ private[terms] object TermShapeTraversal:
         if !SupportedUnaryOperators(operator) then
           Left(TermConstructionError.UnsupportedUnaryOperator(operator))
         else validateSupported(operand)
+      case TermShape.InterpolatedString("s", parts, arguments) =>
+        if parts.size != arguments.size + 1 then
+          Left(TermConstructionError.UnsupportedTermShape())
+        else validateAll(arguments)
+      case TermShape.InterpolatedString(_, _, _) =>
+        Left(TermConstructionError.UnsupportedTermShape())
       case TermShape.Typed(expression, _) =>
         validateSupported(expression)
       case TermShape.Tuple(elements) =>
@@ -62,6 +68,8 @@ private[terms] object TermShapeTraversal:
         )
       case TermShape.Unary(operator, operand) =>
         TermShape.Unary(operator, canonicalizePlaceholders(operand))
+      case TermShape.InterpolatedString(prefix, parts, arguments) =>
+        TermShape.InterpolatedString(prefix, parts, arguments.map(canonicalizePlaceholders))
       case TermShape.Typed(expression, typeName) =>
         TermShape.Typed(canonicalizePlaceholders(expression), typeName)
       case TermShape.Tuple(elements) =>
@@ -98,6 +106,8 @@ private[terms] object TermShapeTraversal:
           loop(right)
         case TermShape.Unary(_, operand) =>
           loop(operand)
+        case TermShape.InterpolatedString(_, _, arguments) =>
+          arguments.foreach(loop)
         case TermShape.Typed(expression, _) =>
           loop(expression)
         case TermShape.Tuple(elements) =>
@@ -132,6 +142,8 @@ private[terms] object TermShapeTraversal:
           loop(right)
         case TermShape.Unary(_, operand) =>
           loop(operand)
+        case TermShape.InterpolatedString(_, _, arguments) =>
+          arguments.foreach(loop)
         case TermShape.Tuple(elements) =>
           elements.foreach(loop)
         case TermShape.If(condition, thenBranch, elseBranch) =>
@@ -165,6 +177,10 @@ private[terms] object TermShapeTraversal:
         case TermShape.Unary(operator, operand) =>
           builder += operator
           loop(operand)
+        case TermShape.InterpolatedString(prefix, parts, arguments) =>
+          builder += prefix
+          builder ++= parts
+          arguments.foreach(loop)
         case TermShape.Typed(expression, typeName) =>
           builder += typeName
           loop(expression)

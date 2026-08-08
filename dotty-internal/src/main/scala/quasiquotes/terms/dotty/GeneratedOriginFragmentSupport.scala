@@ -343,6 +343,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
                 Vector(operatorPlan, rawOperand)
               )
             }
+        case TermShape.InterpolatedString(_, _, _) =>
+          Left(UnsupportedTermNode("InterpolatedString"))
         case TermShape.Typed(expression, _) =>
           val ordinal = typedOrdinal
           val sidecar =
@@ -616,7 +618,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
   private def termPrecedence(shape: TermShape): Int =
     shape match
       case TermShape.Identifier(_, _) | TermShape.Literal(_) |
-          TermShape.Tuple(_) | TermShape.Parenthesized(_) =>
+          TermShape.Tuple(_) | TermShape.Parenthesized(_) |
+          TermShape.InterpolatedString(_, _, _) =>
         100
       case TermShape.Select(_, _) | TermShape.Apply(_, _) =>
         90
@@ -909,6 +912,10 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
         Vector(value.left, value.op, value.right)
       case value: untpd.PrefixOp =>
         Vector(value.op, value.od)
+      case value: untpd.InterpolatedString =>
+        value.segments.toVector
+      case value: untpd.Thicket =>
+        value.trees.toVector
       case value: untpd.Typed =>
         Vector(value.expr, value.tpt)
       case value: untpd.AppliedTypeTree =>

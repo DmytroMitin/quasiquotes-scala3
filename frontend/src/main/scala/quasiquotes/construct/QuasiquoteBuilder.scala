@@ -24,7 +24,17 @@ object QuasiquoteBuilder:
       case Left(error) =>
         Left(QuasiquoteBuildFailure(error, None))
       case Right(synthesized) =>
-        TinyTermParser.parse(synthesized.source) match
+        if synthesized.source.contains("s\"\"\"") then
+          Left(
+            QuasiquoteBuildFailure(
+              QuasiquoteError.UnsupportedTree(
+                "InterpolatedString",
+                "Triple-quoted interpolation is outside the bounded s tranche"
+              ),
+              None
+            )
+          )
+        else TinyTermParser.parse(synthesized.source) match
           case Left(parseError) =>
             val location = DiagnosticLocationMapper.fromParseError(parseError, synthesized.originMap)
             Left(QuasiquoteBuildFailure(QuasiquoteError.ParseFailure(parseError), location))

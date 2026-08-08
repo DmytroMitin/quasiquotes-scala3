@@ -44,6 +44,14 @@ class TermTemplateValidationTest extends munit.FunSuite:
           TermShape.Literal("0")
         ),
         1
+      ),
+      (
+        TermShape.InterpolatedString(
+          "s",
+          List("hello ", ""),
+          List(ident(termGenerated))
+        ),
+        0
       )
     )
 

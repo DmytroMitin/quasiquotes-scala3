@@ -87,6 +87,8 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
         }
       case TermShape.Unary(operator, _) =>
         Left(UnsupportedUnaryOperator(operator))
+      case TermShape.InterpolatedString(_, _, _) =>
+        Left(UnsupportedTermNode("InterpolatedString"))
       case TermShape.Typed(expression, _) =>
         for
           consumed <- state.consume

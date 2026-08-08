@@ -39,6 +39,8 @@ object TermShapeInspector:
         TermShape.Infix(inspect(left), op.name.toString, inspect(right))
       case untpd.PrefixOp(untpd.Ident(operator), operand) if SupportedUnaryOperators(operator.toString) =>
         TermShape.Unary(operator.toString, inspect(operand))
+      case interpolation @ untpd.InterpolatedString(prefix, segments) =>
+        inspectInterpolation(prefix.toString, segments)
       case untpd.Typed(expression, typeTree) =>
         TermShape.Typed(inspect(expression), inspectType(typeTree))
       case untpd.Tuple(elements) =>
@@ -68,6 +70,8 @@ object TermShapeInspector:
         s"InfixOp(${rawStructure(left)},${rawStructure(op)},${rawStructure(right)})"
       case untpd.PrefixOp(untpd.Ident(operator), operand) if SupportedUnaryOperators(operator.toString) =>
         s"PrefixOp(${operator.toString},${rawStructure(operand)})"
+      case untpd.InterpolatedString(prefix, segments) =>
+        s"InterpolatedString(${prefix.toString}, [${segments.map(rawInterpolationSegment).mkString(", ")}])"
       case untpd.Typed(expression, typeTree) =>
         s"Typed(${rawStructure(expression)},${rawTypeStructure(typeTree)})"
       case untpd.Tuple(elements) =>
@@ -102,6 +106,32 @@ object TermShapeInspector:
           "UnsupportedConstantLiteral",
           s"constantTag=$tag"
         )
+
+  private def inspectInterpolation(prefix: String, segments: List[untpd.Tree]): TermShape =
+    if prefix != "s" then
+      TermShape.Unsupported("InterpolatedStringPrefix", s"unsupported prefix: $prefix")
+    else
+      InterpolatedStringSegments.decode(segments) match
+        case Right(decoded) =>
+          TermShape.InterpolatedString(prefix, decoded.parts, decoded.arguments.map(inspect))
+        case Left(detail) =>
+          TermShape.Unsupported("InterpolatedStringSegments", detail)
+
+  private def rawInterpolationSegment(tree: untpd.Tree): String =
+    tree match
+      case untpd.Literal(constant) if constant.value.isInstanceOf[String] =>
+        s"Part(${renderString(constant.value.asInstanceOf[String])})"
+      case untpd.Thicket(untpd.Literal(constant) :: argument :: Nil)
+          if constant.value.isInstanceOf[String] =>
+        val unwrapped = argument match
+          case untpd.Block(Nil, expression) => expression
+          case other => other
+        s"PartArgument(${renderString(constant.value.asInstanceOf[String])}, ${rawStructure(unwrapped)})"
+      case other =>
+        s"UnsupportedSegment(${other.getClass.getSimpleName})"
+
+  private def renderString(value: String): String =
+    "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
   private def unsupportedConstant(kind: String): TermShape.Unsupported =
     TermShape.Unsupported(

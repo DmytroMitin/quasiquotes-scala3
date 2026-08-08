@@ -67,6 +67,13 @@ class QuasiquoteMacroTest extends munit.FunSuite:
     assertEquals(QuasiquoteMacroExamples.emitBooleanLiteral, true)
   }
 
+  test("qr constructs the bounded standard s-interpolation tranche and proves runtime values") {
+    assertEquals(QuasiquoteMacroExamples.sInterpolationPlain, "plain")
+    assertEquals(QuasiquoteMacroExamples.sInterpolationOne("Ada"), "hello Ada")
+    assertEquals(QuasiquoteMacroExamples.sInterpolationTwo("a", "b"), "a / b")
+    assertEquals(QuasiquoteMacroExamples.sInterpolationGuestExpression, "value = 2")
+  }
+
   test("qr can lower selection plus application with a qualifier hole") {
     assertEquals(QuasiquoteMacroExamples.callSelectedMethodViaHole(2), 3)
   }
@@ -215,6 +222,29 @@ class QuasiquoteMacroTest extends munit.FunSuite:
     assertEquals(
       first.bindings.map(_.name),
       Vector("__qq_term_hole_0", "__qq_type_hole_1", "__qq_term_hole_2", "__qq_type_hole_3")
+    )
+  }
+
+  test("interpolation argument synthesis inserts a structural guest dollar with argument origin") {
+    val synthesized = PlaceholderSource.synthesizeCategorized(
+      Seq("s\"hello ", "\""),
+      Seq(QuasiquoteHole.Term("name-term"))
+    ).toOption.get
+
+    assertEquals(synthesized.source, "s\"hello $__qq_term_hole_0\"")
+    val argumentSegments = synthesized.originMap.segments.collect {
+      case segment @ quasiquotes.source.GeneratedSegment(
+            _,
+            quasiquotes.source.SourceOrigin.InterpolationArgument(_, 0, _)
+          ) => segment
+    }
+    assertEquals(argumentSegments.size, 1)
+    assertEquals(
+      synthesized.source.slice(
+        argumentSegments.head.generatedSpan.start,
+        argumentSegments.head.generatedSpan.end
+      ),
+      "$__qq_term_hole_0"
     )
   }
 

@@ -22,7 +22,17 @@ object QuasiPattern:
     termLocated(pattern).left.map(_.diagnostic)
 
   def termLocated(pattern: String): Either[LocatedDiagnostic[PatternError], QuasiPattern] =
-    PatternSource.synthesizeMappedLocated(pattern).flatMap { mapped =>
+    if pattern.contains("s\"\"\"") then
+      Left(
+        LocatedDiagnostic(
+          PatternError.UnsupportedPatternShape(
+            "InterpolatedString",
+            "triple-quoted interpolation is outside the bounded s tranche"
+          ),
+          None
+        )
+      )
+    else PatternSource.synthesizeMappedLocated(pattern).flatMap { mapped =>
       TinyTermParser.parse(mapped.patternSource.source) match
         case Left(error) =>
           Left(

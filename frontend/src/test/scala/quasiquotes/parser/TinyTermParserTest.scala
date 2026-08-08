@@ -84,10 +84,31 @@ class TinyTermParserTest extends munit.FunSuite:
       case other => fail(s"expected nested PrefixOp tree, got ${other.getClass.getSimpleName}")
   }
 
-  test("interpolated strings remain an audited unsupported boundary") {
+  test("standard s interpolated strings retain semantic parts and structural arguments") {
     val parsed = TinyTermParser.parseOrThrow("""s"a$x"""")
-    assert(parsed.shape.isInstanceOf[TermShape.Unsupported])
-    assert(clue(parsed.rawStructure).contains("InterpolatedString"))
+    assertEquals(
+      parsed.shape,
+      TermShape.InterpolatedString(
+        "s",
+        List("a", ""),
+        List(TermShape.Identifier("x", isPlaceholder = false))
+      )
+    )
+    assertEquals(
+      parsed.rawStructure,
+      "InterpolatedString(s, [PartArgument(\"a\", Ident(x)), Part(\"\")])"
+    )
+  }
+
+  test("raw and f interpolation prefixes remain explicit unsupported boundaries") {
+    val raw = TinyTermParser.parseOrThrow("""raw"a$x"""")
+    val formatted = TinyTermParser.parseOrThrow("""f"value = $x%d"""")
+    assert(raw.shape.isInstanceOf[TermShape.Unsupported])
+    assert(formatted.shape.isInstanceOf[TermShape.Unsupported])
+  }
+
+  test("triple-quoted s interpolation remains outside the bounded first tranche") {
+    assert(TinyTermParser.parseOrThrow("s\"\"\"hello $name\"\"\"").shape.isInstanceOf[TermShape.Unsupported])
   }
 
   test("placeholder helper recognizes synthetic holes") {

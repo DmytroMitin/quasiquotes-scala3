@@ -11,6 +11,12 @@ object TermPattern:
   final case class Apply(function: TermPattern, arguments: List[TermPattern]) extends TermPattern
   final case class Infix(left: TermPattern, operator: String, right: TermPattern) extends TermPattern
   final case class Unary(operator: String, operand: TermPattern) extends TermPattern
+  final case class InterpolatedString(
+      prefix: String,
+      parts: List[String],
+      arguments: List[TermPattern]
+  ) extends TermPattern:
+    require(parts.size == arguments.size + 1, "Interpolated string pattern invariant")
   final case class Typed(expression: TermPattern, typeName: String) extends TermPattern
   final case class Tuple(elements: List[TermPattern]) extends TermPattern
   final case class If(condition: TermPattern, thenBranch: TermPattern, elseBranch: TermPattern) extends TermPattern
@@ -28,8 +34,13 @@ object TermPattern:
         s"Infix(${render(left)}, $operator, ${render(right)})"
       case Unary(operator, operand) =>
         s"Unary($operator, ${render(operand)})"
+      case InterpolatedString(prefix, parts, arguments) =>
+        s"InterpolatedString($prefix, [${parts.map(quote).mkString(", ")}], [${arguments.map(render).mkString(", ")}])"
       case Typed(expression, typeName) => s"Typed(${render(expression)}, Type($typeName))"
       case Tuple(elements) => s"Tuple([${elements.map(render).mkString(", ")}])"
       case If(condition, thenBranch, elseBranch) =>
         s"If(${render(condition)}, ${render(thenBranch)}, ${render(elseBranch)})"
       case Parenthesized(expression) => s"Parens(${render(expression)})"
+
+  private def quote(value: String): String =
+    "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""

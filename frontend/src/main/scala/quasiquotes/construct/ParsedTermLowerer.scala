@@ -2,10 +2,11 @@ package quasiquotes.construct
 
 import scala.util.control.NonFatal
 
-import scala.quoted.{Expr, Quotes}
+import scala.quoted.{Expr, Quotes, Varargs}
 import dotty.tools.dotc.ast.untpd
 
 import quasiquotes.parser.DottySourceSpanAdapter
+import quasiquotes.parser.InterpolatedStringSegments
 import quasiquotes.types.toTypeRepr
 
 object ParsedTermLowerer:
@@ -76,6 +77,18 @@ object ParsedTermLowerer:
             loweredOperand <- lowerTerm(operand)
             loweredUnary <- applyUnary(loweredOperand, operator.toString).left.map(located(_, tree))
           yield loweredUnary
+        case interpolation @ untpd.InterpolatedString(prefix, segments) =>
+          if prefix.toString != "s" then
+            Left(located(QuasiquoteError.UnsupportedTree("InterpolatedString", s"Unsupported prefix: ${prefix.toString}"), interpolation))
+          else
+            InterpolatedStringSegments.decode(segments) match
+              case Left(detail) =>
+                Left(located(QuasiquoteError.UnsupportedTree("InterpolatedString", detail), interpolation))
+              case Right(decoded) =>
+                for
+                  loweredArguments <- sequenceLocated(decoded.arguments.map(lowerTerm))
+                  lowered <- lowerSInterpolation(decoded.parts, loweredArguments).left.map(located(_, interpolation))
+                yield lowered
         case untpd.Typed(expression, typeTree) =>
           for
             loweredExpression <- lowerTerm(expression)
@@ -208,6 +221,19 @@ object ParsedTermLowerer:
             s"Unsupported unary operator: $operator"
           )
         )
+
+  private def lowerSInterpolation(using q: Quotes)(
+      parts: List[String],
+      arguments: List[q.reflect.Term]
+  ): Either[QuasiquoteError, q.reflect.Term] =
+    import q.reflect.*
+    try
+      val partExpressions = parts.map(Expr(_))
+      val argumentExpressions = arguments.map(_.asExpr)
+      Right('{ StringContext(${Varargs(partExpressions)}*).s(${Varargs(argumentExpressions)}*) }.asTerm)
+    catch
+      case NonFatal(error) =>
+        Left(QuasiquoteError.UnsupportedApplication(error.getMessage.nn))
 
   private def makeTuple(using q: Quotes)(elements: List[q.reflect.Term]): Either[QuasiquoteError, q.reflect.Term] =
     import q.reflect.*

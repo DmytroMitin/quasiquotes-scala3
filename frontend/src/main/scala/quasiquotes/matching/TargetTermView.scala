@@ -3,6 +3,8 @@ package quasiquotes.matching
 import scala.quoted.Quotes
 import scala.util.matching.Regex
 
+import quasiquotes.parser.{TermShape, TinyTermParser}
+
 sealed trait TargetTermView[+T] derives CanEqual:
   def original: T
   final def render: String = TargetTermView.render(this)
@@ -21,6 +23,12 @@ object TargetTermView:
   final case class Apply[T](function: TargetTermView[T], arguments: List[TargetTermView[T]], original: T) extends TargetTermView[T]
   final case class Infix[T](left: TargetTermView[T], operator: String, right: TargetTermView[T], original: T) extends TargetTermView[T]
   final case class Unary[T](operator: String, operand: TargetTermView[T], original: T) extends TargetTermView[T]
+  final case class InterpolatedString[T](
+      prefix: String,
+      parts: List[String],
+      arguments: List[TargetTermView[T]],
+      original: T
+  ) extends TargetTermView[T]
   final case class Typed[T](expression: TargetTermView[T], typeName: String, original: T) extends TargetTermView[T]
   final case class Tuple[T](elements: List[TargetTermView[T]], original: T) extends TargetTermView[T]
   final case class If[T](condition: TargetTermView[T], thenBranch: TargetTermView[T], elseBranch: TargetTermView[T], original: T) extends TargetTermView[T]
@@ -31,7 +39,24 @@ object TargetTermView:
     // This extraction step removes compiler-introduced wrappers but does not perform
     // the higher-level normalization experiment introduced in Task 3.5.
     def extract(term: Term): Either[MatchFailure, TargetTermView[Term]] =
-      unwrapWrappers(term) match
+      val current = unwrapWrappers(term)
+      sourceInterpolation(term) match
+        case Some((prefix, parts, sourceArgumentCount)) =>
+          typedInterpolationArguments(current, sourceArgumentCount) match
+            case Some(arguments) =>
+              sequence(arguments.map(extract)).map(
+                TargetTermView.InterpolatedString(prefix, parts, _, current)
+              )
+            case None =>
+              Left(
+                MatchFailure.UnsupportedTargetShape(
+                  s"source-proven interpolation typed shape: ${current.show(using Printer.TreeStructure)}"
+                )
+              )
+        case None => extractOrdinary(current)
+
+    def extractOrdinary(term: Term): Either[MatchFailure, TargetTermView[Term]] =
+      term match
         case Ident(name) =>
           val current = unwrapWrappers(term)
           Right(TargetTermView.Identifier(name, current))
@@ -85,6 +110,8 @@ object TargetTermView:
         s"Infix(${render(left)}, $operator, ${render(right)})"
       case Unary(operator, operand, _) =>
         s"Unary($operator, ${render(operand)})"
+      case InterpolatedString(prefix, parts, arguments, _) =>
+        s"InterpolatedString($prefix, [${parts.map(quote).mkString(", ")}], [${arguments.map(render).mkString(", ")}])"
       case Typed(expression, typeName, _) =>
         s"Typed(${render(expression)}, Type($typeName))"
       case Tuple(elements, _) =>
@@ -92,12 +119,58 @@ object TargetTermView:
       case If(condition, thenBranch, elseBranch, _) =>
         s"If(${render(condition)}, ${render(thenBranch)}, ${render(elseBranch)})"
 
+  private def sourceInterpolation(using q: Quotes)(
+      term: q.reflect.Term
+  ): Option[(String, List[String], Int)] =
+    import q.reflect.*
+
+    def unwrap(shape: TermShape): TermShape =
+      shape match
+        case TermShape.Parenthesized(inner) => unwrap(inner)
+        case other => other
+
+    term.pos.sourceCode
+      .flatMap(source => TinyTermParser.parse(source).toOption)
+      .map(parsed => unwrap(parsed.shape))
+      .collect {
+        case TermShape.InterpolatedString("s", parts, arguments) =>
+          ("s", parts, arguments.size)
+      }
+
+  private def typedInterpolationArguments(using q: Quotes)(
+      term: q.reflect.Term,
+      expectedCount: Int
+  ): Option[List[q.reflect.Term]] =
+    import q.reflect.*
+
+    def loop(current: Term): Option[List[Term]] =
+      def unpack(arguments: List[Term]): List[Term] =
+        arguments match
+          case Repeated(values, _) :: Nil => values
+          case q.reflect.Typed(Repeated(values, _), _) :: Nil => values
+          case other => other
+
+      unwrapWrappers(current) match
+        case q.reflect.Apply(q.reflect.Select(_, "s"), arguments)
+            if unpack(arguments).size == expectedCount =>
+          Some(unpack(arguments))
+        case q.reflect.Apply(TypeApply(q.reflect.Select(_, "s"), _), arguments)
+            if unpack(arguments).size == expectedCount =>
+          Some(unpack(arguments))
+        case _ if expectedCount == 0 => Some(Nil)
+        case _ => None
+
+    loop(term)
+
+  private def quote(value: String): String =
+    "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
   private def unwrapWrappers(using q: Quotes)(term: q.reflect.Term): q.reflect.Term =
     import q.reflect.*
     term match
       case Inlined(_, _, inner) => unwrapWrappers(inner)
       case Block(Nil, inner: Term) => unwrapWrappers(inner)
-      case ident: Ident if ident.symbol.exists =>
+      case ident: Ident if ident.symbol.exists && ident.symbol.pos.nonEmpty =>
         ident.symbol.tree match
           case ValDef(_, _, Some(rhs)) => unwrapWrappers(rhs)
           case _ => term

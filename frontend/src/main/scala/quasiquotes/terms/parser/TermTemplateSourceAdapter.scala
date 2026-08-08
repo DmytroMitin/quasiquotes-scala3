@@ -754,6 +754,10 @@ private[quasiquotes] object RawTermTemplateAdapter:
         rawTypedTypeTrees(left) ++ rawTypedTypeTrees(right)
       case untpd.PrefixOp(_, operand) =>
         rawTypedTypeTrees(operand)
+      case interpolation: untpd.InterpolatedString =>
+        interpolation.segments.toVector.flatMap(rawTypedTypeTrees)
+      case thicket: untpd.Thicket =>
+        thicket.trees.toVector.flatMap(rawTypedTypeTrees)
       case untpd.Typed(expression, typeTree) =>
         typeTree +: rawTypedTypeTrees(expression)
       case untpd.Tuple(elements) =>
@@ -807,6 +811,8 @@ private[quasiquotes] object RawTermTemplateAdapter:
         firstUnsupported(left).orElse(firstUnsupported(right))
       case TermShape.Unary(_, operand) =>
         firstUnsupported(operand)
+      case TermShape.InterpolatedString(_, _, arguments) =>
+        arguments.iterator.flatMap(firstUnsupported).nextOption()
       case TermShape.Typed(expression, _) =>
         firstUnsupported(expression)
       case TermShape.Tuple(elements) =>

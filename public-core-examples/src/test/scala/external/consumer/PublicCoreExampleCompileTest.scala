@@ -5,6 +5,7 @@ import quasiquotes.publicapi.CompletedType
 import quasiquotes.publicapi.DefinitionConstruction
 import quasiquotes.publicapi.DefinitionResultView
 import quasiquotes.publicapi.PublicFailure
+import quasiquotes.parser.TermShape
 
 final class PublicCoreExampleCompileTest extends munit.FunSuite:
   private def showMethod(
@@ -66,4 +67,16 @@ final class PublicCoreExampleCompileTest extends munit.FunSuite:
     assertEquals(
       failure.anchor.map(_.componentCode),
       Some("contextual-parameter-name")
+    )
+
+  test("external consumer can inspect the experimental interpolation shape"):
+    val shape = TermShape.InterpolatedString(
+      "s",
+      List("hello ", ""),
+      List(TermShape.Identifier("name", isPlaceholder = false))
+    )
+
+    assertEquals(
+      shape.render,
+      "InterpolatedString(s, [\"hello \", \"\"], [Ident(name)])"
     )

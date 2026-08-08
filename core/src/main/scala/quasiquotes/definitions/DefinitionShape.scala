@@ -100,6 +100,12 @@ private[quasiquotes] object DefinitionShape:
         if !SupportedUnaryOperators(operator) then
           Some("unary bodies support only +, -, !, and ~")
         else firstUnsupportedTerm(operand)
+      case TermShape.InterpolatedString("s", parts, arguments) =>
+        if parts.size != arguments.size + 1 then
+          Some("interpolated string parts/arguments are inconsistent")
+        else firstUnsupported(arguments)
+      case TermShape.InterpolatedString(_, _, _) =>
+        Some("definition bodies support only the standard s interpolator")
       case TermShape.Typed(expression, typeName) =>
         if !SupportedAscriptionTypes(typeName) then
           Some("typed bodies support only Int, String, and Boolean ascriptions")

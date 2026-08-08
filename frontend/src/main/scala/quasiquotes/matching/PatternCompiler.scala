@@ -1,7 +1,7 @@
 package quasiquotes.matching
 
 import dotty.tools.dotc.ast.untpd
-import quasiquotes.parser.DottySourceSpanAdapter
+import quasiquotes.parser.{DottySourceSpanAdapter, InterpolatedStringSegments}
 import quasiquotes.source.{GeneratedHoleIndex, SourceSpan}
 
 private[matching] final case class PatternCompileFailure(
@@ -52,6 +52,14 @@ object PatternCompiler:
         yield TermPattern.Infix(compiledLeft, op.name.toString, compiledRight)
       case untpd.PrefixOp(untpd.Ident(operator), operand) if SupportedUnaryOperators(operator.toString) =>
         compileLocatedUsing(operand, semanticHoleName).map(TermPattern.Unary(operator.toString, _))
+      case interpolation @ untpd.InterpolatedString(prefix, segments) =>
+        if prefix.toString != "s" then unsupportedInterpolation(interpolation, s"unsupported prefix: ${prefix.toString}")
+        else
+          InterpolatedStringSegments.decode(segments) match
+            case Left(detail) => unsupportedInterpolation(interpolation, detail)
+            case Right(decoded) =>
+              sequence(decoded.arguments.map(compileLocatedUsing(_, semanticHoleName)))
+                .map(TermPattern.InterpolatedString("s", decoded.parts, _))
       case untpd.Typed(expression, typeTree) =>
         compileLocatedUsing(expression, semanticHoleName).map(TermPattern.Typed(_, renderType(typeTree)))
       case untpd.Tuple(elements) =>
@@ -86,6 +94,17 @@ object PatternCompiler:
     value match
       case string: String => "\"" + string + "\""
       case other => String.valueOf(other)
+
+  private def unsupportedInterpolation(
+      tree: untpd.Tree,
+      detail: String
+  ): Either[PatternCompileFailure, Nothing] =
+    Left(
+      PatternCompileFailure(
+        PatternError.UnsupportedPatternShape("InterpolatedString", detail),
+        DottySourceSpanAdapter.fromTree(tree).filter(!_.isEmpty)
+      )
+    )
 
   private def renderType(tree: untpd.Tree): String =
     normalizeTypeName(tree match

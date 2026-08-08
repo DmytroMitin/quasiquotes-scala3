@@ -12,6 +12,11 @@ object CanonicalTerm:
   final case class Apply(function: CanonicalTerm, arguments: List[CanonicalTerm]) extends CanonicalTerm
   final case class Infix(left: CanonicalTerm, operator: String, right: CanonicalTerm) extends CanonicalTerm
   final case class Unary(operator: String, operand: CanonicalTerm) extends CanonicalTerm
+  final case class InterpolatedString(
+      prefix: String,
+      parts: List[String],
+      arguments: List[CanonicalTerm]
+  ) extends CanonicalTerm
   final case class Typed(expression: CanonicalTerm, typeName: String) extends CanonicalTerm
   final case class Tuple(elements: List[CanonicalTerm]) extends CanonicalTerm
   final case class If(condition: CanonicalTerm, thenBranch: CanonicalTerm, elseBranch: CanonicalTerm) extends CanonicalTerm
@@ -27,12 +32,17 @@ object CanonicalTerm:
         s"CInfix(${render(left)}, $operator, ${render(right)})"
       case Unary(operator, operand) =>
         s"CUnary($operator, ${render(operand)})"
+      case InterpolatedString(prefix, parts, arguments) =>
+        s"CInterpolatedString($prefix, [${parts.map(quote).mkString(", ")}], [${arguments.map(render).mkString(", ")}])"
       case Typed(expression, typeName) =>
         s"CTyped(${render(expression)}, Type($typeName))"
       case Tuple(elements) =>
         s"CTuple([${elements.map(render).mkString(", ")}])"
       case If(condition, thenBranch, elseBranch) =>
         s"CIf(${render(condition)}, ${render(thenBranch)}, ${render(elseBranch)})"
+
+  private def quote(value: String): String =
+    "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 object TermCanonicalizer:
   def canonicalize(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, CanonicalTerm] =
@@ -67,6 +77,9 @@ object TermCanonicalizer:
         yield CanonicalTerm.Infix(canonicalLeft, operator, canonicalRight)
       case TargetTermView.Unary(operator, operand, _) =>
         canonicalizeView(operand).map(CanonicalTerm.Unary(operator, _))
+      case TargetTermView.InterpolatedString(prefix, parts, arguments, _) =>
+        sequence(arguments.map(canonicalizeView))
+          .map(CanonicalTerm.InterpolatedString(prefix, parts, _))
       case TargetTermView.Typed(expression, typeName, _) =>
         canonicalizeView(expression).map(CanonicalTerm.Typed(_, typeName))
       case TargetTermView.Tuple(elements, _) =>

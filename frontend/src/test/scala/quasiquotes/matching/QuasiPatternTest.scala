@@ -150,6 +150,26 @@ private object UnaryCanonicalEqualityScope:
   val doubleNotVsPlain = QuasiquoteMatchExamples.compareEquality(!(!flag), flag)
   val plusVsPlain = QuasiquoteMatchExamples.compareEquality(+a, a)
 
+private object MatchSInterpolationScope:
+  private val name = "Ada"
+  private val other = "Grace"
+  private val left = "a"
+  private val right = "b"
+
+  val one = QuasiquoteMatchExamples.summarizeMatchNormalized("""s"hello $x"""", s"hello $name")
+  val two = QuasiquoteMatchExamples.summarizeMatchNormalized("""s"$x / $y"""", s"$left / $right")
+  val partMismatch = QuasiquoteMatchExamples.summarizeMatchNormalized("""s"hello $x"""", s"goodbye $name")
+  val repeatedSuccess = QuasiquoteMatchExamples.summarizeMatchNormalized("""s"$x / $x"""", s"$name / $name")
+  val repeatedFailure = QuasiquoteMatchExamples.summarizeMatchNormalized("""s"$x / $x"""", s"$name / $other")
+  val literalGuestIdentifier = QuasiquoteMatchExamples.summarizeMatchNormalized("""s"hello $$name"""", s"hello $name")
+  val ordinaryCall = QuasiquoteMatchExamples.summarizeMatchNormalized(
+    """s"hello $x"""",
+    StringContext("hello ", "").s(name)
+  )
+  val wholeCapture = QuasiquoteMatchExamples.summarizeMatchNormalized("$x", s"hello $name")
+  val equalitySame = QuasiquoteMatchExamples.compareEquality(s"hello $name", s"hello $name")
+  val equalityDifferentPart = QuasiquoteMatchExamples.compareEquality(s"hello $name", s"goodbye $name")
+
 private object MatchMacroProofScope:
   private val a = 2
   private val b = 3
@@ -456,6 +476,39 @@ class QuasiPatternTest extends munit.FunSuite:
     assert(!MatchUnaryScope.foldedNotLiteral.success)
     assert(!MatchUnaryScope.foldedComplementLiteral.success)
     assert(MatchUnaryScope.signedLiteral.success)
+  }
+
+  test("s-interpolation patterns match prefix, parts, and structural arguments") {
+    assert(clue(MatchSInterpolationScope.one).success)
+    assertEquals(MatchSInterpolationScope.one.bindings.size, 1)
+    assert(MatchSInterpolationScope.two.success)
+    assertEquals(MatchSInterpolationScope.two.bindings.size, 2)
+    assert(!MatchSInterpolationScope.partMismatch.success)
+  }
+
+  test("s-interpolation repeated holes use normalized structural equality") {
+    assert(clue(MatchSInterpolationScope.repeatedSuccess).success)
+    assert(!MatchSInterpolationScope.repeatedFailure.success)
+    assert(MatchSInterpolationScope.repeatedFailure.detail.contains("Repeated hole"))
+  }
+
+  test("doubled dollars express a literal guest interpolation identifier in patterns") {
+    val compiled = QuasiPattern.termOrThrow("""s"hello $$name"""")
+    assertEquals(compiled.placeholderSource, "s\"hello $name\"")
+    assertEquals(compiled.pattern.render, "InterpolatedString(s, [\"hello \", \"\"], [Ident(name)])")
+    assert(MatchSInterpolationScope.literalGuestIdentifier.success)
+  }
+
+  test("typed matching requires interpolation source provenance and rejects an ordinary StringContext call") {
+    assert(!MatchSInterpolationScope.ordinaryCall.success)
+    assert(clue(MatchSInterpolationScope.wholeCapture).success)
+  }
+
+  test("interpolation canonical and normalized equality preserve parts and arguments") {
+    assert(clue(MatchSInterpolationScope.equalitySame).normalizedEqual)
+    assert(MatchSInterpolationScope.equalitySame.canonicalEqual)
+    assert(!MatchSInterpolationScope.equalityDifferentPart.normalizedEqual)
+    assert(!MatchSInterpolationScope.equalityDifferentPart.canonicalEqual)
   }
 
   test("matching API works inside real macros") {

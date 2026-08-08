@@ -28,6 +28,11 @@ private object SemanticTermKey:
   ) extends SemanticTermKey
   final case class Unary(operator: String, operand: SemanticTermKey)
       extends SemanticTermKey
+  final case class InterpolatedString(
+      prefix: String,
+      parts: Vector[String],
+      arguments: Vector[SemanticTermKey]
+  ) extends SemanticTermKey
   final case class Typed(
       expression: SemanticTermKey,
       ascription: TypeTemplate
@@ -234,6 +239,21 @@ private[quasiquotes] final class TermTemplate private (
           typeBindings
         ).map(completed =>
           completed.copy(shape = TermShape.Unary(operator, completed.shape))
+        )
+      case TermShape.InterpolatedString(prefix, parts, arguments) =>
+        completeChildren(
+          arguments,
+          identifierOrdinal,
+          typedOrdinal,
+          termBindings,
+          typeBindings
+        ).map(completed =>
+          CompletedSubtree(
+            TermShape.InterpolatedString(prefix, parts, completed.shapes),
+            completed.ascriptions,
+            completed.nextIdentifierOrdinal,
+            completed.nextTypedOrdinal
+          )
         )
       case TermShape.Typed(expression, _) =>
         val template = ascriptionTypes(typedOrdinal)
@@ -481,6 +501,14 @@ private[quasiquotes] final class TermTemplate private (
           semanticShapeKey(operand, identifierOrdinal, typedOrdinal)
         (
           SemanticTermKey.Unary(operator, operandKey),
+          nextIdentifier,
+          nextTyped
+        )
+      case TermShape.InterpolatedString(prefix, parts, arguments) =>
+        val (argumentKeys, nextIdentifier, nextTyped) =
+          semanticChildrenKey(arguments, identifierOrdinal, typedOrdinal)
+        (
+          SemanticTermKey.InterpolatedString(prefix, parts.toVector, argumentKeys),
           nextIdentifier,
           nextTyped
         )

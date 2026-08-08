@@ -80,6 +80,10 @@ object PlaceholderSource:
         val name = freshCategorizedName(baseName, literalSource, generatedNames)
         generatedNames += name
         val generatedStart = builder.length
+        val isWholeGuestInterpolationArgument =
+          hole.isInstanceOf[QuasiquoteHole.Term[?]] &&
+            insideSInterpolationLiteral(builder.result())
+        if isWholeGuestInterpolationArgument then builder.append('$')
         builder.append(name)
         val category = hole match
           case _: QuasiquoteHole.Term[?] => InterpolationCategory.TermSplice
@@ -109,3 +113,48 @@ object PlaceholderSource:
       .map(attempt => if attempt == 0 then baseName else s"${baseName}_$attempt")
       .find(candidate => !literalSource.contains(candidate) && !generatedNames.contains(candidate))
       .get
+
+  /** True only in the literal-text region of a single-quoted standard `s`
+    * interpolation. A hole inside an existing `${...}` guest expression remains
+    * an ordinary identifier splice and therefore does not receive another `$`.
+    */
+  private def insideSInterpolationLiteral(source: String): Boolean =
+    var index = 0
+    var inInterpolation = false
+    var guestBraceDepth = 0
+    var escaped = false
+
+    while index < source.length do
+      val current = source.charAt(index)
+      if !inInterpolation then
+        if current == 's' && index + 1 < source.length && source.charAt(index + 1) == '"' &&
+            (index == 0 || !isIdentifierPart(source.charAt(index - 1))) &&
+            !(index + 3 < source.length && source.substring(index + 1, index + 4) == "\"\"\"")
+        then
+          inInterpolation = true
+          escaped = false
+          index += 2
+        else index += 1
+      else if guestBraceDepth == 0 then
+        if escaped then
+          escaped = false
+          index += 1
+        else if current == '\\' then
+          escaped = true
+          index += 1
+        else if current == '"' then
+          inInterpolation = false
+          index += 1
+        else if current == '$' && index + 1 < source.length && source.charAt(index + 1) == '{' then
+          guestBraceDepth = 1
+          index += 2
+        else index += 1
+      else
+        if current == '{' then guestBraceDepth += 1
+        else if current == '}' then guestBraceDepth -= 1
+        index += 1
+
+    inInterpolation && guestBraceDepth == 0
+
+  private def isIdentifierPart(char: Char): Boolean =
+    char == '_' || char.isLetterOrDigit

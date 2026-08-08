@@ -60,6 +60,18 @@ object QuasiquoteMacroExamples:
   private[quasiquotes] inline def unaryIf(condition: Boolean, x: Int, y: Int): Int =
     ${ unaryIfImpl('condition, 'x, 'y) }
 
+  private[quasiquotes] inline def sInterpolationPlain: String =
+    ${ sInterpolationPlainImpl }
+
+  private[quasiquotes] inline def sInterpolationOne(name: String): String =
+    ${ sInterpolationOneImpl('name) }
+
+  private[quasiquotes] inline def sInterpolationTwo(left: String, right: String): String =
+    ${ sInterpolationTwoImpl('left, 'right) }
+
+  private[quasiquotes] inline def sInterpolationGuestExpression: String =
+    ${ sInterpolationGuestExpressionImpl }
+
   inline def holeInfixSummary(x: Int, y: Int): DemoCase = ${ holeInfixSummaryImpl('x, 'y) }
 
   inline def nestedFunctionHoleSummary(x: Int): DemoCase = ${ nestedFunctionHoleSummaryImpl('x) }
@@ -150,6 +162,29 @@ object QuasiquoteMacroExamples:
     import quasiquotes.construct.Quasiquotes.*
     val functionTerm = Select.unique('{ (n: Int) => n + 1 }.asTerm, "apply")
     qr"$functionTerm(${x.asTerm}: Int)".asExprOf[Int]
+
+  private def sInterpolationPlainImpl(using Quotes): Expr[String] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    qr"""s"plain"""".asExprOf[String]
+
+  private def sInterpolationOneImpl(name: Expr[String])(using Quotes): Expr[String] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    val nameTerm = name.asTerm
+    qr"""s"hello $nameTerm"""".asExprOf[String]
+
+  private def sInterpolationTwoImpl(left: Expr[String], right: Expr[String])(using Quotes): Expr[String] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    val leftTerm = left.asTerm
+    val rightTerm = right.asTerm
+    qr"""s"$leftTerm / $rightTerm"""".asExprOf[String]
+
+  private def sInterpolationGuestExpressionImpl(using Quotes): Expr[String] =
+    import quotes.reflect.*
+    import quasiquotes.construct.Quasiquotes.*
+    qr"""s"value = $${1 + 1}"""".asExprOf[String]
 
   private def tupleHolesImpl(x: Expr[Int], y: Expr[Int])(using Quotes): Expr[(Int, Int)] =
     import quotes.reflect.*

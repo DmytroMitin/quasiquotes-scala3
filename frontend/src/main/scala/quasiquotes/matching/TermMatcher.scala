@@ -84,6 +84,15 @@ object TermMatcher:
             case TargetTermView.Unary(targetOperator, targetOperand, _) if targetOperator == operator =>
               loop(operand, targetOperand, bindings)
             case other => Left(shapeMismatch(pattern, other))
+        case TermPattern.InterpolatedString(prefix, parts, arguments) =>
+          target match
+            case TargetTermView.InterpolatedString(targetPrefix, targetParts, targetArguments, _)
+                if targetPrefix == prefix && targetParts == parts && targetArguments.length == arguments.length =>
+              arguments.zip(targetArguments).foldLeft(Right(bindings): Either[MatchFailure, Map[String, Term]]) {
+                case (acc, (patternArgument, targetArgument)) =>
+                  acc.flatMap(loop(patternArgument, targetArgument, _))
+              }
+            case other => Left(shapeMismatch(pattern, other))
         case TermPattern.Typed(expression, typeName) =>
           target match
             case TargetTermView.Typed(targetExpression, targetTypeName, _) if targetTypeName == typeName =>
