@@ -4,6 +4,7 @@ import scala.collection.JavaConverters._
 
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.8.4"
+ThisBuild / organization := "io.github.dmytromitin"
 
 lazy val munitVersion = "1.2.4"
 
@@ -110,6 +111,7 @@ lazy val frontend = (project in file("frontend"))
   .settings(commonSettings)
   .settings(
     name := "quasiquotes-scala3-frontend",
+    crossVersion := CrossVersion.full,
     libraryDependencies +=
       "org.scala-lang" %% "scala3-compiler" % scalaVersion.value
   )
