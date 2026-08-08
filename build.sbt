@@ -5,6 +5,7 @@ import scala.collection.JavaConverters._
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.8.4"
 ThisBuild / organization := "io.github.dmytromitin"
+Global / concurrentRestrictions := Seq(Tags.limitAll(1))
 
 lazy val munitVersion = "1.2.4"
 
@@ -16,7 +17,10 @@ lazy val verifyModuleGraph = taskKey[Unit](
 )
 
 lazy val commonSettings = Seq(
-  libraryDependencies += "org.scalameta" %% "munit" % munitVersion % Test
+  libraryDependencies += "org.scalameta" %% "munit" % munitVersion % Test,
+  Compile / exportJars := true,
+  Test / exportJars := true,
+  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
 )
 
 lazy val core = (project in file("core"))
