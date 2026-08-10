@@ -5,6 +5,14 @@ import scala.collection.JavaConverters._
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.8.4"
 ThisBuild / organization := "io.github.dmytromitin"
+ThisBuild / versionScheme := Some("early-semver")
+ThisBuild / homepage := Some(url("https://github.com/DmytroMitin/quasiquotes-scala3"))
+ThisBuild / scmInfo := Some(
+  ScmInfo(
+    url("https://github.com/DmytroMitin/quasiquotes-scala3"),
+    "scm:git:git@github.com:DmytroMitin/quasiquotes-scala3.git"
+  )
+)
 Global / concurrentRestrictions := Seq(Tags.limitAll(1))
 
 lazy val munitVersion = "1.2.4"
@@ -27,6 +35,7 @@ lazy val core = (project in file("core"))
   .settings(commonSettings)
   .settings(
     name := "quasiquotes-scala3-core",
+    description := "Compiler-free structural quasiquote values and algorithms for Scala 3",
     verifyCoreBoundary := {
       val log = streams.value.log
       val forbiddenSourceTokens = Vector("scala.quoted", "dotty.tools.dotc")
@@ -115,6 +124,7 @@ lazy val frontend = (project in file("frontend"))
   .settings(commonSettings)
   .settings(
     name := "quasiquotes-scala3-frontend",
+    description := "Scala compiler-coupled parsing, reflection, and quasiquote frontend",
     crossVersion := CrossVersion.full,
     libraryDependencies +=
       "org.scala-lang" %% "scala3-compiler" % scalaVersion.value

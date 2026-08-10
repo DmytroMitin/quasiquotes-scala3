@@ -52,6 +52,10 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     )
     assert(pattern.isRight)
     assertEquals(constructed.map(_.source), Right("List[Either[Int, String]]"))
+    assert(quasiquotes.matching.QuasiPattern.term("foo($value)").isRight)
+    assert(quasiquotes.matching.QuasiPattern.term("$value + $value").isRight)
+    assertEquals(PublicUserSmokeMacros.add(2, 3), 5)
+    assertEquals(PublicUserSmokeMacros.greeting("Ada"), "hello Ada")
 
   // Compiling this method proves that the Phase 56 lowering relocation needs
   // the explicit frontend extension import even though no macro is run here.
