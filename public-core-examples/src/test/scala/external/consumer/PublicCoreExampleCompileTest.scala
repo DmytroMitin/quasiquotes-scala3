@@ -6,6 +6,8 @@ import quasiquotes.publicapi.DefinitionConstruction
 import quasiquotes.publicapi.DefinitionResultView
 import quasiquotes.publicapi.PublicFailure
 import quasiquotes.parser.TermShape
+import quasiquotes.parser.TypeShape
+import quasiquotes.types.{ConstructedType, TypeNormalForm, TypePattern, TypeTemplate}
 
 final class PublicCoreExampleCompileTest extends munit.FunSuite:
   private def showMethod(
@@ -79,4 +81,35 @@ final class PublicCoreExampleCompileTest extends munit.FunSuite:
     assertEquals(
       shape.render,
       "InterpolatedString(s, [\"hello \", \"\"], [Ident(name)])"
+    )
+
+  test("external core-only consumer uses recursive applied-type structures"):
+    val shape = TypeShape.Apply(
+      TypeShape.Identifier("Either"),
+      List(
+        TypeShape.Apply(
+          TypeShape.Identifier("List"),
+          List(TypeShape.Identifier("Int"))
+        ),
+        TypeShape.Apply(
+          TypeShape.Identifier("Option"),
+          List(TypeShape.Identifier("String"))
+        )
+      )
+    )
+    val normalForm = TypeNormalForm.fromShape(shape).toOption.get
+    assertEquals(
+      ConstructedType(normalForm).source,
+      "Either[List[Int], Option[String]]"
+    )
+    assertEquals(TypeTemplate.validateConstructed(normalForm), Right(()))
+    assertEquals(
+      TypePattern.matchNormalForm(
+        TypePattern.TPApply(
+          TypePattern.TPIdent("Either"),
+          List(TypePattern.TPHole("left"), TypePattern.TPHole("right"))
+        ),
+        normalForm
+      ).map(_.bindings.keySet),
+      Some(Set("left", "right"))
     )

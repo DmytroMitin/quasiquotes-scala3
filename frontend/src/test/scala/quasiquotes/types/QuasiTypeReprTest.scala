@@ -406,7 +406,7 @@ class QuasiTypeReprTest extends munit.FunSuite:
     )
   }
 
-  test("constructed TypeRepr lowering rejects unsupported normal forms clearly") {
+  test("constructed TypeRepr lowering recurses through admitted applications and rejects unsupported forms clearly") {
     assertEquals(
       QuasiTypeExamples.normalFormLoweringMessage("AnyVal"),
       "Cannot lower unsupported constructed type normal form to TypeRepr: AnyVal"
@@ -421,7 +421,7 @@ class QuasiTypeReprTest extends munit.FunSuite:
     )
     assertEquals(
       QuasiTypeExamples.normalFormLoweringMessage("List[List[Int]]"),
-      "Cannot lower unsupported constructed type normal form to TypeRepr: List[List[Int]]"
+      "scala.collection.immutable.List[scala.collection.immutable.List[scala.Int]]"
     )
     assertEquals(
       QuasiTypeExamples.normalFormLoweringMessage("(Int, Boolean)"),

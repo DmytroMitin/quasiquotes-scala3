@@ -15,10 +15,12 @@ object TypeNormalForm:
     shape match
       case TypeShape.Identifier(name) => normalizeIdentifier(name)
       case TypeShape.Parenthesized(typeShape) => fromShape(typeShape)
-      case TypeShape.Apply(TypeShape.Identifier("List"), argument :: Nil) =>
-        fromShape(argument).map(argumentForm => STypeApply(STypeIdent("List"), List(argumentForm)))
-      case TypeShape.Apply(TypeShape.Identifier("Option"), argument :: Nil) =>
-        fromShape(argument).map(argumentForm => STypeApply(STypeIdent("Option"), List(argumentForm)))
+      case TypeShape.Apply(TypeShape.Identifier(name), arguments)
+          if AppliedTypeConstructorPolicy
+            .forNormalFormSource(name, arguments.size)
+            .isDefined =>
+        collect(arguments.map(fromShape))
+          .map(argumentForms => STypeApply(STypeIdent(name), argumentForms))
       case TypeShape.Apply(constructor, arguments) =>
         Left(TypeQuasiquoteError(s"Unsupported type shape for Phase 15 structural normal form: ${TypeShape.Apply(constructor, arguments).render}"))
       case TypeShape.Tuple(elements) if elements.size == 2 || elements.size == 3 =>

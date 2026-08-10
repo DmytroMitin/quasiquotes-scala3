@@ -83,6 +83,48 @@ class GeneratedOriginFragmentSupportTest extends munit.FunSuite:
     }
   }
 
+  test("positions nested unary and binary applied type arguments exactly") {
+    withContext {
+      val normalForm =
+        STypeApply(
+          STypeIdent("Either"),
+          List(
+            STypeApply(STypeIdent("Option"), List(STypeIdent("Int"))),
+            STypeApply(
+              STypeIdent("List"),
+              List(
+                STypeApply(
+                  STypeIdent("Either"),
+                  List(STypeIdent("String"), STypeIdent("Boolean"))
+                )
+              )
+            )
+          )
+        )
+      val fragment = GeneratedOriginFragmentSupport.planType(normalForm).toOption.get
+      assertEquals(
+        fragment.source,
+        "Either[Option[Int], List[Either[String, Boolean]]]"
+      )
+      val prefix = "val value: "
+      val source = SourceFile.virtual(
+        "<generated-binary-applied-type>",
+        prefix + fragment.source + " = value"
+      )
+      val raw = CompletedTypeUntypedLowerer.lower(normalForm).toOption.get
+      val positioned = GeneratedOriginFragmentSupport
+        .positionType(raw, fragment, source, prefix.length)
+        .toOption
+        .get
+
+      GeneratedOriginFragmentSupport.allTrees(positioned).foreach { tree =>
+        assertEquals(tree.source.path, source.path)
+        assert(tree.span.start >= prefix.length)
+        assert(tree.span.end <= prefix.length + fragment.source.length)
+      }
+    }
+  }
+
   private def withContext(body: Context ?=> Unit): Unit =
     val base = new ContextBase
     given Context = base.initialCtx

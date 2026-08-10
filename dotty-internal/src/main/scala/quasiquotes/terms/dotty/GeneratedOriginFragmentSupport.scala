@@ -8,7 +8,7 @@ import dotty.tools.dotc.util.Spans.Span
 
 import quasiquotes.parser.TermShape
 import quasiquotes.terms.ConstructedTerm
-import quasiquotes.types.TypeNormalForm
+import quasiquotes.types.{AppliedTypeConstructorPolicy, TypeNormalForm}
 
 private[quasiquotes] object GeneratedOriginFragmentSupport:
   import ConstructedTermGeneratedOriginError.*
@@ -447,20 +447,22 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
         case TypeNormalForm.STypeIdent(name @ ("Int" | "String" | "Boolean")) =>
           leaf(NodeKind.TypeIdent, Right(name))
         case TypeNormalForm.STypeApply(
-              TypeNormalForm.STypeIdent(name @ ("List" | "Option")),
-              argument :: Nil
-            ) =>
+              TypeNormalForm.STypeIdent(name),
+              arguments
+            ) if AppliedTypeConstructorPolicy
+              .forConstruction(name, arguments.size)
+              .isDefined =>
           val start = builder.length
           for
             constructor <- leaf(NodeKind.TypeIdent, Right(name))
             _ = builder.append('[')
-            rawArgument <- renderDelimitedFunctionType(argument, sidecarOrdinal)
+            rawArguments <- renderAppliedTypeArguments(arguments, sidecarOrdinal)
             _ = builder.append(']')
           yield node(
             NodeKind.AppliedType,
             start,
             constructor.start,
-            Vector(constructor, rawArgument)
+            constructor +: rawArguments
           )
         case TypeNormalForm.STypeTuple(elements)
             if elements.size == 2 || elements.size == 3 =>
@@ -534,6 +536,20 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
         accumulated.flatMap { values =>
           if index > 0 then builder.append(separator)
           renderType(normalForm, sidecarOrdinal).map(values :+ _)
+        }
+      }
+
+    private def renderAppliedTypeArguments(
+        arguments: List[TypeNormalForm],
+        sidecarOrdinal: Int
+    ): Either[ConstructedTermGeneratedOriginError, Vector[NodePlan]] =
+      arguments.zipWithIndex.foldLeft[
+        Either[ConstructedTermGeneratedOriginError, Vector[NodePlan]]
+      ](Right(Vector.empty)) { case (accumulated, (argument, index)) =>
+        accumulated.flatMap { values =>
+          if index > 0 then builder.append(", ")
+          renderDelimitedFunctionType(argument, sidecarOrdinal)
+            .map(values :+ _)
         }
       }
 

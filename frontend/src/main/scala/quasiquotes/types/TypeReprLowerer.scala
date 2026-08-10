@@ -13,10 +13,11 @@ object TypeReprLowerer:
       case TypeShape.Identifier("Boolean") => Right(TypeRepr.of[Boolean])
       case TypeShape.Identifier("AnyVal") => Right(TypeRepr.of[AnyVal])
       case TypeShape.Parenthesized(typeShape) => lower(typeShape)
-      case TypeShape.Apply(TypeShape.Identifier("List"), argument :: Nil) =>
-        lowerList(argument)
-      case TypeShape.Apply(TypeShape.Identifier("Option"), argument :: Nil) =>
-        lowerOption(argument)
+      case TypeShape.Apply(TypeShape.Identifier(name), arguments)
+          if AppliedTypeConstructorPolicy
+            .forNormalFormSource(name, arguments.size)
+            .isDefined =>
+        lowerAppliedShape(name, arguments)
       case TypeShape.Tuple(first :: second :: Nil) =>
         lowerTuple(first, second)
       case TypeShape.Tuple(first :: second :: third :: Nil) =>
@@ -37,10 +38,11 @@ object TypeReprLowerer:
       case TypeNormalForm.STypeIdent("Int") => Right(TypeRepr.of[Int])
       case TypeNormalForm.STypeIdent("String") => Right(TypeRepr.of[String])
       case TypeNormalForm.STypeIdent("Boolean") => Right(TypeRepr.of[Boolean])
-      case TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent("List"), argument :: Nil) =>
-        lowerNormalFormList(argument)
-      case TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent("Option"), argument :: Nil) =>
-        lowerNormalFormOption(argument)
+      case TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent(name), arguments)
+          if AppliedTypeConstructorPolicy
+            .forConstruction(name, arguments.size)
+            .isDefined =>
+        lowerAppliedNormalForm(name, arguments)
       case TypeNormalForm.STypeTuple(first :: second :: Nil) =>
         lowerNormalFormTuple(first, second)
       case TypeNormalForm.STypeTuple(first :: second :: third :: Nil) =>
@@ -52,21 +54,42 @@ object TypeReprLowerer:
       case unsupported =>
         unsupportedNormalForm(unsupported)
 
-  private def lowerList(argument: TypeShape)(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
-    import quotes.reflect.*
-    argument match
-      case TypeShape.Identifier("Int") => Right(TypeRepr.of[List[Int]])
-      case TypeShape.Identifier("String") => Right(TypeRepr.of[List[String]])
-      case TypeShape.Identifier("Boolean") => Right(TypeRepr.of[List[Boolean]])
-      case other => unsupportedApplied("List", other)
+  private def lowerAppliedShape(
+      name: String,
+      arguments: List[TypeShape]
+  )(using q: Quotes): Either[TypeQuasiquoteError, q.reflect.TypeRepr] =
+    collect(arguments.map(lower)).flatMap(lowerAppliedReprs(name, _))
 
-  private def lowerOption(argument: TypeShape)(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
-    import quotes.reflect.*
-    argument match
-      case TypeShape.Identifier("Int") => Right(TypeRepr.of[Option[Int]])
-      case TypeShape.Identifier("String") => Right(TypeRepr.of[Option[String]])
-      case TypeShape.Identifier("Boolean") => Right(TypeRepr.of[Option[Boolean]])
-      case other => unsupportedApplied("Option", other)
+  private def lowerAppliedNormalForm(
+      name: String,
+      arguments: List[TypeNormalForm]
+  )(using q: Quotes): Either[TypeQuasiquoteError, q.reflect.TypeRepr] =
+    collect(arguments.map(lowerNormalForm)).flatMap(lowerAppliedReprs(name, _))
+
+  private def lowerAppliedReprs(using q: Quotes)(
+      name: String,
+      arguments: List[q.reflect.TypeRepr]
+  ): Either[TypeQuasiquoteError, q.reflect.TypeRepr] =
+    import q.reflect.*
+
+    (name, arguments) match
+      case ("List", argument :: Nil) =>
+        argument.asType match
+          case '[a] => Right(TypeRepr.of[List[a]])
+      case ("Option", argument :: Nil) =>
+        argument.asType match
+          case '[a] => Right(TypeRepr.of[Option[a]])
+      case ("Either", first :: second :: Nil) =>
+        first.asType match
+          case '[a] =>
+            second.asType match
+              case '[b] => Right(TypeRepr.of[Either[a, b]])
+      case _ =>
+        Left(
+          TypeQuasiquoteError(
+            s"Unsupported fixed applied-type constructor/arity for Phase 67 TypeRepr lowering: $name/${arguments.size}"
+          )
+        )
 
   private def lowerTuple(first: TypeShape, second: TypeShape)(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
     import quotes.reflect.*
@@ -120,25 +143,6 @@ object TypeReprLowerer:
             case '[b] =>
               resultRepr.asType match
                 case '[r] => TypeRepr.of[(a, b) => r]
-
-  private def unsupportedApplied(constructor: String, argument: TypeShape): Either[TypeQuasiquoteError, Nothing] =
-    Left(TypeQuasiquoteError(s"Unsupported type shape for Phase 13 TypeRepr lowering: ${TypeShape.Apply(TypeShape.Identifier(constructor), List(argument)).render}"))
-
-  private def lowerNormalFormList(argument: TypeNormalForm)(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
-    import quotes.reflect.*
-    argument match
-      case TypeNormalForm.STypeIdent("Int") => Right(TypeRepr.of[List[Int]])
-      case TypeNormalForm.STypeIdent("String") => Right(TypeRepr.of[List[String]])
-      case TypeNormalForm.STypeIdent("Boolean") => Right(TypeRepr.of[List[Boolean]])
-      case _ => unsupportedNormalForm(TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent("List"), List(argument)))
-
-  private def lowerNormalFormOption(argument: TypeNormalForm)(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
-    import quotes.reflect.*
-    argument match
-      case TypeNormalForm.STypeIdent("Int") => Right(TypeRepr.of[Option[Int]])
-      case TypeNormalForm.STypeIdent("String") => Right(TypeRepr.of[Option[String]])
-      case TypeNormalForm.STypeIdent("Boolean") => Right(TypeRepr.of[Option[Boolean]])
-      case _ => unsupportedNormalForm(TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent("Option"), List(argument)))
 
   private def lowerNormalFormTuple(first: TypeNormalForm, second: TypeNormalForm)(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
     import quotes.reflect.*
@@ -195,3 +199,14 @@ object TypeReprLowerer:
 
   private def unsupportedNormalForm(normalForm: TypeNormalForm): Either[TypeQuasiquoteError, Nothing] =
     Left(TypeQuasiquoteError(s"Cannot lower unsupported constructed type normal form to TypeRepr: ${ConstructedType.renderSource(normalForm)}"))
+
+  private def collect[A](
+      values: List[Either[TypeQuasiquoteError, A]]
+  ): Either[TypeQuasiquoteError, List[A]] =
+    values.foldRight[Either[TypeQuasiquoteError, List[A]]](Right(Nil)) {
+      (value, accumulated) =>
+        for
+          head <- value
+          tail <- accumulated
+        yield head :: tail
+    }

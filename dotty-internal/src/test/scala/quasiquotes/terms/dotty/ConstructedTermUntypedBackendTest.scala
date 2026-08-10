@@ -44,6 +44,17 @@ class ConstructedTermUntypedBackendTest extends munit.FunSuite:
     STypeIdent("Boolean"),
     STypeApply(STypeIdent("List"), List(STypeIdent("Int"))),
     STypeApply(STypeIdent("Option"), List(STypeIdent("String"))),
+    STypeApply(
+      STypeIdent("List"),
+      List(STypeApply(STypeIdent("Option"), List(STypeIdent("Int"))))
+    ),
+    STypeApply(
+      STypeIdent("Either"),
+      List(
+        STypeApply(STypeIdent("List"), List(STypeIdent("Int"))),
+        STypeApply(STypeIdent("Option"), List(STypeIdent("String")))
+      )
+    ),
     STypeTuple(List(STypeIdent("Int"), STypeIdent("String"))),
     STypeTuple(
       List(STypeIdent("Int"), STypeIdent("String"), STypeIdent("Boolean"))

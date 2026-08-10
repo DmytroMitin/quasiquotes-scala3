@@ -4,7 +4,7 @@ import dotty.tools.dotc.ast.untpd
 import dotty.tools.dotc.core.Names.typeName
 import dotty.tools.dotc.util.{NoSource, SourceFile}
 
-import quasiquotes.types.TypeNormalForm
+import quasiquotes.types.{AppliedTypeConstructorPolicy, TypeNormalForm}
 
 private[quasiquotes] object CompletedTypeUntypedLowerer:
   import CompletedTypeUntypedLoweringError.*
@@ -22,13 +22,15 @@ private[quasiquotes] object CompletedTypeUntypedLowerer:
       case TypeNormalForm.STypeIdent(name @ ("Int" | "String" | "Boolean")) =>
         Right(untpd.Ident(typeName(name)))
       case TypeNormalForm.STypeApply(
-            TypeNormalForm.STypeIdent(name @ ("List" | "Option")),
-            argument :: Nil
-          ) =>
-        lowerType(argument).map { rawArgument =>
+            TypeNormalForm.STypeIdent(name),
+            arguments
+          ) if AppliedTypeConstructorPolicy
+            .forConstruction(name, arguments.size)
+            .isDefined =>
+        lowerTypes(arguments).map { rawArguments =>
           untpd.AppliedTypeTree(
             untpd.Ident(typeName(name)),
-            rawArgument :: Nil
+            rawArguments
           )
         }
       case TypeNormalForm.STypeTuple(elements)

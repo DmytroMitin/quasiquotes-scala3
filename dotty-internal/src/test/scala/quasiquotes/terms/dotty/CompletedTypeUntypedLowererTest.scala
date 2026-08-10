@@ -14,6 +14,24 @@ class CompletedTypeUntypedLowererTest extends munit.FunSuite:
     "List[Int]" -> STypeApply(STypeIdent("List"), List(STypeIdent("Int"))),
     "Option[String]" ->
       STypeApply(STypeIdent("Option"), List(STypeIdent("String"))),
+    "List[Option[Int]]" ->
+      STypeApply(
+        STypeIdent("List"),
+        List(STypeApply(STypeIdent("Option"), List(STypeIdent("Int"))))
+      ),
+    "Either[Int, String]" ->
+      STypeApply(
+        STypeIdent("Either"),
+        List(STypeIdent("Int"), STypeIdent("String"))
+      ),
+    "Either[List[Int], Option[String]]" ->
+      STypeApply(
+        STypeIdent("Either"),
+        List(
+          STypeApply(STypeIdent("List"), List(STypeIdent("Int"))),
+          STypeApply(STypeIdent("Option"), List(STypeIdent("String")))
+        )
+      ),
     "(Int, String)" ->
       STypeTuple(List(STypeIdent("Int"), STypeIdent("String"))),
     "(Int, String, Boolean)" ->
@@ -53,4 +71,25 @@ class CompletedTypeUntypedLowererTest extends munit.FunSuite:
       UnsupportedCompletedType(invalid.render).message,
       "Unsupported completed type at the exact-version untyped backend boundary: STypeIdent(AnyVal)."
     )
+  }
+
+  test("authoritative completed-type lowerer rejects wrong applied arities without MatchError") {
+    val invalid = List(
+      STypeApply(STypeIdent("Either"), List(STypeIdent("Int"))),
+      STypeApply(
+        STypeIdent("Either"),
+        List(STypeIdent("Int"), STypeIdent("String"), STypeIdent("Boolean"))
+      ),
+      STypeApply(
+        STypeIdent("List"),
+        List(STypeIdent("Int"), STypeIdent("String"))
+      )
+    )
+
+    invalid.foreach { normalForm =>
+      assertEquals(
+        CompletedTypeUntypedLowerer.lower(normalForm),
+        Left(UnsupportedCompletedType(normalForm.render))
+      )
+    }
   }

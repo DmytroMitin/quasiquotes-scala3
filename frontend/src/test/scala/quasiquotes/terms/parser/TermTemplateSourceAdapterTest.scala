@@ -472,12 +472,17 @@ class TermTemplateSourceAdapterTest extends munit.FunSuite:
     assertEquals(failure.diagnostic, TypeMarkerOutsideAscription("member"))
   }
 
-  test("rejects unsupported term and type syntax") {
+  test("rejects unsupported term syntax and admits Either type holes") {
     assert(error("{ value }").diagnostic.isInstanceOf[UnsupportedTermShape])
-    assert(
-      error("(value: Either[$left, Int])", tpe("left"))
-        .diagnostic
-        .isInstanceOf[UnsupportedTypeTemplateShape]
+    val either = parsed("(value: Either[$left, Int])", tpe("left"))
+    assertEquals(
+      either.template.ascriptionTypes,
+      Vector(
+        TypeTemplate.TTApply(
+          TypeTemplate.TTIdent("Either"),
+          List(TypeTemplate.TTHole("left"), TypeTemplate.TTIdent("Int"))
+        )
+      )
     )
   }
 

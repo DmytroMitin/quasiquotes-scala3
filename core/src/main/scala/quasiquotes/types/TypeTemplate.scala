@@ -14,7 +14,6 @@ object TypeTemplate:
 
   private val HolePrefix = "__tqconstructhole_"
   private val ConstructibleIdentifiers = Set("Int", "String", "Boolean")
-  private val ConstructibleTypeConstructors = Set("List", "Option")
 
   def rewriteSourceMapped(source: String): MappedHoleSource =
     HoleSourceRewriter.rewrite(
@@ -45,10 +44,12 @@ object TypeTemplate:
           case None => validateTemplateIdentifier(name).map(_ => TTIdent(name))
       case TypeShape.Parenthesized(typeShape) =>
         fromShapeUsing(typeShape, semanticHoleName)
-      case TypeShape.Apply(TypeShape.Identifier("List"), argument :: Nil) =>
-        fromShapeUsing(argument, semanticHoleName).map(argumentTemplate => TTApply(TTIdent("List"), List(argumentTemplate)))
-      case TypeShape.Apply(TypeShape.Identifier("Option"), argument :: Nil) =>
-        fromShapeUsing(argument, semanticHoleName).map(argumentTemplate => TTApply(TTIdent("Option"), List(argumentTemplate)))
+      case TypeShape.Apply(TypeShape.Identifier(name), arguments)
+          if AppliedTypeConstructorPolicy
+            .forConstruction(name, arguments.size)
+            .isDefined =>
+        collect(arguments.map(fromShapeUsing(_, semanticHoleName)))
+          .map(argumentTemplates => TTApply(TTIdent(name), argumentTemplates))
       case TypeShape.Apply(constructor, arguments) =>
         Left(TypeQuasiquoteError(s"Unsupported type construction template shape for Phase 21: ${TypeShape.Apply(constructor, arguments).render}"))
       case TypeShape.Tuple(elements) if elements.size == 2 || elements.size == 3 =>
@@ -92,8 +93,11 @@ object TypeTemplate:
         Right(())
       case TypeNormalForm.STypeIdent(name) =>
         Left(TypeQuasiquoteError(s"Unsupported constructed type identifier for Phase 21: $name"))
-      case TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent(name), argument :: Nil) if ConstructibleTypeConstructors(name) =>
-        validateConstructed(argument)
+      case TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent(name), arguments)
+          if AppliedTypeConstructorPolicy
+            .forConstruction(name, arguments.size)
+            .isDefined =>
+        collect(arguments.map(validateConstructed)).map(_ => ())
       case TypeNormalForm.STypeApply(constructor, arguments) =>
         Left(TypeQuasiquoteError(s"Unsupported constructed applied type for Phase 21: ${ConstructedType.renderSource(TypeNormalForm.STypeApply(constructor, arguments))}"))
       case TypeNormalForm.STypeTuple(elements) if elements.size == 2 || elements.size == 3 =>

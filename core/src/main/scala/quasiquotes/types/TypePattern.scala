@@ -44,10 +44,12 @@ object TypePattern:
           case None => TypeNormalForm.fromShape(TypeShape.Identifier(name)).map(_ => TPIdent(name))
       case TypeShape.Parenthesized(typeShape) =>
         fromShapeUsing(typeShape, semanticHoleName)
-      case TypeShape.Apply(TypeShape.Identifier("List"), argument :: Nil) =>
-        fromShapeUsing(argument, semanticHoleName).map(argumentPattern => TPApply(TPIdent("List"), List(argumentPattern)))
-      case TypeShape.Apply(TypeShape.Identifier("Option"), argument :: Nil) =>
-        fromShapeUsing(argument, semanticHoleName).map(argumentPattern => TPApply(TPIdent("Option"), List(argumentPattern)))
+      case TypeShape.Apply(TypeShape.Identifier(name), arguments)
+          if AppliedTypeConstructorPolicy
+            .forNormalFormSource(name, arguments.size)
+            .isDefined =>
+        collect(arguments.map(fromShapeUsing(_, semanticHoleName)))
+          .map(argumentPatterns => TPApply(TPIdent(name), argumentPatterns))
       case TypeShape.Apply(constructor, arguments) =>
         Left(TypeQuasiquoteError(s"Unsupported type pattern shape for Phase 18 type-hole matching: ${TypeShape.Apply(constructor, arguments).render}"))
       case TypeShape.Tuple(elements) if elements.size == 2 || elements.size == 3 =>

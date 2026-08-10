@@ -31,6 +31,28 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
 
     assertEquals(constructed.map(_.source), Right("List[String]"))
 
+  test("external frontend consumer parses matches and constructs nested Either types"):
+    val normal = TypeNormalFormSource.fromSource(
+      "Either[List[Int], Option[String]]"
+    )
+    val pattern = TypePatternSource.fromSource(
+      "Either[List[$left], Option[$right]]"
+    )
+    val constructed = QuasiTypeConstruct.fromTemplate(
+      "List[Either[$left, $right]]",
+      "left" -> TypeNormalForm.STypeIdent("Int"),
+      "right" -> TypeNormalForm.STypeIdent("String")
+    )
+
+    assertEquals(
+      normal.map(_.render),
+      Right(
+        "STypeApply(STypeIdent(Either), [STypeApply(STypeIdent(List), [STypeIdent(Int)]), STypeApply(STypeIdent(Option), [STypeIdent(String)])])"
+      )
+    )
+    assert(pattern.isRight)
+    assertEquals(constructed.map(_.source), Right("List[Either[Int, String]]"))
+
   // Compiling this method proves that the Phase 56 lowering relocation needs
   // the explicit frontend extension import even though no macro is run here.
   private def lowerInsideMacro(
