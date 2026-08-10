@@ -367,14 +367,14 @@ class QuasiquoteMacroTest extends munit.FunSuite:
   test("constructed typed/ascription integration preserves rejected type-construction boundaries") {
     assertEquals(
       TypedTermConstructExamples.typedAscriptionMissingBindingMessage("List[$t]"),
-      "Missing type-construction binding `t`"
+      "Missing type-construction binding `$t`."
     )
     assertEquals(
       TypedTermConstructExamples.typedAscriptionMessage("List[$t]", "t", "Int", "extra", "String"),
-      "Extra type-construction binding(s): extra"
+      "Unexpected type-construction binding(s): `$extra`. Remove bindings that do not occur in the template."
     )
-    assert(TypedTermConstructExamples.typedAscriptionMessage("scala.Int", "t", "Int").contains("Selected type syntax is not supported"))
-    assert(TypedTermConstructExamples.typedAscriptionMessage("List[?]", "t", "Int").contains("Unsupported type construction template shape"))
+    assert(TypedTermConstructExamples.typedAscriptionMessage("scala.Int", "t", "Int").contains("Selected type syntax"))
+    assert(TypedTermConstructExamples.typedAscriptionMessage("List[?]", "t", "Int").contains("Unsupported type syntax"))
     assertEquals(
       TypedTermConstructExamples.typedAscriptionUnsupportedNormalFormMessage("AnyVal"),
       "Cannot lower unsupported constructed type normal form to TypeRepr: AnyVal"
@@ -382,7 +382,7 @@ class QuasiquoteMacroTest extends munit.FunSuite:
   }
 
   test("constructed typed/ascription integration does not add selected-alias equality or direct interpolators") {
-    assert(TypedTermConstructExamples.typedAscriptionMessage("scala.Int", "t", "Int").contains("Selected type syntax is not supported"))
+    assert(TypedTermConstructExamples.typedAscriptionMessage("scala.Int", "t", "Int").contains("Selected type syntax"))
     assert(!quasiquotes.types.QuasiTypeExamples.matches("Int", "scala.Int"))
   }
 

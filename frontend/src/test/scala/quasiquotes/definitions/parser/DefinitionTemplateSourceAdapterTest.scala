@@ -447,13 +447,16 @@ class DefinitionTemplateSourceAdapterTest extends munit.FunSuite:
     )
   }
 
-  test("definition type diagnostics restore semantic markers") {
+  test("definition type diagnostics stay actionable without generated markers") {
     val failure =
       error(
         "def answer: Vector[$T] = 1",
         definitionType("T")
       )
-    assert(failure.diagnostic.message.contains("$T"))
+    assertEquals(
+      failure.diagnostic.message,
+      "Invalid definition type template: Unsupported applied type constructor `Vector`; supported constructors are List/1, Option/1, Either/2."
+    )
     assert(!failure.diagnostic.message.contains("__qq_dt_type_"))
   }
 

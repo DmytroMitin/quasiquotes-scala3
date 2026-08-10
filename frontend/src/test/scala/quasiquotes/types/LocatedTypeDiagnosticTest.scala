@@ -32,7 +32,7 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     val selectedLocated = TypePatternSource.fromSourceLocated(selected).swap.toOption.get
     assertEquals(
       selectedLocated.diagnostic.message,
-      "Selected type syntax is not supported for Phase 18 type-hole matching; `scala.Int` vs `Int` remains an explicit TODO."
+      "Selected type syntax `scala.Int` is not supported; use unqualified `Int` in the current experimental surface."
     )
     assertEquals(selectedLocated.location.map(_.span), Some(SourceSpan(0, selected.length)))
     assertEquals(selectedLocated.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
@@ -49,7 +49,7 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
       repeatedOrigins,
       Vector(SourceSpan(1, 3), SourceSpan(5, 7), SourceSpan(9, 11), SourceSpan(13, 15))
     )
-    assert(repeatedLocated.diagnostic.message.contains("Unsupported tuple type pattern shape"))
+    assertEquals(repeatedLocated.diagnostic.message, "Unsupported tuple arity for type-pattern construction: expected 2 or 3 elements, but found 4.")
   }
 
   test("type-template located failures use distinct role and source identity") {
@@ -64,7 +64,7 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     assertEquals(located.location.map(_.span), Some(SourceSpan(0, mapped.generatedSource.length)))
     assertEquals(located.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
     assertEquals(rewritten.map(_.role).distinct, Vector(HoleRole.TypeTemplate))
-    assert(located.diagnostic.message.contains("Unsupported tuple type construction template shape"))
+    assertEquals(located.diagnostic.message, "Unsupported tuple arity for type-template construction: expected 2 or 3 elements, but found 4.")
     assertEquals(TypeTemplateSource.fromSource(source).swap.toOption, Some(located.diagnostic))
   }
 
@@ -101,7 +101,7 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     val selected = TypeTemplateSource.fromSourceLocated("scala.Int").swap.toOption.get
     assertEquals(
       selected.diagnostic.message,
-      "Selected type syntax is not supported for Phase 21 type construction; `scala.Int` vs `Int` remains an explicit TODO."
+      "Selected type syntax `scala.Int` is not supported; use unqualified `Int` in the current experimental surface."
     )
     assertEquals(selected.location.map(_.span), Some(SourceSpan(0, "scala.Int".length)))
     assertEquals(selected.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
@@ -118,7 +118,7 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     )
     assertEquals(
       QuasiTypeExamples.locatedPatternSummary("scala.Int"),
-      "error=true legacySame=true location=virtual-type-pattern-parser-input:0-9:origins=1 message=Selected type syntax is not supported for Phase 18 type-hole matching; `scala.Int` vs `Int` remains an explicit TODO."
+      "error=true legacySame=true location=virtual-type-pattern-parser-input:0-9:origins=1 message=Selected type syntax `scala.Int` is not supported; use unqualified `Int` in the current experimental surface."
     )
   }
 
@@ -159,7 +159,7 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     val source = "List[$t]"
     val located = QuasiTypeConstruct.fromTemplateLocated(source, Map.empty).swap.toOption.get
 
-    assertEquals(located.diagnostic.message, "Missing type-construction binding `t`")
+    assertEquals(located.diagnostic.message, "Missing type-construction binding `$t`.")
     assertEquals(located.location.map(_.sourceId), Some(SourceId.VirtualTypeTemplateParserInput))
     assertEquals(located.location.map(_.precision), Some(DiagnosticPrecision.ExactOccurrence))
     assertEquals(located.location.map(_.origins), Some(Vector(
@@ -189,7 +189,7 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
       .fromTemplateLocated("($t, $t, $u)", "u" -> intForm)
       .swap.toOption.get
 
-    assertEquals(unique.diagnostic.message, "Missing type-construction binding `c`")
+    assertEquals(unique.diagnostic.message, "Missing type-construction binding `$c`.")
     assertEquals(unique.location.map(_.precision), Some(DiagnosticPrecision.ExactOccurrence))
     assertEquals(
       unique.location.toVector.flatMap(_.origins).collect {
@@ -197,7 +197,7 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
       },
       Vector(SourceSpan(9, 11))
     )
-    assertEquals(repeated.diagnostic.message, "Missing type-construction binding `t`")
+    assertEquals(repeated.diagnostic.message, "Missing type-construction binding `$t`.")
     assertEquals(repeated.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
     assertEquals(
       repeated.location.toVector.flatMap(_.origins).collect {
@@ -213,11 +213,11 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     val tuple = TypePatternSource.fromSourceLocated(tupleSource).swap.toOption.get
     val function = TypeTemplateSource.fromSourceLocated(functionSource).swap.toOption.get
 
-    assert(tuple.diagnostic.message.contains("Unsupported tuple type pattern shape"))
+    assert(tuple.diagnostic.message.contains("Unsupported tuple arity for type-pattern construction"))
     assert(!tuple.diagnostic.message.contains("__tqhole_"))
     assertEquals(tuple.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
     assertEquals(tuple.location.map(_.span), Some(SourceSpan(0, TypePattern.rewriteSourceMapped(tupleSource).generatedSource.length)))
-    assert(function.diagnostic.message.contains("Unsupported function type construction template shape"))
+    assert(function.diagnostic.message.contains("Unsupported function arity for type-template construction"))
     assert(!function.diagnostic.message.contains("__tqconstructhole_"))
     assertEquals(function.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
     assertEquals(function.location.map(_.span), Some(SourceSpan(0, TypeTemplate.rewriteSourceMapped(functionSource).generatedSource.length)))
@@ -225,14 +225,14 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     assertEquals(TypeTemplateSource.fromSource(functionSource).swap.toOption, Some(function.diagnostic))
   }
 
-  test("extra bindings have no location and validation failures use the whole template") {
+  test("extra bindings and validation failures use truthful whole-template locations") {
     val extra = QuasiTypeConstruct.fromTemplateLocated(
       "List[$t]",
       "t" -> intForm,
       "extra" -> TypeNormalForm.STypeIdent("String")
     ).swap.toOption.get
-    assertEquals(extra.diagnostic.message, "Extra type-construction binding(s): extra")
-    assertEquals(extra.location, None)
+    assertEquals(extra.diagnostic.message, "Unexpected type-construction binding(s): `$extra`. Remove bindings that do not occur in the template.")
+    assertEquals(extra.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
 
     val source = "List[$t]"
     val mapped = TypeTemplate.rewriteSourceMapped(source)
@@ -240,7 +240,7 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
       source,
       "t" -> TypeNormalForm.STypeIdent("AnyVal")
     ).swap.toOption.get
-    assertEquals(validation.diagnostic.message, "Unsupported constructed type identifier for Phase 21: AnyVal")
+    assertEquals(validation.diagnostic.message, "Unsupported type-construction identifier `AnyVal`; supported identifiers are Int, String, Boolean.")
     assertEquals(validation.location.map(_.span), Some(SourceSpan(0, mapped.generatedSource.length)))
     assertEquals(validation.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
   }
@@ -249,8 +249,8 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
     val pattern = TypePatternSource.fromSourceLocated("__tqhole_x").swap.toOption.get
     val template = TypeTemplateSource.fromSourceLocated("__tqconstructhole_x").swap.toOption.get
 
-    assertEquals(pattern.diagnostic.message, "Unsupported type identifier for Phase 15 structural normal form: __tqhole_x")
-    assertEquals(template.diagnostic.message, "Unsupported type construction template identifier for Phase 21: __tqconstructhole_x")
+    assertEquals(pattern.diagnostic.message, "Unsupported type identifier `__tqhole_x`; supported identifiers are Int, String, Boolean, AnyVal.")
+    assertEquals(template.diagnostic.message, "Unsupported type-construction identifier `__tqconstructhole_x`; supported identifiers are Int, String, Boolean.")
     assert(pattern.location.nonEmpty)
     assert(template.location.nonEmpty)
   }
@@ -265,16 +265,12 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
       val mapped = TypePattern.rewriteSourceMapped(source)
       val generated = mapped.occurrences.head.generatedName
       val located = TypePatternSource.fromSourceLocated(source).swap.toOption.get
-      val literalSourceIdentifiers =
-        HoleSourceRewriter.scan(source, allowUnicodeIdentifiers = false).literalIdentifiers
       val messageIdentifiers =
         HoleSourceRewriter.scan(located.diagnostic.message, allowUnicodeIdentifiers = false).literalIdentifiers
 
       assertEquals(TypePatternSource.fromSource(source).swap.toOption, Some(located.diagnostic))
-      assert(located.diagnostic.message.contains("$t"))
-      assert(located.diagnostic.message.contains("__tqhole_t"))
-      assert(located.diagnostic.message.contains("__tqhole_t_1"))
-      assert(!messageIdentifiers.contains(generated) || literalSourceIdentifiers.contains(generated))
+      assertEquals(located.diagnostic.message, "Unsupported tuple arity for type-pattern construction: expected 2 or 3 elements, but found 4.")
+      assert(!messageIdentifiers.contains(generated))
       assertEquals(located.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
       assertEquals(
         located.location.toVector.flatMap(_.origins).collect {
@@ -295,16 +291,12 @@ class LocatedTypeDiagnosticTest extends munit.FunSuite:
       val mapped = TypeTemplate.rewriteSourceMapped(source)
       val generated = mapped.occurrences.head.generatedName
       val located = TypeTemplateSource.fromSourceLocated(source).swap.toOption.get
-      val literalSourceIdentifiers =
-        HoleSourceRewriter.scan(source, allowUnicodeIdentifiers = false).literalIdentifiers
       val messageIdentifiers =
         HoleSourceRewriter.scan(located.diagnostic.message, allowUnicodeIdentifiers = false).literalIdentifiers
 
       assertEquals(TypeTemplateSource.fromSource(source).swap.toOption, Some(located.diagnostic))
-      assert(located.diagnostic.message.contains("$t"))
-      assert(located.diagnostic.message.contains("__tqconstructhole_t"))
-      assert(located.diagnostic.message.contains("__tqconstructhole_t_1"))
-      assert(!messageIdentifiers.contains(generated) || literalSourceIdentifiers.contains(generated))
+      assertEquals(located.diagnostic.message, "Unsupported tuple arity for type-template construction: expected 2 or 3 elements, but found 4.")
+      assert(!messageIdentifiers.contains(generated))
       assertEquals(located.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
       assertEquals(
         located.location.toVector.flatMap(_.origins).collect {

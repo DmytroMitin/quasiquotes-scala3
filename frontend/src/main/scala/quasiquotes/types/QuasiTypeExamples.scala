@@ -164,7 +164,10 @@ object QuasiTypeExamples:
       case "function2" => TypeRepr.of[(Int, String) => Boolean]
       case "tuple4" => TypeRepr.of[(Int, String, Boolean, Int)]
       case "function3" => TypeRepr.of[(Int, String, Boolean) => Int]
-      case other => report.errorAndAbort(s"Unknown Phase 37 direct target kind: $other")
+      case other =>
+        report.errorAndAbort(
+          s"Unknown direct target kind `$other`; expected list-option, option-list, either, either-nested, list-either, or deeply-nested."
+        )
     Expr(TargetTypeReprInspector.inspect(target).fold(_.message, _.render))
 
   private def targetInspectionComparisonSummaryImpl(patternSource: Expr[String], targetSource: Expr[String])(using Quotes): Expr[String] =

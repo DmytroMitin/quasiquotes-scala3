@@ -26,10 +26,14 @@ object TypeReprLowerer:
         lowerFunction(argument, result)
       case TypeShape.Function(first :: second :: Nil, result) =>
         lowerFunction2(first, second, result)
-      case TypeShape.Select(_, _) =>
-        Left(TypeQuasiquoteError("Selected type syntax is not supported for Phase 13 TypeRepr lowering; `scala.Int` vs `Int` remains an explicit TODO."))
-      case unsupported =>
-        Left(TypeQuasiquoteError(s"Unsupported type shape for Phase 13 TypeRepr lowering: ${unsupported.render}"))
+      case TypeShape.Apply(TypeShape.Identifier(name), arguments) =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedAppliedConstructor(name, arguments.size)))
+      case TypeShape.Apply(TypeShape.Select(qualifier, name), _) =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.selectedConstructor(qualifier, name)))
+      case TypeShape.Select(qualifier, name) =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.selectedType(qualifier, name)))
+      case _ =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTypeSyntax("quoted TypeRepr lowering")))
 
   def lowerNormalForm(normalForm: TypeNormalForm)(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
     import quotes.reflect.*
@@ -87,7 +91,7 @@ object TypeReprLowerer:
       case _ =>
         Left(
           TypeQuasiquoteError(
-            s"Unsupported fixed applied-type constructor/arity for Phase 67 TypeRepr lowering: $name/${arguments.size}"
+            TypeDiagnosticMessages.unsupportedAppliedConstructor(name, arguments.size)
           )
         )
 
@@ -98,7 +102,7 @@ object TypeReprLowerer:
       case (TypeShape.Identifier("String"), TypeShape.Identifier("Int")) => Right(TypeRepr.of[(String, Int)])
       case (TypeShape.Identifier("Int"), TypeShape.Identifier("Int")) => Right(TypeRepr.of[(Int, Int)])
       case (TypeShape.Identifier("String"), TypeShape.Identifier("String")) => Right(TypeRepr.of[(String, String)])
-      case _ => Left(TypeQuasiquoteError(s"Unsupported tuple type shape for Phase 13 TypeRepr lowering: ${TypeShape.Tuple(List(first, second)).render}"))
+      case _ => Left(TypeQuasiquoteError("Unsupported Tuple2 element types for quoted TypeRepr lowering; use the documented scalar or recursively supported applied types."))
 
   private def lowerFunction(argument: TypeShape, result: TypeShape)(using Quotes): Either[TypeQuasiquoteError, quotes.reflect.TypeRepr] =
     import quotes.reflect.*
@@ -106,7 +110,7 @@ object TypeReprLowerer:
       case (TypeShape.Identifier("Int"), TypeShape.Identifier("String")) => Right(TypeRepr.of[Int => String])
       case (TypeShape.Identifier("Int"), TypeShape.Identifier("Int")) => Right(TypeRepr.of[Int => Int])
       case (TypeShape.Identifier("String"), TypeShape.Identifier("Int")) => Right(TypeRepr.of[String => Int])
-      case _ => Left(TypeQuasiquoteError(s"Unsupported function type shape for Phase 13 TypeRepr lowering: ${TypeShape.Function(List(argument), result).render}"))
+      case _ => Left(TypeQuasiquoteError("Unsupported Function1 parameter/result types for quoted TypeRepr lowering; use the documented scalar or recursively supported applied types."))
 
   private def lowerTuple3(
       first: TypeShape,

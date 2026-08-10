@@ -43,8 +43,8 @@ object TargetTypeReprInspector:
           secondForm <- inspect(second)
           resultForm <- inspect(result)
         yield TypeNormalForm.STypeFunction(List(firstForm, secondForm), resultForm)
-      case other =>
-        Left(TypeQuasiquoteError(s"Unsupported target TypeRepr shape for Phase 17 normal-form inspection: ${other.show}"))
+      case _ =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTargetType))
 
   private def collect[A](
       values: List[Either[TypeQuasiquoteError, A]]

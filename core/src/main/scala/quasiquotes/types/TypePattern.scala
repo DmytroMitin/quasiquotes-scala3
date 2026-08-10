@@ -50,23 +50,31 @@ object TypePattern:
             .isDefined =>
         collect(arguments.map(fromShapeUsing(_, semanticHoleName)))
           .map(argumentPatterns => TPApply(TPIdent(name), argumentPatterns))
-      case TypeShape.Apply(constructor, arguments) =>
-        Left(TypeQuasiquoteError(s"Unsupported type pattern shape for Phase 18 type-hole matching: ${TypeShape.Apply(constructor, arguments).render}"))
+      case TypeShape.Apply(TypeShape.Identifier(name), arguments) =>
+        semanticHoleName(name) match
+          case Some(holeName) =>
+            Left(TypeQuasiquoteError(TypeDiagnosticMessages.constructorHole(holeName)))
+          case None =>
+            Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedAppliedConstructor(name, arguments.size)))
+      case TypeShape.Apply(TypeShape.Select(qualifier, name), _) =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.selectedConstructor(qualifier, name)))
+      case TypeShape.Apply(_, _) =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTypeSyntax("type-pattern construction")))
       case TypeShape.Tuple(elements) if elements.size == 2 || elements.size == 3 =>
         collect(elements.map(fromShapeUsing(_, semanticHoleName))).map(TPTuple(_))
       case TypeShape.Tuple(elements) =>
-        Left(TypeQuasiquoteError(s"Unsupported tuple type pattern shape for Phase 18 type-hole matching: ${TypeShape.Tuple(elements).render}"))
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTupleArity("type-pattern construction", elements.size)))
       case TypeShape.Function(arguments, result) if arguments.size == 1 || arguments.size == 2 =>
         for
           argumentPatterns <- collect(arguments.map(fromShapeUsing(_, semanticHoleName)))
           resultPattern <- fromShapeUsing(result, semanticHoleName)
         yield TPFunction(argumentPatterns, resultPattern)
       case TypeShape.Function(arguments, result) =>
-        Left(TypeQuasiquoteError(s"Unsupported function type pattern shape for Phase 18 type-hole matching: ${TypeShape.Function(arguments, result).render}"))
-      case TypeShape.Select(_, _) =>
-        Left(TypeQuasiquoteError("Selected type syntax is not supported for Phase 18 type-hole matching; `scala.Int` vs `Int` remains an explicit TODO."))
-      case unsupported =>
-        Left(TypeQuasiquoteError(s"Unsupported type pattern shape for Phase 18 type-hole matching: ${unsupported.render}"))
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedFunctionArity("type-pattern construction", arguments.size)))
+      case TypeShape.Select(qualifier, name) =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.selectedType(qualifier, name)))
+      case _ =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTypeSyntax("type-pattern construction")))
 
   def matchNormalForm(pattern: TypePattern, target: TypeNormalForm): Option[TypeMatchResult] =
     matchInto(pattern, target, Map.empty).map(TypeMatchResult(_))

@@ -219,8 +219,8 @@ class QuasiTypeReprTest extends munit.FunSuite:
     assertEquals(QuasiTypeExamples.tqqTypePatternMatchSummary("($t, $t)", "(Int, String)"), "matched=false")
     assertEquals(QuasiTypeExamples.tqqTypePatternMatchSummary("$t => $t", "Int => String"), "matched=false")
     assertEquals(QuasiTypeExamples.tqqTypePatternMatchSummary("List[$t]", "Option[Int]"), "matched=false")
-    assert(QuasiTypeExamples.tqqTypePatternMatchSummary("List[$t]", "scala.Int").contains("Selected type syntax is not supported"))
-    assert(QuasiTypeExamples.tqqTypePatternMatchSummary("List[$t]", "List[?]").contains("Unsupported type shape"))
+    assert(QuasiTypeExamples.tqqTypePatternMatchSummary("List[$t]", "scala.Int").contains("Selected type syntax"))
+    assert(QuasiTypeExamples.tqqTypePatternMatchSummary("List[$t]", "List[?]").contains("Unsupported type syntax"))
   }
 
   test("tqq function syntax matches explicit QuasiTypePattern repr behavior") {
@@ -307,18 +307,18 @@ class QuasiTypeReprTest extends munit.FunSuite:
   test("type construction rejects missing, extra, unsupported template, and unsupported binding cases") {
     assertEquals(
       QuasiTypeConstruct.fromTemplate("List[$t]").left.map(_.message),
-      Left("Missing type-construction binding `t`")
+      Left("Missing type-construction binding `$t`.")
     )
     assertEquals(
       QuasiTypeConstruct.fromTemplate("List[$t]", "t" -> TypeNormalForm.STypeIdent("Int"), "extra" -> TypeNormalForm.STypeIdent("String")).left.map(_.message),
-      Left("Extra type-construction binding(s): extra")
+      Left("Unexpected type-construction binding(s): `$extra`. Remove bindings that do not occur in the template.")
     )
-    assert(QuasiTypeConstruct.fromTemplate("List[?]", "t" -> TypeNormalForm.STypeIdent("Int")).left.exists(_.message.contains("Unsupported type construction template shape")))
-    assert(QuasiTypeConstruct.fromTemplate("scala.Int").left.exists(_.message.contains("Selected type syntax is not supported")))
-    assert(QuasiTypeConstruct.fromTemplate("A.B").left.exists(_.message.contains("Selected type syntax is not supported")))
+    assert(QuasiTypeConstruct.fromTemplate("List[?]", "t" -> TypeNormalForm.STypeIdent("Int")).left.exists(_.message.contains("Unsupported type syntax")))
+    assert(QuasiTypeConstruct.fromTemplate("scala.Int").left.exists(_.message.contains("Selected type syntax")))
+    assert(QuasiTypeConstruct.fromTemplate("A.B").left.exists(_.message.contains("Selected type syntax")))
     assertEquals(
       QuasiTypeConstruct.fromTemplate("List[$t]", "t" -> TypeNormalForm.STypeIdent("AnyVal")).left.map(_.message),
-      Left("Unsupported constructed type identifier for Phase 21: AnyVal")
+      Left("Unsupported type-construction identifier `AnyVal`; supported identifiers are Int, String, Boolean.")
     )
   }
 
@@ -441,7 +441,7 @@ class QuasiTypeReprTest extends munit.FunSuite:
     )
     assertEquals(
       QuasiTypeExamples.constructedTypeReprLoweringMessage("List[$t]", "t", "AnyVal"),
-      "Unsupported constructed type identifier for Phase 21: AnyVal"
+      "Unsupported type-construction identifier `AnyVal`; supported identifiers are Int, String, Boolean."
     )
   }
 
@@ -509,14 +509,14 @@ class QuasiTypeReprTest extends munit.FunSuite:
   test("high-level Type bridge preserves construction and lowering failures") {
     assertEquals(
       ConstructedTypeBridgeExamples.missingBindingMessage("List[$t]"),
-      "Missing type-construction binding `t`"
+      "Missing type-construction binding `$t`."
     )
     assertEquals(
       ConstructedTypeBridgeExamples.bridgeSummary("List[$t]", "t", "Int", "extra", "String"),
-      "Extra type-construction binding(s): extra"
+      "Unexpected type-construction binding(s): `$extra`. Remove bindings that do not occur in the template."
     )
-    assert(ConstructedTypeBridgeExamples.bridgeSummary("scala.Int", "t", "Int").contains("Selected type syntax is not supported"))
-    assert(ConstructedTypeBridgeExamples.bridgeSummary("List[?]", "t", "Int").contains("Unsupported type construction template shape"))
+    assert(ConstructedTypeBridgeExamples.bridgeSummary("scala.Int", "t", "Int").contains("Selected type syntax"))
+    assert(ConstructedTypeBridgeExamples.bridgeSummary("List[?]", "t", "Int").contains("Unsupported type syntax"))
     assertEquals(
       ConstructedTypeBridgeExamples.unsupportedNormalFormMessage("AnyVal"),
       "Cannot lower unsupported constructed type normal form to TypeRepr: AnyVal"
@@ -525,7 +525,7 @@ class QuasiTypeReprTest extends munit.FunSuite:
 
   test("high-level Type bridge leaves equality and syntax boundaries unchanged") {
     assert(!QuasiTypeExamples.matches("Int", "scala.Int"))
-    assert(ConstructedTypeBridgeExamples.bridgeSummary("scala.Int", "t", "Int").contains("Selected type syntax is not supported"))
+    assert(ConstructedTypeBridgeExamples.bridgeSummary("scala.Int", "t", "Int").contains("Selected type syntax"))
     // The continuation returns this stable String; its dependent Type[t] evidence does not escape.
     assert(ConstructedTypeBridgeExamples.bridgeSummary("$t", "t", "Int").isInstanceOf[String])
   }
@@ -539,21 +539,21 @@ class QuasiTypeReprTest extends munit.FunSuite:
 
   test("type-hole patterns preserve unsupported and rejected boundaries") {
     assertEquals(QuasiTypeExamples.typePatternMatchSummary("List[$t]", "Option[Int]"), "matched=false")
-    assert(QuasiTypeExamples.typePatternMatchSummary("List[$t]", "List[?]").contains("Unsupported type shape"))
-    assert(QuasiTypeExamples.typePatternMatchSummary("List[$t]", "scala.Int").contains("Selected type syntax is not supported"))
-    assert(QuasiTypeExamples.typePatternMatchSummary("List[$t]", "A.B").contains("Selected type syntax is not supported"))
+    assert(QuasiTypeExamples.typePatternMatchSummary("List[$t]", "List[?]").contains("Unsupported type syntax"))
+    assert(QuasiTypeExamples.typePatternMatchSummary("List[$t]", "scala.Int").contains("Selected type syntax"))
+    assert(QuasiTypeExamples.typePatternMatchSummary("List[$t]", "A.B").contains("Selected type syntax"))
   }
 
   test("Tuple4 and Function3 remain unsupported across normal forms patterns and templates") {
     val tuple4 = "(Int, String, Boolean, Int)"
     val function3 = "(Int, String, Boolean) => Int"
 
-    assert(TypeNormalFormSource.fromSource(tuple4).left.exists(_.message.contains("Unsupported tuple type shape")))
-    assert(TypeNormalFormSource.fromSource(function3).left.exists(_.message.contains("Unsupported function type shape")))
-    assert(TypePatternSource.fromSource(tuple4).left.exists(_.message.contains("Unsupported tuple type pattern shape")))
-    assert(TypePatternSource.fromSource(function3).left.exists(_.message.contains("Unsupported function type pattern shape")))
-    assert(TypeTemplateSource.fromSource(tuple4).left.exists(_.message.contains("Unsupported tuple type construction template shape")))
-    assert(TypeTemplateSource.fromSource(function3).left.exists(_.message.contains("Unsupported function type construction template shape")))
+    assert(TypeNormalFormSource.fromSource(tuple4).left.exists(_.message.contains("Unsupported tuple arity for structural normal-form conversion")))
+    assert(TypeNormalFormSource.fromSource(function3).left.exists(_.message.contains("Unsupported function arity for structural normal-form conversion")))
+    assert(TypePatternSource.fromSource(tuple4).left.exists(_.message.contains("Unsupported tuple arity for type-pattern construction")))
+    assert(TypePatternSource.fromSource(function3).left.exists(_.message.contains("Unsupported function arity for type-pattern construction")))
+    assert(TypeTemplateSource.fromSource(tuple4).left.exists(_.message.contains("Unsupported tuple arity for type-template construction")))
+    assert(TypeTemplateSource.fromSource(function3).left.exists(_.message.contains("Unsupported function arity for type-template construction")))
 
     val tuple4Form = TypeNormalForm.STypeTuple(List(
       TypeNormalForm.STypeIdent("Int"),
@@ -571,16 +571,16 @@ class QuasiTypeReprTest extends munit.FunSuite:
     )
     assertEquals(
       TypeTemplate.validateConstructed(tuple4Form).left.map(_.message),
-      Left("Unsupported constructed tuple type for Phase 21: (Int, String, Boolean, Int)")
+      Left("Unsupported tuple arity for constructed types: expected 2 or 3 elements, but found 4.")
     )
     assertEquals(
       TypeTemplate.validateConstructed(function3Form).left.map(_.message),
-      Left("Unsupported constructed function type for Phase 21: (Int, String, Boolean) => Int")
+      Left("Unsupported function arity for constructed types: expected 1 or 2 parameters, but found 3.")
     )
-    assert(QuasiTypeExamples.unsupportedMessage("(Int, String, Boolean, Int)").contains("Unsupported type shape for Phase 13 TypeRepr lowering"))
-    assert(QuasiTypeExamples.unsupportedMessage("(Int, String, Boolean) => Int").contains("Unsupported type shape for Phase 13 TypeRepr lowering"))
-    assert(QuasiTypeExamples.phase37DirectTargetNormalFormSummary("tuple4").contains("Unsupported target TypeRepr shape"))
-    assert(QuasiTypeExamples.phase37DirectTargetNormalFormSummary("function3").contains("Unsupported target TypeRepr shape"))
+    assert(QuasiTypeExamples.unsupportedMessage("(Int, String, Boolean, Int)").contains("Unsupported type syntax for quoted TypeRepr lowering"))
+    assert(QuasiTypeExamples.unsupportedMessage("(Int, String, Boolean) => Int").contains("Unsupported type syntax for quoted TypeRepr lowering"))
+    assert(QuasiTypeExamples.phase37DirectTargetNormalFormSummary("tuple4").contains("Unsupported target type representation"))
+    assert(QuasiTypeExamples.phase37DirectTargetNormalFormSummary("function3").contains("Unsupported target type representation"))
   }
 
   test("type-hole binding lookup accepts bare and dollar-prefixed names") {
@@ -600,20 +600,20 @@ class QuasiTypeReprTest extends munit.FunSuite:
   }
 
   test("unsupported type syntax fails clearly") {
-    assert(QuasiTypeExamples.unsupportedMessage("List[?]").contains("Unsupported type shape"))
-    assert(QuasiTypeExamples.structuralNormalFormSummary("List[?]").contains("Unsupported type shape"))
-    assert(QuasiTypeExamples.unsupportedMessage("{ type A = Int }").contains("Unsupported type shape"))
-    assert(QuasiTypeExamples.structuralNormalFormSummary("{ type A = Int }").contains("Unsupported type shape"))
+    assert(QuasiTypeExamples.unsupportedMessage("List[?]").contains("Unsupported type syntax"))
+    assert(QuasiTypeExamples.structuralNormalFormSummary("List[?]").contains("Unsupported type syntax"))
+    assert(QuasiTypeExamples.unsupportedMessage("{ type A = Int }").contains("Unsupported type syntax"))
+    assert(QuasiTypeExamples.structuralNormalFormSummary("{ type A = Int }").contains("Unsupported type syntax"))
   }
 
   test("scala.Int remains an unresolved selected-alias boundary") {
     val message = QuasiTypeExamples.unsupportedMessage("scala.Int")
 
-    assert(message.contains("Selected type syntax is not supported"))
-    assert(QuasiTypeExamples.structuralNormalFormSummary("scala.Int").contains("Selected type syntax is not supported"))
+    assert(message.contains("Selected type syntax"))
+    assert(QuasiTypeExamples.structuralNormalFormSummary("scala.Int").contains("Selected type syntax"))
     assert(!QuasiTypeExamples.matches("Int", "scala.Int"))
     assert(!QuasiTypeExamples.structuralMatches("Int", "scala.Int"))
     assert(!QuasiTypeExamples.matches("Int", "A.B"))
     assert(!QuasiTypeExamples.structuralMatches("Int", "A.B"))
-    assert(QuasiTypeExamples.targetNormalFormSummary("scala.Int").contains("Selected type syntax is not supported"))
+    assert(QuasiTypeExamples.targetNormalFormSummary("scala.Int").contains("Selected type syntax"))
   }

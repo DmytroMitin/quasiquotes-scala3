@@ -53,8 +53,8 @@ class TypeSourceMappingTest extends munit.FunSuite:
   test("mapped rewriting preserves existing supported and unsupported behavior") {
     assert(TypePatternSource.fromSource("List[$t]").isRight)
     assert(TypeTemplateSource.fromSource("List[$t]").isRight)
-    assert(TypePatternSource.fromSource("scala.Int").left.exists(_.message.contains("Selected type syntax is not supported")))
-    assert(TypeTemplateSource.fromSource("scala.Int").left.exists(_.message.contains("Selected type syntax is not supported")))
+    assert(TypePatternSource.fromSource("scala.Int").left.exists(_.message.contains("Selected type syntax")))
+    assert(TypeTemplateSource.fromSource("scala.Int").left.exists(_.message.contains("Selected type syntax")))
   }
 
   test("mapped type rewriting preserves the former ASCII hole-name boundary") {

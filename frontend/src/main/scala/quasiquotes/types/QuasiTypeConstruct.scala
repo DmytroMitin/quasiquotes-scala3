@@ -19,7 +19,12 @@ object QuasiTypeConstruct:
       val template = parsed.template
       val mapped = parsed.mappedSource
       rejectExtraBindings(template, bindings)
-        .left.map(LocatedDiagnostic(_, None))
+        .left.map(error =>
+          LocatedDiagnostic(
+            error,
+            DiagnosticLocationMapper.wholeSource(mapped.originMap)
+          )
+        )
         .flatMap { _ =>
           TypeTemplate.construct(template, bindings)
             .left.map { error =>
@@ -52,7 +57,12 @@ object QuasiTypeConstruct:
     val expectedNames = TypeTemplate.holeNames(template)
     val extraNames = bindings.keySet.diff(expectedNames).toList.sorted
     if extraNames.isEmpty then Right(())
-    else Left(TypeQuasiquoteError(s"Extra type-construction binding(s): ${extraNames.mkString(", ")}"))
+    else
+      Left(
+        TypeQuasiquoteError(
+          s"Unexpected type-construction binding(s): ${extraNames.map(name => s"`$$$name`").mkString(", ")}. Remove bindings that do not occur in the template."
+        )
+      )
 
   private def missingBindingLocation(
       template: TypeTemplate,

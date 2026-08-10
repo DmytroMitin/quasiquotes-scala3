@@ -144,7 +144,7 @@ class AppliedTypeStructuralBreadthTest extends munit.FunSuite:
     val legacy = TypePatternSource.fromSource(source).swap.toOption.get
     val located = TypePatternSource.fromSourceLocated(source).swap.toOption.get
     assertEquals(located.diagnostic, legacy)
-    assert(legacy.message.contains("$a"))
+    assertEquals(legacy.message, "Expected exactly 2 type arguments for `Either`, but found 1.")
     assert(!legacy.message.contains("__tqhole_"))
     assertEquals(located.location.map(_.span), Some(SourceSpan(0, TypePattern.rewriteSourceMapped(source).generatedSource.length)))
 

@@ -14,13 +14,14 @@ final class PublicCoreExampleCompileTest extends munit.FunSuite:
       methodName: String = "apply",
       typeParameterName: String = "A",
       occurrenceName: String = "A",
-      contextualName: String = "instance"
+      contextualName: String = "instance",
+      bodyName: String = "instance"
   ): Either[PublicFailure, DefinitionResultView] =
     for
       show <- CompletedType.named("Show")
       parameter <- CompletedType.typeParameter(occurrenceName)
       showOfParameter <- CompletedType.applied(show, Vector(parameter))
-      instance <- CompletedTerm.reference("instance")
+      instance <- CompletedTerm.reference(bodyName)
       method <- DefinitionConstruction.contextualMethod(
         methodName,
         typeParameterName,
@@ -69,6 +70,25 @@ final class PublicCoreExampleCompileTest extends munit.FunSuite:
     assertEquals(
       failure.anchor.map(_.componentCode),
       Some("contextual-parameter-name")
+    )
+
+  test("external consumer receives stable body-contract failure"):
+    val failure = showMethod(bodyName = "otherInstance").left.toOption.get
+    assertEquals(failure.code, "invalid-contextual-method-contract")
+    assertEquals(failure.anchor.map(_.componentCode), Some("body"))
+    assertEquals(
+      failure.message,
+      "The body must reference contextual parameter `instance`."
+    )
+
+  test("external consumer receives stable invalid-application failure"):
+    val show = CompletedType.named("Show").toOption.get
+    val failure = CompletedType.applied(show, Vector.empty).left.toOption.get
+    assertEquals(failure.code, "invalid-type-application")
+    assertEquals(failure.anchor.map(_.componentCode), Some("type-application"))
+    assertEquals(
+      failure.message,
+      "A type application requires at least one argument."
     )
 
   test("external consumer can inspect the experimental interpolation shape"):

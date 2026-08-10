@@ -10,6 +10,8 @@ import quasiquotes.types.TypePatternSource
 import quasiquotes.types.TypeTemplateSource
 import quasiquotes.types.TypeQuasiquoteError
 import quasiquotes.types.toTypeRepr
+import quasiquotes.matching.QuasiPattern
+import quasiquotes.source.DiagnosticPrecision
 
 final class PublicApiExampleCompileTest extends munit.FunSuite:
   test("frontend source adapters are callable outside quasiquotes packages"):
@@ -57,8 +59,63 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     assertEquals(PublicUserSmokeMacros.add(2, 3), 5)
     assertEquals(PublicUserSmokeMacros.greeting("Ada"), "hello Ada")
 
-  // Compiling this method proves that the Phase 56 lowering relocation needs
-  // the explicit frontend extension import even though no macro is run here.
+  test("documented frontend first use stays executable"):
+    assert(FrontendFirstUseSnippet.parsed.isRight)
+    assert(FrontendFirstUseSnippet.pattern.isRight)
+    assertEquals(
+      FrontendFirstUseSnippet.constructed.map(_.source),
+      Right("Either[List[Int], Option[String]]")
+    )
+    assert(FrontendFirstUseSnippet.termPattern.isRight)
+    assertEquals(FrontendFirstUseSnippet.add(2, 3), 5)
+
+  test("external frontend consumer receives actionable located diagnostics"):
+    val failures = Vector(
+      TypePatternSource.fromSourceLocated("Map[Int, String]").swap.toOption.get,
+      TypePatternSource.fromSourceLocated("scala.Either[Int, String]").swap.toOption.get,
+      TypePatternSource.fromSourceLocated("Either[Int]").swap.toOption.get,
+      TypePatternSource.fromSourceLocated("List[Int, String]").swap.toOption.get,
+      TypePatternSource.fromSourceLocated("$F[Int]").swap.toOption.get
+    )
+    val messages = failures.map(_.diagnostic.message)
+
+    assert(messages(0).contains("Unsupported applied type constructor `Map`"))
+    assert(messages(1).contains("Selected type constructor syntax `scala.Either[...]`"))
+    assert(messages(2).contains("Expected exactly 2 type arguments for `Either`, but found 1."))
+    assert(messages(3).contains("Expected exactly 1 type argument for `List`, but found 2."))
+    assert(messages(4).contains("Type-constructor hole `$F[...]` is not supported"))
+    assert(failures.forall(_.location.exists(_.precision == DiagnosticPrecision.WholeSource)))
+    assert(messages.forall(message => !message.contains("Phase") && !message.contains("__tqhole_")))
+
+    val missing = QuasiTypeConstruct
+      .fromTemplateLocated("Either[$left, $right]", "right" -> TypeNormalForm.STypeIdent("String"))
+      .swap.toOption.get
+    assertEquals(missing.diagnostic.message, "Missing type-construction binding `$left`.")
+    assertEquals(missing.location.map(_.precision), Some(DiagnosticPrecision.ExactOccurrence))
+
+    val repeated = QuasiTypeConstruct
+      .fromTemplateLocated("Either[$left, $left]", Map.empty)
+      .swap.toOption.get
+    assertEquals(repeated.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
+
+    val extra = QuasiTypeConstruct
+      .fromTemplateLocated(
+        "List[$element]",
+        "element" -> TypeNormalForm.STypeIdent("Int"),
+        "unused" -> TypeNormalForm.STypeIdent("String")
+      )
+      .swap.toOption.get
+    assert(extra.diagnostic.message.contains("Unexpected type-construction binding(s): `$unused`."))
+    assertEquals(extra.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
+
+    val malformedType = TypeTemplateSource.fromSourceLocated("Int)").swap.toOption.get
+    assertEquals(malformedType.location.map(_.precision), Some(DiagnosticPrecision.ExactOccurrence))
+
+    val malformedTerm = QuasiPattern.termLocated("foo; bar").swap.toOption.get
+    assertEquals(malformedTerm.location.map(_.precision), Some(DiagnosticPrecision.ExactOccurrence))
+
+  // Compiling this method proves that lowering needs the explicit frontend
+  // extension import even though no macro is run here.
   private def lowerInsideMacro(
       constructed: ConstructedType
   )(using q: Quotes): Either[TypeQuasiquoteError, q.reflect.TypeRepr] =

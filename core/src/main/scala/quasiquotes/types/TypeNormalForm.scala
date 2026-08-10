@@ -21,23 +21,27 @@ object TypeNormalForm:
             .isDefined =>
         collect(arguments.map(fromShape))
           .map(argumentForms => STypeApply(STypeIdent(name), argumentForms))
-      case TypeShape.Apply(constructor, arguments) =>
-        Left(TypeQuasiquoteError(s"Unsupported type shape for Phase 15 structural normal form: ${TypeShape.Apply(constructor, arguments).render}"))
+      case TypeShape.Apply(TypeShape.Identifier(name), arguments) =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedAppliedConstructor(name, arguments.size)))
+      case TypeShape.Apply(TypeShape.Select(qualifier, name), _) =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.selectedConstructor(qualifier, name)))
+      case TypeShape.Apply(_, _) =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTypeSyntax("structural normal-form conversion")))
       case TypeShape.Tuple(elements) if elements.size == 2 || elements.size == 3 =>
         collect(elements.map(fromShape)).map(STypeTuple(_))
       case TypeShape.Tuple(elements) =>
-        Left(TypeQuasiquoteError(s"Unsupported tuple type shape for Phase 15 structural normal form: ${TypeShape.Tuple(elements).render}"))
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTupleArity("structural normal-form conversion", elements.size)))
       case TypeShape.Function(arguments, result) if arguments.size == 1 || arguments.size == 2 =>
         for
           argumentForms <- collect(arguments.map(fromShape))
           resultForm <- fromShape(result)
         yield STypeFunction(argumentForms, resultForm)
       case TypeShape.Function(arguments, result) =>
-        Left(TypeQuasiquoteError(s"Unsupported function type shape for Phase 15 structural normal form: ${TypeShape.Function(arguments, result).render}"))
-      case TypeShape.Select(_, _) =>
-        Left(TypeQuasiquoteError("Selected type syntax is not supported for Phase 15 structural normal form; `scala.Int` vs `Int` remains an explicit TODO."))
-      case unsupported =>
-        Left(TypeQuasiquoteError(s"Unsupported type shape for Phase 15 structural normal form: ${unsupported.render}"))
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedFunctionArity("structural normal-form conversion", arguments.size)))
+      case TypeShape.Select(qualifier, name) =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.selectedType(qualifier, name)))
+      case _ =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTypeSyntax("structural normal-form conversion")))
 
   def render(normalForm: TypeNormalForm): String =
     normalForm match
@@ -52,7 +56,7 @@ object TypeNormalForm:
   private def normalizeIdentifier(name: String): Either[TypeQuasiquoteError, TypeNormalForm] =
     name match
       case "Int" | "String" | "Boolean" | "AnyVal" => Right(STypeIdent(name))
-      case other => Left(TypeQuasiquoteError(s"Unsupported type identifier for Phase 15 structural normal form: $other"))
+      case other => Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedNormalFormIdentifier(other)))
 
   private def collect[A](values: List[Either[TypeQuasiquoteError, A]]): Either[TypeQuasiquoteError, List[A]] =
     values.foldRight[Either[TypeQuasiquoteError, List[A]]](Right(Nil)) { (value, accumulated) =>

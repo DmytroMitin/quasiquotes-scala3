@@ -50,28 +50,36 @@ object TypeTemplate:
             .isDefined =>
         collect(arguments.map(fromShapeUsing(_, semanticHoleName)))
           .map(argumentTemplates => TTApply(TTIdent(name), argumentTemplates))
-      case TypeShape.Apply(constructor, arguments) =>
-        Left(TypeQuasiquoteError(s"Unsupported type construction template shape for Phase 21: ${TypeShape.Apply(constructor, arguments).render}"))
+      case TypeShape.Apply(TypeShape.Identifier(name), arguments) =>
+        semanticHoleName(name) match
+          case Some(holeName) =>
+            Left(TypeQuasiquoteError(TypeDiagnosticMessages.constructorHole(holeName)))
+          case None =>
+            Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedAppliedConstructor(name, arguments.size)))
+      case TypeShape.Apply(TypeShape.Select(qualifier, name), _) =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.selectedConstructor(qualifier, name)))
+      case TypeShape.Apply(_, _) =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTypeSyntax("type-template construction")))
       case TypeShape.Tuple(elements) if elements.size == 2 || elements.size == 3 =>
         collect(elements.map(fromShapeUsing(_, semanticHoleName))).map(TTTuple(_))
       case TypeShape.Tuple(elements) =>
-        Left(TypeQuasiquoteError(s"Unsupported tuple type construction template shape for Phase 21: ${TypeShape.Tuple(elements).render}"))
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTupleArity("type-template construction", elements.size)))
       case TypeShape.Function(arguments, result) if arguments.size == 1 || arguments.size == 2 =>
         for
           argumentTemplates <- collect(arguments.map(fromShapeUsing(_, semanticHoleName)))
           resultTemplate <- fromShapeUsing(result, semanticHoleName)
         yield TTFunction(argumentTemplates, resultTemplate)
       case TypeShape.Function(arguments, result) =>
-        Left(TypeQuasiquoteError(s"Unsupported function type construction template shape for Phase 21: ${TypeShape.Function(arguments, result).render}"))
-      case TypeShape.Select(_, _) =>
-        Left(TypeQuasiquoteError("Selected type syntax is not supported for Phase 21 type construction; `scala.Int` vs `Int` remains an explicit TODO."))
-      case unsupported =>
-        Left(TypeQuasiquoteError(s"Unsupported type construction template shape for Phase 21: ${unsupported.render}"))
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedFunctionArity("type-template construction", arguments.size)))
+      case TypeShape.Select(qualifier, name) =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.selectedType(qualifier, name)))
+      case _ =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTypeSyntax("type-template construction")))
 
   def construct(template: TypeTemplate, bindings: Map[String, TypeNormalForm]): Either[TypeQuasiquoteError, TypeNormalForm] =
     template match
       case TTHole(name) =>
-        bindings.get(name).toRight(TypeQuasiquoteError(s"Missing type-construction binding `$name`"))
+        bindings.get(name).toRight(TypeQuasiquoteError(s"Missing type-construction binding `$$$name`."))
       case TTIdent(name) =>
         Right(TypeNormalForm.STypeIdent(name))
       case TTApply(constructor, arguments) =>
@@ -92,22 +100,22 @@ object TypeTemplate:
       case TypeNormalForm.STypeIdent(name) if ConstructibleIdentifiers(name) =>
         Right(())
       case TypeNormalForm.STypeIdent(name) =>
-        Left(TypeQuasiquoteError(s"Unsupported constructed type identifier for Phase 21: $name"))
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedConstructionIdentifier(name)))
       case TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent(name), arguments)
           if AppliedTypeConstructorPolicy
             .forConstruction(name, arguments.size)
             .isDefined =>
         collect(arguments.map(validateConstructed)).map(_ => ())
       case TypeNormalForm.STypeApply(constructor, arguments) =>
-        Left(TypeQuasiquoteError(s"Unsupported constructed applied type for Phase 21: ${ConstructedType.renderSource(TypeNormalForm.STypeApply(constructor, arguments))}"))
+        Left(TypeQuasiquoteError(s"Unsupported constructed applied type `${ConstructedType.renderSource(TypeNormalForm.STypeApply(constructor, arguments))}`; supported constructors are ${TypeDiagnosticMessages.SupportedConstructors}."))
       case TypeNormalForm.STypeTuple(elements) if elements.size == 2 || elements.size == 3 =>
         collect(elements.map(validateConstructed)).map(_ => ())
       case TypeNormalForm.STypeTuple(elements) =>
-        Left(TypeQuasiquoteError(s"Unsupported constructed tuple type for Phase 21: ${ConstructedType.renderSource(TypeNormalForm.STypeTuple(elements))}"))
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTupleArity("constructed types", elements.size)))
       case TypeNormalForm.STypeFunction(arguments, result) if arguments.size == 1 || arguments.size == 2 =>
         collect(arguments.map(validateConstructed) :+ validateConstructed(result)).map(_ => ())
       case TypeNormalForm.STypeFunction(arguments, result) =>
-        Left(TypeQuasiquoteError(s"Unsupported constructed function type for Phase 21: ${ConstructedType.renderSource(TypeNormalForm.STypeFunction(arguments, result))}"))
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedFunctionArity("constructed types", arguments.size)))
 
   def holeNames(template: TypeTemplate): Set[String] =
     template match
@@ -162,7 +170,7 @@ object TypeTemplate:
 
   private def validateTemplateIdentifier(name: String): Either[TypeQuasiquoteError, Unit] =
     if ConstructibleIdentifiers(name) then Right(())
-    else Left(TypeQuasiquoteError(s"Unsupported type construction template identifier for Phase 21: $name"))
+    else Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedConstructionIdentifier(name)))
 
   private def isValidHoleName(name: String): Boolean =
     name.nonEmpty &&

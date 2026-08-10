@@ -10,7 +10,7 @@ class CollisionSafeTypeHoleTest extends munit.FunSuite:
     val literal = TypePatternSource.fromSource("__tqhole_t").swap.toOption.get
     val hole = TypePatternSource.fromSource("$t").toOption.get
 
-    assertEquals(literal.message, "Unsupported type identifier for Phase 15 structural normal form: __tqhole_t")
+    assertEquals(literal.message, "Unsupported type identifier `__tqhole_t`; supported identifiers are Int, String, Boolean, AnyVal.")
     assertEquals(hole, TypePattern.TPHole("t"))
   }
 
@@ -22,7 +22,7 @@ class CollisionSafeTypeHoleTest extends munit.FunSuite:
     assertEquals(mapped.generatedSource, "(__tqhole_t, __tqhole_t_1)")
     assertEquals(mapped.generatedHoleIndex.semanticNameFor("__tqhole_t"), None)
     assertEquals(mapped.generatedHoleIndex.semanticNameFor("__tqhole_t_1"), Some("t"))
-    assertEquals(result.message, "Unsupported type identifier for Phase 15 structural normal form: __tqhole_t")
+    assertEquals(result.message, "Unsupported type identifier `__tqhole_t`; supported identifiers are Int, String, Boolean, AnyVal.")
   }
 
   test("type-pattern collisions are deterministic and repeated holes reuse one name") {
@@ -52,7 +52,7 @@ class CollisionSafeTypeHoleTest extends munit.FunSuite:
     }
 
     assertEquals(located.diagnostic, TypePatternSource.fromSource(source).swap.toOption.get)
-    assert(located.diagnostic.message.contains("Unsupported tuple type pattern shape for Phase 18 type-hole matching"))
+    assertEquals(located.diagnostic.message, "Unsupported tuple arity for type-pattern construction: expected 2 or 3 elements, but found 4.")
     assertEquals(rewritten.map(_.holeName), Vector("t", "t", "t"))
     assertEquals(
       rewritten.map(_.originalSpan),
@@ -64,7 +64,7 @@ class CollisionSafeTypeHoleTest extends munit.FunSuite:
     assert(TypePatternSource.fromSource("Int").isRight)
     assertEquals(
       TypePatternSource.fromSource("scala.Int").swap.toOption.get.message,
-      "Selected type syntax is not supported for Phase 18 type-hole matching; `scala.Int` vs `Int` remains an explicit TODO."
+      "Selected type syntax `scala.Int` is not supported; use unqualified `Int` in the current experimental surface."
     )
     assert(TypePatternSource.fromSource("List[?]").isLeft)
   }
@@ -81,7 +81,7 @@ class CollisionSafeTypeHoleTest extends munit.FunSuite:
     val literal = TypeTemplateSource.fromSource("__tqconstructhole_t").swap.toOption.get
     val hole = TypeTemplateSource.fromSource("$t").toOption.get
 
-    assertEquals(literal.message, "Unsupported type construction template identifier for Phase 21: __tqconstructhole_t")
+    assertEquals(literal.message, "Unsupported type-construction identifier `__tqconstructhole_t`; supported identifiers are Int, String, Boolean.")
     assertEquals(hole, TypeTemplate.TTHole("t"))
   }
 
@@ -93,7 +93,7 @@ class CollisionSafeTypeHoleTest extends munit.FunSuite:
     assertEquals(mapped.generatedSource, "(__tqconstructhole_t, __tqconstructhole_t_1)")
     assertEquals(mapped.generatedHoleIndex.semanticNameFor("__tqconstructhole_t"), None)
     assertEquals(mapped.generatedHoleIndex.semanticNameFor("__tqconstructhole_t_1"), Some("t"))
-    assertEquals(result.message, "Unsupported type construction template identifier for Phase 21: __tqconstructhole_t")
+    assertEquals(result.message, "Unsupported type-construction identifier `__tqconstructhole_t`; supported identifiers are Int, String, Boolean.")
   }
 
   test("literal template prefixes are not counted as semantic hole names") {
@@ -105,13 +105,13 @@ class CollisionSafeTypeHoleTest extends munit.FunSuite:
     assertEquals(TypeTemplate.holeNames(template), Set("t"))
     assertEquals(
       TypeTemplate.fromShapeWithHoles(TypeShape.Identifier("__tqconstructhole_t"), GeneratedHoleIndex.empty).swap.toOption.get.message,
-      "Unsupported type construction template identifier for Phase 21: __tqconstructhole_t"
+      "Unsupported type-construction identifier `__tqconstructhole_t`; supported identifiers are Int, String, Boolean."
     )
   }
 
   test("missing, repeated missing, extra, and validation diagnostics remain semantic") {
     val missing = QuasiTypeConstruct.fromTemplateLocated("List[$t]", Map.empty).swap.toOption.get
-    assertEquals(missing.diagnostic.message, "Missing type-construction binding `t`")
+    assertEquals(missing.diagnostic.message, "Missing type-construction binding `$t`.")
     assertEquals(missing.location.toVector.flatMap(_.origins).collect {
       case origin: SourceOrigin.RewrittenHole => origin.originalSpan
     }, Vector(SourceSpan(5, 7)))
@@ -122,11 +122,11 @@ class CollisionSafeTypeHoleTest extends munit.FunSuite:
     }, Vector(SourceSpan(1, 3), SourceSpan(5, 7)))
 
     val extra = QuasiTypeConstruct.fromTemplateLocated("List[$t]", "t" -> intForm, "extra" -> intForm).swap.toOption.get
-    assertEquals(extra.diagnostic.message, "Extra type-construction binding(s): extra")
-    assertEquals(extra.location, None)
+    assertEquals(extra.diagnostic.message, "Unexpected type-construction binding(s): `$extra`. Remove bindings that do not occur in the template.")
+    assertEquals(extra.location.map(_.precision), Some(DiagnosticPrecision.WholeSource))
 
     val validation = QuasiTypeConstruct.fromTemplateLocated("List[$t]", "t" -> TypeNormalForm.STypeIdent("AnyVal")).swap.toOption.get
-    assertEquals(validation.diagnostic.message, "Unsupported constructed type identifier for Phase 21: AnyVal")
+    assertEquals(validation.diagnostic.message, "Unsupported type-construction identifier `AnyVal`; supported identifiers are Int, String, Boolean.")
   }
 
   test("collision-safe generated names never leak into constructed source output") {
