@@ -10,6 +10,7 @@ object CanonicalTerm:
   final case class Literal(value: String) extends CanonicalTerm
   final case class Select(qualifier: CanonicalTerm, name: String) extends CanonicalTerm
   final case class Apply(function: CanonicalTerm, arguments: List[CanonicalTerm]) extends CanonicalTerm
+  final case class New(constructor: String, arguments: List[CanonicalTerm]) extends CanonicalTerm
   final case class Infix(left: CanonicalTerm, operator: String, right: CanonicalTerm) extends CanonicalTerm
   final case class Unary(operator: String, operand: CanonicalTerm) extends CanonicalTerm
   final case class InterpolatedString(
@@ -28,6 +29,8 @@ object CanonicalTerm:
       case Select(qualifier, name) => s"CSelect(${render(qualifier)}, $name)"
       case Apply(function, arguments) =>
         s"CApply(${render(function)}, [${arguments.map(render).mkString(", ")}])"
+      case New(constructor, arguments) =>
+        s"CNew($constructor, [${arguments.map(render).mkString(", ")}])"
       case Infix(left, operator, right) =>
         s"CInfix(${render(left)}, $operator, ${render(right)})"
       case Unary(operator, operand) =>
@@ -70,6 +73,8 @@ object TermCanonicalizer:
           canonicalFunction <- canonicalizeView(function)
           canonicalArguments <- sequence(arguments.map(canonicalizeView))
         yield CanonicalTerm.Apply(canonicalFunction, canonicalArguments)
+      case TargetTermView.New(constructor, arguments, _) =>
+        sequence(arguments.map(canonicalizeView)).map(CanonicalTerm.New(constructor, _))
       case TargetTermView.Infix(left, operator, right, _) =>
         for
           canonicalLeft <- canonicalizeView(left)

@@ -1,7 +1,7 @@
 package quasiquotes.matching
 
 import dotty.tools.dotc.ast.untpd
-import quasiquotes.parser.{DottySourceSpanAdapter, InterpolatedStringSegments}
+import quasiquotes.parser.{ConstructorNamePolicy, DottySourceSpanAdapter, InterpolatedStringSegments}
 import quasiquotes.source.{GeneratedHoleIndex, SourceSpan}
 
 private[matching] final case class PatternCompileFailure(
@@ -40,6 +40,12 @@ object PatternCompiler:
         Right(TermPattern.Literal(digits))
       case untpd.Select(qualifier, name) =>
         compileLocatedUsing(qualifier, semanticHoleName).map(TermPattern.Select(_, name.toString))
+      case untpd.Apply(untpd.Apply(untpd.Select(_: untpd.New, init), _), _)
+          if init.toString == "<init>" =>
+        unsupportedConstructor(tree, "multiple constructor argument lists are not supported")
+      case untpd.Apply(untpd.Select(untpd.New(typeTree), init), arguments)
+          if init.toString == "<init>" =>
+        compileNew(tree, typeTree, arguments, semanticHoleName)
       case untpd.Apply(function, arguments) =>
         for
           compiledFunction <- compileLocatedUsing(function, semanticHoleName)
@@ -119,3 +125,36 @@ object PatternCompiler:
       case "scala.Predef.String" | "java.lang.String" | "scala.String" => "String"
       case "scala.Boolean" => "Boolean"
       case other => other
+
+  private def compileNew(
+      tree: untpd.Tree,
+      typeTree: untpd.Tree,
+      arguments: List[untpd.Tree],
+      semanticHoleName: String => Option[String]
+  ): Either[PatternCompileFailure, TermPattern] =
+    if arguments.exists(_.isInstanceOf[untpd.NamedArg]) then
+      unsupportedConstructor(tree, "named constructor arguments are not supported")
+    else
+      constructorName(typeTree).flatMap(ConstructorNamePolicy.validate) match
+        case Left(detail) => unsupportedConstructor(tree, detail)
+        case Right(name) =>
+          sequence(arguments.map(compileLocatedUsing(_, semanticHoleName)))
+            .map(TermPattern.New(name, _))
+
+  private def constructorName(tree: untpd.Tree): Either[String, String] =
+    tree match
+      case untpd.Ident(name) => Right(name.toString)
+      case untpd.Select(qualifier, name) => constructorName(qualifier).map(_ + "." + name.toString)
+      case _: untpd.AppliedTypeTree => Left("constructor type arguments are not supported")
+      case other => Left(s"unsupported constructor type syntax: ${other.getClass.getSimpleName}")
+
+  private def unsupportedConstructor(
+      tree: untpd.Tree,
+      detail: String
+  ): Either[PatternCompileFailure, Nothing] =
+    Left(
+      PatternCompileFailure(
+        PatternError.UnsupportedPatternShape("ConstructorNew", detail),
+        DottySourceSpanAdapter.fromTree(tree).filter(!_.isEmpty)
+      )
+    )

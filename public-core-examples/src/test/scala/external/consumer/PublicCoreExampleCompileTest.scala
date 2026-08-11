@@ -97,10 +97,15 @@ final class PublicCoreExampleCompileTest extends munit.FunSuite:
       List("hello ", ""),
       List(TermShape.Identifier("name", isPlaceholder = false))
     )
-
     assertEquals(
       shape.render,
       "InterpolatedString(s, [\"hello \", \"\"], [Ident(name)])"
+    )
+
+  test("external core-only consumer can inspect constructor structure"):
+    assertEquals(
+      CoreFirstUseSnippet.constructorShape.render,
+      "New(java.lang.StringBuilder, [Literal(16)])"
     )
 
   test("external core-only consumer uses recursive applied-type structures"):

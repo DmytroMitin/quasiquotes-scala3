@@ -71,6 +71,15 @@ object TermMatcher:
                 }
               yield argumentBindings
             case other => Left(shapeMismatch(pattern, other))
+        case TermPattern.New(constructor, arguments) =>
+          target match
+            case TargetTermView.New(targetConstructor, targetArguments, _)
+                if targetConstructor == constructor && targetArguments.length == arguments.length =>
+              arguments.zip(targetArguments).foldLeft(Right(bindings): Either[MatchFailure, Map[String, Term]]) {
+                case (acc, (patternArgument, targetArgument)) =>
+                  acc.flatMap(loop(patternArgument, targetArgument, _))
+              }
+            case other => Left(shapeMismatch(pattern, other))
         case TermPattern.Infix(left, operator, right) =>
           target match
             case TargetTermView.Infix(targetLeft, targetOperator, targetRight, _) if targetOperator == operator =>

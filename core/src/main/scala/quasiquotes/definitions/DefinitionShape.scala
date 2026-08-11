@@ -94,6 +94,8 @@ private[quasiquotes] object DefinitionShape:
         firstUnsupportedTerm(qualifier)
       case TermShape.Apply(function, arguments) =>
         firstUnsupportedTerm(function).orElse(firstUnsupported(arguments))
+      case TermShape.New(_, arguments) =>
+        Some("constructor new expressions are not part of the bounded definition-body backend")
       case TermShape.Infix(left, _, right) =>
         firstUnsupportedTerm(left).orElse(firstUnsupportedTerm(right))
       case TermShape.Unary(operator, operand) =>

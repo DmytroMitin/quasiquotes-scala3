@@ -807,6 +807,8 @@ private[quasiquotes] object RawTermTemplateAdapter:
       case TermShape.Apply(function, arguments) =>
         firstUnsupported(function)
           .orElse(arguments.iterator.flatMap(firstUnsupported).nextOption())
+      case TermShape.New(_, arguments) =>
+        arguments.iterator.flatMap(firstUnsupported).nextOption()
       case TermShape.Infix(left, _, right) =>
         firstUnsupported(left).orElse(firstUnsupported(right))
       case TermShape.Unary(_, operand) =>

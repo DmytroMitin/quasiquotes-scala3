@@ -21,6 +21,7 @@ object TargetTermView:
   final case class Literal[T](value: String, original: T) extends TargetTermView[T]
   final case class Select[T](qualifier: TargetTermView[T], name: String, original: T) extends TargetTermView[T]
   final case class Apply[T](function: TargetTermView[T], arguments: List[TargetTermView[T]], original: T) extends TargetTermView[T]
+  final case class New[T](constructor: String, arguments: List[TargetTermView[T]], original: T) extends TargetTermView[T]
   final case class Infix[T](left: TargetTermView[T], operator: String, right: TargetTermView[T], original: T) extends TargetTermView[T]
   final case class Unary[T](operator: String, operand: TargetTermView[T], original: T) extends TargetTermView[T]
   final case class InterpolatedString[T](
@@ -75,6 +76,17 @@ object TargetTermView:
         case q.reflect.Select(qualifier, name) =>
           val current = unwrapWrappers(term)
           extract(qualifier).map(TargetTermView.Select(_, name, current))
+        case q.reflect.Apply(q.reflect.Select(q.reflect.New(typeTree), "<init>"), arguments) =>
+          val current = unwrapWrappers(term)
+          val constructor = typeTree.tpe.typeSymbol.fullName
+          sequence(arguments.map(extract)).map(TargetTermView.New(constructor, _, current))
+        case q.reflect.Apply(
+              TypeApply(q.reflect.Select(q.reflect.New(typeTree), "<init>"), _),
+              arguments
+            ) =>
+          val current = unwrapWrappers(term)
+          val constructor = typeTree.tpe.typeSymbol.fullName
+          sequence(arguments.map(extract)).map(TargetTermView.New(constructor, _, current))
         case q.reflect.Apply(function, arguments) if tupleArity(function).contains(arguments.length) =>
           val current = unwrapWrappers(term)
           sequence(arguments.map(extract)).map(TargetTermView.Tuple(_, current))
@@ -106,6 +118,8 @@ object TargetTermView:
       case Select(qualifier, name, _) => s"Select(${render(qualifier)}, $name)"
       case Apply(function, arguments, _) =>
         s"Apply(${render(function)}, [${arguments.map(render).mkString(", ")}])"
+      case New(constructor, arguments, _) =>
+        s"New($constructor, [${arguments.map(render).mkString(", ")}])"
       case Infix(left, operator, right, _) =>
         s"Infix(${render(left)}, $operator, ${render(right)})"
       case Unary(operator, operand, _) =>

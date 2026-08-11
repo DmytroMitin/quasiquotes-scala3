@@ -7,6 +7,7 @@ import dotty.tools.dotc.ast.untpd
 
 import quasiquotes.parser.DottySourceSpanAdapter
 import quasiquotes.parser.InterpolatedStringSegments
+import quasiquotes.parser.ConstructorNamePolicy
 import quasiquotes.types.toTypeRepr
 
 object ParsedTermLowerer:
@@ -60,6 +61,22 @@ object ParsedTermLowerer:
             loweredQualifier <- lowerTerm(qualifier)
             loweredSelect <- selectMember(loweredQualifier, name.toString).left.map(located(_, tree))
           yield loweredSelect
+        case multiple @ untpd.Apply(untpd.Apply(untpd.Select(_: untpd.New, init), _), _)
+            if init.toString == "<init>" =>
+          Left(located(QuasiquoteError.UnsupportedTree("ConstructorNew", "multiple constructor argument lists are not supported"), multiple))
+        case constructor @ untpd.Apply(untpd.Select(untpd.New(typeTree), init), arguments)
+            if init.toString == "<init>" =>
+          if arguments.exists(_.isInstanceOf[untpd.NamedArg]) then
+            Left(located(QuasiquoteError.UnsupportedTree("ConstructorNew", "named constructor arguments are not supported"), constructor))
+          else
+            for
+              constructorName <- renderConstructorName(typeTree).left.map(located(_, constructor))
+              _ <- ConstructorNamePolicy
+                .validate(constructorName)
+                .left.map(detail => located(QuasiquoteError.InvalidConstructorName(constructorName, detail), typeTree))
+              loweredArguments <- sequenceLocated(arguments.map(lowerTerm))
+              lowered <- lowerConstructor(constructorName, loweredArguments).left.map(located(_, constructor))
+            yield lowered
         case untpd.Apply(function, arguments) =>
           for
             loweredFunction <- lowerTerm(function)
@@ -187,6 +204,34 @@ object ParsedTermLowerer:
         catch
           case NonFatal(error) =>
             Left(QuasiquoteError.UnsupportedApplication(error.getMessage.nn))
+
+  private def lowerConstructor(using q: Quotes)(
+      name: String,
+      arguments: List[q.reflect.Term]
+  ): Either[QuasiquoteError, q.reflect.Term] =
+    import q.reflect.*
+    val classSymbol =
+      try
+        Class.forName(name, false, ParsedTermLowerer.getClass.getClassLoader)
+        Right(Symbol.requiredClass(name))
+      catch
+        case NonFatal(error) => Left(QuasiquoteError.UnresolvedConstructor(name, error.getMessage.nn))
+    classSymbol.flatMap { symbol =>
+      try
+        val created = New(TypeTree.ref(symbol))
+        Right(Select.overloaded(created, "<init>", Nil, arguments))
+      catch
+        case NonFatal(error) => Left(QuasiquoteError.UnsupportedConstructorApplication(name, error.getMessage.nn))
+    }
+
+  private def renderConstructorName(tree: untpd.Tree): Either[QuasiquoteError, String] =
+    tree match
+      case untpd.Ident(name) => Right(name.toString)
+      case untpd.Select(qualifier, name) => renderConstructorName(qualifier).map(_ + "." + name.toString)
+      case _: untpd.AppliedTypeTree =>
+        Left(QuasiquoteError.UnsupportedTree("ConstructorNew", "constructor type arguments are not supported"))
+      case other =>
+        Left(QuasiquoteError.UnsupportedTree("ConstructorNew", s"unsupported constructor type syntax: ${other.getClass.getSimpleName}"))
 
   private def applyInfix(
       using q: Quotes

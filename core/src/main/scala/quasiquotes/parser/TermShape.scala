@@ -8,6 +8,7 @@ object TermShape:
   final case class Literal(value: String) extends TermShape
   final case class Select(qualifier: TermShape, name: String) extends TermShape
   final case class Apply(function: TermShape, arguments: List[TermShape]) extends TermShape
+  final case class New(constructor: String, arguments: List[TermShape]) extends TermShape
   final case class Infix(left: TermShape, operator: String, right: TermShape) extends TermShape
   final case class Unary(operator: String, operand: TermShape) extends TermShape
   final case class InterpolatedString(
@@ -30,6 +31,8 @@ object TermShape:
       case Select(qualifier, name) => s"Select(${render(qualifier)}, $name)"
       case Apply(function, arguments) =>
         s"Apply(${render(function)}, [${arguments.map(render).mkString(", ")}])"
+      case New(constructor, arguments) =>
+        s"New($constructor, [${arguments.map(render).mkString(", ")}])"
       case Infix(left, operator, right) =>
         s"Infix(${render(left)}, $operator, ${render(right)})"
       case Unary(operator, operand) =>

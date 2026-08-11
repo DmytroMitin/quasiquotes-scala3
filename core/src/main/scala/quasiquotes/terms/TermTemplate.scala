@@ -21,6 +21,10 @@ private object SemanticTermKey:
       function: SemanticTermKey,
       arguments: Vector[SemanticTermKey]
   ) extends SemanticTermKey
+  final case class New(
+      constructor: String,
+      arguments: Vector[SemanticTermKey]
+  ) extends SemanticTermKey
   final case class Infix(
       left: SemanticTermKey,
       operator: String,
@@ -207,6 +211,21 @@ private[quasiquotes] final class TermTemplate private (
           completedFunction.ascriptions ++ completedArguments.ascriptions,
           completedArguments.nextIdentifierOrdinal,
           completedArguments.nextTypedOrdinal
+        )
+      case TermShape.New(constructor, arguments) =>
+        completeChildren(
+          arguments,
+          identifierOrdinal,
+          typedOrdinal,
+          termBindings,
+          typeBindings
+        ).map(completed =>
+          CompletedSubtree(
+            TermShape.New(constructor, completed.shapes),
+            completed.ascriptions,
+            completed.nextIdentifierOrdinal,
+            completed.nextTypedOrdinal
+          )
         )
       case TermShape.Infix(left, operator, right) =>
         for
@@ -483,6 +502,14 @@ private[quasiquotes] final class TermTemplate private (
           )
         (
           SemanticTermKey.Apply(functionKey, argumentKeys),
+          nextIdentifier,
+          nextTyped
+        )
+      case TermShape.New(constructor, arguments) =>
+        val (argumentKeys, nextIdentifier, nextTyped) =
+          semanticChildrenKey(arguments, identifierOrdinal, typedOrdinal)
+        (
+          SemanticTermKey.New(constructor, argumentKeys),
           nextIdentifier,
           nextTyped
         )

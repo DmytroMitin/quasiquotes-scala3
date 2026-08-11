@@ -50,6 +50,15 @@ object QuasiquoteError:
   final case class UnresolvedIdentifier(name: String) extends QuasiquoteError:
     def message: String = s"Could not resolve identifier '$name' in the current macro scope"
 
+  final case class InvalidConstructorName(name: String, detail: String) extends QuasiquoteError:
+    def message: String = s"Unsupported constructor name '$name': $detail"
+
+  final case class UnresolvedConstructor(name: String, detail: String) extends QuasiquoteError:
+    def message: String = s"Could not resolve fully-qualified constructor class '$name': $detail"
+
+  final case class UnsupportedConstructorApplication(name: String, detail: String) extends QuasiquoteError:
+    def message: String = s"Could not apply constructor '$name': $detail"
+
   final case class UnsupportedSelection(qualifierType: String, name: String, detail: String) extends QuasiquoteError:
     def message: String =
       s"Could not select '$name' from qualifier type $qualifierType: $detail"

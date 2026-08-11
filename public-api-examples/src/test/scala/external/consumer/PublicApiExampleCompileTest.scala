@@ -67,7 +67,9 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
       Right("Either[List[Int], Option[String]]")
     )
     assert(FrontendFirstUseSnippet.termPattern.isRight)
+    assert(FrontendFirstUseSnippet.constructorPattern.isRight)
     assertEquals(FrontendFirstUseSnippet.add(2, 3), 5)
+    assertEquals(FrontendFirstUseSnippet.capacity(16), 16)
 
   test("external frontend consumer receives actionable located diagnostics"):
     val failures = Vector(

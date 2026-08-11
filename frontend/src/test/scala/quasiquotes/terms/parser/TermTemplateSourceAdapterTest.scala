@@ -120,6 +120,22 @@ class TermTemplateSourceAdapterTest extends munit.FunSuite:
     )
   }
 
+  test("constructor templates retain fully-qualified identity and argument-hole origins") {
+    val located = parsed(
+      "new java.lang.StringBuilder($capacity)",
+      term("capacity")
+    )
+    assertEquals(
+      located.template.root,
+      TermShape.New(
+        "java.lang.StringBuilder",
+        List(TermShape.Identifier(located.termOccurrences.head.source.generatedName, false))
+      )
+    )
+    assertEquals(located.template.termHoleOccurrences.map(_.name), Vector("capacity"))
+    assertEquals(located.termOccurrences.head.source.originalSpan.start, 28)
+  }
+
   Vector(
     "$t" -> TypeTemplate.TTHole("t"),
     "List[$element]" ->

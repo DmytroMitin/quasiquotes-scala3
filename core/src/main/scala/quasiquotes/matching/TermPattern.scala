@@ -9,6 +9,7 @@ object TermPattern:
   final case class Literal(value: String) extends TermPattern
   final case class Select(qualifier: TermPattern, name: String) extends TermPattern
   final case class Apply(function: TermPattern, arguments: List[TermPattern]) extends TermPattern
+  final case class New(constructor: String, arguments: List[TermPattern]) extends TermPattern
   final case class Infix(left: TermPattern, operator: String, right: TermPattern) extends TermPattern
   final case class Unary(operator: String, operand: TermPattern) extends TermPattern
   final case class InterpolatedString(
@@ -30,6 +31,8 @@ object TermPattern:
       case Select(qualifier, name) => s"Select(${render(qualifier)}, $name)"
       case Apply(function, arguments) =>
         s"Apply(${render(function)}, [${arguments.map(render).mkString(", ")}])"
+      case New(constructor, arguments) =>
+        s"New($constructor, [${arguments.map(render).mkString(", ")}])"
       case Infix(left, operator, right) =>
         s"Infix(${render(left)}, $operator, ${render(right)})"
       case Unary(operator, operand) =>

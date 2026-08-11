@@ -216,6 +216,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
             rawFunction.end,
             rawFunction +: rawArguments
           )
+        case TermShape.New(_, _) =>
+          Left(UnsupportedTermNode("New"))
         case TermShape.Infix(left, operator, right) =>
           val start = builder.length
           for
@@ -711,6 +713,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
           TermShape.InterpolatedString(_, _, _) =>
         100
       case TermShape.Select(_, _) | TermShape.Apply(_, _) =>
+        90
+      case TermShape.New(_, _) =>
         90
       case TermShape.Unary(_, _) =>
         80

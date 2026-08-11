@@ -33,6 +33,12 @@ object TermShapeInspector:
         TermShape.Unsupported("FloatingNumberLiteral", "numberKind=Floating")
       case untpd.Select(qualifier, name) =>
         TermShape.Select(inspect(qualifier), name.toString)
+      case untpd.Apply(untpd.Apply(untpd.Select(_: untpd.New, init), _), _)
+          if init.toString == "<init>" =>
+        TermShape.Unsupported("ConstructorNew", "multiple constructor argument lists are not supported")
+      case untpd.Apply(untpd.Select(untpd.New(typeTree), init), arguments)
+          if init.toString == "<init>" =>
+        inspectNew(typeTree, arguments)
       case untpd.Apply(function, arguments) =>
         TermShape.Apply(inspect(function), arguments.map(inspect))
       case untpd.InfixOp(left, op, right) =>
@@ -51,6 +57,8 @@ object TermShapeInspector:
         inspect(tree)
       case untpd.Parens(tree) =>
         TermShape.Parenthesized(inspect(tree))
+      case untpd.New(_: untpd.Template) =>
+        TermShape.Unsupported("ConstructorNew", "anonymous constructor templates are not supported")
       case other =>
         TermShape.Unsupported(other.getClass.getSimpleName, other.toString)
 
@@ -64,6 +72,8 @@ object TermShapeInspector:
         s"Number($digits,$kind)"
       case untpd.Select(qualifier, name) =>
         s"Select(${rawStructure(qualifier)}, ${name.toString})"
+      case untpd.New(typeTree) =>
+        s"New(${rawTypeStructure(typeTree)})"
       case untpd.Apply(function, arguments) =>
         s"Apply(${rawStructure(function)}, [${arguments.map(rawStructure).mkString(", ")}])"
       case untpd.InfixOp(left, op, right) =>
@@ -84,6 +94,28 @@ object TermShapeInspector:
         s"Parens(${rawStructure(tree)})"
       case other =>
         other.getClass.getSimpleName
+
+  private def inspectNew(typeTree: untpd.Tree, arguments: List[untpd.Tree]): TermShape =
+    val constructor = constructorName(typeTree)
+    if arguments.exists(_.isInstanceOf[untpd.NamedArg]) then
+      TermShape.Unsupported("ConstructorNew", "named constructor arguments are not supported")
+    else
+      constructor
+        .flatMap(ConstructorNamePolicy.validate)
+        .fold(
+          detail => TermShape.Unsupported("ConstructorNew", detail),
+          name => TermShape.New(name, arguments.map(inspect))
+        )
+
+  private def constructorName(tree: untpd.Tree): Either[String, String] =
+    tree match
+      case untpd.Ident(name) => Right(name.toString)
+      case untpd.Select(qualifier, name) =>
+        constructorName(qualifier).map(_ + "." + name.toString)
+      case _: untpd.AppliedTypeTree =>
+        Left("constructor type arguments are not supported")
+      case other =>
+        Left(s"unsupported constructor type syntax: ${other.getClass.getSimpleName}")
 
   private def inspectConstant(constant: Constant): TermShape =
     constant.tag match

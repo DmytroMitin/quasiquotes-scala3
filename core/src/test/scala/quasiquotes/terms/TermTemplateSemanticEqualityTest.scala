@@ -127,6 +127,27 @@ class TermTemplateSemanticEqualityTest extends munit.FunSuite:
     assert(ordered != reversed)
   }
 
+  test("constructor templates preserve identity and recursively complete argument holes") {
+    val template = accepted(
+      TermShape.New(
+        "java.lang.StringBuilder",
+        List(ident("__capacity"))
+      ),
+      termEntries = Vector("capacity" -> "__capacity"),
+      termOccurrences = Vector(TermHoleOccurrence("capacity", 0))
+    )
+    val capacity = ConstructedTerm.fromShape(TermShape.Literal("16")).toOption.get
+
+    assertEquals(
+      template.complete(Map("capacity" -> capacity), Map.empty).map(_.root),
+      Right(TermShape.New("java.lang.StringBuilder", List(TermShape.Literal("16"))))
+    )
+    assertNotEquals(
+      template,
+      accepted(TermShape.New("java.lang.RuntimeException", List(TermShape.Literal("16"))))
+    )
+  }
+
   test("ignores generated term and type transport names across a triple") {
     def one(termTransport: String, typeTransport: String): TermTemplate =
       accepted(

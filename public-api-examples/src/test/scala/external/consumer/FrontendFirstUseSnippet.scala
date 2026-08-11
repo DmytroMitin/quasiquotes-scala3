@@ -28,9 +28,15 @@ object FrontendFirstUseSnippet:
     "right" -> TypeNormalForm.STypeIdent("String")
   )
   val termPattern = QuasiPattern.term("$left + $right")
+  val constructorPattern = QuasiPattern.term(
+    "new java.lang.StringBuilder($capacity)"
+  )
 
   inline def add(left: Int, right: Int): Int =
     ${ addImpl('left, 'right) }
+
+  inline def capacity(value: Int): Int =
+    ${ capacityImpl('value) }
 
   private def addImpl(
       left: Expr[Int],
@@ -39,6 +45,12 @@ object FrontendFirstUseSnippet:
     import quotes.reflect.*
 
     qr"${left.asTerm} + ${right.asTerm}".asExprOf[Int]
+
+  private def capacityImpl(value: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+
+    val created = qr"new java.lang.StringBuilder(${value.asTerm})"
+    '{ ${ created.asExprOf[java.lang.StringBuilder] }.capacity() }
 
   private def lowerInsideMacro(
       value: ConstructedType

@@ -20,6 +20,8 @@ private[terms] object TermShapeTraversal:
         validateSupported(qualifier)
       case TermShape.Apply(function, arguments) =>
         validateSupported(function).flatMap(_ => validateAll(arguments))
+      case TermShape.New(_, arguments) =>
+        validateAll(arguments)
       case TermShape.Infix(left, _, right) =>
         validateSupported(left).flatMap(_ => validateSupported(right))
       case TermShape.Unary(operator, operand) =>
@@ -60,6 +62,8 @@ private[terms] object TermShapeTraversal:
           canonicalizePlaceholders(function),
           arguments.map(canonicalizePlaceholders)
         )
+      case TermShape.New(constructor, arguments) =>
+        TermShape.New(constructor, arguments.map(canonicalizePlaceholders))
       case TermShape.Infix(left, operator, right) =>
         TermShape.Infix(
           canonicalizePlaceholders(left),
@@ -101,6 +105,8 @@ private[terms] object TermShapeTraversal:
         case TermShape.Apply(function, arguments) =>
           loop(function)
           arguments.foreach(loop)
+        case TermShape.New(_, arguments) =>
+          arguments.foreach(loop)
         case TermShape.Infix(left, _, right) =>
           loop(left)
           loop(right)
@@ -137,6 +143,8 @@ private[terms] object TermShapeTraversal:
         case TermShape.Apply(function, arguments) =>
           loop(function)
           arguments.foreach(loop)
+        case TermShape.New(_, arguments) =>
+          arguments.foreach(loop)
         case TermShape.Infix(left, _, right) =>
           loop(left)
           loop(right)
@@ -169,6 +177,9 @@ private[terms] object TermShapeTraversal:
           loop(qualifier)
         case TermShape.Apply(function, arguments) =>
           loop(function)
+          arguments.foreach(loop)
+        case TermShape.New(constructor, arguments) =>
+          builder += constructor
           arguments.foreach(loop)
         case TermShape.Infix(left, operator, right) =>
           builder += operator

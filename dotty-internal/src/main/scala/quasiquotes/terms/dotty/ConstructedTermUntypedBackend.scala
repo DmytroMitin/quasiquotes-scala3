@@ -65,6 +65,8 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
           loweredArguments <- lowerTerms(arguments, afterFunction)
           (rawArguments, afterArguments) = loweredArguments
         yield untpd.Apply(rawFunction, rawArguments) -> afterArguments
+      case TermShape.New(_, _) =>
+        Left(UnsupportedTermNode("New"))
       case TermShape.Infix(left, operator, right) =>
         for
           loweredLeft <- lowerTerm(left, state)

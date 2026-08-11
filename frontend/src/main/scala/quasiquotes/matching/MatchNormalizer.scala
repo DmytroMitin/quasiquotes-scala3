@@ -13,6 +13,8 @@ object MatchNormalizer:
         TermPattern.Select(normalizePattern(qualifier), name)
       case TermPattern.Apply(function, arguments) =>
         TermPattern.Apply(normalizePattern(function), arguments.map(normalizePattern))
+      case TermPattern.New(constructor, arguments) =>
+        TermPattern.New(constructor, arguments.map(normalizePattern))
       case TermPattern.Infix(left, operator, right) =>
         TermPattern.Infix(normalizePattern(left), operator, normalizePattern(right))
       case TermPattern.Unary(operator, operand) =>
@@ -41,6 +43,8 @@ object MatchNormalizer:
         TargetTermView.InterpolatedString(prefix, parts, arguments.map(normalizeTarget), original)
       case TargetTermView.Apply(function, arguments, original) =>
         TargetTermView.Apply(normalizeTarget(function), arguments.map(normalizeTarget), original)
+      case TargetTermView.New(constructor, arguments, original) =>
+        TargetTermView.New(constructor, arguments.map(normalizeTarget), original)
       case TargetTermView.Typed(expression, typeName, original) =>
         TargetTermView.Typed(normalizeTarget(expression), typeName, original)
       case TargetTermView.Tuple(elements, original) =>

@@ -2,8 +2,14 @@ package external.consumer
 
 // snippet:core-first-use:start
 import quasiquotes.publicapi.*
+import quasiquotes.parser.TermShape
 
 object CoreFirstUseSnippet:
+  val constructorShape = TermShape.New(
+    "java.lang.StringBuilder",
+    List(TermShape.Literal("16"))
+  )
+
   val method: Either[PublicFailure, DefinitionResultView] =
     for
       show <- CompletedType.named("Show")
