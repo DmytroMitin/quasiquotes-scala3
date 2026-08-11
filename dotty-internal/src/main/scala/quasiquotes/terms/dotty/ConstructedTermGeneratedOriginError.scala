@@ -25,6 +25,28 @@ private[quasiquotes] object ConstructedTermGeneratedOriginError:
     def message: String =
       s"Cannot render generated-origin unary operator `$operator`: expected one of +, -, !, or ~."
 
+  final case class UnsupportedInterpolationPrefix(prefix: String)
+      extends ConstructedTermGeneratedOriginError:
+    def message: String =
+      s"Cannot render generated-origin interpolation prefix `$prefix`: expected standard `s`."
+
+  final case class MalformedInterpolation(
+      parts: Int,
+      arguments: Int
+  ) extends ConstructedTermGeneratedOriginError:
+    def message: String =
+      s"Cannot render malformed generated-origin interpolation: parts=$parts, arguments=$arguments; expected parts == arguments + 1."
+
+  final case class NullInterpolationPart(index: Int)
+      extends ConstructedTermGeneratedOriginError:
+    def message: String =
+      s"Cannot render malformed generated-origin interpolation: semantic part $index is null."
+
+  final case class NullInterpolationArgument(index: Int)
+      extends ConstructedTermGeneratedOriginError:
+    def message: String =
+      s"Cannot render malformed generated-origin interpolation: argument $index is null."
+
   final case class UnsupportedTermNode(nodeKind: String)
       extends ConstructedTermGeneratedOriginError:
     def message: String =

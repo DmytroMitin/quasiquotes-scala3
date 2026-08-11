@@ -19,6 +19,28 @@ private[quasiquotes] object ConstructedTermUntypedBackendError:
     def message: String =
       s"Unsupported constructed-term unary operator `$operator`: expected one of +, -, !, or ~."
 
+  final case class UnsupportedInterpolationPrefix(prefix: String)
+      extends ConstructedTermUntypedBackendError:
+    def message: String =
+      s"Unsupported constructed-term interpolation prefix `$prefix`: expected standard `s`."
+
+  final case class MalformedInterpolation(
+      parts: Int,
+      arguments: Int
+  ) extends ConstructedTermUntypedBackendError:
+    def message: String =
+      s"Malformed constructed-term interpolation: parts=$parts, arguments=$arguments; expected parts == arguments + 1."
+
+  final case class NullInterpolationPart(index: Int)
+      extends ConstructedTermUntypedBackendError:
+    def message: String =
+      s"Malformed constructed-term interpolation: semantic part $index is null."
+
+  final case class NullInterpolationArgument(index: Int)
+      extends ConstructedTermUntypedBackendError:
+    def message: String =
+      s"Malformed constructed-term interpolation: argument $index is null."
+
   final case class UnsupportedTypeSidecar(
       typedOrdinal: Int,
       normalForm: String

@@ -14,63 +14,15 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
   import ConstructedTermGeneratedOriginError.*
 
   private val DecimalInteger = "-?[0-9]+".r
-  private val PlainIdentifier = "[A-Za-z_][A-Za-z0-9_]*".r
   private val OperatorName = "[!#%&*+\\-/:<=>?@\\\\^|~]+".r
   private val SupportedUnaryOperators = Set("+", "-", "!", "~")
-  private val Keywords = Set(
-    "abstract",
-    "case",
-    "catch",
-    "class",
-    "def",
-    "do",
-    "else",
-    "enum",
-    "export",
-    "extends",
-    "false",
-    "final",
-    "finally",
-    "for",
-    "forSome",
-    "given",
-    "if",
-    "implicit",
-    "import",
-    "inline",
-    "lazy",
-    "match",
-    "new",
-    "null",
-    "object",
-    "opaque",
-    "open",
-    "override",
-    "package",
-    "private",
-    "protected",
-    "return",
-    "sealed",
-    "super",
-    "then",
-    "this",
-    "throw",
-    "trait",
-    "transparent",
-    "true",
-    "try",
-    "type",
-    "using",
-    "val",
-    "var",
-    "while",
-    "with",
-    "yield"
-  )
 
   private[dotty] enum NodeKind:
     case TermIdent
     case Literal
+    case InterpolatedString
+    case InterpolationSegment
+    case BracedInterpolationArgument
     case Select
     case Apply
     case Infix
@@ -224,35 +176,7 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
         case TermShape.Parenthesized(
               TermShape.Typed(expression, _)
             ) =>
-          val ordinal = typedOrdinal
-          val sidecar =
-            ascriptionTypes
-              .lift(ordinal)
-              .toRight(MissingTypeSidecar(ordinal))
-          typedOrdinal += 1
-          val parensStart = builder.length
-          builder.append('(')
-          val typedStart = builder.length
-          for
-            normalForm <- sidecar
-            rawExpression <- renderTermNode(expression)
-            _ = builder.append(": ")
-            rawType <- renderAscriptionType(normalForm, ordinal)
-          yield
-            val typed =
-              node(
-                NodeKind.Typed,
-                typedStart,
-                typedStart,
-                Vector(rawExpression, rawType)
-              )
-            builder.append(')')
-            node(
-              NodeKind.Parens,
-              parensStart,
-              parensStart,
-              Vector(typed)
-            )
+          renderCompactTyped(expression, parenthesized = true)
         case _ =>
           renderTermNode(shape)
 
@@ -289,7 +213,7 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
           yield node(
             NodeKind.Apply,
             start,
-            rawFunction.point,
+            rawFunction.end,
             rawFunction +: rawArguments
           )
         case TermShape.Infix(left, operator, right) =>
@@ -343,8 +267,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
                 Vector(operatorPlan, rawOperand)
               )
             }
-        case TermShape.InterpolatedString(_, _, _) =>
-          Left(UnsupportedTermNode("InterpolatedString"))
+        case TermShape.InterpolatedString(prefix, parts, arguments) =>
+          renderInterpolation(prefix, parts, arguments)
         case TermShape.Typed(expression, _) =>
           val ordinal = typedOrdinal
           val sidecar =
@@ -394,6 +318,155 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
           }
         case TermShape.Unsupported(nodeKind, _) =>
           Left(UnsupportedTermNode(nodeKind))
+
+    private def renderInterpolation(
+        prefix: String,
+        parts: List[String],
+        arguments: List[TermShape]
+    ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
+      for
+        _ <- validateInterpolation(prefix, parts, arguments)
+        start = builder.length
+        _ = builder.append("s\"")
+        rawSegments <- parts.init
+          .zip(arguments)
+          .foldLeft[
+            Either[ConstructedTermGeneratedOriginError, Vector[NodePlan]]
+          ](Right(Vector.empty)) { case (accumulated, (part, argument)) =>
+            accumulated.flatMap { values =>
+              val literal = appendInterpolationPart(part)
+              renderInterpolationSegment(literal, argument)
+                .map(values :+ _)
+            }
+          }
+        finalLiteral = appendInterpolationPart(parts.last)
+        _ = builder.append('"')
+      yield node(
+        NodeKind.InterpolatedString,
+        start,
+        start,
+        rawSegments :+ finalLiteral
+      )
+
+    private def renderInterpolationSegment(
+        literal: NodePlan,
+        argument: TermShape
+    ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
+      if StandardSInterpolationEncoding.isDirectArgument(argument) then
+        builder.append('$')
+        renderTermNode(argument).map { rawArgument =>
+          node(
+            NodeKind.InterpolationSegment,
+            literal.start,
+            literal.start,
+            Vector(literal, rawArgument)
+          )
+        }
+      else
+        builder.append('$')
+        val wrapperStart = builder.length
+        builder.append('{')
+        renderInterpolationArgumentNode(argument).map { rawArgument =>
+          builder.append('}')
+          val wrapper =
+            node(
+              NodeKind.BracedInterpolationArgument,
+              wrapperStart,
+              wrapperStart,
+              Vector(rawArgument)
+            )
+          node(
+            NodeKind.InterpolationSegment,
+            literal.start,
+            literal.start,
+            Vector(literal, wrapper)
+          )
+        }
+
+    private def renderInterpolationArgumentNode(
+        shape: TermShape
+    ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
+      shape match
+        case TermShape.Parenthesized(TermShape.Typed(expression, _)) =>
+          renderCompactTyped(expression, parenthesized = true)
+        case TermShape.Typed(expression, _) =>
+          renderCompactTyped(expression, parenthesized = false)
+        case _ =>
+          renderTermNode(shape)
+
+    private def renderCompactTyped(
+        expression: TermShape,
+        parenthesized: Boolean
+    ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
+      val ordinal = typedOrdinal
+      val sidecar =
+        ascriptionTypes
+          .lift(ordinal)
+          .toRight(MissingTypeSidecar(ordinal))
+      typedOrdinal += 1
+      val parensStart = builder.length
+      if parenthesized then builder.append('(')
+      val typedStart = builder.length
+      for
+        normalForm <- sidecar
+        rawExpression <- renderTermNode(expression)
+        _ = builder.append(": ")
+        rawType <- renderAscriptionType(normalForm, ordinal)
+      yield
+        val typed =
+          node(
+            NodeKind.Typed,
+            typedStart,
+            typedStart,
+            Vector(rawExpression, rawType)
+          )
+        if parenthesized then
+          builder.append(')')
+          node(
+            NodeKind.Parens,
+            parensStart,
+            parensStart,
+            Vector(typed)
+          )
+        else typed
+
+    private def appendInterpolationPart(value: String): NodePlan =
+      val encoded = StandardSInterpolationEncoding.encodePart(value)
+      val start = builder.length
+      builder.append(encoded.source)
+      NodePlan(
+        NodeKind.Literal,
+        start,
+        start + encoded.rawLiteralValue.length,
+        start,
+        Vector.empty
+      )
+
+    private def validateInterpolation(
+        prefix: String,
+        parts: List[String],
+        arguments: List[TermShape]
+    ): Either[ConstructedTermGeneratedOriginError, Unit] =
+      if prefix != "s" then
+        Left(UnsupportedInterpolationPrefix(String.valueOf(prefix)))
+      else if parts == null || arguments == null then
+        Left(
+          MalformedInterpolation(
+            Option(parts).fold(-1)(_.size),
+            Option(arguments).fold(-1)(_.size)
+          )
+        )
+      else if parts.size != arguments.size + 1 then
+        Left(MalformedInterpolation(parts.size, arguments.size))
+      else
+        parts.zipWithIndex.collectFirst { case (null, index) => index } match
+          case Some(index) => Left(NullInterpolationPart(index))
+          case None =>
+            arguments.zipWithIndex.collectFirst {
+              case (null, index) => index
+            } match
+              case Some(index) => Left(NullInterpolationArgument(index))
+              case None => Right(())
 
     private def renderChild(
         shape: TermShape,
@@ -582,20 +655,20 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
       role: String,
       name: String
   ): Either[ConstructedTermGeneratedOriginError, String] =
-    name match
-      case PlainIdentifier() if !Keywords(name) =>
-        Right(name)
-      case PlainIdentifier() =>
-        Right(s"`$name`")
-      case _ =>
-        Left(UnrenderableName(role, name))
+    if StandardSInterpolationEncoding.isPlainIdentifier(name) then
+      if StandardSInterpolationEncoding.isKeyword(name) then Right(s"`$name`")
+      else Right(name)
+    else Left(UnrenderableName(role, name))
 
   private def renderOperator(
       operator: String
   ): Either[ConstructedTermGeneratedOriginError, String] =
     operator match
       case OperatorName() => Right(operator)
-      case PlainIdentifier() if !Keywords(operator) => Right(operator)
+      case _
+          if StandardSInterpolationEncoding.isPlainIdentifier(operator) &&
+            !StandardSInterpolationEncoding.isKeyword(operator) =>
+        Right(operator)
       case _ => Left(UnrenderableName("infix operator", operator))
 
   private def renderLiteral(
@@ -729,6 +802,30 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
         Right(attach(tree))
       case (tree: untpd.Number, NodeKind.Literal) =>
         Right(attach(tree))
+      case (
+            untpd.InterpolatedString(prefix, segments),
+            NodeKind.InterpolatedString
+          ) =>
+        positionAll(segments, plan.children, source).map { positioned =>
+          attach(untpd.InterpolatedString(prefix, positioned))
+        }
+      case (
+            untpd.Thicket(trees),
+            NodeKind.InterpolationSegment
+          ) =>
+        positionAll(trees, plan.children, source).map { positioned =>
+          // A Thicket derives its union span and source from its children.
+          // Calling withSpan on it propagates that union span into each child.
+          untpd.Thicket(positioned).cloneIn(source)
+        }
+      case (
+            untpd.Block(Nil, expression),
+            NodeKind.BracedInterpolationArgument
+          ) =>
+        oneChild(plan).flatMap(position(expression, _, source)).map {
+          positioned =>
+            attach(untpd.Block(Nil, positioned))
+        }
       case (tree: untpd.Select, NodeKind.Select) =>
         oneChild(plan).flatMap(position(tree.qualifier, _, source)).map {
           qualifier =>
@@ -896,7 +993,9 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
               left.span.end > right.span.start
           then
             local +=
-              s"${current.getClass.getSimpleName} children ${left.getClass.getSimpleName} and ${right.getClass.getSimpleName} overlap or are out of source order"
+              s"${current.getClass.getSimpleName} children ${left.getClass.getSimpleName} " +
+                s"${left.span.start}..${left.span.end} and ${right.getClass.getSimpleName} " +
+                s"${right.span.start}..${right.span.end} overlap or are out of source order"
         }
         local.result()
       }
@@ -932,6 +1031,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
         value.segments.toVector
       case value: untpd.Thicket =>
         value.trees.toVector
+      case untpd.Block(Nil, expression) =>
+        Vector(expression)
       case value: untpd.Typed =>
         Vector(value.expr, value.tpt)
       case value: untpd.AppliedTypeTree =>

@@ -87,8 +87,8 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
         }
       case TermShape.Unary(operator, _) =>
         Left(UnsupportedUnaryOperator(operator))
-      case TermShape.InterpolatedString(_, _, _) =>
-        Left(UnsupportedTermNode("InterpolatedString"))
+      case TermShape.InterpolatedString(prefix, parts, arguments) =>
+        lowerInterpolation(prefix, parts, arguments, state)
       case TermShape.Typed(expression, _) =>
         for
           consumed <- state.consume
@@ -119,6 +119,64 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
         }
       case TermShape.Unsupported(nodeKind, _) =>
         Left(UnsupportedTermNode(nodeKind))
+
+  private def lowerInterpolation(
+      prefix: String,
+      parts: List[String],
+      arguments: List[TermShape],
+      state: LoweringState
+  )(using SourceFile): Either[
+    ConstructedTermUntypedBackendError,
+    (untpd.Tree, LoweringState)
+  ] =
+    for
+      _ <- validateInterpolation(prefix, parts, arguments)
+      lowered <- lowerTerms(arguments, state)
+      (rawArguments, next) = lowered
+      rawSegments = parts.init
+        .zip(arguments)
+        .zip(rawArguments)
+        .map { case ((part, shape), rawArgument) =>
+          val encoded = StandardSInterpolationEncoding.encodePart(part)
+          val literal = untpd.Literal(Constant(encoded.rawLiteralValue))
+          val argument =
+            if StandardSInterpolationEncoding.isDirectArgument(shape) then
+              rawArgument
+            else untpd.Block(Nil, rawArgument)
+          untpd.Thicket(literal :: argument :: Nil)
+        } :+
+        untpd.Literal(
+          Constant(
+            StandardSInterpolationEncoding
+              .encodePart(parts.last)
+              .rawLiteralValue
+          )
+        )
+    yield untpd.InterpolatedString(termName(prefix), rawSegments) -> next
+
+  private def validateInterpolation(
+      prefix: String,
+      parts: List[String],
+      arguments: List[TermShape]
+  ): Either[ConstructedTermUntypedBackendError, Unit] =
+    if prefix != "s" then
+      Left(UnsupportedInterpolationPrefix(String.valueOf(prefix)))
+    else if parts == null || arguments == null then
+      Left(
+        MalformedInterpolation(
+          Option(parts).fold(-1)(_.size),
+          Option(arguments).fold(-1)(_.size)
+        )
+      )
+    else if parts.size != arguments.size + 1 then
+      Left(MalformedInterpolation(parts.size, arguments.size))
+    else
+      parts.zipWithIndex.collectFirst { case (null, index) => index } match
+        case Some(index) => Left(NullInterpolationPart(index))
+        case None =>
+          arguments.zipWithIndex.collectFirst { case (null, index) => index } match
+            case Some(index) => Left(NullInterpolationArgument(index))
+            case None => Right(())
 
   private def lowerTerms(
       shapes: List[TermShape],
