@@ -15,6 +15,8 @@ class ConstructorNewRawPreflightTest extends munit.FunSuite:
     "new java.lang.RuntimeException(\"boom\")",
     "new java.lang.StringBuilder(if cond then 8 else 16)",
     "new java.lang.StringBuilder(foo(x))",
+    "new synthetic.unresolved.Widget(1)",
+    "new synthetic.unresolved.Widget(new other.missing.Value(1))",
     "(new java.lang.StringBuilder(16)).toString",
     "foo(new java.lang.StringBuilder(16))"
   )

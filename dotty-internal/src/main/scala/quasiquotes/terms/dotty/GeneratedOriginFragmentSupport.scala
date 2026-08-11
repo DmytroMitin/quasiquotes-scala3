@@ -6,7 +6,7 @@ import dotty.tools.dotc.core.Symbols.NoSymbol
 import dotty.tools.dotc.util.SourceFile
 import dotty.tools.dotc.util.Spans.Span
 
-import quasiquotes.parser.TermShape
+import quasiquotes.parser.{ConstructorNamePolicy, TermShape}
 import quasiquotes.terms.ConstructedTerm
 import quasiquotes.types.{AppliedTypeConstructorPolicy, TypeNormalForm}
 
@@ -25,6 +25,9 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
     case BracedInterpolationArgument
     case Select
     case Apply
+    case New
+    case ConstructorSelect
+    case TypeSelect
     case Infix
     case Prefix
     case Typed
@@ -216,8 +219,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
             rawFunction.end,
             rawFunction +: rawArguments
           )
-        case TermShape.New(_, _) =>
-          Left(UnsupportedTermNode("New"))
+        case TermShape.New(constructor, arguments) =>
+          renderNew(constructor, arguments)
         case TermShape.Infix(left, operator, right) =>
           val start = builder.length
           for
@@ -320,6 +323,66 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
           }
         case TermShape.Unsupported(nodeKind, _) =>
           Left(UnsupportedTermNode(nodeKind))
+
+    private def renderNew(
+        constructor: String,
+        arguments: List[TermShape]
+    ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
+      val start = builder.length
+      builder.append("new ")
+      val typeStart = builder.length
+      for
+        validated <- ConstructorNamePolicy
+          .validate(constructor)
+          .left
+          .map(detail => InvalidConstructorName(String.valueOf(constructor), detail))
+        _ <- validateConstructorArguments(arguments)
+        rawType = renderConstructorTypePath(validated, typeStart)
+        rawNew = NodePlan(
+          NodeKind.New,
+          typeStart,
+          builder.length,
+          typeStart,
+          Vector(rawType)
+        )
+        rawConstructor = NodePlan(
+          NodeKind.ConstructorSelect,
+          typeStart,
+          builder.length,
+          typeStart,
+          Vector(rawNew)
+        )
+        rawArguments <- renderSeparated(arguments, "(", ", ", ")")
+      yield node(
+        NodeKind.Apply,
+        start,
+        start,
+        rawConstructor +: rawArguments
+      )
+
+    private def validateConstructorArguments(
+        arguments: List[TermShape]
+    ): Either[ConstructedTermGeneratedOriginError, Unit] =
+      if arguments == null then Left(MalformedConstructorArguments(-1))
+      else
+        arguments.zipWithIndex.collectFirst { case (null, index) => index } match
+          case Some(index) => Left(NullConstructorArgument(index))
+          case None => Right(())
+
+    private def renderConstructorTypePath(
+        constructor: String,
+        start: Int
+    ): NodePlan =
+      val head +: tail = constructor.split("\\.").toList: @unchecked
+      builder.append(head)
+      tail.foldLeft(
+        NodePlan(NodeKind.TypeIdent, start, builder.length, start, Vector.empty)
+      ) { (qualifier, segment) =>
+        builder.append('.')
+        val point = builder.length
+        builder.append(segment)
+        node(NodeKind.TypeSelect, start, point, Vector(qualifier))
+      }
 
     private def renderInterpolation(
         prefix: String,
@@ -830,10 +893,17 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
           positioned =>
             attach(untpd.Block(Nil, positioned))
         }
-      case (tree: untpd.Select, NodeKind.Select) =>
+      case (
+            tree: untpd.Select,
+            NodeKind.Select | NodeKind.TypeSelect | NodeKind.ConstructorSelect
+          ) =>
         oneChild(plan).flatMap(position(tree.qualifier, _, source)).map {
           qualifier =>
             attach(untpd.cpy.Select(tree)(qualifier, tree.name))
+        }
+      case (tree: untpd.New, NodeKind.New) =>
+        oneChild(plan).flatMap(position(tree.tpt, _, source)).map { typeTree =>
+          attach(untpd.cpy.New(tree)(typeTree))
         }
       case (tree: untpd.Apply, NodeKind.Apply) =>
         splitHead(plan).flatMap { case (functionPlan, argumentPlans) =>
@@ -1027,6 +1097,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
         Vector(value.qualifier)
       case value: untpd.Apply =>
         value.fun +: value.args.toVector
+      case value: untpd.New =>
+        Vector(value.tpt)
       case value: untpd.InfixOp =>
         Vector(value.left, value.op, value.right)
       case value: untpd.PrefixOp =>

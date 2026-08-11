@@ -15,6 +15,21 @@ private[quasiquotes] object ConstructedTermGeneratedOriginError:
     def message: String =
       s"Cannot render generated-origin $role name `$name` in the bounded Scala source fragment."
 
+  final case class InvalidConstructorName(name: String, detail: String)
+      extends ConstructedTermGeneratedOriginError:
+    def message: String =
+      s"Cannot render generated-origin constructor name `$name`: $detail."
+
+  final case class MalformedConstructorArguments(arguments: Int)
+      extends ConstructedTermGeneratedOriginError:
+    def message: String =
+      s"Cannot render malformed generated-origin constructor arguments: arguments=$arguments; expected a non-null argument list."
+
+  final case class NullConstructorArgument(index: Int)
+      extends ConstructedTermGeneratedOriginError:
+    def message: String =
+      s"Cannot render malformed generated-origin constructor arguments: argument $index is null."
+
   final case class UnsupportedLiteral(value: String)
       extends ConstructedTermGeneratedOriginError:
     def message: String =

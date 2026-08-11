@@ -204,6 +204,45 @@ class ConstructedDefinitionUntypedBackendTest extends munit.FunSuite:
     assertEquals(TermShapeInspector.inspect(raw.rhs), shape)
   }
 
+  test("definition bodies inherit exact source-free constructor new lowering") {
+    val body = ConstructedTerm
+      .fromShape(
+        TermShape.New(
+          "synthetic.unresolved.Widget",
+          List(
+            TermShape.New(
+              "other.missing.Value",
+              List(TermShape.Literal("1"))
+            )
+          )
+        )
+      )
+      .toOption
+      .get
+    val completed = value(plain("created"), STypeIdent("String"), body)
+    val base = new ContextBase
+    given Context = base.initialCtx
+    val raw = ConstructedDefinitionUntypedBackend
+      .lower(completed)
+      .toOption
+      .get
+      .asInstanceOf[untpd.ValDef]
+
+    assertEquals(allTrees(raw.rhs).count(_.isInstanceOf[untpd.New]), 2)
+    assertEquals(
+      allTrees(raw.rhs).collect {
+        case selected: untpd.Select if selected.name.toString == "<init>" =>
+          selected.name.toString
+      },
+      List("<init>", "<init>")
+    )
+    allTrees(raw).foreach { tree =>
+      assert(!tree.source.exists)
+      assert(!tree.span.exists)
+      assertEquals(tree.symbol, NoSymbol)
+    }
+  }
+
   test("long decimal Boolean and semantic String literals retain child backend values") {
     val shapes =
       Vector(
@@ -434,6 +473,8 @@ class ConstructedDefinitionUntypedBackendTest extends munit.FunSuite:
           value.qualifier :: Nil
         case value: untpd.Apply =>
           value.fun :: value.args
+        case value: untpd.New =>
+          value.tpt :: Nil
         case value: untpd.InfixOp =>
           List(value.left, value.op, value.right)
         case value: untpd.PrefixOp =>

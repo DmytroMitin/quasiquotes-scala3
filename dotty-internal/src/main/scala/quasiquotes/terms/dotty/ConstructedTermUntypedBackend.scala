@@ -5,7 +5,7 @@ import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Names.termName
 import dotty.tools.dotc.util.{NoSource, SourceFile}
 
-import quasiquotes.parser.TermShape
+import quasiquotes.parser.{ConstructorNamePolicy, TermShape}
 import quasiquotes.terms.ConstructedTerm
 import quasiquotes.types.TypeNormalForm
 
@@ -65,8 +65,8 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
           loweredArguments <- lowerTerms(arguments, afterFunction)
           (rawArguments, afterArguments) = loweredArguments
         yield untpd.Apply(rawFunction, rawArguments) -> afterArguments
-      case TermShape.New(_, _) =>
-        Left(UnsupportedTermNode("New"))
+      case TermShape.New(constructor, arguments) =>
+        lowerNew(constructor, arguments, state)
       case TermShape.Infix(left, operator, right) =>
         for
           loweredLeft <- lowerTerm(left, state)
@@ -121,6 +121,44 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
         }
       case TermShape.Unsupported(nodeKind, _) =>
         Left(UnsupportedTermNode(nodeKind))
+
+  private def lowerNew(
+      constructor: String,
+      arguments: List[TermShape],
+      state: LoweringState
+  )(using SourceFile): Either[
+    ConstructedTermUntypedBackendError,
+    (untpd.Tree, LoweringState)
+  ] =
+    for
+      validated <- ConstructorNamePolicy
+        .validate(constructor)
+        .left
+        .map(detail => InvalidConstructorName(String.valueOf(constructor), detail))
+      _ <- validateConstructorArguments(arguments)
+      lowered <- lowerTerms(arguments, state)
+      (rawArguments, next) = lowered
+      rawType = lowerConstructorTypePath(validated)
+      rawNew = untpd.New(rawType)
+      rawConstructor = untpd.Select(rawNew, termName("<init>"))
+    yield untpd.Apply(rawConstructor, rawArguments) -> next
+
+  private def validateConstructorArguments(
+      arguments: List[TermShape]
+  ): Either[ConstructedTermUntypedBackendError, Unit] =
+    if arguments == null then Left(MalformedConstructorArguments(-1))
+    else
+      arguments.zipWithIndex.collectFirst { case (null, index) => index } match
+        case Some(index) => Left(NullConstructorArgument(index))
+        case None => Right(())
+
+  private def lowerConstructorTypePath(
+      constructor: String
+  )(using SourceFile): untpd.Tree =
+    val head +: tail = constructor.split("\\.").toList: @unchecked
+    tail.foldLeft[untpd.Tree](untpd.Ident(termName(head))) { (qualifier, segment) =>
+      untpd.Select(qualifier, termName(segment))
+    }
 
   private def lowerInterpolation(
       prefix: String,

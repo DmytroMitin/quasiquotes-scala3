@@ -14,6 +14,21 @@ private[quasiquotes] object ConstructedTermUntypedBackendError:
     def message: String =
       s"Unsupported constructed-term node at the exact-version untyped backend boundary: $nodeKind."
 
+  final case class InvalidConstructorName(name: String, detail: String)
+      extends ConstructedTermUntypedBackendError:
+    def message: String =
+      s"Invalid constructed-term constructor name `$name`: $detail."
+
+  final case class MalformedConstructorArguments(arguments: Int)
+      extends ConstructedTermUntypedBackendError:
+    def message: String =
+      s"Malformed constructed-term constructor arguments: arguments=$arguments; expected a non-null argument list."
+
+  final case class NullConstructorArgument(index: Int)
+      extends ConstructedTermUntypedBackendError:
+    def message: String =
+      s"Malformed constructed-term constructor arguments: argument $index is null."
+
   final case class UnsupportedUnaryOperator(operator: String)
       extends ConstructedTermUntypedBackendError:
     def message: String =

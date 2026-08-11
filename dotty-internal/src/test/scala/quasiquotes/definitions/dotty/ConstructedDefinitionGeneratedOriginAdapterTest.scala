@@ -191,6 +191,38 @@ class ConstructedDefinitionGeneratedOriginAdapterTest extends munit.FunSuite:
     }
   }
 
+  test("definition bodies inherit exact generated-origin constructor new lowering") {
+    val body = fromShape(
+      TermShape.New(
+        "synthetic.unresolved.Widget",
+        List(
+          TermShape.New(
+            "other.missing.Value",
+            List(TermShape.Literal("1"))
+          )
+        )
+      )
+    )
+    val constructed = value(plain("created"), STypeIdent("String"), body)
+
+    withContext {
+      val result = lower(constructed, "<generated-definition-constructor-new>")
+      assertEquals(
+        result.generatedSource,
+        "val created: String = new synthetic.unresolved.Widget(new other.missing.Value(1))"
+      )
+      assertComplete(result)
+      assertRawAgreement(result.tree, constructed)
+      val (_, positionedBody) = children(result.tree)
+      assertEquals(
+        GeneratedOriginFragmentSupport
+          .allTrees(positionedBody)
+          .count(_.isInstanceOf[untpd.New]),
+        2
+      )
+    }
+  }
+
   test("positions Tuple2 Tuple3 Tuple22 repeated text and escaped UTF-16 strings") {
     val semantic =
       "\"quote=\" slash=\\ newline=\n BMP=λ supplementary=😀\""
