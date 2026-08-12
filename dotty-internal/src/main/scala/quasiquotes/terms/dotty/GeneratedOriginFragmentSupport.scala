@@ -6,7 +6,7 @@ import dotty.tools.dotc.core.Symbols.NoSymbol
 import dotty.tools.dotc.util.SourceFile
 import dotty.tools.dotc.util.Spans.Span
 
-import quasiquotes.parser.{ConstructorNamePolicy, TermShape}
+import quasiquotes.parser.{BinderId, ConstructorNamePolicy, TermShape}
 import quasiquotes.terms.ConstructedTerm
 import quasiquotes.types.{AppliedTypeConstructorPolicy, TypeNormalForm}
 
@@ -18,6 +18,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
   private val SupportedUnaryOperators = Set("+", "-", "!", "~")
 
   private[dotty] enum NodeKind:
+    case Lambda
+    case LambdaParameter
     case TermIdent
     case Literal
     case InterpolatedString
@@ -153,6 +155,7 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
   ):
     private val builder = new StringBuilder
     private var typedOrdinal = 0
+    private var binderNames = Map.empty[BinderId, String]
 
     def renderTerm(
       rootShape: TermShape
@@ -194,8 +197,13 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
         shape: TermShape
     ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
       shape match
-        case TermShape.BoundReference(_, _) | TermShape.Lambda1(_, _, _, _) =>
-          Left(UnsupportedTermNode("Lambda1"))
+        case TermShape.BoundReference(binderId, _) =>
+          binderNames
+            .get(binderId)
+            .toRight(OutOfScopeBoundReference(binderId.value))
+            .flatMap(name => leaf(NodeKind.TermIdent, Right(name)))
+        case TermShape.Lambda1(binderId, displayName, _, body) =>
+          renderLambda1(binderId, displayName, body)
         case TermShape.Identifier(name, _) =>
           leaf(NodeKind.TermIdent, renderIdentifier("identifier", name))
         case TermShape.Literal(value) =>
@@ -325,6 +333,57 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
           }
         case TermShape.Unsupported(nodeKind, _) =>
           Left(UnsupportedTermNode(nodeKind))
+
+    private def renderLambda1(
+        binderId: BinderId,
+        displayName: String,
+        body: TermShape
+    ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
+      if binderNames.nonEmpty then Left(NestedLambda1Unsupported)
+      else
+        val ordinal = typedOrdinal
+        for
+          parameterType <- ascriptionTypes
+            .lift(ordinal)
+            .toRight(MissingTypeSidecar(ordinal))
+          renderedName <- renderIdentifier("lambda parameter", displayName)
+          _ = typedOrdinal += 1
+          start = builder.length
+          _ = builder.append('(')
+          parameterStart = builder.length
+          _ = builder.append(renderedName)
+          _ = builder.append(": ")
+          rawParameterType <- renderAscriptionType(parameterType, ordinal)
+          rawParameter = NodePlan(
+            NodeKind.LambdaParameter,
+            parameterStart,
+            builder.length,
+            parameterStart,
+            Vector(rawParameterType)
+          )
+          _ = builder.append(") ")
+          arrowPoint = builder.length
+          _ = builder.append("=> ")
+          previousBinders = binderNames
+          _ = binderNames = binderNames.updated(binderId, renderedName)
+          rawBodyResult = renderLambdaBody(body)
+          _ = binderNames = previousBinders
+          rawBody <- rawBodyResult
+        yield node(
+          NodeKind.Lambda,
+          start,
+          arrowPoint,
+          Vector(rawParameter, rawBody)
+        )
+
+    private def renderLambdaBody(
+        body: TermShape
+    ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
+      body match
+        case TermShape.Typed(expression, _) =>
+          renderCompactTyped(expression, parenthesized = true)
+        case _ =>
+          renderTermNode(body)
 
     private def renderNew(
         constructor: String,
@@ -987,6 +1046,22 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
             result <- position(tree.body, resultPlan, source)
           yield attach(untpd.cpy.Function(tree)(arguments, result))
         }
+      case (tree: untpd.Function, NodeKind.Lambda) =>
+        splitLast(plan).flatMap { case (parameterPlans, bodyPlan) =>
+          for
+            parameters <- positionAll(tree.args, parameterPlans, source)
+            body <- position(tree.body, bodyPlan, source)
+          yield attach(untpd.cpy.Function(tree)(parameters, body))
+        }
+      case (tree: untpd.ValDef, NodeKind.LambdaParameter) =>
+        oneChild(plan).flatMap(position(tree.tpt, _, source)).map {
+          parameterType =>
+            attach(
+              untpd
+                .ValDef(tree.name, parameterType, untpd.EmptyTree)
+                .withMods(tree.mods)
+            )
+        }
       case _ =>
         Left(
           RawTreePlanMismatch(
@@ -1098,7 +1173,7 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
       case value: untpd.DefDef =>
         Vector(value.tpt, value.rhs)
       case value: untpd.ValDef =>
-        Vector(value.tpt, value.rhs)
+        Vector(value.tpt, value.rhs).filterNot(_.isEmpty)
       case value: untpd.Select =>
         Vector(value.qualifier)
       case value: untpd.Apply =>

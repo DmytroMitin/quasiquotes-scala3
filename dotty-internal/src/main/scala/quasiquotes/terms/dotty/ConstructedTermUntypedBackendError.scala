@@ -14,6 +14,16 @@ private[quasiquotes] object ConstructedTermUntypedBackendError:
     def message: String =
       s"Unsupported constructed-term node at the exact-version untyped backend boundary: $nodeKind."
 
+  final case class OutOfScopeBoundReference(binderId: Int)
+      extends ConstructedTermUntypedBackendError:
+    def message: String =
+      s"Cannot lower Lambda1 bound reference for inactive binder identity $binderId."
+
+  case object NestedLambda1Unsupported
+      extends ConstructedTermUntypedBackendError:
+    def message: String =
+      "Nested Lambda1 is outside the bounded exact-backend contract."
+
   final case class InvalidConstructorName(name: String, detail: String)
       extends ConstructedTermUntypedBackendError:
     def message: String =

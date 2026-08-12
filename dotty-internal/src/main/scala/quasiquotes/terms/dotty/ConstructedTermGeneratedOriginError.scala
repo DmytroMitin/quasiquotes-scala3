@@ -67,6 +67,16 @@ private[quasiquotes] object ConstructedTermGeneratedOriginError:
     def message: String =
       s"Cannot render unsupported generated-origin term node `$nodeKind`."
 
+  final case class OutOfScopeBoundReference(binderId: Int)
+      extends ConstructedTermGeneratedOriginError:
+    def message: String =
+      s"Cannot render Lambda1 bound reference for inactive binder identity $binderId."
+
+  case object NestedLambda1Unsupported
+      extends ConstructedTermGeneratedOriginError:
+    def message: String =
+      "Nested Lambda1 is outside the bounded generated-origin contract."
+
   final case class MissingTypeSidecar(typedOrdinal: Int)
       extends ConstructedTermGeneratedOriginError:
     def message: String =

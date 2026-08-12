@@ -2,10 +2,11 @@ package quasiquotes.terms.dotty
 
 import dotty.tools.dotc.ast.untpd
 import dotty.tools.dotc.core.Constants.Constant
+import dotty.tools.dotc.core.Flags
 import dotty.tools.dotc.core.Names.termName
 import dotty.tools.dotc.util.{NoSource, SourceFile}
 
-import quasiquotes.parser.{ConstructorNamePolicy, TermShape}
+import quasiquotes.parser.{BinderId, ConstructorNamePolicy, TermShape}
 import quasiquotes.terms.ConstructedTerm
 import quasiquotes.types.TypeNormalForm
 
@@ -17,7 +18,8 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
 
   private final case class LoweringState(
       sidecars: Vector[TypeNormalForm],
-      typedOrdinal: Int
+      typedOrdinal: Int,
+      binders: Map[BinderId, String]
   ):
     def consume:
         Either[ConstructedTermUntypedBackendError, (TypeNormalForm, LoweringState)] =
@@ -33,7 +35,11 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
 
     lowerTerm(
       constructed.root,
-      LoweringState(constructed.ascriptionTypes, typedOrdinal = 0)
+      LoweringState(
+        constructed.ascriptionTypes,
+        typedOrdinal = 0,
+        binders = Map.empty
+      )
     ).flatMap { case (tree, state) =>
       Either.cond(
         state.typedOrdinal == state.sidecars.size,
@@ -50,8 +56,13 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
     (untpd.Tree, LoweringState)
   ] =
     shape match
-      case TermShape.BoundReference(_, _) | TermShape.Lambda1(_, _, _, _) =>
-        Left(UnsupportedTermNode("Lambda1"))
+      case TermShape.BoundReference(binderId, _) =>
+        state.binders
+          .get(binderId)
+          .map(name => untpd.Ident(termName(name)) -> state)
+          .toRight(OutOfScopeBoundReference(binderId.value))
+      case TermShape.Lambda1(binderId, displayName, _, body) =>
+        lowerLambda1(binderId, displayName, body, state)
       case TermShape.Identifier(name, _) =>
         Right(untpd.Ident(termName(name)) -> state)
       case TermShape.Literal(value) =>
@@ -123,6 +134,53 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
         }
       case TermShape.Unsupported(nodeKind, _) =>
         Left(UnsupportedTermNode(nodeKind))
+
+  private def lowerLambda1(
+      binderId: BinderId,
+      displayName: String,
+      body: TermShape,
+      state: LoweringState
+  )(using SourceFile): Either[
+    ConstructedTermUntypedBackendError,
+    (untpd.Tree, LoweringState)
+  ] =
+    if state.binders.nonEmpty then Left(NestedLambda1Unsupported)
+    else if !isValidLambdaParameterName(displayName) then
+      Left(UnsupportedTermNode("Lambda1ParameterName"))
+    else
+      for
+        consumed <- state.consume
+        (parameterType, afterParameterType) = consumed
+        rawParameterType <- CompletedTypeUntypedLowerer
+          .lower(parameterType)
+          .left
+          .map(_ =>
+            UnsupportedTypeSidecar(
+              state.typedOrdinal,
+              parameterType.render
+            )
+          )
+        bodyState = afterParameterType.copy(
+          binders = afterParameterType.binders.updated(binderId, displayName)
+        )
+        loweredBody <- lowerTerm(body, bodyState)
+        (rawBody, afterBody) = loweredBody
+        parameter = untpd
+          .ValDef(
+            termName(displayName),
+            rawParameterType,
+            untpd.EmptyTree
+          )
+          .withMods(untpd.Modifiers(Flags.Param))
+        restored = afterBody.copy(binders = state.binders)
+        parserEquivalentBody =
+          body match
+            case _: TermShape.Typed => untpd.Parens(rawBody)
+            case _ => rawBody
+      yield untpd.Function(parameter :: Nil, parserEquivalentBody) -> restored
+
+  private def isValidLambdaParameterName(name: String): Boolean =
+    Option(name).exists(StandardSInterpolationEncoding.isPlainIdentifier)
 
   private def lowerNew(
       constructor: String,
