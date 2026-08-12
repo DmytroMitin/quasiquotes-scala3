@@ -3,8 +3,21 @@ package quasiquotes.parser
 sealed trait TermShape derives CanEqual:
   final def render: String = TermShape.render(this)
 
+private[quasiquotes] final case class BinderId(value: Int) derives CanEqual:
+  require(value >= 0, "binder identity must be non-negative")
+
 object TermShape:
   final case class Identifier(name: String, isPlaceholder: Boolean) extends TermShape
+  private[quasiquotes] final case class BoundReference(
+      binderId: BinderId,
+      displayName: String
+  ) extends TermShape
+  private[quasiquotes] final case class Lambda1(
+      binderId: BinderId,
+      displayName: String,
+      parameterType: String,
+      body: TermShape
+  ) extends TermShape
   final case class Literal(value: String) extends TermShape
   final case class Select(qualifier: TermShape, name: String) extends TermShape
   final case class Apply(function: TermShape, arguments: List[TermShape]) extends TermShape
@@ -27,6 +40,9 @@ object TermShape:
     shape match
       case Identifier(name, true) => s"Placeholder($name)"
       case Identifier(name, false) => s"Ident($name)"
+      case BoundReference(_, displayName) => s"BoundRef($displayName)"
+      case Lambda1(_, displayName, parameterType, body) =>
+        s"Lambda1($displayName: $parameterType, ${render(body)})"
       case Literal(value) => s"Literal($value)"
       case Select(qualifier, name) => s"Select(${render(qualifier)}, $name)"
       case Apply(function, arguments) =>

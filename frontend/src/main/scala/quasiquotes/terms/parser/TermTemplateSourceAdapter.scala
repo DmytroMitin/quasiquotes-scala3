@@ -689,35 +689,44 @@ private[quasiquotes] object RawTermTemplateAdapter:
         DownstreamConstructionFailure(other.message)
 
   private def rawTermIdentifiers(tree: untpd.Tree): Vector[RawIdentifier] =
-    tree match
-      case ident @ untpd.Ident(name) =>
-        Vector(RawIdentifier(name.toString, DottySourceSpanAdapter.fromTree(ident)))
-      case untpd.Select(qualifier, _) =>
-        rawTermIdentifiers(qualifier)
-      case untpd.Apply(function, arguments) =>
-        rawTermIdentifiers(function) ++
-          arguments.toVector.flatMap(rawTermIdentifiers)
-      case untpd.InfixOp(left, _, right) =>
-        rawTermIdentifiers(left) ++ rawTermIdentifiers(right)
-      case untpd.PrefixOp(_, operand) =>
-        rawTermIdentifiers(operand)
-      case untpd.Typed(expression, _) =>
-        rawTermIdentifiers(expression)
-      case untpd.Tuple(elements) =>
-        elements.toVector.flatMap(rawTermIdentifiers)
-      case untpd.If(condition, thenBranch, elseBranch) =>
-        rawTermIdentifiers(condition) ++
-          rawTermIdentifiers(thenBranch) ++
-          rawTermIdentifiers(elseBranch)
-      case untpd.Parens(inner) =>
-        rawTermIdentifiers(inner)
-      case untpd.TypedSplice(inner) =>
-        rawTermIdentifiers(inner)
-      case _ =>
-        Vector.empty
+    def loop(current: untpd.Tree, boundNames: List[String]): Vector[RawIdentifier] =
+      current match
+        case untpd.Function((parameter: untpd.ValDef) :: Nil, body) =>
+          loop(body, parameter.name.toString :: boundNames)
+        case ident @ untpd.Ident(name) if !boundNames.contains(name.toString) =>
+          Vector(RawIdentifier(name.toString, DottySourceSpanAdapter.fromTree(ident)))
+        case _: untpd.Ident =>
+          Vector.empty
+        case untpd.Select(qualifier, _) =>
+          loop(qualifier, boundNames)
+        case untpd.Apply(function, arguments) =>
+          loop(function, boundNames) ++
+            arguments.toVector.flatMap(loop(_, boundNames))
+        case untpd.InfixOp(left, _, right) =>
+          loop(left, boundNames) ++ loop(right, boundNames)
+        case untpd.PrefixOp(_, operand) =>
+          loop(operand, boundNames)
+        case untpd.Typed(expression, _) =>
+          loop(expression, boundNames)
+        case untpd.Tuple(elements) =>
+          elements.toVector.flatMap(loop(_, boundNames))
+        case untpd.If(condition, thenBranch, elseBranch) =>
+          loop(condition, boundNames) ++
+            loop(thenBranch, boundNames) ++
+            loop(elseBranch, boundNames)
+        case untpd.Parens(inner) =>
+          loop(inner, boundNames)
+        case untpd.TypedSplice(inner) =>
+          loop(inner, boundNames)
+        case _ =>
+          Vector.empty
+
+    loop(tree, Nil)
 
   private def rawTermFields(tree: untpd.Tree): Vector[RawField] =
     tree match
+      case untpd.Function(_ :: Nil, body) =>
+        rawTermFields(body)
       case untpd.Select(qualifier, name) =>
         RawField(name.toString) +: rawTermFields(qualifier)
       case untpd.Apply(function, arguments) =>
@@ -745,6 +754,8 @@ private[quasiquotes] object RawTermTemplateAdapter:
 
   private def rawTypedTypeTrees(tree: untpd.Tree): Vector[untpd.Tree] =
     tree match
+      case untpd.Function((parameter: untpd.ValDef) :: Nil, body) =>
+        parameter.tpt +: rawTypedTypeTrees(body)
       case untpd.Select(qualifier, _) =>
         rawTypedTypeTrees(qualifier)
       case untpd.Apply(function, arguments) =>
@@ -825,7 +836,9 @@ private[quasiquotes] object RawTermTemplateAdapter:
           .orElse(firstUnsupported(elseBranch))
       case TermShape.Parenthesized(expression) =>
         firstUnsupported(expression)
-      case TermShape.Identifier(_, _) | TermShape.Literal(_) =>
+      case TermShape.Lambda1(_, _, _, body) =>
+        firstUnsupported(body)
+      case TermShape.Identifier(_, _) | TermShape.BoundReference(_, _) | TermShape.Literal(_) =>
         None
 
   private def exactOccurrence(

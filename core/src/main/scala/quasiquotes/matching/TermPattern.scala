@@ -1,11 +1,23 @@
 package quasiquotes.matching
 
+import quasiquotes.parser.BinderId
+
 sealed trait TermPattern derives CanEqual:
   final def render: String = TermPattern.render(this)
 
 object TermPattern:
   final case class Hole(name: String) extends TermPattern
   final case class Identifier(name: String) extends TermPattern
+  private[quasiquotes] final case class BoundReference(
+      binderId: BinderId,
+      displayName: String
+  ) extends TermPattern
+  private[quasiquotes] final case class Lambda1(
+      binderId: BinderId,
+      displayName: String,
+      parameterType: String,
+      body: TermPattern
+  ) extends TermPattern
   final case class Literal(value: String) extends TermPattern
   final case class Select(qualifier: TermPattern, name: String) extends TermPattern
   final case class Apply(function: TermPattern, arguments: List[TermPattern]) extends TermPattern
@@ -27,6 +39,9 @@ object TermPattern:
     pattern match
       case Hole(name) => s"Hole($$${name})"
       case Identifier(name) => s"Ident($name)"
+      case BoundReference(_, displayName) => s"BoundRef($displayName)"
+      case Lambda1(_, displayName, parameterType, body) =>
+        s"Lambda1($displayName: $parameterType, ${render(body)})"
       case Literal(value) => s"Literal($value)"
       case Select(qualifier, name) => s"Select(${render(qualifier)}, $name)"
       case Apply(function, arguments) =>

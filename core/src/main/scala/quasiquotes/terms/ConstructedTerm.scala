@@ -7,18 +7,21 @@ private[quasiquotes] final class ConstructedTerm private (
     val root: TermShape,
     val ascriptionTypes: Vector[TypeNormalForm]
 ) derives CanEqual:
+  private lazy val semanticRoot: TermShape =
+    TermShapeTraversal.alphaNormalize(root)
+
   def render: String =
     s"ConstructedTerm(root=${root.render}, ascriptions=[${ascriptionTypes.map(_.render).mkString(", ")}])"
 
   override def equals(other: Any): Boolean =
     other match
       case that: ConstructedTerm =>
-        root == that.root && ascriptionTypes == that.ascriptionTypes
+        semanticRoot == that.semanticRoot && ascriptionTypes == that.ascriptionTypes
       case _ =>
         false
 
   override def hashCode: Int =
-    (root, ascriptionTypes).hashCode
+    (semanticRoot, ascriptionTypes).hashCode
 
   override def toString: String =
     render

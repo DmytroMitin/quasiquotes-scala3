@@ -17,10 +17,46 @@ object TermShapeInspector:
   private val SupportedUnaryOperators = Set("+", "-", "!", "~")
 
   def inspect(tree: untpd.Tree): TermShape =
-    tree match
+    var nextBinderId = 0
+
+    def loop(
+        current: untpd.Tree,
+        scope: List[(String, BinderId)]
+    ): TermShape =
+      current match
       case untpd.Ident(name) =>
         val text = name.toString
-        TermShape.Identifier(text, Placeholder.isPlaceholder(text))
+        if Placeholder.isPlaceholder(text) then
+          TermShape.Identifier(text, isPlaceholder = true)
+        else
+          scope.collectFirst { case (`text`, binderId) => binderId } match
+            case Some(binderId) => TermShape.BoundReference(binderId, text)
+            case None => TermShape.Identifier(text, isPlaceholder = false)
+      case untpd.Function(parameters, body) =>
+        if scope.nonEmpty then
+          TermShape.Unsupported("Lambda1", "nested lambdas are outside the bounded Lambda1 tranche")
+        else
+          parameters match
+            case (parameter: untpd.ValDef) :: Nil =>
+              val parameterName = parameter.name.toString
+              if parameter.tpt.isEmpty then
+                TermShape.Unsupported("Lambda1", "an explicit parameter type is required")
+              else
+                val parameterTypeShape = TypeShapeInspector.inspect(parameter.tpt)
+                parameterTypeShape match
+                  case TypeShape.Unsupported(_, detail) =>
+                    TermShape.Unsupported("Lambda1", s"unsupported parameter type: $detail")
+                  case _ =>
+                    val binderId = BinderId(nextBinderId)
+                    nextBinderId += 1
+                    TermShape.Lambda1(
+                      binderId,
+                      parameterName,
+                      normalizeTypeName(renderTypeShape(parameterTypeShape)),
+                      loop(body, (parameterName -> binderId) :: scope)
+                    )
+            case _ =>
+              TermShape.Unsupported("Lambda1", "exactly one parameter is required")
       case untpd.Literal(constant) =>
         inspectConstant(constant)
       case untpd.Number(digits, untpd.NumberKind.Whole(10)) =>
@@ -32,38 +68,47 @@ object TermShapeInspector:
       case untpd.Number(_, untpd.NumberKind.Floating) =>
         TermShape.Unsupported("FloatingNumberLiteral", "numberKind=Floating")
       case untpd.Select(qualifier, name) =>
-        TermShape.Select(inspect(qualifier), name.toString)
+        TermShape.Select(loop(qualifier, scope), name.toString)
       case untpd.Apply(untpd.Apply(untpd.Select(_: untpd.New, init), _), _)
           if init.toString == "<init>" =>
         TermShape.Unsupported("ConstructorNew", "multiple constructor argument lists are not supported")
       case untpd.Apply(untpd.Select(untpd.New(typeTree), init), arguments)
           if init.toString == "<init>" =>
-        inspectNew(typeTree, arguments)
+        inspectNew(typeTree, arguments, scope, loop)
       case untpd.Apply(function, arguments) =>
-        TermShape.Apply(inspect(function), arguments.map(inspect))
+        TermShape.Apply(loop(function, scope), arguments.map(loop(_, scope)))
       case untpd.InfixOp(left, op, right) =>
-        TermShape.Infix(inspect(left), op.name.toString, inspect(right))
+        TermShape.Infix(loop(left, scope), op.name.toString, loop(right, scope))
       case untpd.PrefixOp(untpd.Ident(operator), operand) if SupportedUnaryOperators(operator.toString) =>
-        TermShape.Unary(operator.toString, inspect(operand))
+        TermShape.Unary(operator.toString, loop(operand, scope))
       case interpolation @ untpd.InterpolatedString(prefix, segments) =>
-        inspectInterpolation(prefix.toString, segments)
+        inspectInterpolation(prefix.toString, segments, scope, loop)
       case untpd.Typed(expression, typeTree) =>
-        TermShape.Typed(inspect(expression), inspectType(typeTree))
+        TermShape.Typed(loop(expression, scope), inspectType(typeTree))
       case untpd.Tuple(elements) =>
-        TermShape.Tuple(elements.map(inspect))
+        TermShape.Tuple(elements.map(loop(_, scope)))
       case untpd.If(condition, thenBranch, elseBranch) =>
-        TermShape.If(inspect(condition), inspect(thenBranch), inspect(elseBranch))
+        TermShape.If(loop(condition, scope), loop(thenBranch, scope), loop(elseBranch, scope))
       case untpd.TypedSplice(tree) =>
-        inspect(tree)
+        loop(tree, scope)
       case untpd.Parens(tree) =>
-        TermShape.Parenthesized(inspect(tree))
+        TermShape.Parenthesized(loop(tree, scope))
       case untpd.New(_: untpd.Template) =>
         TermShape.Unsupported("ConstructorNew", "anonymous constructor templates are not supported")
       case other =>
-        TermShape.Unsupported(other.getClass.getSimpleName, other.toString)
+        val kind = other.getClass.getSimpleName
+        if kind.contains("Context") && kind.contains("Function") then
+          TermShape.Unsupported("Lambda1", "context functions are outside the bounded Lambda1 tranche")
+        else TermShape.Unsupported(kind, other.toString)
+
+    loop(tree, Nil)
 
   def rawStructure(tree: untpd.Tree): String =
     tree match
+      case untpd.Function(parameters, body) =>
+        s"Function([${parameters.map(rawStructure).mkString(", ")}], ${rawStructure(body)})"
+      case parameter: untpd.ValDef =>
+        s"ValDef(${parameter.name.toString}, ${rawTypeStructure(parameter.tpt)})"
       case untpd.Ident(name) =>
         s"Ident(${name.toString})"
       case untpd.Literal(constant) =>
@@ -95,7 +140,12 @@ object TermShapeInspector:
       case other =>
         other.getClass.getSimpleName
 
-  private def inspectNew(typeTree: untpd.Tree, arguments: List[untpd.Tree]): TermShape =
+  private def inspectNew(
+      typeTree: untpd.Tree,
+      arguments: List[untpd.Tree],
+      scope: List[(String, BinderId)],
+      inspectInScope: (untpd.Tree, List[(String, BinderId)]) => TermShape
+  ): TermShape =
     val constructor = constructorName(typeTree)
     if arguments.exists(_.isInstanceOf[untpd.NamedArg]) then
       TermShape.Unsupported("ConstructorNew", "named constructor arguments are not supported")
@@ -104,7 +154,7 @@ object TermShapeInspector:
         .flatMap(ConstructorNamePolicy.validate)
         .fold(
           detail => TermShape.Unsupported("ConstructorNew", detail),
-          name => TermShape.New(name, arguments.map(inspect))
+          name => TermShape.New(name, arguments.map(inspectInScope(_, scope)))
         )
 
   private def constructorName(tree: untpd.Tree): Either[String, String] =
@@ -139,13 +189,22 @@ object TermShapeInspector:
           s"constantTag=$tag"
         )
 
-  private def inspectInterpolation(prefix: String, segments: List[untpd.Tree]): TermShape =
+  private def inspectInterpolation(
+      prefix: String,
+      segments: List[untpd.Tree],
+      scope: List[(String, BinderId)],
+      inspectInScope: (untpd.Tree, List[(String, BinderId)]) => TermShape
+  ): TermShape =
     if prefix != "s" then
       TermShape.Unsupported("InterpolatedStringPrefix", s"unsupported prefix: $prefix")
     else
       InterpolatedStringSegments.decode(segments) match
         case Right(decoded) =>
-          TermShape.InterpolatedString(prefix, decoded.parts, decoded.arguments.map(inspect))
+          TermShape.InterpolatedString(
+            prefix,
+            decoded.parts,
+            decoded.arguments.map(inspectInScope(_, scope))
+          )
         case Left(detail) =>
           TermShape.Unsupported("InterpolatedStringSegments", detail)
 

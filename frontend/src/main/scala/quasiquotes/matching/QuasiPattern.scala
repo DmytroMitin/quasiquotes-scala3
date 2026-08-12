@@ -2,7 +2,7 @@ package quasiquotes.matching
 
 import scala.quoted.Quotes
 
-import quasiquotes.parser.{DiagnosticLocationMapper, TinyTermParser}
+import quasiquotes.parser.{DiagnosticLocationMapper, DottySourceSpanAdapter, TermShape, TinyTermParser}
 import quasiquotes.source.{DiagnosticLocation, DiagnosticPrecision, LocatedDiagnostic}
 
 final case class QuasiPattern(
@@ -41,6 +41,19 @@ object QuasiPattern:
               DiagnosticLocationMapper.fromParseError(error, mapped.originMap)
             )
           )
+        case Right(parsed @ ParsedUnsupportedLambda(unsupported)) =>
+          Left(
+            LocatedDiagnostic(
+              PatternError.UnsupportedPatternShape(unsupported.nodeKind, unsupported.detail),
+              DottySourceSpanAdapter.fromTree(parsed.rawTree).flatMap(
+                DiagnosticLocation.fromGeneratedMap(
+                  mapped.originMap,
+                  _,
+                  DiagnosticPrecision.ExactOccurrence
+                )
+              )
+            )
+          )
         case Right(parsed) =>
           PatternCompiler.compileLocated(parsed.rawTree, mapped.generatedHoleIndex) match
             case Left(failure) =>
@@ -66,6 +79,12 @@ object QuasiPattern:
                 )
               )
     }
+
+  private object ParsedUnsupportedLambda:
+    def unapply(parsed: quasiquotes.parser.ParsedExpression): Option[TermShape.Unsupported] =
+      parsed.shape match
+        case unsupported @ TermShape.Unsupported("Lambda1", _) => Some(unsupported)
+        case _ => None
 
   def termOrThrow(pattern: String): QuasiPattern =
     term(pattern).fold(error => throw new IllegalArgumentException(error.message), identity)

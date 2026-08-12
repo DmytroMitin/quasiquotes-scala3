@@ -7,6 +7,13 @@ object MatchNormalizer:
 
   def normalizePattern(pattern: TermPattern): TermPattern =
     pattern match
+      case TermPattern.Lambda1(binderId, displayName, parameterType, body) =>
+        TermPattern.Lambda1(
+          binderId,
+          displayName,
+          parameterType,
+          normalizePattern(body)
+        )
       case TermPattern.Parenthesized(inner) =>
         normalizePattern(inner)
       case TermPattern.Select(qualifier, name) =>
@@ -32,6 +39,15 @@ object MatchNormalizer:
 
   def normalizeTarget[T](view: TargetTermView[T]): TargetTermView[T] =
     view match
+      case TargetTermView.Lambda1(binderId, displayName, parameterType, binderSymbol, body, original) =>
+        TargetTermView.Lambda1(
+          binderId,
+          displayName,
+          parameterType,
+          binderSymbol,
+          normalizeTarget(body),
+          original
+        )
       case TargetTermView.Select(qualifier, name, original) =>
         TargetTermView.Select(normalizeTarget(qualifier), name, original)
       case TargetTermView.Apply(TargetTermView.Select(left, operator, _), right :: Nil, original) if SymbolicOperators.contains(operator) =>

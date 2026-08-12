@@ -1,7 +1,7 @@
 package quasiquotes.matching
 
 import dotty.tools.dotc.ast.untpd
-import quasiquotes.parser.{ConstructorNamePolicy, DottySourceSpanAdapter, InterpolatedStringSegments}
+import quasiquotes.parser.{BinderId, ConstructorNamePolicy, DottySourceSpanAdapter, InterpolatedStringSegments}
 import quasiquotes.source.{GeneratedHoleIndex, SourceSpan}
 
 private[matching] final case class PatternCompileFailure(
@@ -27,59 +27,90 @@ object PatternCompiler:
 
   private def compileLocatedUsing(
       tree: untpd.Tree,
-      semanticHoleName: String => Option[String]
+      semanticHoleName: String => Option[String],
+      scope: List[(String, BinderId)] = Nil
   ): Either[PatternCompileFailure, TermPattern] =
+    def compileChild(child: untpd.Tree): Either[PatternCompileFailure, TermPattern] =
+      compileLocatedUsing(child, semanticHoleName, scope)
+
     tree match
       case untpd.Ident(name) =>
-        semanticHoleName(name.toString) match
+        val text = name.toString
+        semanticHoleName(text) match
           case Some(holeName) => Right(TermPattern.Hole(holeName))
-          case None => Right(TermPattern.Identifier(name.toString))
+          case None =>
+            scope.collectFirst { case (`text`, binderId) => binderId } match
+              case Some(binderId) => Right(TermPattern.BoundReference(binderId, text))
+              case None => Right(TermPattern.Identifier(text))
+      case function @ untpd.Function(parameters, body) =>
+        if scope.nonEmpty then
+          unsupportedLambda(function, "nested lambdas are outside the bounded Lambda1 tranche")
+        else
+          parameters match
+            case (parameter: untpd.ValDef) :: Nil if !parameter.tpt.isEmpty =>
+              val binderId = BinderId(0)
+              compileLocatedUsing(
+                body,
+                semanticHoleName,
+                (parameter.name.toString -> binderId) :: scope
+              ).map(
+                TermPattern.Lambda1(
+                  binderId,
+                  parameter.name.toString,
+                  renderType(parameter.tpt),
+                  _
+                )
+              )
+            case _ :: Nil =>
+              unsupportedLambda(function, "an explicit parameter type is required")
+            case _ =>
+              unsupportedLambda(function, "exactly one parameter is required")
       case untpd.Literal(constant) =>
         Right(TermPattern.Literal(renderConstant(constant.value)))
       case untpd.Number(digits, _) =>
         Right(TermPattern.Literal(digits))
       case untpd.Select(qualifier, name) =>
-        compileLocatedUsing(qualifier, semanticHoleName).map(TermPattern.Select(_, name.toString))
+        compileChild(qualifier).map(TermPattern.Select(_, name.toString))
       case untpd.Apply(untpd.Apply(untpd.Select(_: untpd.New, init), _), _)
           if init.toString == "<init>" =>
         unsupportedConstructor(tree, "multiple constructor argument lists are not supported")
       case untpd.Apply(untpd.Select(untpd.New(typeTree), init), arguments)
           if init.toString == "<init>" =>
-        compileNew(tree, typeTree, arguments, semanticHoleName)
+        compileNew(tree, typeTree, arguments, semanticHoleName, scope)
       case untpd.Apply(function, arguments) =>
         for
-          compiledFunction <- compileLocatedUsing(function, semanticHoleName)
-          compiledArguments <- sequence(arguments.map(compileLocatedUsing(_, semanticHoleName)))
+          compiledFunction <- compileChild(function)
+          compiledArguments <- sequence(arguments.map(compileChild))
         yield TermPattern.Apply(compiledFunction, compiledArguments)
       case untpd.InfixOp(left, op, right) =>
         for
-          compiledLeft <- compileLocatedUsing(left, semanticHoleName)
-          compiledRight <- compileLocatedUsing(right, semanticHoleName)
+          compiledLeft <- compileChild(left)
+          compiledRight <- compileChild(right)
         yield TermPattern.Infix(compiledLeft, op.name.toString, compiledRight)
       case untpd.PrefixOp(untpd.Ident(operator), operand) if SupportedUnaryOperators(operator.toString) =>
-        compileLocatedUsing(operand, semanticHoleName).map(TermPattern.Unary(operator.toString, _))
+        compileChild(operand).map(TermPattern.Unary(operator.toString, _))
       case interpolation @ untpd.InterpolatedString(prefix, segments) =>
         if prefix.toString != "s" then unsupportedInterpolation(interpolation, s"unsupported prefix: ${prefix.toString}")
         else
           InterpolatedStringSegments.decode(segments) match
             case Left(detail) => unsupportedInterpolation(interpolation, detail)
             case Right(decoded) =>
-              sequence(decoded.arguments.map(compileLocatedUsing(_, semanticHoleName)))
+              sequence(decoded.arguments.map(compileChild))
                 .map(TermPattern.InterpolatedString("s", decoded.parts, _))
       case untpd.Typed(expression, typeTree) =>
-        compileLocatedUsing(expression, semanticHoleName).map(TermPattern.Typed(_, renderType(typeTree)))
+        compileChild(expression).map(TermPattern.Typed(_, renderType(typeTree)))
       case untpd.Tuple(elements) =>
-        sequence(elements.map(compileLocatedUsing(_, semanticHoleName))).map(TermPattern.Tuple.apply)
+        sequence(elements.map(compileChild)).map(TermPattern.Tuple.apply)
       case untpd.If(condition, thenBranch, elseBranch) =>
         for
-          compiledCondition <- compileLocatedUsing(condition, semanticHoleName)
-          compiledThenBranch <- compileLocatedUsing(thenBranch, semanticHoleName)
-          compiledElseBranch <- compileLocatedUsing(elseBranch, semanticHoleName)
+          compiledCondition <- compileChild(condition)
+          compiledThenBranch <- compileChild(thenBranch)
+          compiledElseBranch <- compileChild(elseBranch)
         yield TermPattern.If(compiledCondition, compiledThenBranch, compiledElseBranch)
       case untpd.Parens(inner) =>
-        compileLocatedUsing(inner, semanticHoleName).map(TermPattern.Parenthesized.apply)
+        compileChild(inner).map(TermPattern.Parenthesized.apply)
       case untpd.TypedSplice(inner) =>
-        compileLocatedUsing(inner, semanticHoleName)
+        compileChild(inner)
       case other =>
         Left(
           PatternCompileFailure(
@@ -112,6 +143,17 @@ object PatternCompiler:
       )
     )
 
+  private def unsupportedLambda(
+      tree: untpd.Tree,
+      detail: String
+  ): Either[PatternCompileFailure, Nothing] =
+    Left(
+      PatternCompileFailure(
+        PatternError.UnsupportedPatternShape("Lambda1", detail),
+        DottySourceSpanAdapter.fromTree(tree).filter(!_.isEmpty)
+      )
+    )
+
   private def renderType(tree: untpd.Tree): String =
     normalizeTypeName(tree match
       case untpd.Ident(name) => name.toString
@@ -130,7 +172,8 @@ object PatternCompiler:
       tree: untpd.Tree,
       typeTree: untpd.Tree,
       arguments: List[untpd.Tree],
-      semanticHoleName: String => Option[String]
+      semanticHoleName: String => Option[String],
+      scope: List[(String, BinderId)]
   ): Either[PatternCompileFailure, TermPattern] =
     if arguments.exists(_.isInstanceOf[untpd.NamedArg]) then
       unsupportedConstructor(tree, "named constructor arguments are not supported")
@@ -138,7 +181,7 @@ object PatternCompiler:
       constructorName(typeTree).flatMap(ConstructorNamePolicy.validate) match
         case Left(detail) => unsupportedConstructor(tree, detail)
         case Right(name) =>
-          sequence(arguments.map(compileLocatedUsing(_, semanticHoleName)))
+          sequence(arguments.map(compileLocatedUsing(_, semanticHoleName, scope)))
             .map(TermPattern.New(name, _))
 
   private def constructorName(tree: untpd.Tree): Either[String, String] =

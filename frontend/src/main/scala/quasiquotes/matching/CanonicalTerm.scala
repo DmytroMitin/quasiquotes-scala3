@@ -1,12 +1,15 @@
 package quasiquotes.matching
 
 import scala.quoted.Quotes
+import quasiquotes.parser.BinderId
 
 sealed trait CanonicalTerm derives CanEqual:
   final def render: String = CanonicalTerm.render(this)
 
 object CanonicalTerm:
   final case class Ident(name: String) extends CanonicalTerm
+  private[quasiquotes] final case class Bound(distanceFromInnermost: Int) extends CanonicalTerm
+  private[quasiquotes] final case class Lambda1(parameterType: String, body: CanonicalTerm) extends CanonicalTerm
   final case class Literal(value: String) extends CanonicalTerm
   final case class Select(qualifier: CanonicalTerm, name: String) extends CanonicalTerm
   final case class Apply(function: CanonicalTerm, arguments: List[CanonicalTerm]) extends CanonicalTerm
@@ -25,6 +28,9 @@ object CanonicalTerm:
   def render(term: CanonicalTerm): String =
     term match
       case Ident(name) => s"CIdent($name)"
+      case Bound(distance) => s"CBound($distance)"
+      case Lambda1(parameterType, body) =>
+        s"CLambda1(Type($parameterType), ${render(body)})"
       case Literal(value) => s"CLiteral($value)"
       case Select(qualifier, name) => s"CSelect(${render(qualifier)}, $name)"
       case Apply(function, arguments) =>
@@ -49,7 +55,7 @@ object CanonicalTerm:
 
 object TermCanonicalizer:
   def canonicalize(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, CanonicalTerm] =
-    MatchNormalizer.normalizedView(term).flatMap(canonicalizeView)
+    MatchNormalizer.normalizedView(term).flatMap(canonicalizeView(_))
 
   def canonicalEqual(using q: Quotes)(
       left: q.reflect.Term,
@@ -60,40 +66,50 @@ object TermCanonicalizer:
       canonicalRight <- canonicalize(right)
     yield canonicalLeft == canonicalRight
 
-  private def canonicalizeView(view: TargetTermView[?]): Either[MatchFailure, CanonicalTerm] =
+  private def canonicalizeView(
+      view: TargetTermView[?],
+      scope: List[BinderId] = Nil
+  ): Either[MatchFailure, CanonicalTerm] =
     view match
       case TargetTermView.Identifier(name, _) =>
         Right(CanonicalTerm.Ident(name))
+      case TargetTermView.BoundReference(binderId, _, _) =>
+        val distance = scope.indexOf(binderId)
+        if distance >= 0 then Right(CanonicalTerm.Bound(distance))
+        else Left(MatchFailure.UnsupportedTargetShape("lambda binder scope mismatch"))
+      case TargetTermView.Lambda1(binderId, _, parameterType, _, body, _) =>
+        canonicalizeView(body, binderId :: scope)
+          .map(CanonicalTerm.Lambda1(parameterType, _))
       case TargetTermView.Literal(value, _) =>
         Right(CanonicalTerm.Literal(value))
       case TargetTermView.Select(qualifier, name, _) =>
-        canonicalizeView(qualifier).map(CanonicalTerm.Select(_, name))
+        canonicalizeView(qualifier, scope).map(CanonicalTerm.Select(_, name))
       case TargetTermView.Apply(function, arguments, _) =>
         for
-          canonicalFunction <- canonicalizeView(function)
-          canonicalArguments <- sequence(arguments.map(canonicalizeView))
+          canonicalFunction <- canonicalizeView(function, scope)
+          canonicalArguments <- sequence(arguments.map(canonicalizeView(_, scope)))
         yield CanonicalTerm.Apply(canonicalFunction, canonicalArguments)
       case TargetTermView.New(constructor, arguments, _) =>
-        sequence(arguments.map(canonicalizeView)).map(CanonicalTerm.New(constructor, _))
+        sequence(arguments.map(canonicalizeView(_, scope))).map(CanonicalTerm.New(constructor, _))
       case TargetTermView.Infix(left, operator, right, _) =>
         for
-          canonicalLeft <- canonicalizeView(left)
-          canonicalRight <- canonicalizeView(right)
+          canonicalLeft <- canonicalizeView(left, scope)
+          canonicalRight <- canonicalizeView(right, scope)
         yield CanonicalTerm.Infix(canonicalLeft, operator, canonicalRight)
       case TargetTermView.Unary(operator, operand, _) =>
-        canonicalizeView(operand).map(CanonicalTerm.Unary(operator, _))
+        canonicalizeView(operand, scope).map(CanonicalTerm.Unary(operator, _))
       case TargetTermView.InterpolatedString(prefix, parts, arguments, _) =>
-        sequence(arguments.map(canonicalizeView))
+        sequence(arguments.map(canonicalizeView(_, scope)))
           .map(CanonicalTerm.InterpolatedString(prefix, parts, _))
       case TargetTermView.Typed(expression, typeName, _) =>
-        canonicalizeView(expression).map(CanonicalTerm.Typed(_, typeName))
+        canonicalizeView(expression, scope).map(CanonicalTerm.Typed(_, typeName))
       case TargetTermView.Tuple(elements, _) =>
-        sequence(elements.map(canonicalizeView)).map(CanonicalTerm.Tuple.apply)
+        sequence(elements.map(canonicalizeView(_, scope))).map(CanonicalTerm.Tuple.apply)
       case TargetTermView.If(condition, thenBranch, elseBranch, _) =>
         for
-          canonicalCondition <- canonicalizeView(condition)
-          canonicalThenBranch <- canonicalizeView(thenBranch)
-          canonicalElseBranch <- canonicalizeView(elseBranch)
+          canonicalCondition <- canonicalizeView(condition, scope)
+          canonicalThenBranch <- canonicalizeView(thenBranch, scope)
+          canonicalElseBranch <- canonicalizeView(elseBranch, scope)
         yield CanonicalTerm.If(canonicalCondition, canonicalThenBranch, canonicalElseBranch)
 
   private def sequence[A](values: List[Either[MatchFailure, A]]): Either[MatchFailure, List[A]] =

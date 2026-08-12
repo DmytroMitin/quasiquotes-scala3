@@ -79,6 +79,30 @@ class TermTemplateSourceAdapterTest extends munit.FunSuite:
     )
   }
 
+  test("Lambda1 template traversal keeps bound references separate from body holes") {
+    val located = parsed("(x: Int) => x + $body", term("body"))
+
+    assertEquals(located.template.requiredTermBindings, Vector("body"))
+    assertEquals(located.template.requiredTypeBindings, Vector.empty)
+    assertEquals(
+      TermShapeTraversal.identifierEntries(located.template.root).map(_.name),
+      Vector("__qq_tt_term_body")
+    )
+    assertEquals(TermShapeTraversal.typedNames(located.template.root), Vector("Int"))
+    assert(located.template.root.render.contains("BoundRef(x)"))
+  }
+
+  test("Lambda1 parameter type holes use the existing type-template sidecar") {
+    val located = parsed("(x: $parameterType) => x", tpe("parameterType"))
+    val completed = located
+      .complete(Map.empty, Map("parameterType" -> TypeNormalForm.STypeIdent("Int")))
+      .fold(error => fail(error.diagnostic.message), identity)
+
+    assertEquals(located.template.requiredTypeBindings, Vector("parameterType"))
+    assertEquals(TermShapeTraversal.typedNames(completed.root), Vector("Int"))
+    assert(completed.root.render.contains("Lambda1(x: Int"))
+  }
+
   Vector(
     "$function($argument)" ->
       Vector(term("function"), term("argument")),

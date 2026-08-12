@@ -85,3 +85,8 @@ The experimental frontend also supports bounded fully-qualified constructor
 expressions such as `new java.lang.StringBuilder(16)` for `qr` construction and
 structural patterns. See the supported-syntax document for the deliberate
 generic, imported-name, multiple-list, and anonymous-class exclusions.
+
+One ordinary explicitly typed Lambda1 form is also available for structural
+`qr` construction and matching. Its project-owned binder identity provides
+alpha-aware bound-reference comparison and same-text splice non-capture; the
+exact internal lambda backend and broader lambda/block syntax remain excluded.

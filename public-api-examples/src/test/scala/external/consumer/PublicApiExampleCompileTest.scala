@@ -58,6 +58,9 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     assert(quasiquotes.matching.QuasiPattern.term("$value + $value").isRight)
     assertEquals(PublicUserSmokeMacros.add(2, 3), 5)
     assertEquals(PublicUserSmokeMacros.greeting("Ada"), "hello Ada")
+    assertEquals(PublicUserSmokeMacros.lambdaIdentity(7)(7), 7)
+    assertEquals(PublicUserSmokeMacros.lambdaPreservesOuter(41)(999), 41)
+    assert(QuasiPattern.term("(x: Int) => x").isRight)
 
   test("documented frontend first use stays executable"):
     assert(FrontendFirstUseSnippet.parsed.isRight)

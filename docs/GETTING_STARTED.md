@@ -146,3 +146,10 @@ Term construction and matching are structural subsets too. Unsupported syntax
 returns an error instead of falling back to unchecked compiler trees. The
 source checkout remains the supported way to experiment until an explicitly
 authorized remote release exists.
+
+The frontend also admits one binder-aware ordinary lambda shape such as
+`(x: Int) => x + 1` for `qr` construction and `QuasiPattern`. Binder names are
+alpha-equivalent, free references remain distinct, and external splices are
+not captured by same-text lambda parameters. See
+[Supported syntax and limitations](SUPPORTED_SYNTAX_AND_LIMITATIONS.md#binder-aware-lambda1)
+for the exact boundary and reflected body-hole ownership caveat.

@@ -194,6 +194,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
         shape: TermShape
     ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
       shape match
+        case TermShape.BoundReference(_, _) | TermShape.Lambda1(_, _, _, _) =>
+          Left(UnsupportedTermNode("Lambda1"))
         case TermShape.Identifier(name, _) =>
           leaf(NodeKind.TermIdent, renderIdentifier("identifier", name))
         case TermShape.Literal(value) =>
@@ -771,6 +773,10 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
 
   private def termPrecedence(shape: TermShape): Int =
     shape match
+      case TermShape.BoundReference(_, _) =>
+        100
+      case TermShape.Lambda1(_, _, _, _) =>
+        0
       case TermShape.Identifier(_, _) | TermShape.Literal(_) |
           TermShape.Tuple(_) | TermShape.Parenthesized(_) |
           TermShape.InterpolatedString(_, _, _) =>

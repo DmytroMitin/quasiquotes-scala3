@@ -1,6 +1,6 @@
 package quasiquotes.terms
 
-import quasiquotes.parser.TermShape
+import quasiquotes.parser.{BinderId, TermShape}
 import quasiquotes.types.{TypeNormalForm, TypeTemplate}
 
 private[terms] object TermShapeTraversal:
@@ -13,46 +13,21 @@ private[terms] object TermShapeTraversal:
   )
 
   def validateSupported(shape: TermShape): Either[TermConstructionError, Unit] =
-    shape match
-      case TermShape.Identifier(_, _) | TermShape.Literal(_) =>
-        Right(())
-      case TermShape.Select(qualifier, _) =>
-        validateSupported(qualifier)
-      case TermShape.Apply(function, arguments) =>
-        validateSupported(function).flatMap(_ => validateAll(arguments))
-      case TermShape.New(_, arguments) =>
-        validateAll(arguments)
-      case TermShape.Infix(left, _, right) =>
-        validateSupported(left).flatMap(_ => validateSupported(right))
-      case TermShape.Unary(operator, operand) =>
-        if !SupportedUnaryOperators(operator) then
-          Left(TermConstructionError.UnsupportedUnaryOperator(operator))
-        else validateSupported(operand)
-      case TermShape.InterpolatedString("s", parts, arguments) =>
-        if parts.size != arguments.size + 1 then
-          Left(TermConstructionError.UnsupportedTermShape())
-        else validateAll(arguments)
-      case TermShape.InterpolatedString(_, _, _) =>
-        Left(TermConstructionError.UnsupportedTermShape())
-      case TermShape.Typed(expression, _) =>
-        validateSupported(expression)
-      case TermShape.Tuple(elements) =>
-        if elements.size < 2 || elements.size > 22 then
-          Left(TermConstructionError.InvalidTupleArity(elements.size))
-        else validateAll(elements)
-      case TermShape.If(condition, thenBranch, elseBranch) =>
-        validateSupported(condition)
-          .flatMap(_ => validateSupported(thenBranch))
-          .flatMap(_ => validateSupported(elseBranch))
-      case TermShape.Parenthesized(expression) =>
-        validateSupported(expression)
-      case TermShape.Unsupported(_, _) =>
-        Left(TermConstructionError.UnsupportedTermShape())
+    validateSupportedInScope(shape, Nil)
 
   def canonicalizePlaceholders(shape: TermShape): TermShape =
     shape match
       case TermShape.Identifier(name, _) =>
         TermShape.Identifier(name, false)
+      case bound: TermShape.BoundReference =>
+        bound
+      case TermShape.Lambda1(binderId, displayName, parameterType, body) =>
+        TermShape.Lambda1(
+          binderId,
+          displayName,
+          parameterType,
+          canonicalizePlaceholders(body)
+        )
       case literal: TermShape.Literal =>
         literal
       case TermShape.Select(qualifier, name) =>
@@ -98,6 +73,10 @@ private[terms] object TermShapeTraversal:
         case TermShape.Identifier(name, isPlaceholder) =>
           builder += IdentifierEntry(ordinal, name, isPlaceholder)
           ordinal += 1
+        case TermShape.BoundReference(_, _) =>
+          ()
+        case TermShape.Lambda1(_, _, _, body) =>
+          loop(body)
         case TermShape.Literal(_) =>
           ()
         case TermShape.Select(qualifier, _) =>
@@ -138,6 +117,9 @@ private[terms] object TermShapeTraversal:
         case TermShape.Typed(expression, typeName) =>
           builder += typeName
           loop(expression)
+        case TermShape.Lambda1(_, _, parameterType, body) =>
+          builder += parameterType
+          loop(body)
         case TermShape.Select(qualifier, _) =>
           loop(qualifier)
         case TermShape.Apply(function, arguments) =>
@@ -160,7 +142,7 @@ private[terms] object TermShapeTraversal:
           loop(elseBranch)
         case TermShape.Parenthesized(expression) =>
           loop(expression)
-        case TermShape.Identifier(_, _) | TermShape.Literal(_) |
+        case TermShape.Identifier(_, _) | TermShape.BoundReference(_, _) | TermShape.Literal(_) |
             TermShape.Unsupported(_, _) =>
           ()
 
@@ -195,6 +177,10 @@ private[terms] object TermShapeTraversal:
         case TermShape.Typed(expression, typeName) =>
           builder += typeName
           loop(expression)
+        case TermShape.Lambda1(_, displayName, parameterType, body) =>
+          builder += displayName
+          builder += parameterType
+          loop(body)
         case TermShape.Tuple(elements) =>
           elements.foreach(loop)
         case TermShape.If(condition, thenBranch, elseBranch) =>
@@ -203,12 +189,59 @@ private[terms] object TermShapeTraversal:
           loop(elseBranch)
         case TermShape.Parenthesized(expression) =>
           loop(expression)
-        case TermShape.Identifier(_, _) | TermShape.Literal(_) |
+        case TermShape.Identifier(_, _) | TermShape.BoundReference(_, _) | TermShape.Literal(_) |
             TermShape.Unsupported(_, _) =>
           ()
 
     loop(shape)
     builder.result()
+
+  def alphaNormalize(shape: TermShape): TermShape =
+    def loop(
+        current: TermShape,
+        scope: List[(BinderId, BinderId)]
+    ): TermShape =
+      current match
+        case TermShape.BoundReference(binderId, _) =>
+          val canonical = scope.collectFirst { case (`binderId`, normalized) => normalized }
+          TermShape.BoundReference(canonical.getOrElse(binderId), "")
+        case TermShape.Lambda1(binderId, _, parameterType, body) =>
+          val normalizedId = BinderId(scope.size)
+          TermShape.Lambda1(
+            normalizedId,
+            "",
+            parameterType,
+            loop(body, (binderId -> normalizedId) :: scope)
+          )
+        case identifier: TermShape.Identifier => identifier
+        case literal: TermShape.Literal => literal
+        case TermShape.Select(qualifier, name) =>
+          TermShape.Select(loop(qualifier, scope), name)
+        case TermShape.Apply(function, arguments) =>
+          TermShape.Apply(loop(function, scope), arguments.map(loop(_, scope)))
+        case TermShape.New(constructor, arguments) =>
+          TermShape.New(constructor, arguments.map(loop(_, scope)))
+        case TermShape.Infix(left, operator, right) =>
+          TermShape.Infix(loop(left, scope), operator, loop(right, scope))
+        case TermShape.Unary(operator, operand) =>
+          TermShape.Unary(operator, loop(operand, scope))
+        case TermShape.InterpolatedString(prefix, parts, arguments) =>
+          TermShape.InterpolatedString(prefix, parts, arguments.map(loop(_, scope)))
+        case TermShape.Typed(expression, typeName) =>
+          TermShape.Typed(loop(expression, scope), typeName)
+        case TermShape.Tuple(elements) =>
+          TermShape.Tuple(elements.map(loop(_, scope)))
+        case TermShape.If(condition, thenBranch, elseBranch) =>
+          TermShape.If(
+            loop(condition, scope),
+            loop(thenBranch, scope),
+            loop(elseBranch, scope)
+          )
+        case TermShape.Parenthesized(expression) =>
+          TermShape.Parenthesized(loop(expression, scope))
+        case unsupported: TermShape.Unsupported => unsupported
+
+    loop(shape, Nil)
 
   def renderNormalForm(normalForm: TypeNormalForm): String =
     normalForm match
@@ -289,11 +322,46 @@ private[terms] object TermShapeTraversal:
       .map(_.message)
 
   private def validateAll(
-      shapes: List[TermShape]
+      shapes: List[TermShape],
+      scope: List[BinderId]
   ): Either[TermConstructionError, Unit] =
     shapes.foldLeft[Either[TermConstructionError, Unit]](Right(())) {
-      (result, shape) => result.flatMap(_ => validateSupported(shape))
+      (result, shape) => result.flatMap(_ => validateSupportedInScope(shape, scope))
     }
+
+  private def validateSupportedInScope(
+      shape: TermShape,
+      scope: List[BinderId]
+  ): Either[TermConstructionError, Unit] =
+    shape match
+      case TermShape.BoundReference(binderId, _) =>
+        Either.cond(scope.contains(binderId), (), TermConstructionError.UnsupportedTermShape())
+      case TermShape.Lambda1(binderId, _, _, body) =>
+        validateSupportedInScope(body, binderId :: scope)
+      case TermShape.Identifier(_, _) | TermShape.Literal(_) => Right(())
+      case TermShape.Select(qualifier, _) => validateSupportedInScope(qualifier, scope)
+      case TermShape.Apply(function, arguments) =>
+        validateSupportedInScope(function, scope).flatMap(_ => validateAll(arguments, scope))
+      case TermShape.New(_, arguments) => validateAll(arguments, scope)
+      case TermShape.Infix(left, _, right) =>
+        validateSupportedInScope(left, scope).flatMap(_ => validateSupportedInScope(right, scope))
+      case TermShape.Unary(operator, operand) =>
+        if !SupportedUnaryOperators(operator) then Left(TermConstructionError.UnsupportedUnaryOperator(operator))
+        else validateSupportedInScope(operand, scope)
+      case TermShape.InterpolatedString("s", parts, arguments) =>
+        if parts.size != arguments.size + 1 then Left(TermConstructionError.UnsupportedTermShape())
+        else validateAll(arguments, scope)
+      case TermShape.InterpolatedString(_, _, _) => Left(TermConstructionError.UnsupportedTermShape())
+      case TermShape.Typed(expression, _) => validateSupportedInScope(expression, scope)
+      case TermShape.Tuple(elements) =>
+        if elements.size < 2 || elements.size > 22 then Left(TermConstructionError.InvalidTupleArity(elements.size))
+        else validateAll(elements, scope)
+      case TermShape.If(condition, thenBranch, elseBranch) =>
+        validateSupportedInScope(condition, scope)
+          .flatMap(_ => validateSupportedInScope(thenBranch, scope))
+          .flatMap(_ => validateSupportedInScope(elseBranch, scope))
+      case TermShape.Parenthesized(expression) => validateSupportedInScope(expression, scope)
+      case TermShape.Unsupported(_, _) => Left(TermConstructionError.UnsupportedTermShape())
 
   private def collect(
       values: List[Either[String, String]]

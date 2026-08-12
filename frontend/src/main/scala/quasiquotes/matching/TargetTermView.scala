@@ -3,7 +3,7 @@ package quasiquotes.matching
 import scala.quoted.Quotes
 import scala.util.matching.Regex
 
-import quasiquotes.parser.{TermShape, TinyTermParser}
+import quasiquotes.parser.{BinderId, TermShape, TinyTermParser}
 
 sealed trait TargetTermView[+T] derives CanEqual:
   def original: T
@@ -18,6 +18,19 @@ object TargetTermView:
   )
 
   final case class Identifier[T](name: String, original: T) extends TargetTermView[T]
+  private[quasiquotes] final case class BoundReference[T](
+      binderId: BinderId,
+      displayName: String,
+      original: T
+  ) extends TargetTermView[T]
+  private[quasiquotes] final case class Lambda1[T](
+      binderId: BinderId,
+      displayName: String,
+      parameterType: String,
+      binderSymbol: Any,
+      body: TargetTermView[T],
+      original: T
+  ) extends TargetTermView[T]
   final case class Literal[T](value: String, original: T) extends TargetTermView[T]
   final case class Select[T](qualifier: TargetTermView[T], name: String, original: T) extends TargetTermView[T]
   final case class Apply[T](function: TargetTermView[T], arguments: List[TargetTermView[T]], original: T) extends TargetTermView[T]
@@ -35,17 +48,27 @@ object TargetTermView:
   final case class If[T](condition: TargetTermView[T], thenBranch: TargetTermView[T], elseBranch: TargetTermView[T], original: T) extends TargetTermView[T]
 
   def fromTerm(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, TargetTermView[q.reflect.Term]] =
+    fromTermInScope(term, Nil)
+
+  private[matching] def fromTermInScope(using q: Quotes)(
+      term: q.reflect.Term,
+      ambientScope: List[(BinderId, q.reflect.Symbol)]
+  ): Either[MatchFailure, TargetTermView[q.reflect.Term]] =
     import q.reflect.*
+    var nextBinderId = ambientScope.size
 
     // This extraction step removes compiler-introduced wrappers but does not perform
     // the higher-level normalization experiment introduced in Task 3.5.
-    def extract(term: Term): Either[MatchFailure, TargetTermView[Term]] =
+    def extract(
+        term: Term,
+        scope: List[(BinderId, Symbol)]
+    ): Either[MatchFailure, TargetTermView[Term]] =
       val current = unwrapWrappers(term)
       sourceInterpolation(term) match
         case Some((prefix, parts, sourceArgumentCount)) =>
           typedInterpolationArguments(current, sourceArgumentCount) match
             case Some(arguments) =>
-              sequence(arguments.map(extract)).map(
+              sequence(arguments.map(extract(_, scope))).map(
                 TargetTermView.InterpolatedString(prefix, parts, _, current)
               )
             case None =>
@@ -54,13 +77,40 @@ object TargetTermView:
                   s"source-proven interpolation typed shape: ${current.show(using Printer.TreeStructure)}"
                 )
               )
-        case None => extractOrdinary(current)
+        case None => extractOrdinary(current, scope)
 
-    def extractOrdinary(term: Term): Either[MatchFailure, TargetTermView[Term]] =
+    def extractOrdinary(
+        term: Term,
+        scope: List[(BinderId, Symbol)]
+    ): Either[MatchFailure, TargetTermView[Term]] =
       term match
+        case block: Block if Lambda.unapply(block).nonEmpty =>
+          if scope.nonEmpty then
+            Left(MatchFailure.UnsupportedTargetShape("nested lambdas are outside the bounded Lambda1 tranche"))
+          else
+            Lambda.unapply(block) match
+              case Some((parameter :: Nil, body)) =>
+                val binderId = BinderId(nextBinderId)
+                nextBinderId += 1
+                extract(body, (binderId -> parameter.symbol) :: scope).map(
+                  Lambda1(
+                    binderId,
+                    parameter.name,
+                    renderType(parameter.tpt),
+                    parameter.symbol,
+                    _,
+                    block
+                  )
+                )
+              case Some((parameters, _)) =>
+                Left(MatchFailure.UnsupportedTargetShape(s"Lambda1 requires exactly one parameter, found ${parameters.size}"))
+              case None =>
+                Left(MatchFailure.UnsupportedTargetShape(block.show(using Printer.TreeStructure)))
         case Ident(name) =>
           val current = unwrapWrappers(term)
-          Right(TargetTermView.Identifier(name, current))
+          scope.collectFirst { case (binderId, symbol) if current.symbol == symbol => binderId } match
+            case Some(binderId) => Right(TargetTermView.BoundReference(binderId, name, current))
+            case None => Right(TargetTermView.Identifier(name, current))
         case q.reflect.Literal(IntConstant(value)) =>
           val current = unwrapWrappers(term)
           Right(TargetTermView.Literal(value.toString, current))
@@ -72,48 +122,51 @@ object TargetTermView:
           Right(TargetTermView.Literal(value.toString, current))
         case q.reflect.Select(operand, name) if UnaryOperatorByMethod.contains(name) =>
           val current = unwrapWrappers(term)
-          extract(operand).map(TargetTermView.Unary(UnaryOperatorByMethod(name), _, current))
+          extract(operand, scope).map(TargetTermView.Unary(UnaryOperatorByMethod(name), _, current))
         case q.reflect.Select(qualifier, name) =>
           val current = unwrapWrappers(term)
-          extract(qualifier).map(TargetTermView.Select(_, name, current))
+          extract(qualifier, scope).map(TargetTermView.Select(_, name, current))
         case q.reflect.Apply(q.reflect.Select(q.reflect.New(typeTree), "<init>"), arguments) =>
           val current = unwrapWrappers(term)
           val constructor = typeTree.tpe.typeSymbol.fullName
-          sequence(arguments.map(extract)).map(TargetTermView.New(constructor, _, current))
+          sequence(arguments.map(extract(_, scope))).map(TargetTermView.New(constructor, _, current))
         case q.reflect.Apply(
               TypeApply(q.reflect.Select(q.reflect.New(typeTree), "<init>"), _),
               arguments
             ) =>
           val current = unwrapWrappers(term)
           val constructor = typeTree.tpe.typeSymbol.fullName
-          sequence(arguments.map(extract)).map(TargetTermView.New(constructor, _, current))
+          sequence(arguments.map(extract(_, scope))).map(TargetTermView.New(constructor, _, current))
         case q.reflect.Apply(function, arguments) if tupleArity(function).contains(arguments.length) =>
           val current = unwrapWrappers(term)
-          sequence(arguments.map(extract)).map(TargetTermView.Tuple(_, current))
+          sequence(arguments.map(extract(_, scope))).map(TargetTermView.Tuple(_, current))
         case q.reflect.Apply(function, arguments) =>
           val current = unwrapWrappers(term)
           for
-            extractedFunction <- extract(function)
-            extractedArguments <- sequence(arguments.map(extract))
+            extractedFunction <- extract(function, scope)
+            extractedArguments <- sequence(arguments.map(extract(_, scope)))
           yield TargetTermView.Apply(extractedFunction, extractedArguments, current)
         case q.reflect.Typed(expression, typeTree) =>
           val current = unwrapWrappers(term)
-          extract(expression).map(TargetTermView.Typed(_, renderType(typeTree), current))
+          extract(expression, scope).map(TargetTermView.Typed(_, renderType(typeTree), current))
         case q.reflect.If(condition, thenBranch, elseBranch) =>
           val current = unwrapWrappers(term)
           for
-            extractedCondition <- extract(condition)
-            extractedThenBranch <- extract(thenBranch)
-            extractedElseBranch <- extract(elseBranch)
+            extractedCondition <- extract(condition, scope)
+            extractedThenBranch <- extract(thenBranch, scope)
+            extractedElseBranch <- extract(elseBranch, scope)
           yield TargetTermView.If(extractedCondition, extractedThenBranch, extractedElseBranch, current)
         case other =>
           Left(MatchFailure.UnsupportedTargetShape(other.show(using Printer.TreeStructure)))
 
-    extract(term)
+    extract(term, ambientScope)
 
   def render(view: TargetTermView[?]): String =
     view match
       case Identifier(name, _) => s"Ident($name)"
+      case BoundReference(_, displayName, _) => s"BoundRef($displayName)"
+      case Lambda1(_, displayName, parameterType, _, body, _) =>
+        s"Lambda1($displayName: $parameterType, ${render(body)})"
       case Literal(value, _) => s"Literal($value)"
       case Select(qualifier, name, _) => s"Select(${render(qualifier)}, $name)"
       case Apply(function, arguments, _) =>

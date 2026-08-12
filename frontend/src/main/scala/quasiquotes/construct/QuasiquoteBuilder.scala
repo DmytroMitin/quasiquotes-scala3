@@ -2,7 +2,7 @@ package quasiquotes.construct
 
 import scala.quoted.Quotes
 
-import quasiquotes.parser.{DiagnosticLocationMapper, TinyTermParser}
+import quasiquotes.parser.{DiagnosticLocationMapper, DottySourceSpanAdapter, ParsedExpression, TermShape, TinyTermParser}
 import quasiquotes.source.{DiagnosticLocation, DiagnosticPrecision}
 
 object QuasiquoteBuilder:
@@ -38,6 +38,19 @@ object QuasiquoteBuilder:
           case Left(parseError) =>
             val location = DiagnosticLocationMapper.fromParseError(parseError, synthesized.originMap)
             Left(QuasiquoteBuildFailure(QuasiquoteError.ParseFailure(parseError), location))
+          case Right(parsed @ ParsedUnsupportedLambda(unsupported)) =>
+            Left(
+              QuasiquoteBuildFailure(
+                QuasiquoteError.UnsupportedTree(unsupported.nodeKind, unsupported.detail),
+                DottySourceSpanAdapter.fromTree(parsed.rawTree).flatMap(
+                  DiagnosticLocation.fromGeneratedMap(
+                    synthesized.originMap,
+                    _,
+                    DiagnosticPrecision.ExactOccurrence
+                  )
+                )
+              )
+            )
           case Right(parsed) =>
             ParsedTermLowerer
               .lowerLocated(parsed.rawTree, synthesized.bindings, synthesized.literalCategorizedNames)
@@ -51,3 +64,9 @@ object QuasiquoteBuilder:
                 )
                 QuasiquoteBuildFailure(failure.error, location)
               }
+
+  private object ParsedUnsupportedLambda:
+    def unapply(parsed: ParsedExpression): Option[TermShape.Unsupported] =
+      parsed.shape match
+        case unsupported @ TermShape.Unsupported("Lambda1", _) => Some(unsupported)
+        case _ => None

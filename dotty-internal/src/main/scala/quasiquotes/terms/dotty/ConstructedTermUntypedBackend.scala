@@ -50,6 +50,8 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
     (untpd.Tree, LoweringState)
   ] =
     shape match
+      case TermShape.BoundReference(_, _) | TermShape.Lambda1(_, _, _, _) =>
+        Left(UnsupportedTermNode("Lambda1"))
       case TermShape.Identifier(name, _) =>
         Right(untpd.Ident(termName(name)) -> state)
       case TermShape.Literal(value) =>

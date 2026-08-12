@@ -35,6 +35,11 @@ object Scala3ParserBridge:
       )
     else
       val inspected = TermShapeInspector.inspect(rawTree) match
+        case _: TermShape.Lambda1 if isContextFunction(source, rawTree) =>
+          TermShape.Unsupported(
+            "Lambda1",
+            "context functions are outside the bounded Lambda1 tranche"
+          )
         case _: TermShape.InterpolatedString if source.contains("s\"\"\"") =>
           TermShape.Unsupported(
             "InterpolatedStringSurface",
@@ -49,6 +54,16 @@ object Scala3ParserBridge:
           rawStructure = TermShapeInspector.rawStructure(rawTree)
         )
       )
+
+  private def isContextFunction(source: String, tree: untpd.Tree): Boolean =
+    tree match
+      case untpd.Function((parameter: untpd.ValDef) :: Nil, body) =>
+        (for
+          parameterSpan <- DottySourceSpanAdapter.fromTree(parameter)
+          bodySpan <- DottySourceSpanAdapter.fromTree(body)
+        yield source.slice(parameterSpan.end, bodySpan.start).contains("?=>"))
+          .getOrElse(false)
+      case _ => false
 
   def parseType(source: String): Either[ParseError, ParsedType] =
     val base = new ContextBase

@@ -90,6 +90,10 @@ private[quasiquotes] object DefinitionShape:
         Some("placeholder identifiers require authoritative template metadata and are not representation-core bodies")
       case TermShape.Identifier(_, false) | TermShape.Literal(_) =>
         None
+      case TermShape.BoundReference(_, _) =>
+        Some("lambda-bound references are only valid inside the bounded Lambda1 term tranche")
+      case TermShape.Lambda1(_, _, _, _) =>
+        Some("Lambda1 definition bodies require a later exact-backend tranche")
       case TermShape.Select(qualifier, _) =>
         firstUnsupportedTerm(qualifier)
       case TermShape.Apply(function, arguments) =>

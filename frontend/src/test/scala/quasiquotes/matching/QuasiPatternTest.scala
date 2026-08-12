@@ -634,8 +634,11 @@ class QuasiPatternTest extends munit.FunSuite:
   }
 
   test("canonicalization keeps lambdas and local blocks unsupported") {
-    assert(!CanonicalEqualityScope.lambda.success)
-    assert(CanonicalEqualityScope.lambda.detail.contains("Unsupported"))
+    assert(CanonicalEqualityScope.lambda.success)
+    assertEquals(
+      CanonicalEqualityScope.lambda.canonical,
+      "CLambda1(Type(Int), CBound(0))"
+    )
     assert(!CanonicalEqualityScope.block.success)
     assert(CanonicalEqualityScope.block.detail.contains("Unsupported"))
   }
