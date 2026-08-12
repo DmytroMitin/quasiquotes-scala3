@@ -1,7 +1,7 @@
 package quasiquotes.matching
 
 import dotty.tools.dotc.ast.untpd
-import quasiquotes.parser.{BinderId, ConstructorNamePolicy, DottySourceSpanAdapter, InterpolatedStringSegments}
+import quasiquotes.parser.{BinderId, ConstructorNamePolicy, DottySourceSpanAdapter, InterpolatedStringSegments, Lambda1DiagnosticMessages}
 import quasiquotes.source.{GeneratedHoleIndex, SourceSpan}
 
 private[matching] final case class PatternCompileFailure(
@@ -44,7 +44,7 @@ object PatternCompiler:
               case None => Right(TermPattern.Identifier(text))
       case function @ untpd.Function(parameters, body) =>
         if scope.nonEmpty then
-          unsupportedLambda(function, "nested lambdas are outside the bounded Lambda1 tranche")
+          unsupportedLambda(function, Lambda1DiagnosticMessages.NestedLambda)
         else
           parameters match
             case (parameter: untpd.ValDef) :: Nil if !parameter.tpt.isEmpty =>
@@ -62,9 +62,9 @@ object PatternCompiler:
                 )
               )
             case _ :: Nil =>
-              unsupportedLambda(function, "an explicit parameter type is required")
+              unsupportedLambda(function, Lambda1DiagnosticMessages.ExplicitParameterType)
             case _ =>
-              unsupportedLambda(function, "exactly one parameter is required")
+              unsupportedLambda(function, Lambda1DiagnosticMessages.ExactlyOneParameter)
       case untpd.Literal(constant) =>
         Right(TermPattern.Literal(renderConstant(constant.value)))
       case untpd.Number(digits, _) =>

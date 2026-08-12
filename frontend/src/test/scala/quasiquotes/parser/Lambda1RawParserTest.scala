@@ -52,15 +52,17 @@ class Lambda1RawParserTest extends munit.FunSuite:
 
   test("raw parser deliberately rejects excluded Lambda1 variants") {
     val cases = Vector(
-      "(x: Int, y: Int) => x + y" -> "exactly one parameter",
-      "x => x" -> "explicit parameter type",
-      "(x: Int) => ((y: Int) => y)" -> "nested lambdas",
-      "(x: Int) ?=> x" -> "context functions"
+      "(x: Int, y: Int) => x + y" -> Lambda1DiagnosticMessages.ExactlyOneParameter,
+      "x => x" -> Lambda1DiagnosticMessages.ExplicitParameterType,
+      "(x: Int) => ((y: Int) => y)" -> Lambda1DiagnosticMessages.NestedLambda,
+      "(x: Int) ?=> x" -> Lambda1DiagnosticMessages.ContextFunction
     )
 
-    cases.foreach { case (source, expectedDetail) =>
+    cases.foreach { case (source, expectedMessage) =>
       val rendered = TinyTermParser.parseOrThrow(source).shape.render
-      assert(rendered.contains("Unsupported"), clues(source, rendered))
-      assert(rendered.contains(expectedDetail), clues(source, rendered))
+      assert(
+        rendered.contains(s"Unsupported(Lambda1, $expectedMessage)"),
+        clues(source, rendered)
+      )
     }
   }

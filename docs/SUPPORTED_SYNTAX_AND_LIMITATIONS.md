@@ -59,8 +59,9 @@ part of structural equality.
 
 `qr` builds a genuine quoted lambda. A spliced external term retains its
 original resolved identity and is not captured when its source name matches
-the new parameter display name. Splices containing owned definitions are
-rejected because this tranche does not provide general owner migration.
+the new parameter display name. Splices containing local `val`, `def`, or
+class definitions are rejected because this surface does not provide general
+owner migration.
 
 Pattern body holes return the original reflected target term, including its
 compiler symbols. A captured subtree that refers to a lambda parameter remains
@@ -68,8 +69,9 @@ scope- and owner-sensitive; it is not a detached tree that can safely be moved
 outside its original lambda. Repeated holes compare bound references relative
 to their corresponding ambient scopes and preserve free-symbol identity.
 
-Lambda1 is structural only in the exact internal backend: raw/generated-origin
-exact lowering remains deliberately unsupported.
+Lambda1 is structural only in the exact internal backend:
+raw/generated-origin exact lowering remains deliberately unsupported and
+continues to report `UnsupportedTermNode("Lambda1")` internally.
 
 Unsupported type inputs report the rejected constructor, selected syntax,
 expected arity, or unsupported family where available. Located source adapters

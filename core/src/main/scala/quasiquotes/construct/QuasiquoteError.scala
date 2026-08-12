@@ -42,7 +42,9 @@ object QuasiquoteError:
     def message: String = s"Invalid placeholder identifier: $name"
 
   final case class UnsupportedTree(nodeKind: String, detail: String) extends QuasiquoteError:
-    def message: String = s"Unsupported parsed tree shape: $nodeKind ($detail)"
+    def message: String =
+      if nodeKind == "Lambda1" || nodeKind == "Lambda1Splice" then detail
+      else s"Unsupported parsed tree shape: $nodeKind ($detail)"
 
   final case class UnsupportedLiteral(detail: String) extends QuasiquoteError:
     def message: String = s"Unsupported literal: $detail"

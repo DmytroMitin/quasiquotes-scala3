@@ -129,6 +129,76 @@ object FrontendFirstUseSnippet:
 ```
 <!-- snippet:frontend-first-use:end -->
 
+## Lambda1 construction and matching
+
+This compiled external-package fixture constructs and invokes an `Int => Int`
+lambda, matches an alpha-renamed target, distinguishes a free external
+reference from a bound parameter, captures a complete body hole, and proves
+that a same-text external splice is not captured.
+
+<!-- snippet:lambda1-first-use:start -->
+```scala
+import scala.quoted.*
+
+import quasiquotes.construct.Quasiquotes.*
+import quasiquotes.matching.QuasiPattern
+
+object Lambda1FirstUseSnippet:
+  inline def increment(value: Int): Int =
+    ${ incrementImpl('value) }
+
+  inline def alphaEquivalent: Boolean =
+    ${ alphaEquivalentImpl }
+
+  inline def freeReferenceDoesNotMatchBound(free: Int): Boolean =
+    ${ freeReferenceDoesNotMatchBoundImpl('free) }
+
+  inline def completeBodyHoleMatches: Boolean =
+    ${ completeBodyHoleMatchesImpl }
+
+  inline def preserveX(x: Int): Int => Int =
+    ${ preserveXImpl('x) }
+
+  private def incrementImpl(value: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+
+    val fn = qr"(x: Int) => x + 1".asExprOf[Int => Int]
+    '{ $fn($value) }
+
+  private def alphaEquivalentImpl(using Quotes): Expr[Boolean] =
+    import quotes.reflect.*
+
+    val target = '{ (renamed: Int) => renamed + 1 }
+    Expr(QuasiPattern.termOrThrow("(x: Int) => x + 1").matchTerm(target.asTerm).isRight)
+
+  private def freeReferenceDoesNotMatchBoundImpl(
+      free: Expr[Int]
+  )(using Quotes): Expr[Boolean] =
+    import quotes.reflect.*
+
+    val target = '{ (_: Int) => $free }
+    Expr(QuasiPattern.termOrThrow("(x: Int) => x").matchTerm(target.asTerm).isLeft)
+
+  private def completeBodyHoleMatchesImpl(using Quotes): Expr[Boolean] =
+    import quotes.reflect.*
+
+    val target = '{ (renamed: Int) => renamed + 1 }
+    val matched = QuasiPattern.termOrThrow("(x: Int) => $body").matchTerm(target.asTerm)
+    Expr(matched.exists(_.binding("body").nonEmpty))
+
+  private def preserveXImpl(x: Expr[Int])(using Quotes): Expr[Int => Int] =
+    import quotes.reflect.*
+
+    val externalX = x.asTerm
+    qr"(x: Int) => $externalX".asExprOf[Int => Int]
+```
+<!-- snippet:lambda1-first-use:end -->
+
+For example, `increment(7)` returns `8`, and `preserveX(41)(999)` returns the
+external `41`. A term returned by the complete body-hole match is the original
+reflected target subtree. If it refers to the target lambda parameter, it is
+scope- and owner-sensitive and must not be treated as a detached portable tree.
+
 `TypeNormalFormSource.equalSources`, `TypePatternSource.fromSourceLocated`, and
 `TypeTemplateSource.fromSource` are available for the corresponding focused
 operations. Prefer the `Located` form when reporting source failures to a
@@ -147,9 +217,10 @@ returns an error instead of falling back to unchecked compiler trees. The
 source checkout remains the supported way to experiment until an explicitly
 authorized remote release exists.
 
-The frontend also admits one binder-aware ordinary lambda shape such as
-`(x: Int) => x + 1` for `qr` construction and `QuasiPattern`. Binder names are
-alpha-equivalent, free references remain distinct, and external splices are
-not captured by same-text lambda parameters. See
+The frontend admits exactly one binder-aware ordinary, explicitly typed lambda
+parameter, such as `(x: Int) => x + 1`, for `qr` construction and
+`QuasiPattern`. Binder names are alpha-equivalent, free references remain
+distinct, and external splices are not captured by same-text lambda
+parameters. See
 [Supported syntax and limitations](SUPPORTED_SYNTAX_AND_LIMITATIONS.md#binder-aware-lambda1)
 for the exact boundary and reflected body-hole ownership caveat.

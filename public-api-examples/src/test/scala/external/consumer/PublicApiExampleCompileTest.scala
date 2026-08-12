@@ -74,6 +74,14 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     assertEquals(FrontendFirstUseSnippet.add(2, 3), 5)
     assertEquals(FrontendFirstUseSnippet.capacity(16), 16)
 
+  test("documented Lambda1 first use stays executable outside quasiquotes packages"):
+    val free = 1
+    assertEquals(Lambda1FirstUseSnippet.increment(7), 8)
+    assert(Lambda1FirstUseSnippet.alphaEquivalent)
+    assert(Lambda1FirstUseSnippet.freeReferenceDoesNotMatchBound(free))
+    assert(Lambda1FirstUseSnippet.completeBodyHoleMatches)
+    assertEquals(Lambda1FirstUseSnippet.preserveX(41)(999), 41)
+
   test("external frontend consumer receives actionable located diagnostics"):
     val failures = Vector(
       TypePatternSource.fromSourceLocated("Map[Int, String]").swap.toOption.get,

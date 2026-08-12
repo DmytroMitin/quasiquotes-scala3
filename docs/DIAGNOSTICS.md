@@ -63,3 +63,31 @@ error-code algebra. Consumers should not parse arbitrary message text as a
 long-term compatibility mechanism. A future additive diagnostic view can be
 considered if concrete tooling needs justify one without breaking the existing
 `Either` entry points.
+
+## Lambda1 failures
+
+`QuasiPattern.termLocated` returns an actionable located error for unsupported
+lambda syntax. The `qr` interpolator reports the same admitted boundary as a
+compile-time error at the offending quasiquote source.
+
+| Input | Remedy |
+| --- | --- |
+| `x => x` | Add an explicit parameter type, for example `(x: Int) => x`. |
+| `(x: Int, y: Int) => x + y` | Rewrite the quoted form as one explicitly typed parameter. |
+| `(x: Int) => ((y: Int) => y)` | Move the nested lambda outside the Lambda1 pattern or construction. |
+| `(x: Int) ?=> x` | Use an ordinary `=>` function; context functions are outside this surface. |
+
+Representative messages are:
+
+```text
+Lambda1 requires an explicit parameter type; write a parameter such as `(x: Int)`.
+Lambda1 supports exactly one explicitly typed ordinary parameter; rewrite this as a one-parameter lambda.
+Lambda1 bodies do not support nested lambdas; move the nested lambda outside this pattern.
+Lambda1 supports ordinary `=>` functions only; replace `?=>` with an explicitly typed ordinary parameter.
+```
+
+A term splice inside Lambda1 is also rejected when the spliced tree contains a
+local `val`, `def`, or class definition. Splice a definition-free expression
+instead; this surface does not perform general owner migration. A string
+literal such as `(x: Int) => "?=>"` is ordinary supported body content and is
+not misclassified as a context function.

@@ -80,17 +80,35 @@ class Lambda1MatchingTest extends munit.FunSuite:
 
   test("pattern entrypoint rejects every excluded Lambda1 variant with a source location") {
     val cases = Vector(
-      "(x: Int, y: Int) => x + y" -> "exactly one parameter",
-      "x => x" -> "explicit parameter type",
-      "(x: Int) => ((y: Int) => y)" -> "nested lambdas",
-      "(x: Int) ?=> x" -> "context functions"
+      "(x: Int, y: Int) => x + y" ->
+        ("Lambda1 supports exactly one explicitly typed ordinary parameter; rewrite this as a one-parameter lambda.", "(x: Int, y: Int) => x + y"),
+      "x => x" ->
+        ("Lambda1 requires an explicit parameter type; write a parameter such as `(x: Int)`.", "x => x"),
+      "(x: Int) => ((y: Int) => y)" ->
+        ("Lambda1 bodies do not support nested lambdas; move the nested lambda outside this pattern.", "(y: Int) => y"),
+      "(x: Int) ?=> x" ->
+        ("Lambda1 supports ordinary `=>` functions only; replace `?=>` with an explicitly typed ordinary parameter.", "(x: Int) ?=> x")
     )
 
-    cases.foreach { case (source, detail) =>
+    cases.foreach { case (source, (expectedMessage, expectedSlice)) =>
       QuasiPattern.termLocated(source) match
         case Left(diagnostic) =>
-          assert(diagnostic.diagnostic.message.contains(detail), clues(source, diagnostic))
+          assertEquals(diagnostic.diagnostic.message, expectedMessage, clues(source, diagnostic))
           assert(diagnostic.location.nonEmpty, clues(source, diagnostic))
+          assertEquals(
+            source.slice(
+              diagnostic.location.get.span.start,
+              diagnostic.location.get.span.end
+            ),
+            expectedSlice,
+            clues(source, diagnostic)
+          )
+          Vector("BinderId", "Symbol", "owner", "__qq", "Prompt", "Phase", "ValDef", "DefDef")
+            .foreach(leak => assert(!diagnostic.diagnostic.message.contains(leak), clues(source, leak)))
         case Right(pattern) => fail(s"expected controlled Lambda1 rejection for $source, got $pattern")
     }
+  }
+
+  test("context-function spelling inside a supported body literal is not rejected") {
+    assert(QuasiPattern.term("(x: Int) => \"?=>\"").isRight)
   }

@@ -31,8 +31,11 @@ class Lambda1QuasiquoteTest extends munit.FunSuite:
     assertEquals(Lambda1QuasiquoteFixtures.captureAvoiding(2), 42)
   }
 
-  test("qr rejects a lambda-body splice containing owned definitions") {
-    assert(Lambda1QuasiquoteFixtures.unsafeSpliceMessage.contains("owned definitions"))
-    assert(!Lambda1QuasiquoteFixtures.unsafeSpliceMessage.contains("Symbol"))
-    assert(!Lambda1QuasiquoteFixtures.unsafeSpliceMessage.contains("owner"))
+  test("qr rejects a lambda-body splice containing local definitions with a remedy") {
+    assertEquals(
+      Lambda1QuasiquoteFixtures.unsafeSpliceMessage,
+      "A term spliced into a Lambda1 body must not contain local val, def, or class definitions; splice a definition-free expression instead."
+    )
+    Vector("BinderId", "Symbol", "owner", "__qq", "Prompt", "Phase", "ValDef", "DefDef")
+      .foreach(leak => assert(!Lambda1QuasiquoteFixtures.unsafeSpliceMessage.contains(leak)))
   }

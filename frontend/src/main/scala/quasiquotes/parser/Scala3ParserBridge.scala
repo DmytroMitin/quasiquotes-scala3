@@ -38,7 +38,7 @@ object Scala3ParserBridge:
         case _: TermShape.Lambda1 if isContextFunction(source, rawTree) =>
           TermShape.Unsupported(
             "Lambda1",
-            "context functions are outside the bounded Lambda1 tranche"
+            Lambda1DiagnosticMessages.ContextFunction
           )
         case _: TermShape.InterpolatedString if source.contains("s\"\"\"") =>
           TermShape.Unsupported(

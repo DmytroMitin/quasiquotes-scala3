@@ -8,6 +8,7 @@ import dotty.tools.dotc.ast.untpd
 import quasiquotes.parser.DottySourceSpanAdapter
 import quasiquotes.parser.InterpolatedStringSegments
 import quasiquotes.parser.ConstructorNamePolicy
+import quasiquotes.parser.Lambda1DiagnosticMessages
 import quasiquotes.types.toTypeRepr
 
 object ParsedTermLowerer:
@@ -55,7 +56,7 @@ object ParsedTermLowerer:
                     located(
                       QuasiquoteError.UnsupportedTree(
                         "Lambda1Splice",
-                        "term splice containing owned definitions is not supported inside Lambda1"
+                        Lambda1DiagnosticMessages.OwnedDefinitionSplice
                       ),
                       tree
                     )
@@ -73,7 +74,7 @@ object ParsedTermLowerer:
               located(
                 QuasiquoteError.UnsupportedTree(
                   "Lambda1",
-                  "nested lambdas are outside the bounded Lambda1 tranche"
+                  Lambda1DiagnosticMessages.NestedLambda
                 ),
                 tree
               )
@@ -82,34 +83,49 @@ object ParsedTermLowerer:
             parameters match
               case (parameter: untpd.ValDef) :: Nil if !parameter.tpt.isEmpty =>
                 lowerType(parameter.tpt, placeholderIndex).flatMap { parameterTypeTree =>
-                  val methodType = MethodType(List(parameter.name.toString))(
-                    _ => List(parameterTypeTree.tpe),
-                    _ => TypeRepr.of[Any]
+                  val parameterType = parameterTypeTree.tpe
+                  val previewSymbol = Symbol.newVal(
+                    Symbol.spliceOwner,
+                    parameter.name.toString,
+                    parameterType,
+                    Flags.EmptyFlags,
+                    Symbol.noSymbol
                   )
-                  var bodyFailure: Option[QuasiquoteLoweringFailure] = None
-                  val lambda = Lambda(
-                    owner = Symbol.spliceOwner,
-                    tpe = methodType,
-                    rhsFn = (_, parameters) =>
-                      val parameterTerm = parameters.head.asInstanceOf[Term]
-                      lowerTerm(
-                        body,
-                        (parameter.name.toString -> parameterTerm) :: boundTerms,
-                        lambdaDepth + 1
-                      ) match
-                        case Right(lowered) => lowered
-                        case Left(failure) =>
-                          bodyFailure = Some(failure)
-                          Literal(UnitConstant())
-                  )
-                  bodyFailure.toLeft(lambda)
+                  val previewParameter = Ref(previewSymbol)
+                  lowerTerm(
+                    body,
+                    (parameter.name.toString -> previewParameter) :: boundTerms,
+                    lambdaDepth + 1
+                  ).flatMap { previewBody =>
+                    val methodType = MethodType(List(parameter.name.toString))(
+                      _ => List(parameterType),
+                      _ => previewBody.tpe.widen
+                    )
+                    var bodyFailure: Option[QuasiquoteLoweringFailure] = None
+                    val lambda = Lambda(
+                      owner = Symbol.spliceOwner,
+                      tpe = methodType,
+                      rhsFn = (_, parameters) =>
+                        val parameterTerm = parameters.head.asInstanceOf[Term]
+                        lowerTerm(
+                          body,
+                          (parameter.name.toString -> parameterTerm) :: boundTerms,
+                          lambdaDepth + 1
+                        ) match
+                          case Right(lowered) => lowered
+                          case Left(failure) =>
+                            bodyFailure = Some(failure)
+                            Literal(UnitConstant())
+                    )
+                    bodyFailure.toLeft(lambda)
+                  }
                 }
               case _ :: Nil =>
                 Left(
                   located(
                     QuasiquoteError.UnsupportedTree(
                       "Lambda1",
-                      "an explicit parameter type is required"
+                      Lambda1DiagnosticMessages.ExplicitParameterType
                     ),
                     tree
                   )
@@ -119,7 +135,7 @@ object ParsedTermLowerer:
                   located(
                     QuasiquoteError.UnsupportedTree(
                       "Lambda1",
-                      "exactly one parameter is required"
+                      Lambda1DiagnosticMessages.ExactlyOneParameter
                     ),
                     tree
                   )

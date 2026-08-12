@@ -34,13 +34,13 @@ object TermShapeInspector:
             case None => TermShape.Identifier(text, isPlaceholder = false)
       case untpd.Function(parameters, body) =>
         if scope.nonEmpty then
-          TermShape.Unsupported("Lambda1", "nested lambdas are outside the bounded Lambda1 tranche")
+          TermShape.Unsupported("Lambda1", Lambda1DiagnosticMessages.NestedLambda)
         else
           parameters match
             case (parameter: untpd.ValDef) :: Nil =>
               val parameterName = parameter.name.toString
               if parameter.tpt.isEmpty then
-                TermShape.Unsupported("Lambda1", "an explicit parameter type is required")
+                TermShape.Unsupported("Lambda1", Lambda1DiagnosticMessages.ExplicitParameterType)
               else
                 val parameterTypeShape = TypeShapeInspector.inspect(parameter.tpt)
                 parameterTypeShape match
@@ -56,7 +56,7 @@ object TermShapeInspector:
                       loop(body, (parameterName -> binderId) :: scope)
                     )
             case _ =>
-              TermShape.Unsupported("Lambda1", "exactly one parameter is required")
+              TermShape.Unsupported("Lambda1", Lambda1DiagnosticMessages.ExactlyOneParameter)
       case untpd.Literal(constant) =>
         inspectConstant(constant)
       case untpd.Number(digits, untpd.NumberKind.Whole(10)) =>
@@ -98,7 +98,7 @@ object TermShapeInspector:
       case other =>
         val kind = other.getClass.getSimpleName
         if kind.contains("Context") && kind.contains("Function") then
-          TermShape.Unsupported("Lambda1", "context functions are outside the bounded Lambda1 tranche")
+          TermShape.Unsupported("Lambda1", Lambda1DiagnosticMessages.ContextFunction)
         else TermShape.Unsupported(kind, other.toString)
 
     loop(tree, Nil)

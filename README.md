@@ -67,8 +67,9 @@ applications plus binary `Either`, including patterns, construction, quoted
 lowering/inspection, typed ascriptions, and scoped type evidence. Constructor
 admission remains fixed and deliberately excludes general name resolution.
 
-The canonical first-use examples are mirrored from compiled external-package
-fixtures, and the repository's snippet drift check compares them byte for byte.
+The canonical first-use examples, including the complete Lambda1 macro path,
+are mirrored from compiled external-package fixtures, and the repository's
+snippet drift check compares them byte for byte.
 Public type diagnostics describe the supported boundary without development
 chronology or generated placeholder names.
 
