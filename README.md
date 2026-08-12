@@ -89,5 +89,7 @@ generic, imported-name, multiple-list, and anonymous-class exclusions.
 
 One ordinary explicitly typed Lambda1 form is also available for structural
 `qr` construction and matching. Its project-owned binder identity provides
-alpha-aware bound-reference comparison and same-text splice non-capture; the
-exact internal lambda backend and broader lambda/block syntax remain excluded.
+alpha-aware bound-reference comparison and same-text splice non-capture. The
+unpublished exact internal backend supports that same bounded Lambda1 shape in
+source-free and generated-origin modes; broader lambda/block syntax remains
+excluded.

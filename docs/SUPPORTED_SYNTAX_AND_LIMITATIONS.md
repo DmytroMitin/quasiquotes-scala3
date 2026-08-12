@@ -69,9 +69,11 @@ scope- and owner-sensitive; it is not a detached tree that can safely be moved
 outside its original lambda. Repeated holes compare bound references relative
 to their corresponding ambient scopes and preserve free-symbol identity.
 
-Lambda1 is structural only in the exact internal backend:
-raw/generated-origin exact lowering remains deliberately unsupported and
-continues to report `UnsupportedTermNode("Lambda1")` internally.
+The unpublished exact internal backend lowers this same bounded Lambda1 shape
+both source-free and with generated-origin positions. It resolves bound
+references through project binder identity and consumes the completed
+parameter-type sidecar. Nested lambdas and broader lambda/block syntax remain
+outside that internal contract and fail closed.
 
 Unsupported type inputs report the rejected constructor, selected syntax,
 expected arity, or unsupported family where available. Located source adapters
