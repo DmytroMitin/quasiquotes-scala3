@@ -77,6 +77,19 @@ private[quasiquotes] object LocatedDefinitionShape:
       components: DefinitionComponentSpans,
       originMap: Option[GeneratedSourceMap] = None
   ): Either[DefinitionError, LocatedDefinitionShape] =
+    shape match
+      case _: DefinitionShape.SingleParameterDef =>
+        invalid(
+          "single-parameter definitions require separate parameter-name and parameter-type evidence"
+        )
+      case _ => createSupported(shape, sourceId, components, originMap)
+
+  private def createSupported(
+      shape: DefinitionShape,
+      sourceId: SourceId,
+      components: DefinitionComponentSpans,
+      originMap: Option[GeneratedSourceMap]
+  ): Either[DefinitionError, LocatedDefinitionShape] =
     originMap match
       case None =>
         Right(new LocatedDefinitionShape(shape, sourceId, components, None))

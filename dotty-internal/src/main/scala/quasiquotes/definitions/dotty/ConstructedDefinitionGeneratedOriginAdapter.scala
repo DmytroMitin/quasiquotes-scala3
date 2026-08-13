@@ -163,20 +163,30 @@ private[quasiquotes] object ConstructedDefinitionGeneratedOriginAdapter:
           "the completed definition was null."
         )
       )
-      .map {
+      .flatMap {
         case method: ConstructedDefinition.ParameterlessDef =>
-          DefinitionParts(
-            DefinitionKind.ParameterlessDef,
-            method.name,
-            method.resultType,
-            method.body
+          Right(
+            DefinitionParts(
+              DefinitionKind.ParameterlessDef,
+              method.name,
+              method.resultType,
+              method.body
+            )
           )
         case value: ConstructedDefinition.ImmutableVal =>
-          DefinitionParts(
-            DefinitionKind.ImmutableVal,
-            value.name,
-            value.declaredType,
-            value.rhs
+          Right(
+            DefinitionParts(
+              DefinitionKind.ImmutableVal,
+              value.name,
+              value.declaredType,
+              value.rhs
+            )
+          )
+        case unsupported =>
+          Left(
+            UnsupportedConstructedDefinitionVariant(
+              unsupported.getClass.getSimpleName
+            )
           )
       }
 

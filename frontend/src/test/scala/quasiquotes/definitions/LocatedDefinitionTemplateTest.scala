@@ -1,5 +1,6 @@
 package quasiquotes.definitions
 
+import quasiquotes.parser.BinderId
 import quasiquotes.definitions.parser.{
   CategorizedDefinitionHoleOccurrence,
   DefinitionTemplateHoleCategory,
@@ -88,5 +89,32 @@ class LocatedDefinitionTemplateTest extends munit.FunSuite:
         Vector(SourceSpan(0, 2), SourceSpan(2, 5))
       ),
       Right(())
+    )
+  }
+
+  test("legacy located metadata rejects single-parameter templates without parameter spans") {
+    val single = DefinitionTemplate
+      .singleParameterDef(
+        DefinitionName.plain("answer").toOption.get,
+        BinderId(0),
+        DefinitionName.plain("x").toOption.get,
+        quasiquotes.types.TypeTemplate.TTIdent("Int"),
+        quasiquotes.types.TypeTemplate.TTIdent("Int"),
+        located.body.template
+      )
+      .toOption
+      .get
+    val result = LocatedDefinitionTemplate.create(
+      single,
+      located.sourceId,
+      located.sourceMap,
+      located.components,
+      located.definitionTypeOccurrences,
+      located.body
+    )
+
+    assertEquals(
+      result.left.toOption.get.message,
+      "Invalid definition source metadata: single-parameter definition templates require separate parameter-name and parameter-type evidence."
     )
   }

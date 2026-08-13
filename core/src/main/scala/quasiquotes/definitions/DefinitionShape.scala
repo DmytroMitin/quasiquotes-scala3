@@ -1,6 +1,7 @@
 package quasiquotes.definitions
 
-import quasiquotes.parser.{TermShape, TypeShape}
+import quasiquotes.parser.{BinderId, TermShape, TypeShape}
+import quasiquotes.terms.TermShapeTraversal
 import quasiquotes.types.TypeNormalForm
 
 private[quasiquotes] sealed trait DefinitionShape derives CanEqual:
@@ -26,6 +27,34 @@ private[quasiquotes] object DefinitionShape:
         case _ => false
 
     override def hashCode: Int = (name, resultType, body).hashCode
+    override def toString: String = render
+
+  final class SingleParameterDef private[DefinitionShape] (
+      val name: DefinitionName,
+      val parameterBinderId: BinderId,
+      val parameterName: DefinitionName,
+      val parameterType: TypeShape,
+      val resultType: TypeShape,
+      val body: TermShape
+  ) extends DefinitionShape:
+    private lazy val semanticBody: TermShape =
+      TermShapeTraversal.alphaNormalizeInScope(body, parameterBinderId)
+
+    def render: String =
+      s"SingleParameterDef(name=${name.render}, parameter=${parameterName.render}: ${parameterType.render}, resultType=${resultType.render}, body=${body.render})"
+
+    override def equals(other: Any): Boolean =
+      other match
+        case that: SingleParameterDef =>
+          name == that.name &&
+            parameterType == that.parameterType &&
+            resultType == that.resultType &&
+            semanticBody == that.semanticBody
+        case _ => false
+
+    override def hashCode: Int =
+      ("SingleParameterDef", name, parameterType, resultType, semanticBody).hashCode
+
     override def toString: String = render
 
   final class ImmutableVal private[DefinitionShape] (
@@ -55,6 +84,32 @@ private[quasiquotes] object DefinitionShape:
       _ <- validateTerm(body, "method body")
     yield new ParameterlessDef(name, resultType, body)
 
+  def singleParameterDef(
+      name: DefinitionName,
+      parameterBinderId: BinderId,
+      parameterName: DefinitionName,
+      parameterType: TypeShape,
+      resultType: TypeShape,
+      body: TermShape
+  ): Either[DefinitionError, SingleParameterDef] =
+    for
+      _ <- validateType(parameterType, "method parameter type")
+      _ <- validateType(resultType, "method result type")
+      _ <- validateTerm(
+        body,
+        "method body",
+        Some(parameterBinderId)
+      )
+    yield
+      new SingleParameterDef(
+        name,
+        parameterBinderId,
+        parameterName,
+        parameterType,
+        resultType,
+        body
+      )
+
   def immutableVal(
       name: DefinitionName,
       declaredType: TypeShape,
@@ -77,57 +132,73 @@ private[quasiquotes] object DefinitionShape:
 
   private def validateTerm(
       shape: TermShape,
-      component: String
+      component: String,
+      allowedDefinitionBinder: Option[BinderId] = None
   ): Either[DefinitionError, Unit] =
-    firstUnsupportedTerm(shape)
+    firstUnsupportedTerm(shape, allowedDefinitionBinder)
       .toLeft(())
       .left
       .map(reason => DefinitionError.UnsupportedDefinitionBody(component, reason))
 
-  private def firstUnsupportedTerm(shape: TermShape): Option[String] =
+  private def firstUnsupportedTerm(
+      shape: TermShape,
+      allowedDefinitionBinder: Option[BinderId]
+  ): Option[String] =
     shape match
       case TermShape.Identifier(_, true) =>
         Some("placeholder identifiers require authoritative template metadata and are not representation-core bodies")
       case TermShape.Identifier(_, false) | TermShape.Literal(_) =>
         None
-      case TermShape.BoundReference(_, _) =>
-        Some("lambda-bound references are only valid inside the bounded Lambda1 term tranche")
+      case TermShape.BoundReference(binderId, _) =>
+        allowedDefinitionBinder match
+          case Some(expected) if binderId == expected => None
+          case Some(_) =>
+            Some("bound references must resolve to the single ordinary method parameter")
+          case None =>
+            Some("lambda-bound references are only valid inside the bounded Lambda1 term tranche")
       case TermShape.Lambda1(_, _, _, _) =>
         Some("Lambda1 definition bodies require a later exact-backend tranche")
       case TermShape.Select(qualifier, _) =>
-        firstUnsupportedTerm(qualifier)
+        firstUnsupportedTerm(qualifier, allowedDefinitionBinder)
       case TermShape.Apply(function, arguments) =>
-        firstUnsupportedTerm(function).orElse(firstUnsupported(arguments))
+        firstUnsupportedTerm(function, allowedDefinitionBinder)
+          .orElse(firstUnsupported(arguments, allowedDefinitionBinder))
       case TermShape.New(_, arguments) =>
         Some("constructor new expressions are not part of the bounded definition-body backend")
       case TermShape.Infix(left, _, right) =>
-        firstUnsupportedTerm(left).orElse(firstUnsupportedTerm(right))
+        firstUnsupportedTerm(left, allowedDefinitionBinder)
+          .orElse(firstUnsupportedTerm(right, allowedDefinitionBinder))
       case TermShape.Unary(operator, operand) =>
         if !SupportedUnaryOperators(operator) then
           Some("unary bodies support only +, -, !, and ~")
-        else firstUnsupportedTerm(operand)
+        else firstUnsupportedTerm(operand, allowedDefinitionBinder)
       case TermShape.InterpolatedString("s", parts, arguments) =>
         if parts.size != arguments.size + 1 then
           Some("interpolated string parts/arguments are inconsistent")
-        else firstUnsupported(arguments)
+        else firstUnsupported(arguments, allowedDefinitionBinder)
       case TermShape.InterpolatedString(_, _, _) =>
         Some("definition bodies support only the standard s interpolator")
       case TermShape.Typed(expression, typeName) =>
         if !SupportedAscriptionTypes(typeName) then
           Some("typed bodies support only Int, String, and Boolean ascriptions")
-        else firstUnsupportedTerm(expression)
+        else firstUnsupportedTerm(expression, allowedDefinitionBinder)
       case TermShape.Tuple(elements) =>
         if elements.size < 2 || elements.size > 22 then
           Some("tuple bodies must contain between 2 and 22 elements")
-        else firstUnsupported(elements)
+        else firstUnsupported(elements, allowedDefinitionBinder)
       case TermShape.If(condition, thenBranch, elseBranch) =>
-        firstUnsupportedTerm(condition)
-          .orElse(firstUnsupportedTerm(thenBranch))
-          .orElse(firstUnsupportedTerm(elseBranch))
+        firstUnsupportedTerm(condition, allowedDefinitionBinder)
+          .orElse(firstUnsupportedTerm(thenBranch, allowedDefinitionBinder))
+          .orElse(firstUnsupportedTerm(elseBranch, allowedDefinitionBinder))
       case TermShape.Parenthesized(expression) =>
-        firstUnsupportedTerm(expression)
+        firstUnsupportedTerm(expression, allowedDefinitionBinder)
       case TermShape.Unsupported(_, _) =>
         Some("the body contains a term shape outside the currently supported structural subset")
 
-  private def firstUnsupported(shapes: List[TermShape]): Option[String] =
-    shapes.iterator.map(firstUnsupportedTerm).collectFirst { case Some(reason) => reason }
+  private def firstUnsupported(
+      shapes: List[TermShape],
+      allowedDefinitionBinder: Option[BinderId]
+  ): Option[String] =
+    shapes.iterator
+      .map(firstUnsupportedTerm(_, allowedDefinitionBinder))
+      .collectFirst { case Some(reason) => reason }

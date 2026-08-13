@@ -30,6 +30,11 @@ private[quasiquotes] object ConstructedDefinitionGeneratedOriginError:
     def message: String =
       s"Generated-definition raw structural lowering failed: $detail"
 
+  final case class UnsupportedConstructedDefinitionVariant(variant: String)
+      extends ConstructedDefinitionGeneratedOriginError:
+    def message: String =
+      s"Unsupported constructed-definition variant at the generated-origin backend boundary: $variant."
+
   final case class RawDefinitionPlanMismatch(detail: String)
       extends ConstructedDefinitionGeneratedOriginError:
     def message: String =

@@ -9,6 +9,11 @@ private[quasiquotes] object DefinitionConstructionError:
     def message: String =
       s"Invalid definition type template: $detail"
 
+  final case class InvalidDefinitionBodyTemplate(detail: String)
+      extends DefinitionConstructionError:
+    def message: String =
+      s"Invalid definition body template: $detail"
+
   final case class MissingTermBinding(name: String)
       extends DefinitionConstructionError:
     def message: String = s"Missing definition term binding `$name`."
@@ -44,6 +49,11 @@ private[quasiquotes] object DefinitionConstructionError:
       extends DefinitionConstructionError:
     def message: String =
       s"Invalid completed definition type: $detail"
+
+  final case class InvalidConstructedDefinitionBody(detail: String)
+      extends DefinitionConstructionError:
+    def message: String =
+      s"Invalid completed definition body: $detail"
 
   final case class CompletedDefinitionFactoryFailure(detail: String)
       extends DefinitionConstructionError:

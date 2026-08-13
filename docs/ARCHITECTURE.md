@@ -12,6 +12,10 @@ publicCoreExamples -> core
 `core` owns compiler-free values, structural normal forms, templates,
 construction and matching algorithms, and neutral source/diagnostic metadata.
 Its compile and runtime classpaths must not contain Scala compiler artifacts.
+Its package-private definition model reuses the same `BinderId` scope algebra
+as Lambda1 for one ordinary method parameter; display spelling never replaces
+semantic identity. The current source-metadata carrier and exact definition
+backends deliberately stop before this new variant.
 
 `frontend` owns source parsing, macros, quoted reflection, source-to-core
 adapters, and compiler-version-sensitive lowering. It uses full Scala compiler

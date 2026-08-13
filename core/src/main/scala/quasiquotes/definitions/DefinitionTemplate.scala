@@ -1,5 +1,6 @@
 package quasiquotes.definitions
 
+import quasiquotes.parser.BinderId
 import quasiquotes.terms.{ConstructedTerm, TermTemplate}
 import quasiquotes.types.{TypeNormalForm, TypeTemplate}
 
@@ -59,6 +60,86 @@ private[quasiquotes] object DefinitionTemplate:
 
     override def toString: String = render
 
+  final class SingleParameterDef private[DefinitionTemplate] (
+      val name: DefinitionName,
+      val parameterBinderId: BinderId,
+      val parameterName: DefinitionName,
+      val parameterType: TypeTemplate,
+      val resultType: TypeTemplate,
+      val body: TermTemplate
+  ) extends DefinitionTemplate:
+    def requiredTermBindings: Vector[String] =
+      body.requiredTermBindings
+
+    def requiredTypeBindings: Vector[String] =
+      unionRequiredTypes(Vector(parameterType, resultType), body)
+
+    def complete(
+        termBindings: Map[String, ConstructedTerm],
+        typeBindings: Map[String, TypeNormalForm]
+    ): Either[DefinitionConstructionError, ConstructedDefinition] =
+      val requiredTerms = body.requiredTermBindings
+      val requiredTypes = requiredTypeBindings
+      for
+        _ <- validateBindingSets(
+          requiredTerms,
+          requiredTypes,
+          termBindings,
+          typeBindings
+        )
+        _ <- validateTypeBindings(requiredTypes, typeBindings)
+        completedParameterType <- completeType(parameterType, typeBindings)
+        completedResultType <- completeType(resultType, typeBindings)
+        bodyTypeNames = body.requiredTypeBindings.toSet
+        bodyTypeBindings = typeBindings.view
+          .filterKeys(bodyTypeNames)
+          .toMap
+        completedBody <- body
+          .complete(termBindings, bodyTypeBindings)
+          .left
+          .map(error =>
+            DefinitionConstructionError.BodyConstructionFailure(error.message)
+          )
+        result <- ConstructedDefinition
+          .singleParameterDef(
+            name,
+            parameterBinderId,
+            parameterName,
+            completedParameterType,
+            completedResultType,
+            completedBody
+          )
+          .left
+          .map(error =>
+            DefinitionConstructionError.CompletedDefinitionFactoryFailure(
+              error.message
+            )
+          )
+      yield result
+
+    def render: String =
+      s"DefinitionTemplate.SingleParameterDef(name=${name.render}, parameter=${parameterName.render}: $parameterType, resultType=$resultType, body=${body.render})"
+
+    override def equals(other: Any): Boolean =
+      other match
+        case that: SingleParameterDef =>
+          name == that.name &&
+            parameterType == that.parameterType &&
+            resultType == that.resultType &&
+            body == that.body
+        case _ => false
+
+    override def hashCode: Int =
+      (
+        "SingleParameterDef",
+        name,
+        parameterType,
+        resultType,
+        body
+      ).hashCode
+
+    override def toString: String = render
+
   final class ImmutableVal private[DefinitionTemplate] (
       val name: DefinitionName,
       val declaredType: TypeTemplate,
@@ -112,6 +193,35 @@ private[quasiquotes] object DefinitionTemplate:
     validateTypeTemplate(resultType).map(_ =>
       new ParameterlessDef(name, resultType, body)
     )
+
+  def singleParameterDef(
+      name: DefinitionName,
+      parameterBinderId: BinderId,
+      parameterName: DefinitionName,
+      parameterType: TypeTemplate,
+      resultType: TypeTemplate,
+      body: TermTemplate
+  ): Either[DefinitionConstructionError, SingleParameterDef] =
+    for
+      _ <- validateTypeTemplate(parameterType)
+      _ <- validateTypeTemplate(resultType)
+      _ <- TermTemplate
+        .validateInScope(body, parameterBinderId)
+        .left
+        .map(error =>
+          DefinitionConstructionError.InvalidDefinitionBodyTemplate(
+            error.message
+          )
+        )
+    yield
+      new SingleParameterDef(
+        name,
+        parameterBinderId,
+        parameterName,
+        parameterType,
+        resultType,
+        body
+      )
 
   def immutableVal(
       name: DefinitionName,
@@ -180,8 +290,37 @@ private[quasiquotes] object DefinitionTemplate:
       definitionType: TypeTemplate,
       body: TermTemplate
   ): Vector[String] =
-    (TypeTemplate.requiredBindings(definitionType) ++
+    unionRequiredTypes(Vector(definitionType), body)
+
+  private def unionRequiredTypes(
+      definitionTypes: Vector[TypeTemplate],
+      body: TermTemplate
+  ): Vector[String] =
+    (definitionTypes.flatMap(TypeTemplate.requiredBindings) ++
       body.requiredTypeBindings).distinct
+
+  private def completeType(
+      template: TypeTemplate,
+      typeBindings: Map[String, TypeNormalForm]
+  ): Either[DefinitionConstructionError, TypeNormalForm] =
+    for
+      completed <- TypeTemplate
+        .construct(template, typeBindings)
+        .left
+        .map(error =>
+          DefinitionConstructionError.DefinitionTypeConstructionFailure(
+            error.message
+          )
+        )
+      _ <- TypeTemplate
+        .validateConstructed(completed)
+        .left
+        .map(error =>
+          DefinitionConstructionError.DefinitionTypeConstructionFailure(
+            error.message
+          )
+        )
+    yield completed
 
   private def validateBindingSets(
       requiredTerms: Vector[String],

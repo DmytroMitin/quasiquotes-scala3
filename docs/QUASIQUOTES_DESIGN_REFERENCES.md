@@ -94,7 +94,7 @@ Key features:
 
 Conceptual model:
 
-source-like syntax -> AST  
+source-like syntax -> AST
 AST <-> pattern matching
 
 Important properties:
@@ -243,8 +243,9 @@ The project does not attempt:
 
 - full semantic equivalence
 - algebraic normalization
-- alpha-equivalence
-- binder-aware matching
+- general alpha-equivalence beyond explicitly modeled bounded binders
+- general binder-aware matching beyond the accepted Lambda1 and internal
+  one-parameter definition scopes
 - full compatibility with Scala 2 quasiquotes
 
 These are considered out of scope for a POC.

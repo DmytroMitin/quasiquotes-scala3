@@ -15,11 +15,20 @@ private[definitions] enum ProbePlacement derives CanEqual:
   case Member
   case Local
 
+private[definitions] final case class RawDefinitionParameterSummary(
+    name: String,
+    treeKind: String,
+    typeTree: String,
+    isContextual: Boolean
+) derives CanEqual
+
 private[definitions] final case class RawDefinitionSummary(
     kind: String,
     name: String,
     sourceName: String,
     parameterClauseSizes: List[Int],
+    parameters: List[RawDefinitionParameterSummary],
+    childOrder: List[String],
     typeTree: String,
     bodyTree: String,
     isMutable: Boolean,
@@ -88,6 +97,15 @@ private[definitions] object RawDefinitionProbe:
   )(using Context): RawDefinitionSummary =
     val tpt = definition.tpt
     val rhs = definition.rhs
+    val parameters = definition.paramss.flatten.collect {
+      case parameter: untpd.ValDef =>
+        RawDefinitionParameterSummary(
+          parameter.name.toString,
+          parameter.getClass.getSimpleName,
+          treeShape(parameter.tpt),
+          parameter.mods.is(Flags.Given) || parameter.mods.is(Flags.Implicit)
+        )
+    }
     val definitionSpan = DottySourceSpanAdapter.fromTree(definition)
     val typeSpan = DottySourceSpanAdapter.fromTree(tpt)
     RawDefinitionSummary(
@@ -95,6 +113,9 @@ private[definitions] object RawDefinitionProbe:
       name = definition.name.toString,
       sourceName = sourceName(source, definitionSpan, typeSpan, definition.name.toString),
       parameterClauseSizes = definition.paramss.map(_.size),
+      parameters = parameters,
+      childOrder = parameters.indices.map(index => s"parameter-$index").toList :::
+        List("result-type", "body"),
       typeTree = treeShape(tpt),
       bodyTree = treeShape(rhs),
       isMutable = definition.mods.is(Flags.Mutable),
@@ -120,6 +141,8 @@ private[definitions] object RawDefinitionProbe:
       name = definition.name.toString,
       sourceName = sourceName(source, definitionSpan, typeSpan, definition.name.toString),
       parameterClauseSizes = Nil,
+      parameters = Nil,
+      childOrder = List("declared-type", "right-hand-side"),
       typeTree = treeShape(tpt),
       bodyTree = treeShape(rhs),
       isMutable = definition.mods.is(Flags.Mutable),
@@ -144,6 +167,8 @@ private[definitions] object RawDefinitionProbe:
       name = definition.name.toString,
       sourceName = sourceName(source, definitionSpan, rhsSpan, definition.name.toString),
       parameterClauseSizes = Nil,
+      parameters = Nil,
+      childOrder = List("aliased-type"),
       typeTree = treeShape(rhs),
       bodyTree = "EmptyTree",
       isMutable = false,

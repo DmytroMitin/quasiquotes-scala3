@@ -17,6 +17,9 @@ applicable. Dates and release links are added only when a release exists.
 - Recursive `List` and `Option` plus binary `Either` type structures across
   source, matching, construction, TypeRepr, and scoped type evidence.
 - Bounded structural standard-`s` interpolation support.
+- Package-private compiler-free one-ordinary-parameter definition shapes,
+  alpha-aware templates/completion, and explicit source/backend deferment
+  boundaries.
 - External-package core and frontend examples and deterministic build-boundary
   checks.
 

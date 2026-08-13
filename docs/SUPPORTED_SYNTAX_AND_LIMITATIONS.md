@@ -9,6 +9,9 @@ Currently exercised areas include:
   operations, and standard string interpolation in bounded structural forms;
 - ordinary lambdas with exactly one explicitly typed parameter, with scoped
   binder identity, alpha-aware construction/matching, and complete-body holes;
+- an internal compiler-free ordinary method shape with exactly one explicitly
+  named and typed value parameter, explicit result type, scoped parameter
+  references, and alpha-aware template/completion semantics;
 - type identifiers, selections, applications, tuples, functions, wildcards,
   unions/intersections, annotations, refinements, and selected bounds/match
   forms;
@@ -29,6 +32,8 @@ Important limitations:
   lambdas, binder-name holes, local definitions, and general blocks;
 - compiler-internal behavior is exact-version-sensitive;
 - public definition construction is intentionally narrow;
+- the one-parameter method shape has no public source interpolator, located
+  parameter-span carrier, or exact untyped/generated-origin backend yet;
 - interpolation and type support expands incrementally, so unsupported shapes
   return explicit errors rather than falling back to unchecked trees;
 - ordinary quoted standard-`s` interpolation has a bounded exact internal
@@ -74,6 +79,33 @@ both source-free and with generated-origin positions. It resolves bound
 references through project binder identity and consumes the completed
 parameter-type sidecar. Nested lambdas and broader lambda/block syntax remain
 outside that internal contract and fail closed.
+
+## Single ordinary-parameter definition core
+
+The package-private compiler-free definition model admits the bounded family:
+
+```scala
+def id(x: Int): Int = x
+def inc(x: Int): Int = x + 1
+def keep(x: String): String = x
+```
+
+The method name, one ordinary parameter name, structural parameter type,
+structural result type, and existing definition-body subset are explicit. The
+parameter declaration and its body references share the existing project-owned
+binder identity. Therefore renaming `x` to `y` preserves structural equality
+when corresponding references remain bound, while a free same-text identifier
+remains distinct. Parameter/result types, the definition name, and non-bound
+body structure remain significant.
+
+This is not a general parameter-list model. Multiple clauses or parameters,
+contextual/implicit/type parameters, defaults, varargs, by-name or erased
+parameters, dependent methods, local definitions, binder-name holes, and
+general owner/placement policy remain unsupported. The existing located
+definition carrier cannot truthfully describe both parameter and result-type
+spans, so it rejects this variant until a dedicated source-usability tranche.
+Both exact definition backends also reject it explicitly; no one-parameter
+`DefDef` lowering is claimed here.
 
 Unsupported type inputs report the rejected constructor, selected syntax,
 expected arity, or unsupported family where available. Located source adapters

@@ -61,7 +61,8 @@ private[quasiquotes] final class TermTemplate private (
     val termHoleIndex: GeneratedHoleIndex,
     val termHoleOccurrences: Vector[TermHoleOccurrence],
     val typeHoleIndex: GeneratedHoleIndex,
-    val ascriptionTypes: Vector[TypeTemplate]
+    val ascriptionTypes: Vector[TypeTemplate],
+    private val enclosingBinderId: Option[BinderId]
 ) derives CanEqual:
   private lazy val occurrenceByOrdinal: Map[Int, String] =
     termHoleOccurrences.map(occurrence =>
@@ -110,7 +111,15 @@ private[quasiquotes] final class TermTemplate private (
           "typed-node preorder was not consumed exactly once"
         )
       )
-      result <- ConstructedTerm.create(completed.shape, completed.ascriptions)
+      result <- enclosingBinderId match
+        case Some(binderId) =>
+          ConstructedTerm.createInScope(
+            completed.shape,
+            completed.ascriptions,
+            binderId
+          )
+        case None =>
+          ConstructedTerm.create(completed.shape, completed.ascriptions)
     yield result
 
   def render: String =
@@ -688,8 +697,52 @@ private[quasiquotes] object TermTemplate:
       typeHoleIndex: GeneratedHoleIndex,
       ascriptionTypes: Vector[TypeTemplate]
   ): Either[TermConstructionError, TermTemplate] =
+    createUsingScope(
+      root,
+      None,
+      termHoleIndex,
+      termHoleOccurrences,
+      typeHoleIndex,
+      ascriptionTypes
+    )
+
+  def createInScope(
+      root: TermShape,
+      binderId: BinderId,
+      termHoleIndex: GeneratedHoleIndex,
+      termHoleOccurrences: Vector[TermHoleOccurrence],
+      typeHoleIndex: GeneratedHoleIndex,
+      ascriptionTypes: Vector[TypeTemplate]
+  ): Either[TermConstructionError, TermTemplate] =
+    createUsingScope(
+      root,
+      Some(binderId),
+      termHoleIndex,
+      termHoleOccurrences,
+      typeHoleIndex,
+      ascriptionTypes
+    )
+
+  def validateInScope(
+      template: TermTemplate,
+      binderId: BinderId
+  ): Either[TermConstructionError, Unit] =
+    TermShapeTraversal.validateSupportedInScope(template.root, binderId)
+
+  private def createUsingScope(
+      root: TermShape,
+      enclosingBinderId: Option[BinderId],
+      termHoleIndex: GeneratedHoleIndex,
+      termHoleOccurrences: Vector[TermHoleOccurrence],
+      typeHoleIndex: GeneratedHoleIndex,
+      ascriptionTypes: Vector[TypeTemplate]
+  ): Either[TermConstructionError, TermTemplate] =
     for
-      _ <- TermShapeTraversal.validateSupported(root)
+      _ <- enclosingBinderId match
+        case Some(binderId) =>
+          TermShapeTraversal.validateSupportedInScope(root, binderId)
+        case None =>
+          TermShapeTraversal.validateSupported(root)
       _ <- validateHoleNames(termHoleIndex.semanticNames)
       _ <- validateHoleNames(typeHoleIndex.semanticNames)
       _ <- validateGeneratedCategorySeparation(termHoleIndex, typeHoleIndex)
@@ -711,7 +764,8 @@ private[quasiquotes] object TermTemplate:
       termHoleIndex,
       termHoleOccurrences,
       typeHoleIndex,
-      ascriptionTypes
+      ascriptionTypes,
+      enclosingBinderId
     )
 
   private def validateHoleNames(

@@ -12,6 +12,9 @@ delivery chronology.
 - Preserve Apache-2.0 POM and JAR metadata for intended `core` and `frontend`
   distributions.
 - Expand structural term and type support through narrow, test-backed slices.
+- Preserve the accepted compiler-free one-ordinary-parameter definition core
+  while its public first-use/source metadata and exact backend remain separate
+  later gates.
 - Maintain end-to-end recursive `List`/`Option` and binary `Either` support
   without turning fixed constructor admission into a general type resolver.
 - Preserve a deterministic clean aggregate build and external-package examples.

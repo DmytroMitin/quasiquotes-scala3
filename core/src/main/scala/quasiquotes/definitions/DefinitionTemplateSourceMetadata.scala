@@ -121,6 +121,7 @@ private[quasiquotes] object LocatedDefinitionTemplate:
       body: LocatedTermTemplate
   ): Either[DefinitionError, LocatedDefinitionTemplate] =
     for
+      _ <- validateSupportedTemplate(template)
       _ <- validateIdentity(sourceId, sourceMap, body)
       _ <- validateCoverage(
         sourceMap.generatedSource.length,
@@ -149,6 +150,16 @@ private[quasiquotes] object LocatedDefinitionTemplate:
         definitionTypeOccurrences,
         body
       )
+
+  private def validateSupportedTemplate(
+      template: DefinitionTemplate
+  ): Either[DefinitionError, Unit] =
+    template match
+      case _: DefinitionTemplate.SingleParameterDef =>
+        invalid(
+          "single-parameter definition templates require separate parameter-name and parameter-type evidence"
+        )
+      case _ => Right(())
 
   private[quasiquotes] def validateCoverageForTest(
       generatedSourceLength: Int,
@@ -263,6 +274,7 @@ private[quasiquotes] object LocatedDefinitionTemplate:
     val expectedBody =
       template match
         case method: DefinitionTemplate.ParameterlessDef => method.body
+        case method: DefinitionTemplate.SingleParameterDef => method.body
         case value: DefinitionTemplate.ImmutableVal => value.rhs
     val occurrences =
       body.termOccurrences.map(_.source) ++ body.typeOccurrences
@@ -398,6 +410,8 @@ private[quasiquotes] object LocatedDefinitionTemplate:
   ): TypeTemplate =
     template match
       case method: DefinitionTemplate.ParameterlessDef =>
+        method.resultType
+      case method: DefinitionTemplate.SingleParameterDef =>
         method.resultType
       case value: DefinitionTemplate.ImmutableVal =>
         value.declaredType

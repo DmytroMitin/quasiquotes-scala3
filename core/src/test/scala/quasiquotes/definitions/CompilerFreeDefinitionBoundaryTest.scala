@@ -47,6 +47,7 @@ class CompilerFreeDefinitionBoundaryTest extends munit.FunSuite:
 
     assert(!shapeSource.contains("case class ParameterlessDef"))
     assert(!shapeSource.contains("case class ImmutableVal"))
+    assert(!shapeSource.contains("case class SingleParameterDef"))
     assert(metadataSource.contains("final class DefinitionComponentSpans private ("))
     assert(metadataSource.contains("final class LocatedDefinitionShape private ("))
 
@@ -57,12 +58,16 @@ class CompilerFreeDefinitionBoundaryTest extends munit.FunSuite:
 
     assert(templateSource.contains("final class ParameterlessDef private[DefinitionTemplate] ("))
     assert(templateSource.contains("final class ImmutableVal private[DefinitionTemplate] ("))
+    assert(templateSource.contains("final class SingleParameterDef private[DefinitionTemplate] ("))
     assert(constructedSource.contains("final class ParameterlessDef private[ConstructedDefinition] ("))
     assert(constructedSource.contains("final class ImmutableVal private[ConstructedDefinition] ("))
+    assert(constructedSource.contains("final class SingleParameterDef private[ConstructedDefinition] ("))
     assert(!templateSource.contains("case class ParameterlessDef"))
     assert(!templateSource.contains("case class ImmutableVal"))
+    assert(!templateSource.contains("case class SingleParameterDef"))
     assert(!constructedSource.contains("case class ParameterlessDef"))
     assert(!constructedSource.contains("case class ImmutableVal"))
+    assert(!constructedSource.contains("case class SingleParameterDef"))
   }
 
   test("definition core has exactly the admitted template and completed variants") {
@@ -74,11 +79,11 @@ class CompilerFreeDefinitionBoundaryTest extends munit.FunSuite:
 
     assertEquals(
       "final class ".r.findAllMatchIn(templateSource).size,
-      2
+      3
     )
     assertEquals(
       "final class ".r.findAllMatchIn(constructedSource).size,
-      2
+      3
     )
   }
 
