@@ -73,10 +73,11 @@ snippet drift check compares them byte for byte.
 Public type diagnostics describe the supported boundary without development
 chronology or generated placeholder names.
 
-## License status
+## License
 
-No software license has been selected. Public visibility and third-party use
-must wait for an explicit license decision.
+This project is licensed under the Apache License, Version 2.0. See
+[LICENSE](LICENSE). Repository visibility and remote artifact publication
+remain separate decisions; no artifact is currently available remotely.
 
 Support expectations are intentionally conservative; see [Support](SUPPORT.md)
 and [Security policy](SECURITY.md). A private security-reporting channel is not

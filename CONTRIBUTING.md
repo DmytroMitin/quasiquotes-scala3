@@ -4,10 +4,12 @@ This repository is experimental and is not yet accepting a stable compatibility
 commitment. Discuss substantial API, syntax, module, or compatibility changes
 before implementation.
 
-Contributions cannot be accepted for public redistribution until the repository
-has an explicitly selected license and contribution terms. This document
-describes the intended technical workflow; it does not grant rights absent a
-license.
+The project is licensed under the
+[Apache License, Version 2.0](LICENSE). Unless explicitly stated otherwise or
+covered by a separate agreement, an intentional contribution submitted for
+inclusion is provided under the terms of that license, as described by its
+Section 5. Contributors do not transfer copyright merely by contributing; this
+repository imposes no CLA, DCO, or copyright-assignment requirement.
 
 ## Development baseline
 

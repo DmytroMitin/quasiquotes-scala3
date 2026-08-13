@@ -5,11 +5,13 @@ not authorize a release.
 
 ## Required decisions and metadata
 
-Before remote publication, select and review a software license, artifact host,
-signing workflow where required, release version, security contact, and explicit
-release authorization. Populate license and developer metadata only from those
-approved inputs. Keep the repository private until the separate visibility gate
-is approved.
+Apache License 2.0 is selected and recorded in the root `LICENSE`; intended
+`core` and `frontend` POMs and JARs carry matching metadata. Before remote
+publication, re-audit that distribution metadata and select an artifact host,
+signing workflow where required, release version, security contact, and
+explicit release authorization. Populate developer metadata only from approved
+inputs. Keep the repository private until the separate visibility gate is
+approved.
 
 ## Candidate preparation
 
@@ -33,8 +35,9 @@ is approved.
    normalize the release files merely to claim reproducibility.
 
 Every local bundle must be labeled as unsigned local review evidence, not a
-release, not published, without a selected license, and without public
-visibility authorization.
+release, not published, and without public-visibility authorization. It must
+carry the canonical Apache-2.0 license in the POM and binary, source, and
+documentation JARs.
 
 ## Authorized remote release
 
@@ -42,9 +45,9 @@ Only after the decisions above are complete may a separate task configure the
 selected host and credentials, sign where required, publish a reviewed version,
 verify remote coordinates from clean consumers, and separately create any tag
 or release notes. Ordinary pushes must never publish artifacts. A release must
-fail closed when version, license, host, credentials, or signing inputs are
-missing.
+fail closed when version, license distribution, host, credentials, or signing
+inputs are missing.
 
-No dormant publication workflow is included yet: host, signing, and license
-decisions remain unresolved, so a reviewed manual runbook is safer than
-premature automation.
+No dormant publication workflow is included yet: host, signing, version, and
+release authorization remain unresolved, so a reviewed manual runbook is safer
+than premature automation.

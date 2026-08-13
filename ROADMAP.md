@@ -9,6 +9,8 @@ delivery chronology.
 - Keep `frontend` compiler-version-coupled and test source parsing, matching,
   construction, diagnostics, and quoted lowering together.
 - Keep `dottyInternal` source visible but its artifact unpublished.
+- Preserve Apache-2.0 POM and JAR metadata for intended `core` and `frontend`
+  distributions.
 - Expand structural term and type support through narrow, test-backed slices.
 - Maintain end-to-end recursive `List`/`Option` and binary `Either` support
   without turning fixed constructor admission into a general type resolver.
@@ -16,7 +18,7 @@ delivery chronology.
 
 ## Before a public preview
 
-- Select and review a software license and copyright policy.
+- Reconfirm the Apache-2.0 provenance/attribution audit remains current.
 - Complete security, support, contribution, and community-policy review.
 - Run independent source/history secret scanning and a human public-content
   audit.

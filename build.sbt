@@ -31,8 +31,21 @@ lazy val commonSettings = Seq(
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
 )
 
+lazy val publicationLicenseSettings = Seq(
+  licenses := Seq(
+    "Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0")
+  ),
+  Compile / packageBin / mappings +=
+    baseDirectory.value.getParentFile / "LICENSE" -> "META-INF/LICENSE",
+  Compile / packageSrc / mappings +=
+    baseDirectory.value.getParentFile / "LICENSE" -> "META-INF/LICENSE",
+  Compile / packageDoc / mappings +=
+    baseDirectory.value.getParentFile / "LICENSE" -> "META-INF/LICENSE"
+)
+
 lazy val core = (project in file("core"))
   .settings(commonSettings)
+  .settings(publicationLicenseSettings)
   .settings(
     name := "quasiquotes-scala3-core",
     description := "Compiler-free structural quasiquote values and algorithms for Scala 3",
@@ -122,6 +135,7 @@ lazy val core = (project in file("core"))
 lazy val frontend = (project in file("frontend"))
   .dependsOn(core % "compile->compile;test->test")
   .settings(commonSettings)
+  .settings(publicationLicenseSettings)
   .settings(
     name := "quasiquotes-scala3-frontend",
     description := "Scala compiler-coupled parsing, reflection, and quasiquote frontend",

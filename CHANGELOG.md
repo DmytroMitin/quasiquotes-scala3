@@ -8,6 +8,8 @@ applicable. Dates and release links are added only when a release exists.
 
 ### Added
 
+- Apache License 2.0 project, POM, and binary/source/documentation JAR metadata
+  for the intended `core` and `frontend` distributions.
 - Compiler-free structural values, construction, matching, normal forms,
   source metadata, and a bounded public contextual-method description.
 - Compiler-coupled source parsing, quoted lowering, diagnostics, term
