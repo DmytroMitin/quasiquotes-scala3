@@ -34,5 +34,7 @@ changes.
 Do not include credentials, private repository links, machine-local paths, or
 generated build output.
 
-Do not report sensitive vulnerabilities in a public issue. The unresolved
-private reporting-channel gate is documented in [SECURITY.md](SECURITY.md).
+Non-sensitive security questions may use the ordinary issue tracker when it is
+available. Do not post sensitive vulnerabilities, secrets, exploit details, or
+private source in a public issue merely to obtain maintainer attention. The
+current reporting boundary is documented in [SECURITY.md](SECURITY.md).

@@ -31,4 +31,6 @@ applicable. Dates and release links are added only when a release exists.
 
 ### Security
 
-- No private reporting channel or released supported version exists yet.
+- No private reporting channel is currently offered or promised, no production
+  security review or response SLA is claimed, and no released supported
+  version exists yet.

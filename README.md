@@ -51,6 +51,7 @@ are provisional local evidence, not a release or remote-availability claim.
 See [Getting started](docs/GETTING_STARTED.md),
 [diagnostics](docs/DIAGNOSTICS.md),
 [architecture](docs/ARCHITECTURE.md),
+[exact constructor backend](docs/EXACT_BACKEND_CONSTRUCTOR_NEW.md),
 [supported syntax and limitations](docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md),
 [compatibility](docs/COMPATIBILITY.md),
 [public API shape compatibility review](docs/API_COMPATIBILITY_REVIEW.md),
@@ -87,8 +88,9 @@ This project is licensed under the Apache License, Version 2.0. See
 remain separate decisions; no artifact is currently available remotely.
 
 Support expectations are intentionally conservative; see [Support](SUPPORT.md)
-and [Security policy](SECURITY.md). A private security-reporting channel is not
-yet available and remains a public-visibility gate.
+and [Security policy](SECURITY.md). No private security-reporting channel is
+currently offered or promised for this experimental research stage. Do not
+post sensitive material publicly merely to obtain maintainer attention.
 
 The experimental frontend also supports bounded fully-qualified constructor
 expressions such as `new java.lang.StringBuilder(16)` for `qr` construction and

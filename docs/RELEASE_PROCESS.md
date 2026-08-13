@@ -8,10 +8,10 @@ not authorize a release.
 Apache License 2.0 is selected and recorded in the root `LICENSE`; intended
 `core` and `frontend` POMs and JARs carry matching metadata. Before remote
 publication, re-audit that distribution metadata and select an artifact host,
-signing workflow where required, release version, security contact, and
-explicit release authorization. Populate developer metadata only from approved
-inputs. Keep the repository private until the separate visibility gate is
-approved.
+signing workflow where required, release version, the then-current security
+policy, and explicit release authorization. Populate developer metadata only
+from approved inputs. Source visibility remains a separate decision from
+artifact publication.
 
 ## Candidate preparation
 

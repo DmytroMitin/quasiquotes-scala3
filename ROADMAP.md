@@ -12,9 +12,9 @@ delivery chronology.
 - Preserve Apache-2.0 POM and JAR metadata for intended `core` and `frontend`
   distributions.
 - Expand structural term and type support through narrow, test-backed slices.
-- Preserve the accepted compiler-free one-ordinary-parameter definition core
-  while its public first-use/source metadata and exact backend remain separate
-  later gates.
+- Preserve the bounded compiler-free one-ordinary-parameter definition core,
+  core-only public identity-method first use, and unpublished exact backend
+  without implying a general source adapter or placement policy.
 - Maintain end-to-end recursive `List`/`Option` and binary `Either` support
   without turning fixed constructor admission into a general type resolver.
 - Preserve a deterministic clean aggregate build and external-package examples.
@@ -22,12 +22,14 @@ delivery chronology.
 ## Before a public preview
 
 - Reconfirm the Apache-2.0 provenance/attribution audit remains current.
-- Complete security, support, contribution, and community-policy review.
-- Run independent source/history secret scanning and a human public-content
-  audit.
-- Freeze a versioning and compatibility promise that matches the experimental
-  compiler-internal surface.
-- Establish a real private security-reporting channel.
+- Keep security, support, contribution, and community-policy wording current
+  with the experimental research status.
+- Run independent source/history residual scanning and a human public-content
+  audit for each visibility candidate.
+- Keep the documented experimental early-semver and compiler-line policy
+  aligned with the reviewed public API inventory.
+- Reconsider whether a private security-reporting channel is warranted as the
+  project and its support commitments evolve; none is currently promised.
 
 ## Before remote artifact publication
 

@@ -15,5 +15,5 @@ support surface. See [Compatibility](docs/COMPATIBILITY.md) and
 before reporting unsupported syntax as a defect.
 
 Security-sensitive material must not be posted publicly; see
-[Security policy](SECURITY.md). A private reporting channel remains a required
-pre-visibility decision.
+[Security policy](SECURITY.md). No private reporting channel is currently
+offered or promised; a channel may be added later.

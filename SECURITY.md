@@ -12,18 +12,20 @@ policy in [Versioning and stability](docs/VERSIONING_AND_STABILITY.md) applies.
 
 ## Reporting
 
-A private security-reporting channel has not yet been established. Do not put
-secrets, exploit details, or sensitive repository data in a public issue.
-Non-sensitive security questions may use the ordinary issue tracker after the
-repository becomes public.
+No private security-reporting channel is currently offered or promised for
+this experimental research stage. Non-sensitive security questions may use
+the ordinary issue tracker when it is available. Do not put secrets, exploit
+details, sensitive repository data, or private source in a public issue merely
+to obtain maintainer attention.
 
-Establishing and publishing a private reporting channel is a required gate
-before public visibility. This file deliberately does not invent an email
-address or promise an unavailable service.
+A private reporting channel may be added later. Until then, this policy does
+not invent an address, form, confidential intake mechanism, response service,
+or availability promise.
 
 ## Scope and expectations
 
 Reports should identify the affected module and compiler version, provide a
 minimal reproduction when safe, and distinguish parser/frontend behavior from
 the unpublished `dottyInternal` integration layer. Response times and security
-support levels are not guaranteed for this experimental project.
+support levels are not guaranteed for this experimental project. No production
+security review or response SLA is promised.
