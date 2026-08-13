@@ -140,9 +140,11 @@ core	quasiquotes.publicapi	class	CompletedType	CompletedType
 core	quasiquotes.publicapi	class	DefinitionResultView	DefinitionResultView
 core	quasiquotes.publicapi	class	FailureAnchor	FailureAnchor
 core	quasiquotes.publicapi	class	PublicFailure	PublicFailure
+core	quasiquotes.publicapi	class	SingleParameterMethodResultView	SingleParameterMethodResultView
 core	quasiquotes.publicapi	object	CompletedTerm	CompletedTerm
 core	quasiquotes.publicapi	object	CompletedType	CompletedType
 core	quasiquotes.publicapi	object	DefinitionConstruction	DefinitionConstruction
+core	quasiquotes.publicapi.CompletedTerm	def	definitionParameterReference	definitionParameterReference(name: String): Either[PublicFailure, CompletedTerm]
 core	quasiquotes.publicapi.CompletedTerm	def	kindCode	kindCode: String
 core	quasiquotes.publicapi.CompletedTerm	def	reference	reference(name: String): Either[PublicFailure, CompletedTerm]
 core	quasiquotes.publicapi.CompletedTerm	def	source	source: String
@@ -158,6 +160,7 @@ core	quasiquotes.publicapi.CompletedType	def	source	source: String
 core	quasiquotes.publicapi.CompletedType	def	typeParameter	typeParameter(name: String): Either[PublicFailure, CompletedType]
 core	quasiquotes.publicapi.CompletedType	given	derived$CanEqual	derived$CanEqual: CanEqual[CompletedType, CompletedType]
 core	quasiquotes.publicapi.DefinitionConstruction	def	contextualMethod	contextualMethod(name: String, typeParameterName: String, contextualParameterName: String, contextualParameterType: CompletedType, resultType: CompletedType, body: CompletedTerm): Either[PublicFailure, DefinitionResultView]
+core	quasiquotes.publicapi.DefinitionConstruction	def	singleParameterMethod	singleParameterMethod(name: String, parameterName: String, parameterType: CompletedType, resultType: CompletedType, body: CompletedTerm): Either[PublicFailure, SingleParameterMethodResultView]
 core	quasiquotes.publicapi.DefinitionResultView	def	kindCode	kindCode: String
 core	quasiquotes.publicapi.DefinitionResultView	val	body	body: CompletedTerm
 core	quasiquotes.publicapi.DefinitionResultView	val	contextualParameterName	contextualParameterName: String
@@ -170,6 +173,13 @@ core	quasiquotes.publicapi.FailureAnchor	val	ordinal	ordinal: Option[Int]
 core	quasiquotes.publicapi.PublicFailure	val	anchor	anchor: Option[FailureAnchor]
 core	quasiquotes.publicapi.PublicFailure	val	code	code: String
 core	quasiquotes.publicapi.PublicFailure	val	message	message: String
+core	quasiquotes.publicapi.SingleParameterMethodResultView	def	kindCode	kindCode: String
+core	quasiquotes.publicapi.SingleParameterMethodResultView	def	source	source: String
+core	quasiquotes.publicapi.SingleParameterMethodResultView	val	body	body: CompletedTerm
+core	quasiquotes.publicapi.SingleParameterMethodResultView	val	name	name: String
+core	quasiquotes.publicapi.SingleParameterMethodResultView	val	parameterName	parameterName: String
+core	quasiquotes.publicapi.SingleParameterMethodResultView	val	parameterType	parameterType: CompletedType
+core	quasiquotes.publicapi.SingleParameterMethodResultView	val	resultType	resultType: CompletedType
 core	quasiquotes.source	class	DiagnosticLocation	DiagnosticLocation(sourceId: SourceId, span: SourceSpan, origins: Vector[SourceOrigin], precision: DiagnosticPrecision)
 core	quasiquotes.source	class	GeneratedHoleIndex	GeneratedHoleIndex
 core	quasiquotes.source	class	GeneratedSegment	GeneratedSegment(generatedSpan: SourceSpan, origin: SourceOrigin)

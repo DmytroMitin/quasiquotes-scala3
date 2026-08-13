@@ -1,5 +1,7 @@
 package quasiquotes.publicapi
 
+import quasiquotes.parser.TermShape
+
 final class BoundedPublicCoreTest extends munit.FunSuite:
   private def rightValue[A](value: Either[PublicFailure, A]): A =
     value match
@@ -137,3 +139,102 @@ final class BoundedPublicCoreTest extends munit.FunSuite:
 
     assertEquals(first, second)
     assertEquals(first.hashCode, second.hashCode)
+
+  test("constructs and projects a bound single-parameter identity method"):
+    val intType = rightValue(CompletedType.named("Int"))
+    val body = rightValue(CompletedTerm.definitionParameterReference("x"))
+    val result = rightValue(
+      DefinitionConstruction.singleParameterMethod(
+        "id",
+        "x",
+        intType,
+        intType,
+        body
+      )
+    )
+
+    assertEquals(result.kindCode, "single-parameter-method")
+    assertEquals(result.name, "id")
+    assertEquals(result.parameterName, "x")
+    assertEquals(result.parameterType, intType)
+    assertEquals(result.resultType, intType)
+    assertEquals(result.body.kindCode, "definition-parameter-reference")
+    assertEquals(result.body.source, "x")
+    assertEquals(result.source, "def id(x: Int): Int = x")
+
+  test("keeps free and definition-parameter references semantically distinct"):
+    val free = rightValue(CompletedTerm.reference("x"))
+    val bound = rightValue(CompletedTerm.definitionParameterReference("x"))
+
+    assertEquals(free.kindCode, "reference")
+    assertEquals(bound.kindCode, "definition-parameter-reference")
+    assertNotEquals(free, bound)
+
+  test("constructs the public body as a real internal bound reference"):
+    val intType = rightValue(CompletedType.named("Int"))
+    val body = rightValue(CompletedTerm.definitionParameterReference("x"))
+    val constructed = rightValue(
+      DefinitionConstruction.constructSingleParameterMethod(
+        "id",
+        "x",
+        intType,
+        intType,
+        body
+      )
+    )
+
+    constructed.body.root match
+      case TermShape.BoundReference(binderId, "x") =>
+        assertEquals(binderId, constructed.parameterBinderId)
+      case other =>
+        fail(s"expected the method binder reference, found ${other.render}")
+
+  test("rejects a free same-text body instead of guessing binding by name"):
+    val intType = rightValue(CompletedType.named("Int"))
+    val freeBody = rightValue(CompletedTerm.reference("x"))
+    val failure = DefinitionConstruction
+      .singleParameterMethod("id", "x", intType, intType, freeBody)
+      .left
+      .toOption
+      .getOrElse(fail("expected failure"))
+
+    assertEquals(failure.code, "invalid-single-parameter-method-contract")
+    assertEquals(failure.anchor.map(_.componentCode), Some("body"))
+
+  test("rejects a mismatched explicit parameter-reference name"):
+    val intType = rightValue(CompletedType.named("Int"))
+    val body = rightValue(CompletedTerm.definitionParameterReference("other"))
+    val failure = DefinitionConstruction
+      .singleParameterMethod("id", "x", intType, intType, body)
+      .left
+      .toOption
+      .getOrElse(fail("expected failure"))
+
+    assertEquals(failure.code, "invalid-single-parameter-method-contract")
+    assertEquals(failure.anchor.map(_.componentCode), Some("body"))
+
+  test("rejects an unsupported parameter type with a stable anchor"):
+    val unsupported = rightValue(CompletedType.named("Show"))
+    val intType = rightValue(CompletedType.named("Int"))
+    val body = rightValue(CompletedTerm.definitionParameterReference("x"))
+    val failure = DefinitionConstruction
+      .singleParameterMethod("id", "x", unsupported, intType, body)
+      .left
+      .toOption
+      .getOrElse(fail("expected failure"))
+
+    assertEquals(failure.code, "invalid-single-parameter-method-contract")
+    assertEquals(failure.anchor.map(_.componentCode), Some("parameter-type"))
+
+  test("rejects an identity body whose result type differs from its parameter"):
+    val intType = rightValue(CompletedType.named("Int"))
+    val stringType = rightValue(CompletedType.named("String"))
+    val body = rightValue(CompletedTerm.definitionParameterReference("x"))
+    val failure = DefinitionConstruction
+      .singleParameterMethod("id", "x", intType, stringType, body)
+      .left
+      .toOption
+      .getOrElse(fail("expected failure"))
+
+    assertEquals(failure.code, "invalid-single-parameter-method-contract")
+    assertEquals(failure.anchor.map(_.componentCode), Some("result-type"))

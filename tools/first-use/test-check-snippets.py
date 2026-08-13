@@ -25,6 +25,11 @@ class CheckSnippetsTest(unittest.TestCase):
             "// snippet:core-first-use:end\n",
             encoding="utf-8",
         )
+        (core_sources / "DefinitionFirstUseSnippet.scala").write_text(
+            "// snippet:definition-first-use:start\nval definition = 4\n"
+            "// snippet:definition-first-use:end\n",
+            encoding="utf-8",
+        )
         (sources / "FrontendFirstUseSnippet.scala").write_text(
             "// snippet:frontend-first-use:start\nval frontend = 2\n"
             "// snippet:frontend-first-use:end\n",
@@ -38,6 +43,9 @@ class CheckSnippetsTest(unittest.TestCase):
         (docs / "GETTING_STARTED.md").write_text(
             "<!-- snippet:core-first-use:start -->\n```scala\nval core = 1\n```\n"
             "<!-- snippet:core-first-use:end -->\n"
+            "<!-- snippet:definition-first-use:start -->\n"
+            "```scala\nval definition = 4\n```\n"
+            "<!-- snippet:definition-first-use:end -->\n"
             "<!-- snippet:frontend-first-use:start -->\n```scala\nval frontend = 2\n```\n"
             "<!-- snippet:frontend-first-use:end -->\n"
             "<!-- snippet:lambda1-first-use:start -->\n```scala\n"
@@ -63,7 +71,7 @@ class CheckSnippetsTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(
-                "First-use snippets aligned: core-first-use, frontend-first-use, lambda1-first-use",
+                "First-use snippets aligned: core-first-use, definition-first-use, frontend-first-use, lambda1-first-use",
                 result.stdout,
             )
 

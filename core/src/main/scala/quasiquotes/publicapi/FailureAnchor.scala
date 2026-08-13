@@ -26,5 +26,7 @@ private[publicapi] object FailureAnchor:
     new FailureAnchor("contextual-parameter-name", None)
   val ContextualParameterType =
     new FailureAnchor("contextual-parameter-type", None)
+  val ParameterName = new FailureAnchor("parameter-name", None)
+  val ParameterType = new FailureAnchor("parameter-type", None)
   val ResultType = new FailureAnchor("result-type", None)
   val Body = new FailureAnchor("body", None)

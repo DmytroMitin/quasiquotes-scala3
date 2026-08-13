@@ -9,15 +9,16 @@ Currently exercised areas include:
   operations, and standard string interpolation in bounded structural forms;
 - ordinary lambdas with exactly one explicitly typed parameter, with scoped
   binder identity, alpha-aware construction/matching, and complete-body holes;
-- an internal compiler-free ordinary method shape with exactly one explicitly
-  named and typed value parameter, explicit result type, scoped parameter
-  references, and alpha-aware template/completion semantics;
+- a compiler-free public identity-method constructor with exactly one explicitly
+  named and typed ordinary parameter, plus a richer package-private definition
+  shape with scoped references and alpha-aware template/completion semantics;
 - type identifiers, selections, applications, tuples, functions, wildcards,
   unions/intersections, annotations, refinements, and selected bounds/match
   forms;
 - term and type holes with collision-safe rewriting and repeated-hole checks;
 - compiler-free term/type/definition templates and completed values;
-- one bounded public contextual-method construction contract;
+- bounded public contextual-method and single-ordinary-parameter construction
+  contracts;
 - source spans, diagnostic anchors, and exact-version lowering adapters;
 - recursively nested `List` and `Option` types plus binary `Either`, with
   structural argument order, repeated type holes, construction, quoted
@@ -32,8 +33,9 @@ Important limitations:
   lambdas, binder-name holes, local definitions, and general blocks;
 - compiler-internal behavior is exact-version-sensitive;
 - public definition construction is intentionally narrow;
-- the one-parameter method shape has no public source interpolator, located
-  parameter-span carrier, or exact untyped/generated-origin backend yet;
+- the one-parameter method surface has no public source interpolator, located
+  parameter-span carrier, arithmetic/literal/general-expression body builder,
+  or exact untyped/generated-origin backend yet;
 - interpolation and type support expands incrementally, so unsupported shapes
   return explicit errors rather than falling back to unchecked trees;
 - ordinary quoted standard-`s` interpolation has a bounded exact internal
@@ -80,9 +82,24 @@ references through project binder identity and consumes the completed
 parameter-type sidecar. Nested lambdas and broader lambda/block syntax remain
 outside that internal contract and fail closed.
 
-## Single ordinary-parameter definition core
+## Single ordinary-parameter definitions
 
-The package-private compiler-free definition model admits the bounded family:
+The public compiler-free first-use surface admits the identity-like subset:
+
+```scala
+def id(x: Int): Int = x
+def keep(x: String): String = x
+```
+
+Call `CompletedTerm.definitionParameterReference("x")` and pass the result to
+`DefinitionConstruction.singleParameterMethod`. A plain
+`CompletedTerm.reference("x")` remains a free stable reference and is rejected
+by this definition constructor. Parameter and result types must be equal for
+the parameter-reference body, and both must belong to the existing bounded
+constructible type family.
+
+The package-private compiler-free definition model additionally admits bodies
+from the existing bounded internal term family, including:
 
 ```scala
 def id(x: Int): Int = x
@@ -98,14 +115,19 @@ when corresponding references remain bound, while a free same-text identifier
 remains distinct. Parameter/result types, the definition name, and non-bound
 body structure remain significant.
 
+The public result is a projection, not the internal definition value. It exposes
+only the method kind, names, completed types, explicit body projection, and a
+coherent source rendering. `BinderId`, `TermShape`, constructed/template
+definitions, source maps, and compiler trees remain package-private.
+
 This is not a general parameter-list model. Multiple clauses or parameters,
 contextual/implicit/type parameters, defaults, varargs, by-name or erased
 parameters, dependent methods, local definitions, binder-name holes, and
-general owner/placement policy remain unsupported. The existing located
-definition carrier cannot truthfully describe both parameter and result-type
-spans, so it rejects this variant until a dedicated source-usability tranche.
-Both exact definition backends also reject it explicitly; no one-parameter
-`DefDef` lowering is claimed here.
+general owner/placement policy remain unsupported. Richer public bodies and a
+source adapter are not implied. The existing located definition carrier cannot
+truthfully describe both parameter and result-type spans, so it still rejects
+this variant. Both exact definition backends also reject it explicitly; no
+one-parameter `DefDef` lowering is claimed here.
 
 Unsupported type inputs report the rejected constructor, selected syntax,
 expected arity, or unsupported family where available. Located source adapters

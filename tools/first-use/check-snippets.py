@@ -10,6 +10,9 @@ SNIPPETS = {
     "core-first-use": Path(
         "public-core-examples/src/test/scala/external/consumer/CoreFirstUseSnippet.scala"
     ),
+    "definition-first-use": Path(
+        "public-core-examples/src/test/scala/external/consumer/DefinitionFirstUseSnippet.scala"
+    ),
     "frontend-first-use": Path(
         "public-api-examples/src/test/scala/external/consumer/FrontendFirstUseSnippet.scala"
     ),

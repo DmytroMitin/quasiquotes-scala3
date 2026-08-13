@@ -5,7 +5,8 @@ their existing failure types.
 
 ## Core failures
 
-The bounded contextual-method API returns `Either[PublicFailure, A]`.
+The bounded contextual-method and single-parameter-method APIs return
+`Either[PublicFailure, A]`.
 `PublicFailure.code` is the experimental machine-readable identity, `message`
 is presentation text, and `anchor` identifies the affected component when one
 exists.
@@ -21,6 +22,14 @@ assert(failure.message == "A type application requires at least one argument.")
 
 Other first-use codes include `invalid-name`, `undeclared-type-parameter`, and
 `invalid-contextual-method-contract`.
+
+`DefinitionConstruction.singleParameterMethod` adds one stable code:
+`invalid-single-parameter-method-contract`. Its anchors distinguish
+`parameter-name`, `parameter-type`, `result-type`, and `body`. Representative
+failures include an unsupported completed type, a free reference passed where
+an explicit definition-parameter reference is required, a mismatched reference
+name, and unequal parameter/result types for the identity body. Messages remain
+presentation text; consumers should branch on the code and anchor.
 
 ## Frontend located failures
 

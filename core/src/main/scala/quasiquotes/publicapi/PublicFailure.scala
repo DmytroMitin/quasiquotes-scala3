@@ -55,5 +55,15 @@ private[publicapi] object PublicFailure:
       Some(anchor)
     )
 
+  def invalidSingleParameterMethodContract(
+      detail: String,
+      anchor: FailureAnchor
+  ): PublicFailure =
+    new PublicFailure(
+      "invalid-single-parameter-method-contract",
+      detail,
+      Some(anchor)
+    )
+
   def internalInvariant(detail: String): PublicFailure =
     new PublicFailure("internal-invariant", detail, None)

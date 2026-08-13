@@ -58,7 +58,7 @@ See [Getting started](docs/GETTING_STARTED.md),
 [release process](docs/RELEASE_PROCESS.md).
 
 The machine-readable [public API baseline](docs/PUBLIC_API_BASELINE.tsv)
-contains 284 core and 291 frontend Scaladoc-visible entries. It excludes the
+contains 294 core and 291 frontend Scaladoc-visible entries. It excludes the
 root, unpublished `dottyInternal`, and package-private internals and is a diff
 baseline rather than a compatibility promise.
 
@@ -72,6 +72,13 @@ are mirrored from compiled external-package fixtures, and the repository's
 snippet drift check compares them byte for byte.
 Public type diagnostics describe the supported boundary without development
 chronology or generated placeholder names.
+
+The compiler-free public API also constructs the bounded identity-method form
+`def id(x: Int): Int = x`. Its explicit definition-parameter body reference is
+internally converted to the package-private binder-aware definition core; a
+free same-text `CompletedTerm.reference` is never captured implicitly. This is
+a semantic construction/projection API, not a source parser or method-placement
+backend.
 
 ## License
 

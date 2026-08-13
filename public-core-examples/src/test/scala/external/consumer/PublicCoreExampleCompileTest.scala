@@ -43,6 +43,38 @@ final class PublicCoreExampleCompileTest extends munit.FunSuite:
     assertEquals(result.resultType.source, "Show[A]")
     assertEquals(result.body.referenceName, "instance")
 
+  test("external core-only consumer constructs and projects an identity method"):
+    val result = DefinitionFirstUseSnippet.identity.toOption
+      .getOrElse(fail("expected identity method"))
+
+    assertEquals(result.kindCode, "single-parameter-method")
+    assertEquals(result.name, "id")
+    assertEquals(result.parameterName, "x")
+    assertEquals(result.parameterType.source, "Int")
+    assertEquals(result.resultType.source, "Int")
+    assertEquals(result.body.kindCode, "definition-parameter-reference")
+    assertEquals(result.source, "def id(x: Int): Int = x")
+
+  test("external core-only consumer receives an actionable unsupported parameter type"):
+    val result =
+      for
+        unsupported <- CompletedType.named("Show")
+        intType <- CompletedType.named("Int")
+        parameter <- CompletedTerm.definitionParameterReference("x")
+        method <- DefinitionConstruction.singleParameterMethod(
+          "id", "x", unsupported, intType, parameter
+        )
+      yield method
+    val failure = result.left.toOption.getOrElse(fail("expected failure"))
+
+    assertEquals(failure.code, "invalid-single-parameter-method-contract")
+    assertEquals(failure.anchor.map(_.componentCode), Some("parameter-type"))
+    assert(
+      failure.message.contains(
+        "Unsupported type-construction identifier `Show`"
+      )
+    )
+
   test("external consumer receives stable method-name failure"):
     val failure = showMethod(methodName = "bad-name").left.toOption.get
     assertEquals(failure.code, "invalid-name")

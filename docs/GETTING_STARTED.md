@@ -53,6 +53,35 @@ For example, an empty type-application argument vector returns code
 `invalid-type-application`, anchor `type-application`, and the message
 `A type application requires at least one argument.`
 
+## Single-parameter definition first use
+
+The compiler-free core can also construct the bounded identity-method family.
+The body factory is deliberately explicit: it creates a definition-parameter
+reference, not a free same-text stable reference.
+
+<!-- snippet:definition-first-use:start -->
+```scala
+import quasiquotes.publicapi.*
+
+object DefinitionFirstUseSnippet:
+  val identity: Either[PublicFailure, SingleParameterMethodResultView] =
+    for
+      intType <- CompletedType.named("Int")
+      parameter <- CompletedTerm.definitionParameterReference("x")
+      method <- DefinitionConstruction.singleParameterMethod(
+        "id", "x", intType, intType, parameter
+      )
+    yield method
+```
+<!-- snippet:definition-first-use:end -->
+
+On success, `identity.map(_.source)` contains
+`def id(x: Int): Int = x`. The result exposes the name, parameter name and
+type, result type, explicit body projection, and rendering. A free
+`CompletedTerm.reference("x")` is rejected rather than silently captured.
+This surface constructs a compiler-free semantic value; it does not place,
+lower, or execute a Scala method.
+
 ## Matching-line frontend
 
 The frontend coordinate includes the full Scala compiler version. It must

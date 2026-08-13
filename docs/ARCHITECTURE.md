@@ -14,8 +14,10 @@ construction and matching algorithms, and neutral source/diagnostic metadata.
 Its compile and runtime classpaths must not contain Scala compiler artifacts.
 Its package-private definition model reuses the same `BinderId` scope algebra
 as Lambda1 for one ordinary method parameter; display spelling never replaces
-semantic identity. The current source-metadata carrier and exact definition
-backends deliberately stop before this new variant.
+semantic identity. The public compiler-free identity-method constructor creates
+that package-private bound-reference representation and returns only a narrow
+projection. The current source-metadata carrier and exact definition backends
+deliberately stop before this new variant.
 
 `frontend` owns source parsing, macros, quoted reflection, source-to-core
 adapters, and compiler-version-sensitive lowering. It uses full Scala compiler
