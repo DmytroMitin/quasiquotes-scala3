@@ -70,7 +70,7 @@ private[quasiquotes] object ConstructedTermGeneratedOriginError:
   final case class OutOfScopeBoundReference(binderId: Int)
       extends ConstructedTermGeneratedOriginError:
     def message: String =
-      s"Cannot render Lambda1 bound reference for inactive binder identity $binderId."
+      s"Cannot render bound reference for inactive binder identity $binderId."
 
   case object NestedLambda1Unsupported
       extends ConstructedTermGeneratedOriginError:

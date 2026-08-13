@@ -34,8 +34,8 @@ Important limitations:
 - compiler-internal behavior is exact-version-sensitive;
 - public definition construction is intentionally narrow;
 - the one-parameter method surface has no public source interpolator, located
-  parameter-span carrier, arithmetic/literal/general-expression body builder,
-  or exact untyped/generated-origin backend yet;
+  parameter-span carrier, or arithmetic/literal/general-expression body
+  builder; its exact untyped/generated-origin backend remains package-private;
 - interpolation and type support expands incrementally, so unsupported shapes
   return explicit errors rather than falling back to unchecked trees;
 - ordinary quoted standard-`s` interpolation has a bounded exact internal
@@ -126,8 +126,18 @@ parameters, dependent methods, local definitions, binder-name holes, and
 general owner/placement policy remain unsupported. Richer public bodies and a
 source adapter are not implied. The existing located definition carrier cannot
 truthfully describe both parameter and result-type spans, so it still rejects
-this variant. Both exact definition backends also reject it explicitly; no
-one-parameter `DefDef` lowering is claimed here.
+this variant.
+
+The unpublished exact internal backend supports this same compiler-free shape
+in two modes. Source-free lowering constructs one ordinary parameter `ValDef`
+and a `DefDef` directly with no source, meaningful span, symbol, owner, parser,
+or typer claim. Generated-origin lowering renders deterministic ordinary Scala
+and recursively assigns parser-equivalent positions under one virtual source.
+Both modes resolve bound references by the project binder identity and emit the
+validated parameter declaration spelling, while free same-text identifiers
+remain free. Foreign binder identities and missing, unsupported, or unconsumed
+completed type sidecars fail closed. The backend does not expand the admitted
+parameter-list syntax or make a general placement/owner promise.
 
 Unsupported type inputs report the rejected constructor, selected syntax,
 expected arity, or unsupported family where available. Located source adapters

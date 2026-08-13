@@ -16,8 +16,12 @@ Its package-private definition model reuses the same `BinderId` scope algebra
 as Lambda1 for one ordinary method parameter; display spelling never replaces
 semantic identity. The public compiler-free identity-method constructor creates
 that package-private bound-reference representation and returns only a narrow
-projection. The current source-metadata carrier and exact definition backends
-deliberately stop before this new variant.
+projection. The current source-metadata carrier remains package-private. The
+exact definition backend lowers this one-parameter variant directly to an
+ordinary raw `DefDef` in source-free mode and to a canonical, recursively
+positioned generated-origin tree. Both modes map the project `BinderId` to the
+validated parameter declaration spelling; they do not manufacture compiler
+symbols or treat reference display text as binding.
 
 `frontend` owns source parsing, macros, quoted reflection, source-to-core
 adapters, and compiler-version-sensitive lowering. It uses full Scala compiler

@@ -30,6 +30,33 @@ private[quasiquotes] object ConstructedDefinitionUntypedBackend:
             .withMods(untpd.Modifiers(Flags.Method))
           _ <- validateMethod(raw, name, resultType, body)
         yield raw
+      case method: ConstructedDefinition.SingleParameterDef =>
+        for
+          name <- lowerName(method.name)
+          parameterName <- lowerName(method.parameterName)
+          parameterType <- lowerType(method.parameterType)
+          resultType <- lowerType(method.resultType)
+          body <- lowerBodyInScope(
+            method.body,
+            method.parameterBinderId,
+            method.parameterName.decoded
+          )
+          parameter = untpd
+            .ValDef(parameterName, parameterType, untpd.EmptyTree)
+            .withMods(untpd.Modifiers(Flags.Param))
+          raw = untpd
+            .DefDef(name, List(List(parameter)), resultType, body)
+            .withMods(untpd.Modifiers(Flags.Method))
+          _ <- validateSingleParameterMethod(
+            raw,
+            name,
+            parameter,
+            parameterName,
+            parameterType,
+            resultType,
+            body
+          )
+        yield raw
       case value: ConstructedDefinition.ImmutableVal =>
         for
           name <- lowerName(value.name)
@@ -92,6 +119,24 @@ private[quasiquotes] object ConstructedDefinitionUntypedBackend:
           .map(error => DefinitionBodyLoweringFailure(error.message))
       )
 
+  private def lowerBodyInScope(
+      term: quasiquotes.terms.ConstructedTerm,
+      binderId: quasiquotes.parser.BinderId,
+      declarationName: String
+  ): Either[ConstructedDefinitionUntypedBackendError, untpd.Tree] =
+    Option(term)
+      .toRight(
+        DefinitionBodyLoweringFailure(
+          "the completed definition body was null."
+        )
+      )
+      .flatMap(
+        ConstructedTermUntypedBackend
+          .lowerInScope(_, binderId, declarationName)
+          .left
+          .map(error => DefinitionBodyLoweringFailure(error.message))
+      )
+
   private def validateMethod(
       definition: untpd.DefDef,
       expectedName: TermName,
@@ -137,6 +182,44 @@ private[quasiquotes] object ConstructedDefinitionUntypedBackend:
       )
     )
 
+  private def validateSingleParameterMethod(
+      definition: untpd.DefDef,
+      expectedName: TermName,
+      expectedParameter: untpd.ValDef,
+      expectedParameterName: TermName,
+      expectedParameterType: untpd.Tree,
+      expectedResultType: untpd.Tree,
+      expectedBody: untpd.Tree
+  ): Either[ConstructedDefinitionUntypedBackendError, Unit] =
+    val valid =
+      definition.name == expectedName &&
+        definition.paramss == List(List(expectedParameter)) &&
+        expectedParameter.name == expectedParameterName &&
+        (expectedParameter.tpt eq expectedParameterType) &&
+        expectedParameter.unforcedRhs.asInstanceOf[untpd.Tree].isEmpty &&
+        expectedParameter.mods.flags == Flags.Param &&
+        !expectedParameter.mods.hasAnnotations &&
+        !expectedParameter.mods.hasPrivateWithin &&
+        (definition.tpt eq expectedResultType) &&
+        (definition.unforcedRhs.asInstanceOf[AnyRef] eq expectedBody) &&
+        definition.mods.flags == Flags.Method &&
+        !definition.mods.hasAnnotations &&
+        !definition.mods.hasPrivateWithin &&
+        sourceAndSpanFree(
+          definition,
+          expectedParameter,
+          expectedParameterType,
+          expectedResultType,
+          expectedBody
+        )
+    Either.cond(
+      valid,
+      (),
+      RawDefinitionConstructionInvariantFailure(
+        "the single-ordinary-parameter DefDef shape diverged from the refreshed parser contract."
+      )
+    )
+
   private def sourceAndSpanFree(trees: untpd.Tree*): Boolean =
     trees.forall(allTrees(_).forall(tree => !tree.source.exists && !tree.span.exists))
 
@@ -159,6 +242,16 @@ private[quasiquotes] object ConstructedDefinitionUntypedBackend:
           value.trees
         case value: untpd.Function =>
           value.args :+ value.body
+        case value: untpd.DefDef =>
+          value.paramss.flatten ++ List(
+            value.tpt,
+            value.unforcedRhs.asInstanceOf[untpd.Tree]
+          )
+        case value: untpd.ValDef =>
+          List(
+            value.tpt,
+            value.unforcedRhs.asInstanceOf[untpd.Tree]
+          ).filterNot(_.isEmpty)
         case value: untpd.If =>
           List(value.cond, value.thenp, value.elsep)
         case value: untpd.Parens =>

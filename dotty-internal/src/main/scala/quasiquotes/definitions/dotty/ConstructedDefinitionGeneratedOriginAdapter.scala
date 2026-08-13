@@ -45,6 +45,20 @@ private[quasiquotes] object ConstructedDefinitionGeneratedOriginAdapter:
     ConstructedDefinitionGeneratedOriginError,
     GeneratedOriginDefinitionResult
   ] =
+    constructed match
+      case method: ConstructedDefinition.SingleParameterDef =>
+        SingleParameterDefinitionGeneratedOriginAdapter
+          .lower(method, virtualSourceName)
+      case _ =>
+        lowerExisting(constructed, virtualSourceName)
+
+  private def lowerExisting(
+      constructed: ConstructedDefinition,
+      virtualSourceName: String
+  )(using Context): Either[
+    ConstructedDefinitionGeneratedOriginError,
+    GeneratedOriginDefinitionResult
+  ] =
     for
       _ <- GeneratedOriginFragmentSupport
         .validateVirtualSourceName(virtualSourceName)

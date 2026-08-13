@@ -88,10 +88,27 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
   def planDefinitionBody(
       constructed: ConstructedTerm
   ): Either[ConstructedTermGeneratedOriginError, TermFragment] =
+    planDefinitionBodyUsing(constructed, Map.empty)
+
+  private[quasiquotes] def planDefinitionBodyInScope(
+      constructed: ConstructedTerm,
+      binderId: BinderId,
+      declarationSource: String
+  ): Either[ConstructedTermGeneratedOriginError, TermFragment] =
+    planDefinitionBodyUsing(
+      constructed,
+      Map(binderId -> declarationSource)
+    )
+
+  private def planDefinitionBodyUsing(
+      constructed: ConstructedTerm,
+      binders: Map[BinderId, String]
+  ): Either[ConstructedTermGeneratedOriginError, TermFragment] =
     for
       rendered <- Planner(
         constructed.ascriptionTypes,
-        compactDefinitionBodyRoot = true
+        compactDefinitionBodyRoot = true,
+        initialBinders = binders
       ).renderTerm(constructed.root)
       _ <- validatePlan(rendered.root, rendered.source.length)
     yield new TermFragment(rendered.source, rendered.root)
@@ -151,11 +168,12 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
 
   private final class Planner private (
       ascriptionTypes: Vector[TypeNormalForm],
-      compactDefinitionBodyRoot: Boolean
+      compactDefinitionBodyRoot: Boolean,
+      initialBinders: Map[BinderId, String]
   ):
     private val builder = new StringBuilder
     private var typedOrdinal = 0
-    private var binderNames = Map.empty[BinderId, String]
+    private var binderNames = initialBinders
 
     def renderTerm(
       rootShape: TermShape
@@ -773,9 +791,10 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
   private object Planner:
     def apply(
         ascriptionTypes: Vector[TypeNormalForm],
-        compactDefinitionBodyRoot: Boolean
+        compactDefinitionBodyRoot: Boolean,
+        initialBinders: Map[BinderId, String] = Map.empty
     ): Planner =
-      new Planner(ascriptionTypes, compactDefinitionBodyRoot)
+      new Planner(ascriptionTypes, compactDefinitionBodyRoot, initialBinders)
 
   private def renderIdentifier(
       role: String,

@@ -31,6 +31,19 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
   def lower(
       constructed: ConstructedTerm
   ): Either[ConstructedTermUntypedBackendError, untpd.Tree] =
+    lowerUsing(constructed, Map.empty)
+
+  private[quasiquotes] def lowerInScope(
+      constructed: ConstructedTerm,
+      binderId: BinderId,
+      declarationName: String
+  ): Either[ConstructedTermUntypedBackendError, untpd.Tree] =
+    lowerUsing(constructed, Map(binderId -> declarationName))
+
+  private def lowerUsing(
+      constructed: ConstructedTerm,
+      binders: Map[BinderId, String]
+  ): Either[ConstructedTermUntypedBackendError, untpd.Tree] =
     given SourceFile = NoSource
 
     lowerTerm(
@@ -38,7 +51,7 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
       LoweringState(
         constructed.ascriptionTypes,
         typedOrdinal = 0,
-        binders = Map.empty
+        binders = binders
       )
     ).flatMap { case (tree, state) =>
       Either.cond(

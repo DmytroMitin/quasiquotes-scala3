@@ -17,7 +17,7 @@ private[quasiquotes] object ConstructedTermUntypedBackendError:
   final case class OutOfScopeBoundReference(binderId: Int)
       extends ConstructedTermUntypedBackendError:
     def message: String =
-      s"Cannot lower Lambda1 bound reference for inactive binder identity $binderId."
+      s"Cannot lower bound reference for inactive binder identity $binderId."
 
   case object NestedLambda1Unsupported
       extends ConstructedTermUntypedBackendError:
