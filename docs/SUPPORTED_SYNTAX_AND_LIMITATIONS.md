@@ -43,6 +43,8 @@ Important limitations:
   package-private;
 - interpolation and type support expands incrementally, so unsupported shapes
   return explicit errors rather than falling back to unchecked trees;
+- public `qq` extractor templates require at least one interpolated term slot;
+  slots are distinct and ordered, with no type/sequence/backreference syntax;
 - ordinary quoted standard-`s` interpolation has a bounded exact internal
   backend with canonical escaping and generated-origin spans; `raw`, `f`,
   custom interpolators, and triple-quoted `s` remain unsupported;
@@ -51,6 +53,36 @@ Important limitations:
   (arity 1), and `Either` (arity 2); arbitrary or selected constructors,
 constructor holes, higher-kinded types, aliases, semantic name resolution,
 subtyping, and compiler equality are not supported.
+
+## Bounded term-pattern extractor
+
+Inside an active macro `Quotes`, import `quasiquotes.matching.QuasiPattern.*`
+and match a caller-owned reflected term with syntax such as:
+
+```scala
+expression.asTerm match
+  case qq"$left + $right" =>
+    // left and right are q.reflect.Term values in source-slot order
+  case _ =>
+```
+
+The extractor synthesizes collision-safe semantic hole IDs by ordinal and
+projects the existing matcher's bindings back to the Scala pattern in
+left-to-right order. The Scala binder spellings `left` and `right` are not
+semantic hole names. Every slot is distinct, even if source binder spellings
+would otherwise suggest equality. Existing explicit
+`QuasiPattern.term("$x + $x")` repeated-hole equality is unchanged.
+
+This first surface admits term captures only and requires at least one slot. It
+has no type or mixed-category holes, sequence/splice holes, binder-name holes,
+backreferences, definitions, or type-pattern syntax. Ordinary structural
+mismatch returns `None` through pattern fallthrough. A malformed or unsupported
+template reports `Invalid qq term-pattern template: ...` during macro
+expansion; use `termLocated` when a recoverable structured diagnostic is needed.
+
+Captured terms retain the caller's active `q.reflect.Term` path and original
+compiler ownership. They are not detached portable trees and the extractor
+does not create another `Quotes` universe.
 
 ## Binder-aware Lambda1
 

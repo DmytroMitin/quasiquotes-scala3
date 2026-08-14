@@ -27,12 +27,21 @@ Status vocabulary:
 | Standard interpolation | `s"hello $name"` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; standard single-quoted `s` only, with layered-dollar holes |
 | Constructor | `new java.lang.StringBuilder(16)` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; fully-qualified, non-generic name and one ordinary argument list |
 | Lambda1 | `(x: Int) => x` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; exactly one explicitly typed ordinary parameter, alpha-aware |
+| Ordered term capture extractor | `case qq"$left + $right"` | No | Yes | `qq`, with `QuasiPattern.term` retained | `BOUNDED`; at least one distinct term slot, captures in source order, mismatch falls through |
 | Blocks and local definitions | `{ val x = 1; x }` | No | No | — | `NOT_YET`; requires ownership and local-scope policy |
 | Match / try / loops / for | `value match ...` | No | No | — | `NOT_YET`; no broad control-flow surface |
 | General term AST | arbitrary Scala expression | No | No | — | `NOT_PLANNED`; this project intentionally exposes a bounded structural subset |
 
 Detailed caveats and equality rules live in
 [Supported syntax and limitations](SUPPORTED_SYNTAX_AND_LIMITATIONS.md).
+
+The ordinary family rows describe the recoverable programmatic matcher
+`QuasiPattern.term` (and `termLocated` / `termOrThrow`). The `qq` row is the
+independent ergonomic extractor dimension: it reuses that matcher for a
+template with at least one interpolated term slot, assigns slots distinct
+ordinal identities, and returns caller-owned `quotes.reflect.Term` captures.
+It does not add type slots, sequence splices, backreferences, definition
+patterns, or general Scala quasiquote coverage.
 
 ## Types
 

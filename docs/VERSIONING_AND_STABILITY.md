@@ -21,6 +21,11 @@ removal/breaking risk. Additive overloads, givens, and extensions still require
 human review before a patch release; they are not automatically source-safe.
 See [public API shape compatibility review](API_COMPATIBILITY_REVIEW.md).
 
+The current source line is `0.2.0-SNAPSHOT`. It deliberately replaces the
+previous unusable `qq: Nothing` placeholder with the bounded Quotes-dependent
+term extractor. That signature replacement is not source-, binary-, or
+TASTy-compatible with the `0.1.x` line and is the reason for the minor change.
+
 ## Module-specific compatibility
 
 - `core` uses the Scala 3 binary suffix `_3` and is built with the minimum

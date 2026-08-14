@@ -18,7 +18,7 @@ Artifact policy:
 - `dottyInternal`: exact-build test source only, unpublished;
 - aggregate root and example modules: unpublished.
 
-Version `0.1.0-SNAPSHOT` and group `io.github.dmytromitin` are provisional
+Version `0.2.0-SNAPSHOT` and group `io.github.dmytromitin` are provisional
 local-publication settings. No remote repository availability or stable release
 support is promised. The selected experimental 0.x policy requires breaking
 changes to increment the minor version and expects patch compatibility within
@@ -27,3 +27,7 @@ one minor line; see [Versioning and stability](VERSIONING_AND_STABILITY.md).
 The checked public API inventory and passing source/consumer lanes are review
 evidence only. They do not establish binary compatibility, cross-line frontend
 compatibility, or a stable 1.x API.
+
+The bounded public `qq` extractor begins in the `0.2.x` source line. Code or
+TASTy compiled against the former `qq: Nothing` signature must be rebuilt and
+adapted; the intentional replacement is not a patch-compatible `0.1.x` change.

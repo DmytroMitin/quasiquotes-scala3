@@ -35,17 +35,22 @@ baseline remains a review artifact, not a stability promise.
 
 ## Current accepted shape
 
-The accepted inventory contains 596 rows: 305 from `core` and 291 from
-`frontend`. The exact-two definition first-use surface added 11 core rows to
-the previous 585-row baseline:
+The accepted inventory contains 598 rows: 305 from `core` and 293 from
+`frontend`. Relative to the frozen 596-row inventory, the bounded term-pattern
+extractor review recorded exactly:
 
-- `TwoParameterMethodResultView`;
-- `DefinitionConstruction.twoParameterMethod`;
-- the result view's `kindCode`, `source`, `body`, `name`, ordered first/second
-  parameter name/type accessors, and `resultType`.
+- removal of `QuasiPattern.qq: Nothing`;
+- addition of `QuasiPattern.qq(using q: Quotes):
+  TermPatternExtractor[q.reflect.Term]`;
+- addition of public `TermPatternExtractor[T]` and its
+  `unapplySeq(value: T): Option[Seq[T]]` protocol.
 
-The reviewed delta contained no removals, replacements, overload mutations, or
-frontend additions. Regeneration against this accepted baseline must report
+This is one deliberate signature replacement plus two new API groups: three
+added signatures and one removed signature, for a net two-row increase. The
+old member was intentionally unusable, but source references, compiled code,
+and TASTy that name its old signature are not compatible. The exact-shape gate
+therefore required a new experimental 0.x minor, and the source line is now
+`0.2.0-SNAPSHOT`. Regeneration against this accepted baseline must report
 `NO_PUBLIC_API_DELTA`.
 
 ## Explicit non-guarantees

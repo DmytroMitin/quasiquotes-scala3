@@ -82,6 +82,12 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     assert(Lambda1FirstUseSnippet.completeBodyHoleMatches)
     assertEquals(Lambda1FirstUseSnippet.preserveX(41)(999), 41)
 
+  test("documented qq extractor first use stays in the external caller Quotes path"):
+    assertEquals(extractAddition(20, 22), (20, 22))
+    assert(!classifyNonAddition(42))
+    assertEquals(extractNested(10, 42, 5), 42)
+    assertEquals(extractWithSameTextLiteral(20, 22), 22)
+
   test("external frontend consumer receives actionable located diagnostics"):
     val failures = Vector(
       TypePatternSource.fromSourceLocated("Map[Int, String]").swap.toOption.get,
@@ -133,3 +139,15 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
       constructed: ConstructedType
   )(using q: Quotes): Either[TypeQuasiquoteError, q.reflect.TypeRepr] =
     constructed.toTypeRepr
+
+  private def extractAddition(left: Int, right: Int): (Int, Int) =
+    QqExtractorFirstUseSnippet.splitAddition(left + right)
+
+  private def classifyNonAddition(value: Int): Boolean =
+    QqExtractorFirstUseSnippet.isAddition(value)
+
+  private def extractNested(left: Int, middle: Int, right: Int): Int =
+    QqExtractorFirstUseSnippet.nestedMiddle((left + middle) + right)
+
+  private def extractWithSameTextLiteral(qqCapture0: Int, value: Int): Int =
+    QqExtractorFirstUseSnippet.literalAndCapture(qqCapture0 + value)

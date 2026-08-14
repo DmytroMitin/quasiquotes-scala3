@@ -90,7 +90,35 @@ object QuasiPattern:
     term(pattern).fold(error => throw new IllegalArgumentException(error.message), identity)
 
   extension (sc: StringContext)
-    def qq: Nothing =
-      throw new UnsupportedOperationException(
-        PatternError.NoHolesInInterpolator().message
-      )
+    def qq(using q: Quotes): TermPatternExtractor[q.reflect.Term] =
+      import q.reflect.*
+
+      val holeCount = sc.parts.size - 1
+      if holeCount <= 0 then
+        report.errorAndAbort(
+          "Invalid qq term-pattern template: at least one term capture slot is required."
+        )
+      val holeNames = Vector.tabulate(holeCount)(index => s"qqCapture$index")
+
+      val source = sc.parts.zipWithIndex.foldLeft(new StringBuilder) {
+        case (builder, (part, index)) =>
+          builder.append(part)
+          holeNames.lift(index).foreach(name => builder.append('$').append(name))
+          builder
+      }.toString
+
+      termLocated(source) match
+        case Left(failure) =>
+          report.errorAndAbort(
+            s"Invalid qq term-pattern template: ${failure.diagnostic.message}"
+          )
+        case Right(pattern) =>
+          new TermPatternExtractor[q.reflect.Term](term =>
+            pattern.matchTerm(term) match
+              case Left(_) => None
+              case Right(result) =>
+                holeNames.foldLeft(Option(Vector.empty[q.reflect.Term])) {
+                  case (captures, name) =>
+                    captures.flatMap(current => result.bindings.get(name).map(current :+ _))
+                }
+          )

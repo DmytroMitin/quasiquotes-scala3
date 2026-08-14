@@ -6,13 +6,13 @@ quoted reflection, `qr`, or term patterns are required.
 
 No artifact is available from a remote resolver yet. The declarations below
 describe local-publication coordinates and use the retained development
-version `0.1.0-SNAPSHOT`.
+version `0.2.0-SNAPSHOT`.
 
 ## Compiler-free core
 
 ```scala
 libraryDependencies +=
-  "io.github.dmytromitin" %% "quasiquotes-scala3-core" % "0.1.0-SNAPSHOT"
+  "io.github.dmytromitin" %% "quasiquotes-scala3-core" % "0.2.0-SNAPSHOT"
 ```
 
 The core first-use path needs only `quasiquotes.publicapi.*`. It does not put
@@ -132,7 +132,7 @@ exactly match the compiler used by the consumer build:
 libraryDependencies +=
   "io.github.dmytromitin" %
     s"quasiquotes-scala3-frontend_${scalaVersion.value}" %
-    "0.1.0-SNAPSHOT"
+    "0.2.0-SNAPSHOT"
 ```
 
 The following fixture is compiled from outside all `quasiquotes.*` packages.
@@ -268,6 +268,82 @@ For example, `increment(7)` returns `8`, and `preserveX(41)(999)` returns the
 external `41`. A term returned by the complete body-hole match is the original
 reflected target subtree. If it refers to the target lambda parameter, it is
 scope- and owner-sensitive and must not be treated as a detached portable tree.
+
+## Bounded `qq` extractor first use
+
+The external-package fixture below proves the extractor in the caller's active
+`Quotes` path. Slots are ordered and distinct; binder spelling in the Scala
+pattern is not used as semantic identity. A structural mismatch reaches the
+ordinary fallback case, while malformed template source reports a controlled
+macro-expansion error. For rich diagnostics and named or repeated holes, keep
+using `QuasiPattern.term`, `termLocated`, or `termOrThrow`.
+
+<!-- snippet:qq-extractor-first-use:start -->
+```scala
+import scala.quoted.*
+
+import quasiquotes.matching.QuasiPattern.*
+
+object QqExtractorFirstUseSnippet:
+  inline def splitAddition(expression: Int): (Int, Int) =
+    ${ splitAdditionImpl('expression) }
+
+  inline def isAddition(expression: Int): Boolean =
+    ${ isAdditionImpl('expression) }
+
+  inline def nestedMiddle(expression: Int): Int =
+    ${ nestedMiddleImpl('expression) }
+
+  inline def literalAndCapture(expression: Int): Int =
+    ${ literalAndCaptureImpl('expression) }
+
+  inline def malformedTemplate: Unit =
+    ${ malformedTemplateImpl }
+
+  private def splitAdditionImpl(
+      expression: Expr[Int]
+  )(using q: Quotes): Expr[(Int, Int)] =
+    import q.reflect.*
+
+    expression.asTerm match
+      case qq"$left + $right" =>
+        '{ (${ left.asExprOf[Int] }, ${ right.asExprOf[Int] }) }
+      case _ => '{ (-1, -1) }
+
+  private def isAdditionImpl(expression: Expr[Int])(using q: Quotes): Expr[Boolean] =
+    import q.reflect.*
+
+    expression.asTerm match
+      case qq"$left + $right" => Expr(true)
+      case _ => Expr(false)
+
+  private def nestedMiddleImpl(expression: Expr[Int])(using q: Quotes): Expr[Int] =
+    import q.reflect.*
+
+    expression.asTerm match
+      case qq"($left + $middle) + $right" => middle.asExprOf[Int]
+      case _ => Expr(-1)
+
+  private def literalAndCaptureImpl(expression: Expr[Int])(using q: Quotes): Expr[Int] =
+    import q.reflect.*
+
+    expression.asTerm match
+      case qq"qqCapture0 + $value" => value.asExprOf[Int]
+      case _ => Expr(-1)
+
+  private def malformedTemplateImpl(using q: Quotes): Expr[Unit] =
+    import q.reflect.*
+
+    Expr(1).asTerm match
+      case qq"$value +" => '{ () }
+      case _ => '{ () }
+```
+<!-- snippet:qq-extractor-first-use:end -->
+
+`splitAddition` returns captures in left-to-right hole order. `isAddition`
+shows ordinary fallthrough, `nestedMiddle` uses an already-supported nested
+infix shape, and `literalAndCapture` keeps the literal identifier
+`qqCapture0` distinct from the first synthetic ordinal slot.
 
 `TypeNormalFormSource.equalSources`, `TypePatternSource.fromSourceLocated`, and
 `TypeTemplateSource.fromSource` are available for the corresponding focused

@@ -9,19 +9,52 @@ import sys
 from urllib.parse import unquote
 
 
-SURFACES = {
-    '`qr"..."`': "Public now",
-    "`QuasiPattern.term(...)`": "Public now",
-    "`QuasiTypequotes.tqr(...)`": "Public research API",
-    "`QuasiTypequotes.tqq(...)`": "Public research API",
-    "`DefinitionConstruction`": "Public now",
-    '`dqr"..."`': "Internal research",
-    "`dqq`": "Not yet",
+SURFACE_ROWS = {
+    "Term construction": (
+        '`qr"..."`',
+        "Public now",
+        "`QuasiquoteBuilder.build(...)`",
+        "Public now",
+    ),
+    "Term pattern matching": (
+        '`case qq"..."`',
+        "Public now",
+        "`QuasiPattern.term(...)`, `termOrThrow(...)`",
+        "Public now",
+    ),
+    "Type construction": (
+        '`tqr"..."`',
+        "TODO",
+        "`QuasiTypequotes.tqr(...)`",
+        "Public research API",
+    ),
+    "Type pattern matching": (
+        '`case tqq"..."`',
+        "TODO",
+        "`QuasiTypequotes.tqq(...)` / `QuasiTypePattern.*`",
+        "Public research API",
+    ),
+    "Definition construction": (
+        '`dqr"..."`',
+        "Internal research, not public",
+        "`DefinitionConstruction.*`",
+        "Public bounded compiler-free API",
+    ),
+    "Definition pattern matching": (
+        '`case dqq"..."`',
+        "TODO / not implemented",
+        "—",
+        "Not yet",
+    ),
 }
 
 PUBLIC_API = {
     ("quasiquotes.construct.Quasiquotes", "qr"),
+    ("quasiquotes.construct.QuasiquoteBuilder", "build"),
     ("quasiquotes.matching.QuasiPattern", "term"),
+    ("quasiquotes.matching.QuasiPattern", "termOrThrow"),
+    ("quasiquotes.matching.QuasiPattern", "qq"),
+    ("quasiquotes.matching.TermPatternExtractor", "unapplySeq"),
     ("quasiquotes.types.QuasiTypequotes", "tqr"),
     ("quasiquotes.types.QuasiTypequotes", "tqq"),
     ("quasiquotes.publicapi.DefinitionConstruction", "twoParameterMethod"),
@@ -66,13 +99,13 @@ def table_findings(root: Path) -> list[str]:
         if not line.startswith("|") or line.startswith("| ---"):
             continue
         cells = [cell.strip() for cell in line.strip("|").split("|")]
-        if len(cells) >= 3 and cells[0] != "Surface":
-            rows[cells[0]] = cells[2]
+        if len(cells) == 5 and cells[0] != "Role":
+            rows[cells[0]] = tuple(cells[1:])
 
     return [
-        f"surface status mismatch: {surface} expected {status}, found {rows.get(surface)}"
-        for surface, status in SURFACES.items()
-        if rows.get(surface) != status
+        f"surface row mismatch: {role} expected {expected}, found {rows.get(role)}"
+        for role, expected in SURFACE_ROWS.items()
+        if rows.get(role) != expected
     ]
 
 
@@ -99,13 +132,18 @@ def source_findings(root: Path) -> list[str]:
     pattern_source = (
         root / "frontend/src/main/scala/quasiquotes/matching/QuasiPattern.scala"
     ).read_text(encoding="utf-8")
+    extractor_source = (
+        root / "frontend/src/main/scala/quasiquotes/matching/TermPatternExtractor.scala"
+    ).read_text(encoding="utf-8")
     findings = []
     if "private[quasiquotes] object DefinitionQuasiquotes" not in definition_source:
         findings.append("dqr owner is no longer package-private")
     if "def dqr" not in definition_source:
         findings.append("documented internal dqr implementation is absent")
-    if "def qq: Nothing" not in pattern_source or "UnsupportedOperationException" not in pattern_source:
-        findings.append("reserved qq boundary no longer matches documentation")
+    if "def qq(using q: Quotes): TermPatternExtractor[q.reflect.Term]" not in pattern_source:
+        findings.append("public qq signature no longer matches documentation")
+    if "def unapplySeq(value: T): Option[Seq[T]]" not in extractor_source:
+        findings.append("public qq extractor protocol no longer matches documentation")
     for source in sorted((root / "core/src/main").rglob("*.scala")) + sorted(
         (root / "frontend/src/main").rglob("*.scala")
     ):

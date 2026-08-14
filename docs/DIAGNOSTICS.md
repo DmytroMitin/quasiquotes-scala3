@@ -80,6 +80,23 @@ long-term compatibility mechanism. A future additive diagnostic view can be
 considered if concrete tooling needs justify one without breaking the existing
 `Either` entry points.
 
+## `qq` extractor diagnostics
+
+The pattern extractor deliberately separates template failure from target
+mismatch. An ordinary structural mismatch returns `None` and reaches the next
+Scala pattern case. A malformed or unsupported template aborts the surrounding
+macro expansion with a message beginning:
+
+```text
+Invalid qq term-pattern template:
+```
+
+For example, `case qq"$value +"` reports the underlying parser summary rather
+than silently becoming a non-match or leaking an exception. The extractor
+protocol cannot return rich mismatch details; use `QuasiPattern.termLocated`
+for recoverable template diagnostics and `matchTerm` for explicit match
+failures.
+
 ## Lambda1 failures
 
 `QuasiPattern.termLocated` returns an actionable located error for unsupported

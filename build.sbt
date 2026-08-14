@@ -2,7 +2,7 @@ import java.nio.charset.StandardCharsets
 import java.util.jar.JarFile
 import scala.collection.JavaConverters._
 
-ThisBuild / version := "0.1.0-SNAPSHOT"
+ThisBuild / version := "0.2.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.8.4"
 ThisBuild / organization := "io.github.dmytromitin"
 ThisBuild / versionScheme := Some("early-semver")

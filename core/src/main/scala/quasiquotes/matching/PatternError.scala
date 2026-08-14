@@ -18,4 +18,4 @@ object PatternError:
     def message: String = s"Invalid pattern hole name: $name"
 
   final case class NoHolesInInterpolator() extends PatternError:
-    def message: String = "Interpolator-based qq patterns are not implemented in this POC; use QuasiPattern.term(\"...\")"
+    def message: String = "A qq extractor template requires at least one term capture slot; use QuasiPattern.term(\"...\") for a zero-capture programmatic pattern."

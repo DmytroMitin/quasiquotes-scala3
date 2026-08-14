@@ -17,7 +17,7 @@ class PublicDocsCheckTest(unittest.TestCase):
         root: Path,
         *,
         matrix_link: str = "docs/SYNTAX_SUPPORT_MATRIX.md",
-        dqr_status: str = "Internal research",
+        dqr_status: str = "Internal research, not public",
     ) -> None:
         docs = root / "docs"
         docs.mkdir(parents=True)
@@ -29,15 +29,14 @@ class PublicDocsCheckTest(unittest.TestCase):
         (root / "README.md").write_text(
             f"[matrix]({matrix_link})\n"
             "<!-- public-surface-table:start -->\n"
-            "| Surface | Form | Availability | Role |\n"
-            "| --- | --- | --- | --- |\n"
-            "| `qr\"...\"` | Interpolator | Public now | terms |\n"
-            "| `QuasiPattern.term(...)` | Function | Public now | patterns |\n"
-            "| `QuasiTypequotes.tqr(...)` | Function | Public research API | types |\n"
-            "| `QuasiTypequotes.tqq(...)` | Function | Public research API | types |\n"
-            "| `DefinitionConstruction` | Functions | Public now | definitions |\n"
-            f"| `dqr\"...\"` | Internal interpolator | {dqr_status} | definitions |\n"
-            "| `dqq` | — | Not yet | absent |\n"
+            "| Role | Interpolated syntax | Interpolator availability | Programmatic API | Function/API availability |\n"
+            "| --- | --- | --- | --- | --- |\n"
+            "| Term construction | `qr\"...\"` | Public now | `QuasiquoteBuilder.build(...)` | Public now |\n"
+            "| Term pattern matching | `case qq\"...\"` | Public now | `QuasiPattern.term(...)`, `termOrThrow(...)` | Public now |\n"
+            "| Type construction | `tqr\"...\"` | TODO | `QuasiTypequotes.tqr(...)` | Public research API |\n"
+            "| Type pattern matching | `case tqq\"...\"` | TODO | `QuasiTypequotes.tqq(...)` / `QuasiTypePattern.*` | Public research API |\n"
+            f"| Definition construction | `dqr\"...\"` | {dqr_status} | `DefinitionConstruction.*` | Public bounded compiler-free API |\n"
+            "| Definition pattern matching | `case dqq\"...\"` | TODO / not implemented | — | Not yet |\n"
             "<!-- public-surface-table:end -->\n",
             encoding="utf-8",
         )
@@ -52,7 +51,11 @@ class PublicDocsCheckTest(unittest.TestCase):
         (docs / "PUBLIC_API_BASELINE.tsv").write_text(
             "module\towner\tkind\tname\tsignature\n"
             "frontend\tquasiquotes.construct.Quasiquotes\tdef\tqr\tqr signature\n"
+            "frontend\tquasiquotes.construct.QuasiquoteBuilder\tdef\tbuild\tbuild signature\n"
             "frontend\tquasiquotes.matching.QuasiPattern\tdef\tterm\tterm signature\n"
+            "frontend\tquasiquotes.matching.QuasiPattern\tdef\ttermOrThrow\ttermOrThrow signature\n"
+            "frontend\tquasiquotes.matching.QuasiPattern\tdef\tqq\tqq(using q: Quotes): TermPatternExtractor[q.reflect.Term]\n"
+            "frontend\tquasiquotes.matching.TermPatternExtractor\tdef\tunapplySeq\tunapply signature\n"
             "frontend\tquasiquotes.types.QuasiTypequotes\tdef\ttqr\ttqr signature\n"
             "frontend\tquasiquotes.types.QuasiTypequotes\tdef\ttqq\ttqq signature\n"
             "core\tquasiquotes.publicapi.DefinitionConstruction\tdef\ttwoParameterMethod\ttwo signature\n",
@@ -63,7 +66,12 @@ class PublicDocsCheckTest(unittest.TestCase):
             encoding="utf-8",
         )
         (matching / "QuasiPattern.scala").write_text(
-            "object QuasiPattern:\n  def term = ()\n  def qq: Nothing = throw new UnsupportedOperationException()\n",
+            "object QuasiPattern:\n  def term = ()\n  def termOrThrow = ()\n"
+            "  def qq(using q: Quotes): TermPatternExtractor[q.reflect.Term] = ???\n",
+            encoding="utf-8",
+        )
+        (matching / "TermPatternExtractor.scala").write_text(
+            "final class TermPatternExtractor[T]:\n  def unapplySeq(value: T): Option[Seq[T]] = ???\n",
             encoding="utf-8",
         )
 
@@ -103,7 +111,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             result = self.run_checker(root)
 
             self.assertEqual(result.returncode, 1)
-            self.assertIn("surface status", result.stderr)
+            self.assertIn("surface row mismatch", result.stderr)
 
     def test_ignores_markdown_link_shapes_inside_code(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

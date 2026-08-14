@@ -375,6 +375,7 @@ frontend	quasiquotes.construct.TypedTermConstructExamples	def	typedAscriptionSum
 frontend	quasiquotes.construct.TypedTermConstructExamples	def	typedAscriptionSummary	typedAscriptionSummary(termKind: String, templateSource: String, firstBindingName: String, firstBindingSource: String, secondBindingName: String, secondBindingSource: String): String
 frontend	quasiquotes.construct.TypedTermConstructExamples	def	typedAscriptionUnsupportedNormalFormMessage	typedAscriptionUnsupportedNormalFormMessage(source: String): String
 frontend	quasiquotes.matching	class	QuasiPattern	QuasiPattern(input: String, placeholderSource: String, shape: String, pattern: TermPattern)
+frontend	quasiquotes.matching	class	TermPatternExtractor	TermPatternExtractor[T]
 frontend	quasiquotes.matching	object	CanonicalTerm	CanonicalTerm
 frontend	quasiquotes.matching	object	MatchNormalizer	MatchNormalizer
 frontend	quasiquotes.matching	object	PatternCompiler	PatternCompiler
@@ -406,7 +407,7 @@ frontend	quasiquotes.matching.MatchNormalizer	def	normalizedView	normalizedView(
 frontend	quasiquotes.matching.PatternCompiler	def	compile	compile(tree: Tree): Either[PatternError, TermPattern]
 frontend	quasiquotes.matching.QuasiPattern	def	matchTerm	matchTerm(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, MatchResult[q.reflect.Term]]
 frontend	quasiquotes.matching.QuasiPattern	def	matchTermRaw	matchTermRaw(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, MatchResult[q.reflect.Term]]
-frontend	quasiquotes.matching.QuasiPattern	def	qq	qq: Nothing
+frontend	quasiquotes.matching.QuasiPattern	def	qq	qq(using q: Quotes): TermPatternExtractor[q.reflect.Term]
 frontend	quasiquotes.matching.QuasiPattern	def	term	term(pattern: String): Either[PatternError, QuasiPattern]
 frontend	quasiquotes.matching.QuasiPattern	def	termLocated	termLocated(pattern: String): Either[LocatedDiagnostic[PatternError], QuasiPattern]
 frontend	quasiquotes.matching.QuasiPattern	def	termOrThrow	termOrThrow(pattern: String): QuasiPattern
@@ -444,6 +445,7 @@ frontend	quasiquotes.matching.TermCanonicalizer	def	canonicalEqual	canonicalEqua
 frontend	quasiquotes.matching.TermCanonicalizer	def	canonicalize	canonicalize(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, CanonicalTerm]
 frontend	quasiquotes.matching.TermMatcher	def	matchTerm	matchTerm(using q: Quotes)(pattern: TermPattern, target: q.reflect.Term): Either[MatchFailure, MatchResult[q.reflect.Term]]
 frontend	quasiquotes.matching.TermMatcher	def	matchTermRaw	matchTermRaw(using q: Quotes)(pattern: TermPattern, target: q.reflect.Term): Either[MatchFailure, MatchResult[q.reflect.Term]]
+frontend	quasiquotes.matching.TermPatternExtractor	def	unapplySeq	unapplySeq(value: T): Option[Seq[T]]
 frontend	quasiquotes.parser	class	ParsedExpression	ParsedExpression(source: String, rawTree: Tree, shape: TermShape, rawStructure: String)
 frontend	quasiquotes.parser	class	ParsedType	ParsedType(source: String, rawTree: Tree, shape: TypeShape, rawStructure: String)
 frontend	quasiquotes.parser	class	runParserDemo	runParserDemo
