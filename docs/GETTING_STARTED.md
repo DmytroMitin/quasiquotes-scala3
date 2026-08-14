@@ -345,6 +345,88 @@ shows ordinary fallthrough, `nestedMiddle` uses an already-supported nested
 infix shape, and `literalAndCapture` keeps the literal identifier
 `qqCapture0` distinct from the first synthetic ordinal slot.
 
+## Bounded `tqr` and `tqq` type first use
+
+This external-package fixture runs inside the caller's active `Quotes` path.
+`tqr` constructs a reflected type from zero or more caller-owned `TypeRepr`
+splices. `tqq` matches through the existing bounded normal form and returns the
+original reflected target subtrees in left-to-right slot order. Unsupported
+targets fall through; malformed or unsupported templates are controlled
+macro-expansion failures. The ordinary recoverable functions remain available
+under the same wildcard import.
+
+<!-- snippet:type-interpolator-first-use:start -->
+```scala
+import scala.quoted.*
+
+import quasiquotes.types.*
+import quasiquotes.types.QuasiTypequotes.*
+
+object TypeInterpolatorFirstUseSnippet:
+  inline def constructionSummary: String = ${ constructionSummaryImpl }
+  inline def captureSummary[T]: String = ${ captureSummaryImpl[T] }
+  inline def zeroHoleMatches[T]: Boolean = ${ zeroHoleMatchesImpl[T] }
+  inline def unsupportedTargetFallsThrough: Boolean = ${ unsupportedTargetFallsThroughImpl }
+  inline def ordinaryApisCoexist: Boolean = ${ ordinaryApisCoexistImpl }
+
+  private def constructionSummaryImpl(using q: Quotes): Expr[String] =
+    import q.reflect.*
+
+    val element: q.reflect.TypeRepr = TypeRepr.of[String]
+    val constructed: q.reflect.TypeRepr = tqr"Either[Int, List[$element]]"
+    Expr(TargetTypeReprInspector.inspect(constructed).fold(_.message, _.render))
+
+  private def captureSummaryImpl[T: Type](using q: Quotes): Expr[String] =
+    import q.reflect.*
+
+    val target: q.reflect.TypeRepr = TypeRepr.of[T]
+    target match
+      case tqq"Either[$left, $right]" =>
+        Expr(
+          List(left, right)
+            .map(TargetTypeReprInspector.inspect(_).fold(_.message, _.render))
+            .mkString(" then ")
+        )
+      case _ => Expr("no-match")
+
+  private def zeroHoleMatchesImpl[T: Type](using q: Quotes): Expr[Boolean] =
+    import q.reflect.*
+
+    val target: q.reflect.TypeRepr = TypeRepr.of[T]
+    Expr(target match
+      case tqq"Int" => true
+      case _ => false
+    )
+
+  private def unsupportedTargetFallsThroughImpl(using q: Quotes): Expr[Boolean] =
+    import q.reflect.*
+
+    val target: q.reflect.TypeRepr = TypeRepr.of[Map[Int, String]]
+    Expr(target match
+      case tqq"$captured" => false
+      case _ => true
+    )
+
+  private def ordinaryApisCoexistImpl(using Quotes): Expr[Boolean] =
+    val constructionFunction
+        : (String, Seq[(String, TypeNormalForm)]) => Either[TypeQuasiquoteError, ConstructedType] =
+      tqr
+    val patternFunction
+        : String => Either[TypeQuasiquoteError, QuasiTypePattern] =
+      tqq
+    Expr(
+      constructionFunction("Int", Seq.empty).isRight &&
+        patternFunction("Int").isRight
+    )
+```
+<!-- snippet:type-interpolator-first-use:end -->
+
+The pattern's Scala binder spelling does not create repeated-hole equality;
+each interpolated slot has a distinct ordinal identity. Use the programmatic
+`QuasiTypequotes.tqq("Either[$same, $same]")` form when named repeated-hole
+equality is intended. Captures are compiler-owned reflected values and should
+not be treated as detached portable types.
+
 `TypeNormalFormSource.equalSources`, `TypePatternSource.fromSourceLocated`, and
 `TypeTemplateSource.fromSource` are available for the corresponding focused
 operations. Prefer the `Located` form when reporting source failures to a

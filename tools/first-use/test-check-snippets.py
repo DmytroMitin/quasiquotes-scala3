@@ -19,6 +19,7 @@ class CheckSnippetsTest(unittest.TestCase):
         documented_quick_start: str = "val quickStart = 5",
         documented_two_parameter: str = "val twoParameter = 7",
         documented_qq_extractor: str = "val qqExtractor = 8",
+        documented_type_interpolator: str = "val typeInterpolator = 9",
     ) -> None:
         docs = root / "docs"
         sources = root / "public-api-examples/src/test/scala/external/consumer"
@@ -58,6 +59,12 @@ class CheckSnippetsTest(unittest.TestCase):
             "// snippet:qq-extractor-first-use:end\n",
             encoding="utf-8",
         )
+        (sources / "TypeInterpolatorFirstUseSnippet.scala").write_text(
+            "// snippet:type-interpolator-first-use:start\n"
+            "val typeInterpolator = 9\n"
+            "// snippet:type-interpolator-first-use:end\n",
+            encoding="utf-8",
+        )
         (sources / "ReadmeQuickStart.scala").write_text(
             "// snippet:readme-quick-start:start\nval quickStart = 5\n"
             "// snippet:readme-quick-start:end\n",
@@ -86,7 +93,10 @@ class CheckSnippetsTest(unittest.TestCase):
             + "\n```\n<!-- snippet:lambda1-first-use:end -->\n"
             "<!-- snippet:qq-extractor-first-use:start -->\n```scala\n"
             + documented_qq_extractor
-            + "\n```\n<!-- snippet:qq-extractor-first-use:end -->\n",
+            + "\n```\n<!-- snippet:qq-extractor-first-use:end -->\n"
+            + "<!-- snippet:type-interpolator-first-use:start -->\n```scala\n"
+            + documented_type_interpolator
+            + "\n```\n<!-- snippet:type-interpolator-first-use:end -->\n",
             encoding="utf-8",
         )
 
@@ -107,7 +117,7 @@ class CheckSnippetsTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(
-                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, qq-extractor-first-use, readme-quick-start",
+                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, qq-extractor-first-use, type-interpolator-first-use, readme-quick-start",
                 result.stdout,
             )
 
@@ -149,6 +159,23 @@ class CheckSnippetsTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn(
                 "First-use snippet drift: two-parameter-definition-first-use",
+                result.stderr,
+            )
+
+    def test_rejects_type_interpolator_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(
+                root,
+                documented_lambda="val lambda = 3",
+                documented_type_interpolator="val typeInterpolator = 10",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "First-use snippet drift: type-interpolator-first-use",
                 result.stderr,
             )
 

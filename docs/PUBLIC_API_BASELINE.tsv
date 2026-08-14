@@ -519,6 +519,7 @@ frontend	quasiquotes.parser.TypeShapeInspector	def	inspect	inspect(tree: Tree): 
 frontend	quasiquotes.parser.TypeShapeInspector	def	rawStructure	rawStructure(tree: Tree): String
 frontend	quasiquotes.types	class	QuasiTypePattern	QuasiTypePattern(source: String, expected: Option[QuasiTypeRepr], expectedNormalForm: Option[TypeNormalForm], typePattern: TypePattern)
 frontend	quasiquotes.types	class	QuasiTypeRepr	QuasiTypeRepr(source: String, shape: TypeShape, renderedTypeRepr: String)
+frontend	quasiquotes.types	class	TypePatternExtractor	TypePatternExtractor[T]
 frontend	quasiquotes.types	def	toTypeRepr	toTypeRepr(using Quotes): Either[TypeQuasiquoteError, x$2.reflect.TypeRepr]
 frontend	quasiquotes.types	object	ConstructedTypeBridge	ConstructedTypeBridge
 frontend	quasiquotes.types	object	ConstructedTypeBridgeExamples	ConstructedTypeBridgeExamples
@@ -587,10 +588,14 @@ frontend	quasiquotes.types.QuasiTypePattern	def	repr	repr(source: String)(using 
 frontend	quasiquotes.types.QuasiTypePattern	def	reprOrThrow	reprOrThrow(source: String)(using Quotes): QuasiTypePattern
 frontend	quasiquotes.types.QuasiTypeRepr	def	fromSource	fromSource(source: String)(using Quotes): Either[TypeQuasiquoteError, QuasiTypeRepr]
 frontend	quasiquotes.types.QuasiTypequotes	def	tqq	tqq(source: String)(using Quotes): Either[TypeQuasiquoteError, QuasiTypePattern]
+frontend	quasiquotes.types.QuasiTypequotes	def	tqq	tqq(using q: Quotes): TypePatternExtractor[q.reflect.TypeRepr]
 frontend	quasiquotes.types.QuasiTypequotes	def	tqr	tqr(templateSource: String, bindings: (String, TypeNormalForm)*): Either[TypeQuasiquoteError, ConstructedType]
+frontend	quasiquotes.types.QuasiTypequotes	def	tqr	tqr(templateSource: String, bindings: Seq[(String, TypeNormalForm)]): Either[TypeQuasiquoteError, ConstructedType]
+frontend	quasiquotes.types.QuasiTypequotes	def	tqr	tqr(using q: Quotes)(args: q.reflect.TypeRepr*): q.reflect.TypeRepr
 frontend	quasiquotes.types.TargetTypeReprInspector	def	inspect	inspect(using q: Quotes)(target: q.reflect.TypeRepr): Either[TypeQuasiquoteError, TypeNormalForm]
 frontend	quasiquotes.types.TypeNormalFormSource	def	equalSources	equalSources(leftSource: String, rightSource: String): Either[TypeQuasiquoteError, Boolean]
 frontend	quasiquotes.types.TypeNormalFormSource	def	fromSource	fromSource(source: String): Either[TypeQuasiquoteError, TypeNormalForm]
+frontend	quasiquotes.types.TypePatternExtractor	def	unapplySeq	unapplySeq(value: T): Option[Seq[T]]
 frontend	quasiquotes.types.TypePatternSource	def	fromSource	fromSource(source: String): Either[TypeQuasiquoteError, TypePattern]
 frontend	quasiquotes.types.TypePatternSource	def	fromSourceLocated	fromSourceLocated(source: String): Either[LocatedDiagnostic[TypeQuasiquoteError], TypePattern]
 frontend	quasiquotes.types.TypeReprLowerer	def	lower	lower(shape: TypeShape)(using Quotes): Either[TypeQuasiquoteError, x$2.reflect.TypeRepr]

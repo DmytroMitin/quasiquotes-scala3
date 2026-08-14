@@ -97,6 +97,27 @@ protocol cannot return rich mismatch details; use `QuasiPattern.termLocated`
 for recoverable template diagnostics and `matchTerm` for explicit match
 failures.
 
+## `tqr` and `tqq` diagnostics
+
+The reflected type syntax has two controlled macro-expansion prefixes:
+
+```text
+Invalid tqr type template:
+Invalid tqq type-pattern template:
+```
+
+Malformed or unsupported templates abort during macro expansion. `tqr` also
+rejects a wrong `StringContext` arity, a null context, and any splice whose
+`TypeRepr` is outside the bounded inspector. It does not fall back to direct
+compiler-tree construction. `tqq` treats unsupported target `TypeRepr` values
+and ordinary structural mismatches as `None`, so the next Scala pattern case
+runs; only the template itself is an aborting boundary.
+
+Use `QuasiTypeConstruct.fromTemplateLocated` or
+`QuasiTypePattern.patternLocated` when a recoverable structured template
+diagnostic is required. The interpolator/extractor protocols intentionally
+return a reflected result or Scala pattern match rather than an `Either`.
+
 ## Lambda1 failures
 
 `QuasiPattern.termLocated` returns an actionable located error for unsupported

@@ -25,6 +25,9 @@ The current source line is `0.2.0-SNAPSHOT`. It deliberately replaces the
 previous unusable `qq: Nothing` placeholder with the bounded Quotes-dependent
 term extractor. That signature replacement is not source-, binary-, or
 TASTy-compatible with the `0.1.x` line and is the reason for the minor change.
+The bounded reflected `tqr` and `tqq` type syntax is additive within this
+source line. Its extra sequence-shaped `tqr` overload is retained specifically
+to preserve the prior varargs function's supported eta-expansion shape.
 
 ## Module-specific compatibility
 

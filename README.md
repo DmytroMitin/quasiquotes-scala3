@@ -57,8 +57,8 @@ matching, type, Lambda1, and compiler-free definition examples.
 | --- | --- | --- | --- | --- |
 | Term construction | `qr"..."` | Public now | `QuasiquoteBuilder.build(...)` | Public now |
 | Term pattern matching | `case qq"..."` | Public now | `QuasiPattern.term(...)`, `termOrThrow(...)` | Public now |
-| Type construction | `tqr"..."` | TODO | `QuasiTypequotes.tqr(...)` | Public research API |
-| Type pattern matching | `case tqq"..."` | TODO | `QuasiTypequotes.tqq(...)` / `QuasiTypePattern.*` | Public research API |
+| Type construction | `tqr"..."` | Public now | `QuasiTypequotes.tqr(...)` | Public research API |
+| Type pattern matching | `case tqq"..."` | Public now | `QuasiTypequotes.tqq(...)` / `QuasiTypePattern.*` | Public research API |
 | Definition construction | `dqr"..."` | Internal research, not public | `DefinitionConstruction.*` | Public bounded compiler-free API |
 | Definition pattern matching | `case dqq"..."` | TODO / not implemented | — | Not yet |
 <!-- public-surface-table:end -->
@@ -71,10 +71,15 @@ distinct, returns ordinary mismatch through pattern fallthrough, and reports a
 malformed template during macro expansion. Use `QuasiPattern.term` or
 `termOrThrow` for explicit diagnostics and named/repeated-hole semantics.
 
-The `tqr` and `tqq` names in the programmatic column are functions, not public
-interpolators. `DefinitionConstruction.*` is bounded compiler-free semantic
-construction/projection; it is not the package-private `dqr` source-parser
-contract.
+The type names are intentionally layered overloads. Inside an active `Quotes`,
+`tqr"..."` accepts caller-owned `TypeRepr` splices and returns a caller-owned
+`TypeRepr`; `case tqq"..."` returns original target subtrees in source-slot
+order. The same imports retain the recoverable neutral functions
+`QuasiTypequotes.tqr(...)` and `QuasiTypequotes.tqq(...)`. The interpolated
+slots are distinct ordinal positions, while named and repeated-hole semantics
+remain available through the programmatic API. `DefinitionConstruction.*` is
+bounded compiler-free semantic construction/projection; it is not the
+package-private `dqr` source-parser contract.
 
 See the [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md) for the current
 construct/match boundary and its deliberate limits.
@@ -137,7 +142,7 @@ See [Getting started](docs/GETTING_STARTED.md),
 [release process](docs/RELEASE_PROCESS.md).
 
 The machine-readable [public API baseline](docs/PUBLIC_API_BASELINE.tsv)
-contains 305 core and 293 frontend Scaladoc-visible entries. It excludes the
+contains 305 core and 298 frontend Scaladoc-visible entries. It excludes the
 root, unpublished `dottyInternal`, and package-private internals and is a diff
 baseline rather than a compatibility promise.
 
@@ -146,9 +151,10 @@ applications plus binary `Either`, including patterns, construction, quoted
 lowering/inspection, typed ascriptions, and scoped type evidence. Constructor
 admission remains fixed and deliberately excludes general name resolution.
 
-The canonical first-use examples, including the complete Lambda1 and bounded
-`qq` macro paths, are mirrored from compiled external-package fixtures, and the
-repository's snippet drift check compares them byte for byte.
+The canonical first-use examples, including the complete Lambda1, bounded
+`qq`, and bounded `tqr`/`tqq` macro paths, are mirrored from compiled
+external-package fixtures, and the repository's snippet drift check compares
+them byte for byte.
 Public type diagnostics describe the supported boundary without development
 chronology or generated placeholder names.
 

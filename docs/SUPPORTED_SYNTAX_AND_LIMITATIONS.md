@@ -45,6 +45,9 @@ Important limitations:
   return explicit errors rather than falling back to unchecked trees;
 - public `qq` extractor templates require at least one interpolated term slot;
   slots are distinct and ordered, with no type/sequence/backreference syntax;
+- public `tqr` and `tqq` type templates use zero or more distinct ordinal
+  whole-type slots; they do not admit constructor, higher-kinded, wildcard,
+  sequence, binder-name, or mixed-category slots;
 - ordinary quoted standard-`s` interpolation has a bounded exact internal
   backend with canonical escaping and generated-origin spans; `raw`, `f`,
   custom interpolators, and triple-quoted `s` remain unsupported;
@@ -83,6 +86,47 @@ expansion; use `termLocated` when a recoverable structured diagnostic is needed.
 Captured terms retain the caller's active `q.reflect.Term` path and original
 compiler ownership. They are not detached portable trees and the extractor
 does not create another `Quotes` universe.
+
+## Bounded reflected type interpolators
+
+Inside an active macro `Quotes`, import `quasiquotes.types.QuasiTypequotes.*`.
+Construction accepts caller-owned reflected types and returns a reflected type
+in the same Quotes path:
+
+```scala
+val element: q.reflect.TypeRepr = q.reflect.TypeRepr.of[String]
+val result: q.reflect.TypeRepr = tqr"Either[Int, List[$element]]"
+```
+
+Every interpolation argument is inspected into the existing bounded
+`TypeNormalForm`, the existing `TypeTemplate` construction policy is applied,
+and the completed neutral form is lowered with the existing public type
+lowerer. No direct raw compiler-tree construction or fallback path is used.
+Zero, one, and multiple whole-type slots are supported.
+
+Matching uses the same bounded inspector and authoritative `TypePattern`
+semantics:
+
+```scala
+target match
+  case tqq"Either[$left, $right]" =>
+    // left and right are the original q.reflect.TypeRepr target subtrees
+  case _ =>
+```
+
+The inspector records internal structural paths while normalizing, and the
+extractor projects successful hole paths back to the exact original target
+subtrees. Captures are therefore caller-owned and may carry compiler-local
+identity; they are not reconstructed portable types. Unsupported targets and
+ordinary structural mismatches fall through. A malformed or unsupported
+template aborts with `Invalid tqq type-pattern template: ...`; an unsupported
+construction template or splice aborts with `Invalid tqr type template: ...`.
+
+Interpolated slots are collision-safe ordinal positions and are always
+distinct, independent of Scala binder spelling. Named and repeated holes are
+still available through `QuasiTypequotes.tqq(source)` and retain structural
+equality semantics. Constructor holes and general type-constructor resolution
+remain outside both public interpolated forms.
 
 ## Binder-aware Lambda1
 

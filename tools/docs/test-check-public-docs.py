@@ -23,8 +23,10 @@ class PublicDocsCheckTest(unittest.TestCase):
         docs.mkdir(parents=True)
         definitions = root / "frontend/src/main/scala/quasiquotes/definitions"
         matching = root / "frontend/src/main/scala/quasiquotes/matching"
+        types = root / "frontend/src/main/scala/quasiquotes/types"
         definitions.mkdir(parents=True)
         matching.mkdir(parents=True)
+        types.mkdir(parents=True)
 
         (root / "README.md").write_text(
             f"[matrix]({matrix_link})\n"
@@ -33,8 +35,8 @@ class PublicDocsCheckTest(unittest.TestCase):
             "| --- | --- | --- | --- | --- |\n"
             "| Term construction | `qr\"...\"` | Public now | `QuasiquoteBuilder.build(...)` | Public now |\n"
             "| Term pattern matching | `case qq\"...\"` | Public now | `QuasiPattern.term(...)`, `termOrThrow(...)` | Public now |\n"
-            "| Type construction | `tqr\"...\"` | TODO | `QuasiTypequotes.tqr(...)` | Public research API |\n"
-            "| Type pattern matching | `case tqq\"...\"` | TODO | `QuasiTypequotes.tqq(...)` / `QuasiTypePattern.*` | Public research API |\n"
+            "| Type construction | `tqr\"...\"` | Public now | `QuasiTypequotes.tqr(...)` | Public research API |\n"
+            "| Type pattern matching | `case tqq\"...\"` | Public now | `QuasiTypequotes.tqq(...)` / `QuasiTypePattern.*` | Public research API |\n"
             f"| Definition construction | `dqr\"...\"` | {dqr_status} | `DefinitionConstruction.*` | Public bounded compiler-free API |\n"
             "| Definition pattern matching | `case dqq\"...\"` | TODO / not implemented | — | Not yet |\n"
             "<!-- public-surface-table:end -->\n",
@@ -58,6 +60,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             "frontend\tquasiquotes.matching.TermPatternExtractor\tdef\tunapplySeq\tunapply signature\n"
             "frontend\tquasiquotes.types.QuasiTypequotes\tdef\ttqr\ttqr signature\n"
             "frontend\tquasiquotes.types.QuasiTypequotes\tdef\ttqq\ttqq signature\n"
+            "frontend\tquasiquotes.types.TypePatternExtractor\tdef\tunapplySeq\tunapply signature\n"
             "core\tquasiquotes.publicapi.DefinitionConstruction\tdef\ttwoParameterMethod\ttwo signature\n",
             encoding="utf-8",
         )
@@ -72,6 +75,17 @@ class PublicDocsCheckTest(unittest.TestCase):
         )
         (matching / "TermPatternExtractor.scala").write_text(
             "final class TermPatternExtractor[T]:\n  def unapplySeq(value: T): Option[Seq[T]] = ???\n",
+            encoding="utf-8",
+        )
+        (types / "QuasiTypequotes.scala").write_text(
+            "object QuasiTypequotes:\n"
+            "  def tqr(using q: Quotes)(args: q.reflect.TypeRepr*): q.reflect.TypeRepr = ???\n"
+            "  def tqq(using q: Quotes): TypePatternExtractor[q.reflect.TypeRepr] = ???\n",
+            encoding="utf-8",
+        )
+        (types / "TypePatternExtractor.scala").write_text(
+            "final class TypePatternExtractor[T]:\n"
+            "  def unapplySeq(value: T): Option[Seq[T]] = ???\n",
             encoding="utf-8",
         )
 

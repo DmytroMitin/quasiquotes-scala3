@@ -24,13 +24,13 @@ SURFACE_ROWS = {
     ),
     "Type construction": (
         '`tqr"..."`',
-        "TODO",
+        "Public now",
         "`QuasiTypequotes.tqr(...)`",
         "Public research API",
     ),
     "Type pattern matching": (
         '`case tqq"..."`',
-        "TODO",
+        "Public now",
         "`QuasiTypequotes.tqq(...)` / `QuasiTypePattern.*`",
         "Public research API",
     ),
@@ -57,6 +57,7 @@ PUBLIC_API = {
     ("quasiquotes.matching.TermPatternExtractor", "unapplySeq"),
     ("quasiquotes.types.QuasiTypequotes", "tqr"),
     ("quasiquotes.types.QuasiTypequotes", "tqq"),
+    ("quasiquotes.types.TypePatternExtractor", "unapplySeq"),
     ("quasiquotes.publicapi.DefinitionConstruction", "twoParameterMethod"),
 }
 
@@ -135,6 +136,12 @@ def source_findings(root: Path) -> list[str]:
     extractor_source = (
         root / "frontend/src/main/scala/quasiquotes/matching/TermPatternExtractor.scala"
     ).read_text(encoding="utf-8")
+    type_surface_source = (
+        root / "frontend/src/main/scala/quasiquotes/types/QuasiTypequotes.scala"
+    ).read_text(encoding="utf-8")
+    type_extractor_source = (
+        root / "frontend/src/main/scala/quasiquotes/types/TypePatternExtractor.scala"
+    ).read_text(encoding="utf-8")
     findings = []
     if "private[quasiquotes] object DefinitionQuasiquotes" not in definition_source:
         findings.append("dqr owner is no longer package-private")
@@ -144,6 +151,12 @@ def source_findings(root: Path) -> list[str]:
         findings.append("public qq signature no longer matches documentation")
     if "def unapplySeq(value: T): Option[Seq[T]]" not in extractor_source:
         findings.append("public qq extractor protocol no longer matches documentation")
+    if "def tqr(using q: Quotes)(args: q.reflect.TypeRepr*): q.reflect.TypeRepr" not in type_surface_source:
+        findings.append("public tqr interpolator signature no longer matches documentation")
+    if "def tqq(using q: Quotes): TypePatternExtractor[q.reflect.TypeRepr]" not in type_surface_source:
+        findings.append("public tqq extractor signature no longer matches documentation")
+    if "def unapplySeq(value: T): Option[Seq[T]]" not in type_extractor_source:
+        findings.append("public tqq extractor protocol no longer matches documentation")
     for source in sorted((root / "core/src/main").rglob("*.scala")) + sorted(
         (root / "frontend/src/main").rglob("*.scala")
     ):

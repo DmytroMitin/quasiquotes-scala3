@@ -31,3 +31,9 @@ compatibility, or a stable 1.x API.
 The bounded public `qq` extractor begins in the `0.2.x` source line. Code or
 TASTy compiled against the former `qq: Nothing` signature must be rebuilt and
 adapted; the intentional replacement is not a patch-compatible `0.1.x` change.
+
+The bounded public `tqr` interpolator and `tqq` extractor are additive in the
+`0.2.x` source line. A sequence-shaped `tqr` overload preserves the existing
+varargs function's eta-expanded method-value shape beside the same-named
+interpolator. Reflected construction results and captures remain owned by the
+caller's active `Quotes`; they are not cross-compiler or cross-Quotes portable.

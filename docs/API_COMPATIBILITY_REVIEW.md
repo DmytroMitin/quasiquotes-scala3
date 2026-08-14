@@ -35,23 +35,27 @@ baseline remains a review artifact, not a stability promise.
 
 ## Current accepted shape
 
-The accepted inventory contains 598 rows: 305 from `core` and 293 from
-`frontend`. Relative to the frozen 596-row inventory, the bounded term-pattern
-extractor review recorded exactly:
+The accepted inventory contains 603 rows: 305 from `core` and 298 from
+`frontend`. Relative to the prior 598-row inventory, the bounded reflected type
+syntax review recorded exactly five additions and no removals:
 
-- removal of `QuasiPattern.qq: Nothing`;
-- addition of `QuasiPattern.qq(using q: Quotes):
-  TermPatternExtractor[q.reflect.Term]`;
-- addition of public `TermPatternExtractor[T]` and its
+- addition of `QuasiTypequotes.tqr(using q: Quotes)(args:
+  q.reflect.TypeRepr*): q.reflect.TypeRepr`;
+- addition of `QuasiTypequotes.tqq(using q: Quotes):
+  TypePatternExtractor[q.reflect.TypeRepr]`;
+- addition of public `TypePatternExtractor[T]` and its
   `unapplySeq(value: T): Option[Seq[T]]` protocol.
+- addition of `QuasiTypequotes.tqr(templateSource: String, bindings:
+  Seq[(String, TypeNormalForm)])`, with a distinct JVM target name.
 
-This is one deliberate signature replacement plus two new API groups: three
-added signatures and one removed signature, for a net two-row increase. The
-old member was intentionally unusable, but source references, compiled code,
-and TASTy that name its old signature are not compatible. The exact-shape gate
-therefore required a new experimental 0.x minor, and the source line is now
-`0.2.0-SNAPSHOT`. Regeneration against this accepted baseline must report
-`NO_PUBLIC_API_DELTA`.
+The sequence overload is a source-compatibility adapter: without it, adding the
+same-named interpolator prevents Scala from eta-expanding the existing varargs
+function under its previously supported `(String, Seq[(String,
+TypeNormalForm)]) => Either[...]` expected type. Direct varargs calls remain
+unchanged, and compile tests cover wildcard imports, selective imports,
+ordinary calls, and method values. The real delta is additive-only, so the
+source line remains `0.2.0-SNAPSHOT`. Regeneration against this accepted
+baseline must report `NO_PUBLIC_API_DELTA`.
 
 ## Explicit non-guarantees
 

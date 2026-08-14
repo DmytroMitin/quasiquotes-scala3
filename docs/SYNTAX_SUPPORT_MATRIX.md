@@ -45,8 +45,8 @@ patterns, or general Scala quasiquote coverage.
 
 ## Types
 
-`QuasiTypequotes.tqr(...)` and `QuasiTypequotes.tqq(...)` are functions, not
-interpolators.
+`QuasiTypequotes.*` deliberately exports both the recoverable neutral function
+forms and the Quotes-dependent interpolator/extractor overloads.
 
 | Family | Example | Construction | Matching | Public surface | Status / limits |
 | --- | --- | --- | --- | --- | --- |
@@ -54,9 +54,19 @@ interpolators.
 | Fixed applied types | `Either[List[Int], Option[String]]` | Yes | Yes | `tqr`, `tqq`, structural APIs | `BOUNDED`; only `List`/1, `Option`/1, and `Either`/2 |
 | Tuple types | `(Int, String)`, `(Int, String, Boolean)` | Yes | Yes | `tqr`, `tqq`, structural APIs | `BOUNDED`; Tuple2 and Tuple3 |
 | Function types | `Int => String`, `(Int, String) => Boolean` | Yes | Yes | `tqr`, `tqq`, structural APIs | `BOUNDED`; Function1 and Function2 |
-| Type holes | `Either[$left, $right]` | Yes | Yes | `tqr`, `tqq` | `BOUNDED`; whole admitted type positions and repeated-hole structural equality |
+| Type holes | `Either[$left, $right]` | Yes | Yes | programmatic `tqr`, `tqq` | `BOUNDED`; named whole-type positions and repeated-hole structural equality |
+| Ordered reflected type construction | `tqr"Either[$left, $right]"` | Yes | No | interpolated `tqr` | `BOUNDED`; zero or more distinct ordinal `TypeRepr` slots, fixed constructors only |
+| Ordered reflected type capture extractor | `case tqq"Either[$left, $right]"` | No | Yes | interpolated `tqq` | `BOUNDED`; zero or more distinct ordinal slots, original target subtrees, mismatch falls through |
 | Selected/path-dependent types | `pkg.Type`, `value.Type` | No | No | — | `NOT_YET`; requires an explicit resolver and prefix policy |
 | Wildcards, refinements, match types | `List[?]`, `A { ... }`, `T match ...` | No | No | — | `NOT_YET`; outside the bounded normal form |
+
+The interpolated forms reuse the same normal-form construction and matching
+semantics. Their Scala splice/capture binder spelling is not semantic identity:
+slots are assigned distinct left-to-right ordinals. The programmatic pattern
+`QuasiTypequotes.tqq("Either[$same, $same]")` retains repeated named-hole
+equality. Unsupported reflected targets return `None` from the extractor; an
+unsupported splice or malformed/unsupported template fails with a controlled
+compile-time diagnostic.
 
 ## Definitions
 

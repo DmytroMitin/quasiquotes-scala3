@@ -13,6 +13,16 @@ object TypePattern:
   final case class TPTuple(elements: List[TypePattern]) extends TypePattern
   final case class TPFunction(arguments: List[TypePattern], result: TypePattern) extends TypePattern
 
+  private[quasiquotes] final case class MatchTrace(
+      result: TypeMatchResult,
+      holePaths: Map[String, Vector[Int]]
+  )
+
+  private final case class MatchState(
+      bindings: Map[String, TypeNormalForm],
+      holePaths: Map[String, Vector[Int]]
+  )
+
   private val HolePrefix = "__tqhole_"
 
   def rewriteSourceMapped(source: String): MappedHoleSource =
@@ -77,7 +87,14 @@ object TypePattern:
         Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTypeSyntax("type-pattern construction")))
 
   def matchNormalForm(pattern: TypePattern, target: TypeNormalForm): Option[TypeMatchResult] =
-    matchInto(pattern, target, Map.empty).map(TypeMatchResult(_))
+    matchNormalFormWithPaths(pattern, target).map(_.result)
+
+  private[quasiquotes] def matchNormalFormWithPaths(
+      pattern: TypePattern,
+      target: TypeNormalForm
+  ): Option[MatchTrace] =
+    matchInto(pattern, target, Vector.empty, MatchState(Map.empty, Map.empty))
+      .map(state => MatchTrace(TypeMatchResult(state.bindings), state.holePaths))
 
   def containsHole(pattern: TypePattern): Boolean =
     pattern match
@@ -90,38 +107,45 @@ object TypePattern:
   private def matchInto(
       pattern: TypePattern,
       target: TypeNormalForm,
-      bindings: Map[String, TypeNormalForm]
-  ): Option[Map[String, TypeNormalForm]] =
+      path: Vector[Int],
+      state: MatchState
+  ): Option[MatchState] =
     (pattern, target) match
       case (TPHole(name), normalForm) =>
-        bindings.get(name) match
-          case Some(existing) if existing == normalForm => Some(bindings)
+        state.bindings.get(name) match
+          case Some(existing) if existing == normalForm => Some(state)
           case Some(_) => None
-          case None => Some(bindings.updated(name, normalForm))
+          case None =>
+            Some(
+              state.copy(
+                bindings = state.bindings.updated(name, normalForm),
+                holePaths = state.holePaths.updated(name, path)
+              )
+            )
       case (TPIdent(name), TypeNormalForm.STypeIdent(targetName)) if name == targetName =>
-        Some(bindings)
+        Some(state)
       case (TPApply(patternConstructor, patternArguments), TypeNormalForm.STypeApply(targetConstructor, targetArguments))
           if patternArguments.size == targetArguments.size =>
-        matchInto(patternConstructor, targetConstructor, bindings).flatMap { constructorBindings =>
-          patternArguments.zip(targetArguments).foldLeft(Option(constructorBindings)) {
-            case (Some(currentBindings), (patternArgument, targetArgument)) =>
-              matchInto(patternArgument, targetArgument, currentBindings)
+        matchInto(patternConstructor, targetConstructor, path, state).flatMap { constructorState =>
+          patternArguments.zip(targetArguments).zipWithIndex.foldLeft(Option(constructorState)) {
+            case (Some(currentState), ((patternArgument, targetArgument), index)) =>
+              matchInto(patternArgument, targetArgument, path :+ index, currentState)
             case (None, _) => None
           }
         }
       case (TPTuple(patternElements), TypeNormalForm.STypeTuple(targetElements)) if patternElements.size == targetElements.size =>
-        patternElements.zip(targetElements).foldLeft(Option(bindings)) {
-          case (Some(currentBindings), (patternElement, targetElement)) =>
-            matchInto(patternElement, targetElement, currentBindings)
+        patternElements.zip(targetElements).zipWithIndex.foldLeft(Option(state)) {
+          case (Some(currentState), ((patternElement, targetElement), index)) =>
+            matchInto(patternElement, targetElement, path :+ index, currentState)
           case (None, _) => None
         }
       case (TPFunction(patternArguments, patternResult), TypeNormalForm.STypeFunction(targetArguments, targetResult))
           if patternArguments.size == targetArguments.size =>
-        patternArguments.zip(targetArguments).foldLeft(Option(bindings)) {
-          case (Some(currentBindings), (patternArgument, targetArgument)) =>
-            matchInto(patternArgument, targetArgument, currentBindings)
+        patternArguments.zip(targetArguments).zipWithIndex.foldLeft(Option(state)) {
+          case (Some(currentState), ((patternArgument, targetArgument), index)) =>
+            matchInto(patternArgument, targetArgument, path :+ index, currentState)
           case (None, _) => None
-        }.flatMap(matchInto(patternResult, targetResult, _))
+        }.flatMap(matchInto(patternResult, targetResult, path :+ patternArguments.size, _))
       case _ =>
         None
 

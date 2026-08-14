@@ -88,6 +88,20 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     assertEquals(extractNested(10, 42, 5), 42)
     assertEquals(extractWithSameTextLiteral(20, 22), 22)
 
+  test("documented type interpolator first use stays in the external caller Quotes path"):
+    assertEquals(
+      TypeInterpolatorFirstUseSnippet.constructionSummary,
+      "STypeApply(STypeIdent(Either), [STypeIdent(Int), STypeApply(STypeIdent(List), [STypeIdent(String)])])"
+    )
+    assertEquals(
+      TypeInterpolatorFirstUseSnippet.captureSummary[Either[Int, Boolean]],
+      "STypeIdent(Int) then STypeIdent(Boolean)"
+    )
+    assert(TypeInterpolatorFirstUseSnippet.zeroHoleMatches[Int])
+    assert(!TypeInterpolatorFirstUseSnippet.zeroHoleMatches[String])
+    assert(TypeInterpolatorFirstUseSnippet.unsupportedTargetFallsThrough)
+    assert(TypeInterpolatorFirstUseSnippet.ordinaryApisCoexist)
+
   test("external frontend consumer receives actionable located diagnostics"):
     val failures = Vector(
       TypePatternSource.fromSourceLocated("Map[Int, String]").swap.toOption.get,
