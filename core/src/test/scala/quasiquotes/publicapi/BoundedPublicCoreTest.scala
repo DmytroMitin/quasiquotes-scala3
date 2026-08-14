@@ -238,3 +238,119 @@ final class BoundedPublicCoreTest extends munit.FunSuite:
 
     assertEquals(failure.code, "invalid-single-parameter-method-contract")
     assertEquals(failure.anchor.map(_.componentCode), Some("result-type"))
+
+  test("constructs exact-two methods that select either parameter in source order"):
+    val intType = rightValue(CompletedType.named("Int"))
+    val stringType = rightValue(CompletedType.named("String"))
+    val firstBody = rightValue(CompletedTerm.definitionParameterReference("x"))
+    val secondBody = rightValue(CompletedTerm.definitionParameterReference("y"))
+
+    val first = rightValue(
+      DefinitionConstruction.twoParameterMethod(
+        "first", "x", intType, "y", stringType, intType, firstBody
+      )
+    )
+    val second = rightValue(
+      DefinitionConstruction.twoParameterMethod(
+        "second", "x", intType, "y", stringType, stringType, secondBody
+      )
+    )
+
+    assertEquals(first.kindCode, "two-parameter-method")
+    assertEquals(first.name, "first")
+    assertEquals(first.firstParameterName, "x")
+    assertEquals(first.firstParameterType, intType)
+    assertEquals(first.secondParameterName, "y")
+    assertEquals(first.secondParameterType, stringType)
+    assertEquals(first.resultType, intType)
+    assertEquals(first.body, firstBody)
+    assertEquals(first.source, "def first(x: Int, y: String): Int = x")
+    assertEquals(second.source, "def second(x: Int, y: String): String = y")
+    assertNotEquals(first, second)
+
+  test("maps the public exact-two body name to the corresponding binder identity"):
+    val intType = rightValue(CompletedType.named("Int"))
+    val firstBody = rightValue(CompletedTerm.definitionParameterReference("left"))
+    val secondBody = rightValue(CompletedTerm.definitionParameterReference("right"))
+    val first = rightValue(
+      DefinitionConstruction.constructTwoParameterMethod(
+        "choose", "left", intType, "right", intType, intType, firstBody
+      )
+    )
+    val second = rightValue(
+      DefinitionConstruction.constructTwoParameterMethod(
+        "choose", "left", intType, "right", intType, intType, secondBody
+      )
+    )
+
+    first.body.root match
+      case TermShape.BoundReference(binderId, "left") =>
+        assertEquals(binderId, first.firstParameterBinderId)
+        assertNotEquals(binderId, first.secondParameterBinderId)
+      case other => fail(s"expected first method binder, found ${other.render}")
+
+    second.body.root match
+      case TermShape.BoundReference(binderId, "right") =>
+        assertEquals(binderId, second.secondParameterBinderId)
+        assertNotEquals(binderId, second.firstParameterBinderId)
+      case other => fail(s"expected second method binder, found ${other.render}")
+
+  test("rejects a free same-text body for either exact-two parameter"):
+    val intType = rightValue(CompletedType.named("Int"))
+
+    Vector("left", "right").foreach { name =>
+      val freeBody = rightValue(CompletedTerm.reference(name))
+      val failure = DefinitionConstruction
+        .twoParameterMethod(
+          "choose", "left", intType, "right", intType, intType, freeBody
+        )
+        .left
+        .toOption
+        .getOrElse(fail("expected failure"))
+
+      assertEquals(failure.code, "invalid-two-parameter-method-contract")
+      assertEquals(failure.anchor.map(_.componentCode), Some("body"))
+    }
+
+  test("rejects an unknown exact-two parameter reference"):
+    val intType = rightValue(CompletedType.named("Int"))
+    val unknown = rightValue(CompletedTerm.definitionParameterReference("other"))
+    val failure = DefinitionConstruction
+      .twoParameterMethod(
+        "choose", "left", intType, "right", intType, intType, unknown
+      )
+      .left
+      .toOption
+      .getOrElse(fail("expected failure"))
+
+    assertEquals(failure.code, "invalid-two-parameter-method-contract")
+    assertEquals(failure.anchor.map(_.componentCode), Some("body"))
+
+  test("rejects duplicate exact-two public parameter names"):
+    val intType = rightValue(CompletedType.named("Int"))
+    val body = rightValue(CompletedTerm.definitionParameterReference("same"))
+    val failure = DefinitionConstruction
+      .twoParameterMethod(
+        "choose", "same", intType, "same", intType, intType, body
+      )
+      .left
+      .toOption
+      .getOrElse(fail("expected failure"))
+
+    assertEquals(failure.code, "invalid-two-parameter-method-contract")
+    assertEquals(failure.anchor.map(_.componentCode), Some("parameter-name"))
+
+  test("rejects an exact-two result type that differs from the selected parameter"):
+    val intType = rightValue(CompletedType.named("Int"))
+    val stringType = rightValue(CompletedType.named("String"))
+    val body = rightValue(CompletedTerm.definitionParameterReference("left"))
+    val failure = DefinitionConstruction
+      .twoParameterMethod(
+        "choose", "left", intType, "right", intType, stringType, body
+      )
+      .left
+      .toOption
+      .getOrElse(fail("expected failure"))
+
+    assertEquals(failure.code, "invalid-two-parameter-method-contract")
+    assertEquals(failure.anchor.map(_.componentCode), Some("result-type"))

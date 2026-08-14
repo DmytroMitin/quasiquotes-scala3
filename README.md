@@ -8,6 +8,51 @@ The project is a research proof of concept. Its API, coordinates, supported
 syntax, and compatibility policy may change. No artifact is currently
 available from a remote package repository.
 
+## Quick start
+
+`qr` constructs a Scala 3 quoted-reflection `Term` from source-like syntax
+with structural splices.
+
+<!-- snippet:readme-quick-start:start -->
+```scala
+import scala.quoted.*
+import quasiquotes.construct.Quasiquotes.*
+
+object ReadmeQuickStart:
+  inline def add(left: Int, right: Int): Int =
+    ${ addImpl('left, 'right) }
+
+  private def addImpl(
+      left: Expr[Int],
+      right: Expr[Int]
+  )(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+
+    qr"${left.asTerm} + ${right.asTerm}".asExprOf[Int]
+```
+<!-- snippet:readme-quick-start:end -->
+
+This example is compiled from an external-package fixture. See
+[Getting started](docs/GETTING_STARTED.md) for the larger construction,
+matching, type, Lambda1, and compiler-free definition examples.
+
+## Quasiquote surfaces
+
+<!-- public-surface-table:start -->
+| Surface | Form | Availability | Role |
+| --- | --- | --- | --- |
+| `qr"..."` | Interpolator | Public now | Construct a quoted-reflection `Term` from supported term syntax and structural splices. |
+| `QuasiPattern.term(...)` | Functions | Public now | Compile a supported structural term pattern (`termOrThrow` is the throwing function variant); the reserved throwing `qq` extension is not a supported general pattern interpolator. |
+| `QuasiTypequotes.tqr(...)` | Function, not an interpolator | Public research API | Construct a bounded compiler-free type value from a template and explicit bindings. |
+| `QuasiTypequotes.tqq(...)` | Function, not an interpolator | Public research API | Compile a bounded structural type pattern. |
+| `DefinitionConstruction` | Functions | Public now | Construct compiler-free contextual, single-parameter, and exact-two-parameter definition projections. |
+| `dqr"..."` | Internal interpolator | Internal research | Package-private definition construction research surface; not public API. |
+| `dqq` | — | Not yet | No definition pattern interpolator is implemented. |
+<!-- public-surface-table:end -->
+
+See the [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md) for the current
+construct/match boundary and its deliberate limits.
+
 ## Modules
 
 - `core` contains compiler-free term/type/definition values, construction,
@@ -18,6 +63,12 @@ available from a remote package repository.
   present for review and testing, but its artifact is deliberately unpublished.
 - `public-core-examples` and `public-api-examples` compile consumer code from
   outside the library packages.
+
+In role, `frontend` is closest to Scala 2 quasiquotes: it owns source-like
+quotation/pattern syntax and compiler-coupled construction and matching.
+`core` is closer to a small Scalameta-like neutral structural model. This is
+only an architectural analogy: the project neither reimplements all Scala 2
+quasiquotes nor provides a Scalameta replacement or full-fidelity Scala AST.
 
 ## Try the source build
 
@@ -51,6 +102,7 @@ are provisional local evidence, not a release or remote-availability claim.
 See [Getting started](docs/GETTING_STARTED.md),
 [diagnostics](docs/DIAGNOSTICS.md),
 [architecture](docs/ARCHITECTURE.md),
+[syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md),
 [exact constructor backend](docs/EXACT_BACKEND_CONSTRUCTOR_NEW.md),
 [supported syntax and limitations](docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md),
 [compatibility](docs/COMPATIBILITY.md),
@@ -59,7 +111,7 @@ See [Getting started](docs/GETTING_STARTED.md),
 [release process](docs/RELEASE_PROCESS.md).
 
 The machine-readable [public API baseline](docs/PUBLIC_API_BASELINE.tsv)
-contains 294 core and 291 frontend Scaladoc-visible entries. It excludes the
+contains 305 core and 291 frontend Scaladoc-visible entries. It excludes the
 root, unpublished `dottyInternal`, and package-private internals and is a diff
 baseline rather than a compatibility promise.
 
@@ -74,12 +126,12 @@ snippet drift check compares them byte for byte.
 Public type diagnostics describe the supported boundary without development
 chronology or generated placeholder names.
 
-The compiler-free public API also constructs the bounded identity-method form
-`def id(x: Int): Int = x`. Its explicit definition-parameter body reference is
-internally converted to the package-private binder-aware definition core; a
-free same-text `CompletedTerm.reference` is never captured implicitly. This is
-a semantic construction/projection API, not a source parser or method-placement
-backend.
+The compiler-free public API constructs bounded single- and exact-two-parameter
+methods whose bodies explicitly select a declared parameter. That public name
+selection is converted once to the package-private binder-aware definition
+core; a free same-text `CompletedTerm.reference` is never captured implicitly.
+This is a semantic construction/projection API, not a source parser or
+method-placement backend.
 
 ## License
 

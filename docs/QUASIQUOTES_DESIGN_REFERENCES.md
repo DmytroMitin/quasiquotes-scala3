@@ -244,8 +244,8 @@ The project does not attempt:
 - full semantic equivalence
 - algebraic normalization
 - general alpha-equivalence beyond explicitly modeled bounded binders
-- general binder-aware matching beyond the accepted Lambda1 and internal
-  one-parameter definition scopes
+- general binder-aware matching beyond the accepted Lambda1 and bounded
+  one- and exact-two-parameter definition scopes
 - full compatibility with Scala 2 quasiquotes
 
 These are considered out of scope for a POC.

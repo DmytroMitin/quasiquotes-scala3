@@ -12,7 +12,13 @@ CHECKER = Path(__file__).with_name("check-snippets.py")
 
 
 class CheckSnippetsTest(unittest.TestCase):
-    def make_fixture(self, root: Path, documented_lambda: str) -> None:
+    def make_fixture(
+        self,
+        root: Path,
+        documented_lambda: str,
+        documented_quick_start: str = "val quickStart = 5",
+        documented_two_parameter: str = "val twoParameter = 7",
+    ) -> None:
         docs = root / "docs"
         sources = root / "public-api-examples/src/test/scala/external/consumer"
         core_sources = root / "public-core-examples/src/test/scala/external/consumer"
@@ -30,6 +36,12 @@ class CheckSnippetsTest(unittest.TestCase):
             "// snippet:definition-first-use:end\n",
             encoding="utf-8",
         )
+        (core_sources / "TwoParameterDefinitionFirstUseSnippet.scala").write_text(
+            "// snippet:two-parameter-definition-first-use:start\n"
+            "val twoParameter = 7\n"
+            "// snippet:two-parameter-definition-first-use:end\n",
+            encoding="utf-8",
+        )
         (sources / "FrontendFirstUseSnippet.scala").write_text(
             "// snippet:frontend-first-use:start\nval frontend = 2\n"
             "// snippet:frontend-first-use:end\n",
@@ -40,12 +52,27 @@ class CheckSnippetsTest(unittest.TestCase):
             "// snippet:lambda1-first-use:end\n",
             encoding="utf-8",
         )
+        (sources / "ReadmeQuickStart.scala").write_text(
+            "// snippet:readme-quick-start:start\nval quickStart = 5\n"
+            "// snippet:readme-quick-start:end\n",
+            encoding="utf-8",
+        )
+        (root / "README.md").write_text(
+            "<!-- snippet:readme-quick-start:start -->\n```scala\n"
+            + documented_quick_start
+            + "\n```\n<!-- snippet:readme-quick-start:end -->\n",
+            encoding="utf-8",
+        )
         (docs / "GETTING_STARTED.md").write_text(
             "<!-- snippet:core-first-use:start -->\n```scala\nval core = 1\n```\n"
             "<!-- snippet:core-first-use:end -->\n"
             "<!-- snippet:definition-first-use:start -->\n"
             "```scala\nval definition = 4\n```\n"
             "<!-- snippet:definition-first-use:end -->\n"
+            "<!-- snippet:two-parameter-definition-first-use:start -->\n"
+            "```scala\n"
+            + documented_two_parameter
+            + "\n```\n<!-- snippet:two-parameter-definition-first-use:end -->\n"
             "<!-- snippet:frontend-first-use:start -->\n```scala\nval frontend = 2\n```\n"
             "<!-- snippet:frontend-first-use:end -->\n"
             "<!-- snippet:lambda1-first-use:start -->\n```scala\n"
@@ -71,7 +98,7 @@ class CheckSnippetsTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(
-                "First-use snippets aligned: core-first-use, definition-first-use, frontend-first-use, lambda1-first-use",
+                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, readme-quick-start",
                 result.stdout,
             )
 
@@ -84,6 +111,37 @@ class CheckSnippetsTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn("First-use snippet drift: lambda1-first-use", result.stderr)
+
+    def test_rejects_readme_quick_start_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(
+                root,
+                documented_lambda="val lambda = 3",
+                documented_quick_start="val quickStart = 6",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("First-use snippet drift: readme-quick-start", result.stderr)
+
+    def test_rejects_two_parameter_definition_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(
+                root,
+                documented_lambda="val lambda = 3",
+                documented_two_parameter="val twoParameter = 8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "First-use snippet drift: two-parameter-definition-first-use",
+                result.stderr,
+            )
 
 
 if __name__ == "__main__":

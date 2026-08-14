@@ -5,6 +5,7 @@ import quasiquotes.publicapi.CompletedType
 import quasiquotes.publicapi.DefinitionConstruction
 import quasiquotes.publicapi.DefinitionResultView
 import quasiquotes.publicapi.PublicFailure
+import quasiquotes.publicapi.TwoParameterMethodResultView
 import quasiquotes.parser.TermShape
 import quasiquotes.parser.TypeShape
 import quasiquotes.types.{ConstructedType, TypeNormalForm, TypePattern, TypeTemplate}
@@ -54,6 +55,19 @@ final class PublicCoreExampleCompileTest extends munit.FunSuite:
     assertEquals(result.resultType.source, "Int")
     assertEquals(result.body.kindCode, "definition-parameter-reference")
     assertEquals(result.source, "def id(x: Int): Int = x")
+
+  test("external core-only consumer selects each exact-two parameter"):
+    val first: TwoParameterMethodResultView =
+      TwoParameterDefinitionFirstUseSnippet.first.toOption
+        .getOrElse(fail("expected first-parameter method"))
+    val second: TwoParameterMethodResultView =
+      TwoParameterDefinitionFirstUseSnippet.second.toOption
+        .getOrElse(fail("expected second-parameter method"))
+
+    assertEquals(first.firstParameterName, "x")
+    assertEquals(first.secondParameterName, "y")
+    assertEquals(first.source, "def first(x: Int, y: String): Int = x")
+    assertEquals(second.source, "def second(x: Int, y: String): String = y")
 
   test("external core-only consumer receives an actionable unsupported parameter type"):
     val result =

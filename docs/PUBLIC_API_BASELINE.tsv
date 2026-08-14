@@ -141,6 +141,7 @@ core	quasiquotes.publicapi	class	DefinitionResultView	DefinitionResultView
 core	quasiquotes.publicapi	class	FailureAnchor	FailureAnchor
 core	quasiquotes.publicapi	class	PublicFailure	PublicFailure
 core	quasiquotes.publicapi	class	SingleParameterMethodResultView	SingleParameterMethodResultView
+core	quasiquotes.publicapi	class	TwoParameterMethodResultView	TwoParameterMethodResultView
 core	quasiquotes.publicapi	object	CompletedTerm	CompletedTerm
 core	quasiquotes.publicapi	object	CompletedType	CompletedType
 core	quasiquotes.publicapi	object	DefinitionConstruction	DefinitionConstruction
@@ -161,6 +162,7 @@ core	quasiquotes.publicapi.CompletedType	def	typeParameter	typeParameter(name: S
 core	quasiquotes.publicapi.CompletedType	given	derived$CanEqual	derived$CanEqual: CanEqual[CompletedType, CompletedType]
 core	quasiquotes.publicapi.DefinitionConstruction	def	contextualMethod	contextualMethod(name: String, typeParameterName: String, contextualParameterName: String, contextualParameterType: CompletedType, resultType: CompletedType, body: CompletedTerm): Either[PublicFailure, DefinitionResultView]
 core	quasiquotes.publicapi.DefinitionConstruction	def	singleParameterMethod	singleParameterMethod(name: String, parameterName: String, parameterType: CompletedType, resultType: CompletedType, body: CompletedTerm): Either[PublicFailure, SingleParameterMethodResultView]
+core	quasiquotes.publicapi.DefinitionConstruction	def	twoParameterMethod	twoParameterMethod(name: String, firstParameterName: String, firstParameterType: CompletedType, secondParameterName: String, secondParameterType: CompletedType, resultType: CompletedType, body: CompletedTerm): Either[PublicFailure, TwoParameterMethodResultView]
 core	quasiquotes.publicapi.DefinitionResultView	def	kindCode	kindCode: String
 core	quasiquotes.publicapi.DefinitionResultView	val	body	body: CompletedTerm
 core	quasiquotes.publicapi.DefinitionResultView	val	contextualParameterName	contextualParameterName: String
@@ -180,6 +182,15 @@ core	quasiquotes.publicapi.SingleParameterMethodResultView	val	name	name: String
 core	quasiquotes.publicapi.SingleParameterMethodResultView	val	parameterName	parameterName: String
 core	quasiquotes.publicapi.SingleParameterMethodResultView	val	parameterType	parameterType: CompletedType
 core	quasiquotes.publicapi.SingleParameterMethodResultView	val	resultType	resultType: CompletedType
+core	quasiquotes.publicapi.TwoParameterMethodResultView	def	kindCode	kindCode: String
+core	quasiquotes.publicapi.TwoParameterMethodResultView	def	source	source: String
+core	quasiquotes.publicapi.TwoParameterMethodResultView	val	body	body: CompletedTerm
+core	quasiquotes.publicapi.TwoParameterMethodResultView	val	firstParameterName	firstParameterName: String
+core	quasiquotes.publicapi.TwoParameterMethodResultView	val	firstParameterType	firstParameterType: CompletedType
+core	quasiquotes.publicapi.TwoParameterMethodResultView	val	name	name: String
+core	quasiquotes.publicapi.TwoParameterMethodResultView	val	resultType	resultType: CompletedType
+core	quasiquotes.publicapi.TwoParameterMethodResultView	val	secondParameterName	secondParameterName: String
+core	quasiquotes.publicapi.TwoParameterMethodResultView	val	secondParameterType	secondParameterType: CompletedType
 core	quasiquotes.source	class	DiagnosticLocation	DiagnosticLocation(sourceId: SourceId, span: SourceSpan, origins: Vector[SourceOrigin], precision: DiagnosticPrecision)
 core	quasiquotes.source	class	GeneratedHoleIndex	GeneratedHoleIndex
 core	quasiquotes.source	class	GeneratedSegment	GeneratedSegment(generatedSpan: SourceSpan, origin: SourceOrigin)

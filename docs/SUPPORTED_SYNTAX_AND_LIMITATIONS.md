@@ -3,22 +3,26 @@
 The implementation is a structural research subset, not a complete Scala 3
 quasiquote system.
 
+For a compact phase-neutral overview across terms, types, and definitions, see
+the [syntax support matrix](SYNTAX_SUPPORT_MATRIX.md). This document provides
+the detailed semantic and diagnostic caveats behind that table.
+
 Currently exercised areas include:
 
 - identifiers, selections, applications, typed terms, blocks, tuples, unary
   operations, and standard string interpolation in bounded structural forms;
 - ordinary lambdas with exactly one explicitly typed parameter, with scoped
   binder identity, alpha-aware construction/matching, and complete-body holes;
-- a compiler-free public identity-method constructor with exactly one explicitly
-  named and typed ordinary parameter, plus a richer package-private definition
-  shape with scoped references and alpha-aware template/completion semantics;
+- compiler-free public single- and exact-two-parameter method constructors,
+  plus richer package-private definition shapes with scoped references and
+  alpha-aware template/completion semantics;
 - type identifiers, selections, applications, tuples, functions, wildcards,
   unions/intersections, annotations, refinements, and selected bounds/match
   forms;
 - term and type holes with collision-safe rewriting and repeated-hole checks;
 - compiler-free term/type/definition templates and completed values;
-- bounded public contextual-method and single-ordinary-parameter construction
-  contracts;
+- bounded public contextual, single-ordinary-parameter, and exact-two-parameter
+  construction contracts;
 - source spans, diagnostic anchors, and exact-version lowering adapters;
 - recursively nested `List` and `Option` types plus binary `Either`, with
   structural argument order, repeated type holes, construction, quoted
@@ -33,9 +37,10 @@ Important limitations:
   lambdas, binder-name holes, local definitions, and general blocks;
 - compiler-internal behavior is exact-version-sensitive;
 - public definition construction is intentionally narrow;
-- the one-parameter method surface has no public source interpolator, located
-  parameter-span carrier, or arithmetic/literal/general-expression body
-  builder; its exact untyped/generated-origin backend remains package-private;
+- ordinary-parameter method surfaces have no public source interpolator,
+  located parameter-span carrier, or arithmetic/literal/general-expression
+  body builder; the single-parameter exact backend remains package-private and
+  exact-two lowering remains deliberately deferred;
 - interpolation and type support expands incrementally, so unsupported shapes
   return explicit errors rather than falling back to unchecked trees;
 - ordinary quoted standard-`s` interpolation has a bounded exact internal
@@ -82,7 +87,7 @@ references through project binder identity and consumes the completed
 parameter-type sidecar. Nested lambdas and broader lambda/block syntax remain
 outside that internal contract and fail closed.
 
-## Single ordinary-parameter definitions
+## Ordinary-parameter definitions
 
 The public compiler-free first-use surface admits the identity-like subset:
 
@@ -120,13 +125,13 @@ only the method kind, names, completed types, explicit body projection, and a
 coherent source rendering. `BinderId`, `TermShape`, constructed/template
 definitions, source maps, and compiler trees remain package-private.
 
-This is not a general parameter-list model. Multiple clauses or parameters,
-contextual/implicit/type parameters, defaults, varargs, by-name or erased
-parameters, dependent methods, local definitions, binder-name holes, and
-general owner/placement policy remain unsupported. Richer public bodies and a
-source adapter are not implied. The existing located definition carrier cannot
-truthfully describe both parameter and result-type spans, so it still rejects
-this variant.
+This is not a general parameter-list model. Multiple clauses, more than two
+ordinary parameters, contextual/implicit/type parameters, defaults, varargs,
+by-name or erased parameters, dependent methods, local definitions,
+binder-name holes, and general owner/placement policy remain unsupported.
+Richer public bodies and a source adapter are not implied. The existing located
+definition carrier cannot truthfully describe parameter and parameter-type
+spans for these variants, so it rejects them.
 
 The unpublished exact internal backend supports this same compiler-free shape
 in two modes. Source-free lowering constructs one ordinary parameter `ValDef`
@@ -138,6 +143,25 @@ validated parameter declaration spelling, while free same-text identifiers
 remain free. Foreign binder identities and missing, unsupported, or unconsumed
 completed type sidecars fail closed. The backend does not expand the admitted
 parameter-list syntax or make a general placement/owner promise.
+
+The public compiler-free surface also admits exactly two ordered ordinary
+parameters when the body explicitly returns either declared parameter:
+
+```scala
+def first(x: Int, y: String): Int = x
+def second(x: Int, y: String): String = y
+```
+
+Call `DefinitionConstruction.twoParameterMethod` with distinct parameter names
+and a `CompletedTerm.definitionParameterReference` naming one of them. The
+result type must equal the selected parameter type. The public name is resolved
+once to the corresponding internal binder identity; unknown names and free
+same-text references fail with `invalid-two-parameter-method-contract`.
+
+The exact-two public result preserves first/second names and types in source
+order. It remains a projection over the package-private compiler-free model.
+Source metadata and both exact backends deliberately reject this variant with
+controlled diagnostics pending a later exact-lowering decision.
 
 Unsupported type inputs report the rejected constructor, selected syntax,
 expected arity, or unsupported family where available. Located source adapters

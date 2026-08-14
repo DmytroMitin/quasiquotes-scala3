@@ -5,8 +5,8 @@ their existing failure types.
 
 ## Core failures
 
-The bounded contextual-method and single-parameter-method APIs return
-`Either[PublicFailure, A]`.
+The bounded contextual-method, single-parameter-method, and exact-two-parameter
+method APIs return `Either[PublicFailure, A]`.
 `PublicFailure.code` is the experimental machine-readable identity, `message`
 is presentation text, and `anchor` identifies the affected component when one
 exists.
@@ -30,6 +30,13 @@ failures include an unsupported completed type, a free reference passed where
 an explicit definition-parameter reference is required, a mismatched reference
 name, and unequal parameter/result types for the identity body. Messages remain
 presentation text; consumers should branch on the code and anchor.
+
+`DefinitionConstruction.twoParameterMethod` adds
+`invalid-two-parameter-method-contract` for duplicate declared names,
+unsupported parameter/result types, free or unknown body references, and a
+result type that differs from the selected parameter. Name syntax failures
+remain `invalid-name`; exact-two contract failures reuse the
+`parameter-name`, `parameter-type`, `result-type`, and `body` anchors.
 
 ## Frontend located failures
 

@@ -13,15 +13,16 @@ publicCoreExamples -> core
 construction and matching algorithms, and neutral source/diagnostic metadata.
 Its compile and runtime classpaths must not contain Scala compiler artifacts.
 Its package-private definition model reuses the same `BinderId` scope algebra
-as Lambda1 for one ordinary method parameter; display spelling never replaces
-semantic identity. The public compiler-free identity-method constructor creates
-that package-private bound-reference representation and returns only a narrow
-projection. The current source-metadata carrier remains package-private. The
-exact definition backend lowers this one-parameter variant directly to an
+as Lambda1 for one or exactly two ordinary method parameters; display spelling
+never replaces semantic identity. The public compiler-free constructors create
+those package-private bound-reference representations and return only narrow
+projections. The current source-metadata carrier remains package-private. The
+exact definition backend lowers the one-parameter variant directly to an
 ordinary raw `DefDef` in source-free mode and to a canonical, recursively
 positioned generated-origin tree. Both modes map the project `BinderId` to the
 validated parameter declaration spelling; they do not manufacture compiler
-symbols or treat reference display text as binding.
+symbols or treat reference display text as binding. Exact-two lowering remains
+deliberately deferred behind controlled diagnostics.
 
 `frontend` owns source parsing, macros, quoted reflection, source-to-core
 adapters, and compiler-version-sensitive lowering. It uses full Scala compiler

@@ -102,6 +102,66 @@ private[publicapi] object SingleParameterMethodResultView:
       body
     )
 
+/** Read-only result for one bounded ordinary exact-two-parameter method. */
+final class TwoParameterMethodResultView private (
+    val name: String,
+    val firstParameterName: String,
+    val firstParameterType: CompletedType,
+    val secondParameterName: String,
+    val secondParameterType: CompletedType,
+    val resultType: CompletedType,
+    val body: CompletedTerm
+) derives CanEqual:
+  def kindCode: String = "two-parameter-method"
+
+  def source: String =
+    s"def $name($firstParameterName: ${firstParameterType.source}, $secondParameterName: ${secondParameterType.source}): ${resultType.source} = ${body.source}"
+
+  override def equals(other: Any): Boolean =
+    other match
+      case that: TwoParameterMethodResultView =>
+        name == that.name &&
+          firstParameterName == that.firstParameterName &&
+          firstParameterType == that.firstParameterType &&
+          secondParameterName == that.secondParameterName &&
+          secondParameterType == that.secondParameterType &&
+          resultType == that.resultType &&
+          body == that.body
+      case _ => false
+
+  override def hashCode: Int =
+    (
+      name,
+      firstParameterName,
+      firstParameterType,
+      secondParameterName,
+      secondParameterType,
+      resultType,
+      body
+    ).hashCode
+
+  override def toString: String = source
+
+private[publicapi] object TwoParameterMethodResultView:
+  def create(
+      name: String,
+      firstParameterName: String,
+      firstParameterType: CompletedType,
+      secondParameterName: String,
+      secondParameterType: CompletedType,
+      resultType: CompletedType,
+      body: CompletedTerm
+  ): TwoParameterMethodResultView =
+    new TwoParameterMethodResultView(
+      name,
+      firstParameterName,
+      firstParameterType,
+      secondParameterName,
+      secondParameterType,
+      resultType,
+      body
+    )
+
 object DefinitionConstruction:
   def contextualMethod(
       name: String,
@@ -195,9 +255,14 @@ object DefinitionConstruction:
       parameter <- validateName(parameterName, FailureAnchor.ParameterName)
       completedParameterType <- definitionType(
         parameterType,
-        FailureAnchor.ParameterType
+        FailureAnchor.ParameterType,
+        PublicFailure.invalidSingleParameterMethodContract
       )
-      completedResultType <- definitionType(resultType, FailureAnchor.ResultType)
+      completedResultType <- definitionType(
+        resultType,
+        FailureAnchor.ResultType,
+        PublicFailure.invalidSingleParameterMethodContract
+      )
       _ <- Either.cond(
         completedResultType == completedParameterType,
         (),
@@ -239,6 +304,136 @@ object DefinitionConstruction:
           binderId,
           internalParameterName,
           completedParameterType,
+          completedResultType,
+          internalBody
+        )
+        .left
+        .map(error => PublicFailure.internalInvariant(error.message))
+    yield constructed
+
+  def twoParameterMethod(
+      name: String,
+      firstParameterName: String,
+      firstParameterType: CompletedType,
+      secondParameterName: String,
+      secondParameterType: CompletedType,
+      resultType: CompletedType,
+      body: CompletedTerm
+  ): Either[PublicFailure, TwoParameterMethodResultView] =
+    constructTwoParameterMethod(
+      name,
+      firstParameterName,
+      firstParameterType,
+      secondParameterName,
+      secondParameterType,
+      resultType,
+      body
+    ).map(_ =>
+      TwoParameterMethodResultView.create(
+        name,
+        firstParameterName,
+        firstParameterType,
+        secondParameterName,
+        secondParameterType,
+        resultType,
+        body
+      )
+    )
+
+  private[publicapi] def constructTwoParameterMethod(
+      name: String,
+      firstParameterName: String,
+      firstParameterType: CompletedType,
+      secondParameterName: String,
+      secondParameterType: CompletedType,
+      resultType: CompletedType,
+      body: CompletedTerm
+  ): Either[PublicFailure, ConstructedDefinition.TwoParameterDef] =
+    for
+      methodName <- validateName(name, FailureAnchor.MethodName)
+      firstName <- validateName(firstParameterName, FailureAnchor.ParameterName)
+      secondName <- validateName(secondParameterName, FailureAnchor.ParameterName)
+      _ <- Either.cond(
+        firstName != secondName,
+        (),
+        PublicFailure.invalidTwoParameterMethodContract(
+          "The two ordinary parameter names must be distinct.",
+          FailureAnchor.ParameterName
+        )
+      )
+      completedFirstType <- definitionType(
+        firstParameterType,
+        FailureAnchor.ParameterType,
+        PublicFailure.invalidTwoParameterMethodContract
+      )
+      completedSecondType <- definitionType(
+        secondParameterType,
+        FailureAnchor.ParameterType,
+        PublicFailure.invalidTwoParameterMethodContract
+      )
+      completedResultType <- definitionType(
+        resultType,
+        FailureAnchor.ResultType,
+        PublicFailure.invalidTwoParameterMethodContract
+      )
+      completedBody <- requireTwoParameterBody(body, firstName, secondName)
+      selectedFirst = completedBody.referenceName == firstName
+      selectedType =
+        if selectedFirst then completedFirstType else completedSecondType
+      _ <- Either.cond(
+        completedResultType == selectedType,
+        (),
+        PublicFailure.invalidTwoParameterMethodContract(
+          "A parameter-reference body requires the result type to equal the selected parameter type.",
+          FailureAnchor.ResultType
+        )
+      )
+      internalMethodName <- DefinitionName
+        .plain(methodName)
+        .left
+        .map(error =>
+          PublicFailure.invalidTwoParameterMethodContract(
+            error.message,
+            FailureAnchor.MethodName
+          )
+        )
+      internalFirstName <- DefinitionName
+        .plain(firstName)
+        .left
+        .map(error =>
+          PublicFailure.invalidTwoParameterMethodContract(
+            error.message,
+            FailureAnchor.ParameterName
+          )
+        )
+      internalSecondName <- DefinitionName
+        .plain(secondName)
+        .left
+        .map(error =>
+          PublicFailure.invalidTwoParameterMethodContract(
+            error.message,
+            FailureAnchor.ParameterName
+          )
+        )
+      firstBinderId = BinderId(0)
+      secondBinderId = BinderId(1)
+      selectedBinderId = if selectedFirst then firstBinderId else secondBinderId
+      internalBody <- ConstructedTerm
+        .fromShapeInScope(
+          TermShape.BoundReference(selectedBinderId, completedBody.referenceName),
+          Vector(firstBinderId, secondBinderId)
+        )
+        .left
+        .map(error => PublicFailure.internalInvariant(error.message))
+      constructed <- ConstructedDefinition
+        .twoParameterDef(
+          internalMethodName,
+          firstBinderId,
+          internalFirstName,
+          completedFirstType,
+          secondBinderId,
+          internalSecondName,
+          completedSecondType,
           completedResultType,
           internalBody
         )
@@ -304,14 +499,46 @@ object DefinitionConstruction:
       )
     else Right(body)
 
+  private def requireTwoParameterBody(
+      body: CompletedTerm,
+      firstParameterName: String,
+      secondParameterName: String
+  ): Either[PublicFailure, CompletedTerm] =
+    if body == null then
+      Left(
+        PublicFailure.invalidTwoParameterMethodContract(
+          "The method body must be present.",
+          FailureAnchor.Body
+        )
+      )
+    else if !body.isDefinitionParameterReference then
+      Left(
+        PublicFailure.invalidTwoParameterMethodContract(
+          "Use CompletedTerm.definitionParameterReference(...) for a bound method-parameter body.",
+          FailureAnchor.Body
+        )
+      )
+    else if
+      body.referenceName != firstParameterName &&
+      body.referenceName != secondParameterName
+    then
+      Left(
+        PublicFailure.invalidTwoParameterMethodContract(
+          s"The body parameter reference `${body.referenceName}` must match declared parameter `$firstParameterName` or `$secondParameterName`.",
+          FailureAnchor.Body
+        )
+      )
+    else Right(body)
+
   private def definitionType(
       value: CompletedType,
-      anchor: FailureAnchor
+      anchor: FailureAnchor,
+      invalidContract: (String, FailureAnchor) => PublicFailure
   ): Either[PublicFailure, TypeNormalForm] =
     val converted =
       if value == null then
         Left(
-          PublicFailure.invalidSingleParameterMethodContract(
+          invalidContract(
             "The definition type must be present.",
             anchor
           )
@@ -322,19 +549,27 @@ object DefinitionConstruction:
             Right(TypeNormalForm.STypeIdent(value.name.get))
           case "applied" =>
             for
-              constructor <- definitionType(value.constructor.get, anchor)
-              arguments <- collectDefinitionTypes(value.arguments, anchor)
+              constructor <- definitionType(
+                value.constructor.get,
+                anchor,
+                invalidContract
+              )
+              arguments <- collectDefinitionTypes(
+                value.arguments,
+                anchor,
+                invalidContract
+              )
             yield TypeNormalForm.STypeApply(constructor, arguments.toList)
           case "type-parameter" =>
             Left(
-              PublicFailure.invalidSingleParameterMethodContract(
-                "Ordinary single-parameter methods do not declare type parameters.",
+              invalidContract(
+                "Ordinary parameter methods do not declare type parameters.",
                 anchor
               )
             )
           case other =>
             Left(
-              PublicFailure.invalidSingleParameterMethodContract(
+              invalidContract(
                 s"Unsupported completed definition type kind `$other`.",
                 anchor
               )
@@ -345,7 +580,7 @@ object DefinitionConstruction:
         .validateConstructed(normalForm)
         .left
         .map(error =>
-          PublicFailure.invalidSingleParameterMethodContract(
+          invalidContract(
             error.message,
             anchor
           )
@@ -355,13 +590,14 @@ object DefinitionConstruction:
 
   private def collectDefinitionTypes(
       values: Vector[CompletedType],
-      anchor: FailureAnchor
+      anchor: FailureAnchor,
+      invalidContract: (String, FailureAnchor) => PublicFailure
   ): Either[PublicFailure, Vector[TypeNormalForm]] =
     values.foldLeft[Either[PublicFailure, Vector[TypeNormalForm]]](
       Right(Vector.empty)
     ) { (result, value) =>
       for
         completed <- result
-        next <- definitionType(value, anchor)
+        next <- definitionType(value, anchor, invalidContract)
       yield completed :+ next
     }

@@ -33,6 +33,21 @@ The machine report is deterministically sorted and the human summary maps the
 exact shape result to the project's experimental `early-semver` policy. The
 baseline remains a review artifact, not a stability promise.
 
+## Current accepted shape
+
+The accepted inventory contains 596 rows: 305 from `core` and 291 from
+`frontend`. The exact-two definition first-use surface added 11 core rows to
+the previous 585-row baseline:
+
+- `TwoParameterMethodResultView`;
+- `DefinitionConstruction.twoParameterMethod`;
+- the result view's `kindCode`, `source`, `body`, `name`, ordered first/second
+  parameter name/type accessors, and `resultType`.
+
+The reviewed delta contained no removals, replacements, overload mutations, or
+frontend additions. Regeneration against this accepted baseline must report
+`NO_PUBLIC_API_DELTA`.
+
 ## Explicit non-guarantees
 
 This tool is not a binary compatibility checker and cannot prove binary

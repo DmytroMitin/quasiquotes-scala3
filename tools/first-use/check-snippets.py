@@ -7,17 +7,29 @@ import sys
 
 
 SNIPPETS = {
-    "core-first-use": Path(
-        "public-core-examples/src/test/scala/external/consumer/CoreFirstUseSnippet.scala"
+    "core-first-use": (
+        Path("public-core-examples/src/test/scala/external/consumer/CoreFirstUseSnippet.scala"),
+        Path("docs/GETTING_STARTED.md"),
     ),
-    "definition-first-use": Path(
-        "public-core-examples/src/test/scala/external/consumer/DefinitionFirstUseSnippet.scala"
+    "definition-first-use": (
+        Path("public-core-examples/src/test/scala/external/consumer/DefinitionFirstUseSnippet.scala"),
+        Path("docs/GETTING_STARTED.md"),
     ),
-    "frontend-first-use": Path(
-        "public-api-examples/src/test/scala/external/consumer/FrontendFirstUseSnippet.scala"
+    "two-parameter-definition-first-use": (
+        Path("public-core-examples/src/test/scala/external/consumer/TwoParameterDefinitionFirstUseSnippet.scala"),
+        Path("docs/GETTING_STARTED.md"),
     ),
-    "lambda1-first-use": Path(
-        "public-api-examples/src/test/scala/external/consumer/Lambda1FirstUseSnippet.scala"
+    "frontend-first-use": (
+        Path("public-api-examples/src/test/scala/external/consumer/FrontendFirstUseSnippet.scala"),
+        Path("docs/GETTING_STARTED.md"),
+    ),
+    "lambda1-first-use": (
+        Path("public-api-examples/src/test/scala/external/consumer/Lambda1FirstUseSnippet.scala"),
+        Path("docs/GETTING_STARTED.md"),
+    ),
+    "readme-quick-start": (
+        Path("public-api-examples/src/test/scala/external/consumer/ReadmeQuickStart.scala"),
+        Path("README.md"),
     ),
 }
 
@@ -50,14 +62,15 @@ def documented_snippet(name: str, documentation: str, doc: Path) -> str:
 
 
 def check(root: Path) -> list[str]:
-    doc = root / "docs/GETTING_STARTED.md"
-    documentation = doc.read_text(encoding="utf-8")
-    return [
-        name
-        for name, relative_source in SNIPPETS.items()
-        if source_snippet(name, root / relative_source)
-        != documented_snippet(name, documentation, doc)
-    ]
+    mismatches = []
+    for name, (relative_source, relative_doc) in SNIPPETS.items():
+        doc = root / relative_doc
+        documentation = doc.read_text(encoding="utf-8")
+        if source_snippet(name, root / relative_source) != documented_snippet(
+            name, documentation, doc
+        ):
+            mismatches.append(name)
+    return mismatches
 
 
 def main() -> int:

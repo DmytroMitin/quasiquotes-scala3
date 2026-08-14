@@ -82,6 +82,47 @@ type, result type, explicit body projection, and rendering. A free
 This surface constructs a compiler-free semantic value; it does not place,
 lower, or execute a Scala method.
 
+## Two-parameter definition first use
+
+The exact-two projection keeps parameter order explicit and resolves the body
+name once at the public boundary. Internally, the selected parameter remains a
+binder-identity reference rather than a textual substitution.
+
+<!-- snippet:two-parameter-definition-first-use:start -->
+```scala
+import quasiquotes.publicapi.*
+
+object TwoParameterDefinitionFirstUseSnippet:
+  private val intType = CompletedType.named("Int")
+  private val stringType = CompletedType.named("String")
+
+  val first: Either[PublicFailure, TwoParameterMethodResultView] =
+    for
+      firstType <- intType
+      secondType <- stringType
+      parameter <- CompletedTerm.definitionParameterReference("x")
+      method <- DefinitionConstruction.twoParameterMethod(
+        "first", "x", firstType, "y", secondType, firstType, parameter
+      )
+    yield method
+
+  val second: Either[PublicFailure, TwoParameterMethodResultView] =
+    for
+      firstType <- intType
+      secondType <- stringType
+      parameter <- CompletedTerm.definitionParameterReference("y")
+      method <- DefinitionConstruction.twoParameterMethod(
+        "second", "x", firstType, "y", secondType, secondType, parameter
+      )
+    yield method
+```
+<!-- snippet:two-parameter-definition-first-use:end -->
+
+The parameter names must be distinct. The body may explicitly reference either
+declared parameter, and its result type must equal that selected parameter's
+type. Unknown definition-parameter references and free same-text references are
+rejected with `invalid-two-parameter-method-contract` rather than captured.
+
 ## Matching-line frontend
 
 The frontend coordinate includes the full Scala compiler version. It must
