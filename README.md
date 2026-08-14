@@ -28,11 +28,25 @@ object ReadmeQuickStart:
   )(using Quotes): Expr[Int] =
     import quotes.reflect.*
 
-    qr"${left.asTerm} + ${right.asTerm}".asExprOf[Int]
+    addImplTerm(left.asTerm, right.asTerm).asExprOf[Int]
+
+  private def addImplTerm(using q: Quotes)(
+      left: q.reflect.Term,
+      right: q.reflect.Term
+  ): q.reflect.Term =
+    qr"$left + $right"
 ```
 <!-- snippet:readme-quick-start:end -->
 
-This example is compiled from an external-package fixture. See
+The layers are explicit: the inline macro receives typed staged `Expr[Int]`
+values, converts them to low-level `quotes.reflect.Term` trees, uses `qr` for
+source-like structural construction at that reflection-tree layer, and converts
+the resulting `Term` back to `Expr[Int]`. A `quotes.reflect.Term` is generally a
+typed quoted-reflection tree in macro use; it is not the compiler-internal raw
+`dotty.tools.dotc.ast.untpd.Tree` used only by the unpublished `dottyInternal`
+module.
+
+This exact example is compiled from an external-package fixture. See
 [Getting started](docs/GETTING_STARTED.md) for the larger construction,
 matching, type, Lambda1, and compiler-free definition examples.
 

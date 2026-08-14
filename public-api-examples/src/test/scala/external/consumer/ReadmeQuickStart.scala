@@ -14,5 +14,11 @@ object ReadmeQuickStart:
   )(using Quotes): Expr[Int] =
     import quotes.reflect.*
 
-    qr"${left.asTerm} + ${right.asTerm}".asExprOf[Int]
+    addImplTerm(left.asTerm, right.asTerm).asExprOf[Int]
+
+  private def addImplTerm(using q: Quotes)(
+      left: q.reflect.Term,
+      right: q.reflect.Term
+  ): q.reflect.Term =
+    qr"$left + $right"
 // snippet:readme-quick-start:end
