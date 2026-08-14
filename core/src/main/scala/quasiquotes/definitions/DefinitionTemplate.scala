@@ -140,6 +140,104 @@ private[quasiquotes] object DefinitionTemplate:
 
     override def toString: String = render
 
+  final class TwoParameterDef private[DefinitionTemplate] (
+      val name: DefinitionName,
+      val firstParameterBinderId: BinderId,
+      val firstParameterName: DefinitionName,
+      val firstParameterType: TypeTemplate,
+      val secondParameterBinderId: BinderId,
+      val secondParameterName: DefinitionName,
+      val secondParameterType: TypeTemplate,
+      val resultType: TypeTemplate,
+      val body: TermTemplate
+  ) extends DefinitionTemplate:
+    def requiredTermBindings: Vector[String] =
+      body.requiredTermBindings
+
+    def requiredTypeBindings: Vector[String] =
+      unionRequiredTypes(
+        Vector(firstParameterType, secondParameterType, resultType),
+        body
+      )
+
+    def complete(
+        termBindings: Map[String, ConstructedTerm],
+        typeBindings: Map[String, TypeNormalForm]
+    ): Either[DefinitionConstructionError, ConstructedDefinition] =
+      val requiredTerms = body.requiredTermBindings
+      val requiredTypes = requiredTypeBindings
+      for
+        _ <- validateBindingSets(
+          requiredTerms,
+          requiredTypes,
+          termBindings,
+          typeBindings
+        )
+        _ <- validateTypeBindings(requiredTypes, typeBindings)
+        completedFirstParameterType <- completeType(
+          firstParameterType,
+          typeBindings
+        )
+        completedSecondParameterType <- completeType(
+          secondParameterType,
+          typeBindings
+        )
+        completedResultType <- completeType(resultType, typeBindings)
+        bodyTypeNames = body.requiredTypeBindings.toSet
+        bodyTypeBindings = typeBindings.view
+          .filterKeys(bodyTypeNames)
+          .toMap
+        completedBody <- body
+          .complete(termBindings, bodyTypeBindings)
+          .left
+          .map(error =>
+            DefinitionConstructionError.BodyConstructionFailure(error.message)
+          )
+        result <- ConstructedDefinition
+          .twoParameterDef(
+            name,
+            firstParameterBinderId,
+            firstParameterName,
+            completedFirstParameterType,
+            secondParameterBinderId,
+            secondParameterName,
+            completedSecondParameterType,
+            completedResultType,
+            completedBody
+          )
+          .left
+          .map(error =>
+            DefinitionConstructionError.CompletedDefinitionFactoryFailure(
+              error.message
+            )
+          )
+      yield result
+
+    def render: String =
+      s"DefinitionTemplate.TwoParameterDef(name=${name.render}, firstParameter=${firstParameterName.render}: $firstParameterType, secondParameter=${secondParameterName.render}: $secondParameterType, resultType=$resultType, body=${body.render})"
+
+    override def equals(other: Any): Boolean =
+      other match
+        case that: TwoParameterDef =>
+          name == that.name &&
+            firstParameterType == that.firstParameterType &&
+            secondParameterType == that.secondParameterType &&
+            resultType == that.resultType &&
+            body == that.body
+        case _ => false
+
+    override def hashCode: Int =
+      (
+        "TwoParameterDef",
+        name,
+        firstParameterType,
+        secondParameterType,
+        resultType,
+        body
+      ).hashCode
+
+    override def toString: String = render
+
   final class ImmutableVal private[DefinitionTemplate] (
       val name: DefinitionName,
       val declaredType: TypeTemplate,
@@ -219,6 +317,51 @@ private[quasiquotes] object DefinitionTemplate:
         parameterBinderId,
         parameterName,
         parameterType,
+        resultType,
+        body
+      )
+
+  def twoParameterDef(
+      name: DefinitionName,
+      firstParameterBinderId: BinderId,
+      firstParameterName: DefinitionName,
+      firstParameterType: TypeTemplate,
+      secondParameterBinderId: BinderId,
+      secondParameterName: DefinitionName,
+      secondParameterType: TypeTemplate,
+      resultType: TypeTemplate,
+      body: TermTemplate
+  ): Either[DefinitionConstructionError, TwoParameterDef] =
+    for
+      _ <- validateTwoParameterList(
+        firstParameterBinderId,
+        firstParameterName,
+        secondParameterBinderId,
+        secondParameterName
+      )
+      _ <- validateTypeTemplate(firstParameterType)
+      _ <- validateTypeTemplate(secondParameterType)
+      _ <- validateTypeTemplate(resultType)
+      _ <- TermTemplate
+        .validateInScope(
+          body,
+          Vector(firstParameterBinderId, secondParameterBinderId)
+        )
+        .left
+        .map(error =>
+          DefinitionConstructionError.InvalidDefinitionBodyTemplate(
+            error.message
+          )
+        )
+    yield
+      new TwoParameterDef(
+        name,
+        firstParameterBinderId,
+        firstParameterName,
+        firstParameterType,
+        secondParameterBinderId,
+        secondParameterName,
+        secondParameterType,
         resultType,
         body
       )
@@ -389,3 +532,23 @@ private[quasiquotes] object DefinitionTemplate:
       required: Set[String]
   ): Option[String] =
     (supplied -- required).toVector.sorted.headOption
+
+  private def validateTwoParameterList(
+      firstBinderId: BinderId,
+      firstName: DefinitionName,
+      secondBinderId: BinderId,
+      secondName: DefinitionName
+  ): Either[DefinitionConstructionError, Unit] =
+    if firstBinderId == secondBinderId then
+      Left(
+        DefinitionConstructionError.InvalidTwoParameterList(
+          "parameter binder identities must be distinct"
+        )
+      )
+    else if firstName == secondName then
+      Left(
+        DefinitionConstructionError.InvalidTwoParameterList(
+          "declared parameter names must be distinct"
+        )
+      )
+    else Right(())

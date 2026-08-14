@@ -64,6 +64,48 @@ private[quasiquotes] object ConstructedDefinition:
 
     override def toString: String = render
 
+  final class TwoParameterDef private[ConstructedDefinition] (
+      val name: DefinitionName,
+      val firstParameterBinderId: BinderId,
+      val firstParameterName: DefinitionName,
+      val firstParameterType: TypeNormalForm,
+      val secondParameterBinderId: BinderId,
+      val secondParameterName: DefinitionName,
+      val secondParameterType: TypeNormalForm,
+      val resultType: TypeNormalForm,
+      val body: ConstructedTerm
+  ) extends ConstructedDefinition:
+    private lazy val semanticBody =
+      ConstructedTerm.semanticInScope(
+        body,
+        Vector(firstParameterBinderId, secondParameterBinderId)
+      )
+
+    def render: String =
+      s"ConstructedTwoParameterDef(name=${name.render}, firstParameter=${firstParameterName.render}: ${firstParameterType.render}, secondParameter=${secondParameterName.render}: ${secondParameterType.render}, resultType=${resultType.render}, body=${body.render})"
+
+    override def equals(other: Any): Boolean =
+      other match
+        case that: TwoParameterDef =>
+          name == that.name &&
+            firstParameterType == that.firstParameterType &&
+            secondParameterType == that.secondParameterType &&
+            resultType == that.resultType &&
+            semanticBody == that.semanticBody
+        case _ => false
+
+    override def hashCode: Int =
+      (
+        "TwoParameterDef",
+        name,
+        firstParameterType,
+        secondParameterType,
+        resultType,
+        semanticBody
+      ).hashCode
+
+    override def toString: String = render
+
   final class ImmutableVal private[ConstructedDefinition] (
       val name: DefinitionName,
       val declaredType: TypeNormalForm,
@@ -123,6 +165,51 @@ private[quasiquotes] object ConstructedDefinition:
         body
       )
 
+  def twoParameterDef(
+      name: DefinitionName,
+      firstParameterBinderId: BinderId,
+      firstParameterName: DefinitionName,
+      firstParameterType: TypeNormalForm,
+      secondParameterBinderId: BinderId,
+      secondParameterName: DefinitionName,
+      secondParameterType: TypeNormalForm,
+      resultType: TypeNormalForm,
+      body: ConstructedTerm
+  ): Either[DefinitionConstructionError, TwoParameterDef] =
+    for
+      _ <- validateTwoParameterList(
+        firstParameterBinderId,
+        firstParameterName,
+        secondParameterBinderId,
+        secondParameterName
+      )
+      _ <- validateType(firstParameterType)
+      _ <- validateType(secondParameterType)
+      _ <- validateType(resultType)
+      _ <- ConstructedTerm
+        .validateInScope(
+          body,
+          Vector(firstParameterBinderId, secondParameterBinderId)
+        )
+        .left
+        .map(error =>
+          DefinitionConstructionError.InvalidConstructedDefinitionBody(
+            error.message
+          )
+        )
+    yield
+      new TwoParameterDef(
+        name,
+        firstParameterBinderId,
+        firstParameterName,
+        firstParameterType,
+        secondParameterBinderId,
+        secondParameterName,
+        secondParameterType,
+        resultType,
+        body
+      )
+
   def immutableVal(
       name: DefinitionName,
       declaredType: TypeNormalForm,
@@ -161,6 +248,33 @@ private[quasiquotes] object ConstructedDefinition:
             method.parameterBinderId,
             method.parameterName,
             parameterType,
+            resultType,
+            body
+          ).left
+            .map(error =>
+              DefinitionConstructionError.CompletedDefinitionFactoryFailure(
+                error.message
+              )
+            )
+        yield result
+      case method: DefinitionShape.TwoParameterDef =>
+        val binders = Vector(
+          method.firstParameterBinderId,
+          method.secondParameterBinderId
+        )
+        for
+          firstParameterType <- normalFormFromShape(method.firstParameterType)
+          secondParameterType <- normalFormFromShape(method.secondParameterType)
+          resultType <- normalFormFromShape(method.resultType)
+          body <- constructedTermFromShapeInScope(method.body, binders)
+          result <- twoParameterDef(
+            method.name,
+            method.firstParameterBinderId,
+            method.firstParameterName,
+            firstParameterType,
+            method.secondParameterBinderId,
+            method.secondParameterName,
+            secondParameterType,
             resultType,
             body
           ).left
@@ -231,3 +345,36 @@ private[quasiquotes] object ConstructedDefinition:
           error.message
         )
       )
+
+  private def constructedTermFromShapeInScope(
+      shape: quasiquotes.parser.TermShape,
+      binderIds: Vector[BinderId]
+  ): Either[DefinitionConstructionError, ConstructedTerm] =
+    ConstructedTerm
+      .fromShapeInScope(shape, binderIds)
+      .left
+      .map(error =>
+        DefinitionConstructionError.UnsupportedParsedDefinitionBody(
+          error.message
+        )
+      )
+
+  private def validateTwoParameterList(
+      firstBinderId: BinderId,
+      firstName: DefinitionName,
+      secondBinderId: BinderId,
+      secondName: DefinitionName
+  ): Either[DefinitionConstructionError, Unit] =
+    if firstBinderId == secondBinderId then
+      Left(
+        DefinitionConstructionError.InvalidTwoParameterList(
+          "parameter binder identities must be distinct"
+        )
+      )
+    else if firstName == secondName then
+      Left(
+        DefinitionConstructionError.InvalidTwoParameterList(
+          "declared parameter names must be distinct"
+        )
+      )
+    else Right(())

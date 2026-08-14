@@ -82,6 +82,10 @@ private[quasiquotes] object LocatedDefinitionShape:
         invalid(
           "single-parameter definitions require separate parameter-name and parameter-type evidence"
         )
+      case _: DefinitionShape.TwoParameterDef =>
+        invalid(
+          "two-parameter definitions require separate name and type evidence for both parameter declarations"
+        )
       case _ => createSupported(shape, sourceId, components, originMap)
 
   private def createSupported(

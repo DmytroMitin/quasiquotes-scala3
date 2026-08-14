@@ -20,6 +20,10 @@ private[quasiquotes] object DefinitionError:
     def message: String =
       s"Unsupported $component: $reason."
 
+  final case class InvalidTwoParameterList(reason: String) extends DefinitionError:
+    def message: String =
+      s"Invalid two-parameter definition parameter list: $reason."
+
   final case class InvalidSourceMetadata(reason: String) extends DefinitionError:
     def message: String =
       s"Invalid definition source metadata: $reason."

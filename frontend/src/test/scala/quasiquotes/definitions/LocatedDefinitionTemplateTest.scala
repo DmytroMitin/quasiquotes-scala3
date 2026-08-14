@@ -118,3 +118,43 @@ class LocatedDefinitionTemplateTest extends munit.FunSuite:
       "Invalid definition source metadata: single-parameter definition templates require separate parameter-name and parameter-type evidence."
     )
   }
+
+  test("legacy located metadata rejects two-parameter templates without both parameter spans") {
+    val two = DefinitionTemplate
+      .twoParameterDef(
+        DefinitionName.plain("answer").toOption.get,
+        BinderId(0),
+        DefinitionName.plain("x").toOption.get,
+        quasiquotes.types.TypeTemplate.TTIdent("Int"),
+        BinderId(1),
+        DefinitionName.plain("y").toOption.get,
+        quasiquotes.types.TypeTemplate.TTIdent("String"),
+        quasiquotes.types.TypeTemplate.TTIdent("Int"),
+        quasiquotes.terms.TermTemplate
+          .createInScope(
+            located.body.template.root,
+            Vector(BinderId(0), BinderId(1)),
+            located.body.template.termHoleIndex,
+            located.body.template.termHoleOccurrences,
+            located.body.template.typeHoleIndex,
+            located.body.template.ascriptionTypes
+          )
+          .toOption
+          .get
+      )
+      .toOption
+      .get
+    val result = LocatedDefinitionTemplate.create(
+      two,
+      located.sourceId,
+      located.sourceMap,
+      located.components,
+      located.definitionTypeOccurrences,
+      located.body
+    )
+
+    assertEquals(
+      result.left.toOption.get.message,
+      "Invalid definition source metadata: two-parameter definition templates require separate name and type evidence for both parameter declarations."
+    )
+  }

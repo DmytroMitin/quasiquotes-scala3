@@ -159,6 +159,10 @@ private[quasiquotes] object LocatedDefinitionTemplate:
         invalid(
           "single-parameter definition templates require separate parameter-name and parameter-type evidence"
         )
+      case _: DefinitionTemplate.TwoParameterDef =>
+        invalid(
+          "two-parameter definition templates require separate name and type evidence for both parameter declarations"
+        )
       case _ => Right(())
 
   private[quasiquotes] def validateCoverageForTest(
@@ -275,6 +279,7 @@ private[quasiquotes] object LocatedDefinitionTemplate:
       template match
         case method: DefinitionTemplate.ParameterlessDef => method.body
         case method: DefinitionTemplate.SingleParameterDef => method.body
+        case method: DefinitionTemplate.TwoParameterDef => method.body
         case value: DefinitionTemplate.ImmutableVal => value.rhs
     val occurrences =
       body.termOccurrences.map(_.source) ++ body.typeOccurrences
@@ -412,6 +417,8 @@ private[quasiquotes] object LocatedDefinitionTemplate:
       case method: DefinitionTemplate.ParameterlessDef =>
         method.resultType
       case method: DefinitionTemplate.SingleParameterDef =>
+        method.resultType
+      case method: DefinitionTemplate.TwoParameterDef =>
         method.resultType
       case value: DefinitionTemplate.ImmutableVal =>
         value.declaredType

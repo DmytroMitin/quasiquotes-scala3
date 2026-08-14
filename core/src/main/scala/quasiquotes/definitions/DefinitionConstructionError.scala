@@ -14,6 +14,11 @@ private[quasiquotes] object DefinitionConstructionError:
     def message: String =
       s"Invalid definition body template: $detail"
 
+  final case class InvalidTwoParameterList(detail: String)
+      extends DefinitionConstructionError:
+    def message: String =
+      s"Invalid two-parameter definition parameter list: $detail."
+
   final case class MissingTermBinding(name: String)
       extends DefinitionConstructionError:
     def message: String = s"Missing definition term binding `$name`."

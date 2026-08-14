@@ -103,6 +103,35 @@ class RawDefinitionShapeProbeTest extends munit.FunSuite:
     assert(summaries(1).bodyTree.contains("Infix"))
   }
 
+  test("two ordinary parameters retain source order flags explicit types and body structure") {
+    val summaries = RawDefinitionProbe
+      .compilationUnit(
+        """def first(x: Int, y: String): Int = x
+          |def second(x: Int, y: String): String = y
+          |def add(x: Int, y: Int): Int = x + y
+          |""".stripMargin
+      )
+      .toOption
+      .get
+
+    assertEquals(summaries.map(_.parameterClauseSizes), Vector.fill(3)(List(2)))
+    assertEquals(
+      summaries.map(_.parameters.map(parameter => (parameter.name, parameter.typeTree, parameter.isContextual))),
+      Vector(
+        List(("x", "Ident(Int)", false), ("y", "Ident(String)", false)),
+        List(("x", "Ident(Int)", false), ("y", "Ident(String)", false)),
+        List(("x", "Ident(Int)", false), ("y", "Ident(Int)", false))
+      )
+    )
+    assertEquals(
+      summaries.map(_.childOrder),
+      Vector.fill(3)(List("parameter-0", "parameter-1", "result-type", "body"))
+    )
+    assertEquals(summaries.map(_.typeTree), Vector("Ident(Int)", "Ident(String)", "Ident(Int)"))
+    assertEquals(summaries.take(2).map(_.bodyTree), Vector("Ident(x)", "Ident(y)"))
+    assert(summaries(2).bodyTree.contains("Infix"))
+  }
+
   test("plain and backticked fixed names retain decoded and source spellings") {
     val sources = Vector(
       "def answer: Int = 42",

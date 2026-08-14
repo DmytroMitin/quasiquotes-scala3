@@ -57,6 +57,8 @@ private[quasiquotes] object ConstructedDefinitionUntypedBackend:
             body
           )
         yield raw
+      case _: ConstructedDefinition.TwoParameterDef =>
+        Left(TwoParameterDefinitionExactBackendDeferred)
       case value: ConstructedDefinition.ImmutableVal =>
         for
           name <- lowerName(value.name)

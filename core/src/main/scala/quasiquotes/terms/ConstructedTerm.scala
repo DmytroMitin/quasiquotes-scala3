@@ -28,43 +28,62 @@ private[quasiquotes] final class ConstructedTerm private (
 
 private[quasiquotes] object ConstructedTerm:
   def fromShape(shape: TermShape): Either[TermConstructionError, ConstructedTerm] =
-    fromShapeUsing(shape, None)
+    fromShapeUsing(shape, Vector.empty)
 
   def fromShapeInScope(
       shape: TermShape,
       binderId: quasiquotes.parser.BinderId
   ): Either[TermConstructionError, ConstructedTerm] =
-    fromShapeUsing(shape, Some(binderId))
+    fromShapeUsing(shape, Vector(binderId))
+
+  def fromShapeInScope(
+      shape: TermShape,
+      binderIds: Vector[quasiquotes.parser.BinderId]
+  ): Either[TermConstructionError, ConstructedTerm] =
+    fromShapeUsing(shape, binderIds)
 
   private def fromShapeUsing(
       shape: TermShape,
-      enclosingBinderId: Option[quasiquotes.parser.BinderId]
+      enclosingBinderIds: Vector[quasiquotes.parser.BinderId]
   ): Either[TermConstructionError, ConstructedTerm] =
     for
-      _ <- validateShape(shape, enclosingBinderId)
+      _ <- validateShape(shape, enclosingBinderIds)
       names = TermShapeTraversal.typedNames(shape)
       ascriptions <- deriveSimpleAscriptions(names)
-      constructed <- createUsing(shape, ascriptions, enclosingBinderId)
+      constructed <- createUsing(shape, ascriptions, enclosingBinderIds)
     yield constructed
 
   def create(
       shape: TermShape,
       completedAscriptions: Vector[TypeNormalForm]
   ): Either[TermConstructionError, ConstructedTerm] =
-    createUsing(shape, completedAscriptions, None)
+    createUsing(shape, completedAscriptions, Vector.empty)
 
   def createInScope(
       shape: TermShape,
       completedAscriptions: Vector[TypeNormalForm],
       binderId: quasiquotes.parser.BinderId
   ): Either[TermConstructionError, ConstructedTerm] =
-    createUsing(shape, completedAscriptions, Some(binderId))
+    createUsing(shape, completedAscriptions, Vector(binderId))
+
+  def createInScope(
+      shape: TermShape,
+      completedAscriptions: Vector[TypeNormalForm],
+      binderIds: Vector[quasiquotes.parser.BinderId]
+  ): Either[TermConstructionError, ConstructedTerm] =
+    createUsing(shape, completedAscriptions, binderIds)
 
   def validateInScope(
       term: ConstructedTerm,
       binderId: quasiquotes.parser.BinderId
   ): Either[TermConstructionError, Unit] =
     TermShapeTraversal.validateSupportedInScope(term.root, binderId)
+
+  def validateInScope(
+      term: ConstructedTerm,
+      binderIds: Vector[quasiquotes.parser.BinderId]
+  ): Either[TermConstructionError, Unit] =
+    TermShapeTraversal.validateSupportedInScope(term.root, binderIds)
 
   def semanticInScope(
       term: ConstructedTerm,
@@ -75,13 +94,22 @@ private[quasiquotes] object ConstructedTerm:
       term.ascriptionTypes
     )
 
+  def semanticInScope(
+      term: ConstructedTerm,
+      binderIds: Vector[quasiquotes.parser.BinderId]
+  ): (TermShape, Vector[TypeNormalForm]) =
+    (
+      TermShapeTraversal.alphaNormalizeInScope(term.root, binderIds),
+      term.ascriptionTypes
+    )
+
   private def createUsing(
       shape: TermShape,
       completedAscriptions: Vector[TypeNormalForm],
-      enclosingBinderId: Option[quasiquotes.parser.BinderId]
+      enclosingBinderIds: Vector[quasiquotes.parser.BinderId]
   ): Either[TermConstructionError, ConstructedTerm] =
     for
-      _ <- validateShape(shape, enclosingBinderId)
+      _ <- validateShape(shape, enclosingBinderIds)
       canonicalRoot = TermShapeTraversal.canonicalizePlaceholders(shape)
       typedNames = TermShapeTraversal.typedNames(canonicalRoot)
       _ <- validateCount(typedNames.size, completedAscriptions.size)
@@ -91,13 +119,10 @@ private[quasiquotes] object ConstructedTerm:
 
   private def validateShape(
       shape: TermShape,
-      enclosingBinderId: Option[quasiquotes.parser.BinderId]
+      enclosingBinderIds: Vector[quasiquotes.parser.BinderId]
   ): Either[TermConstructionError, Unit] =
-    enclosingBinderId match
-      case Some(binderId) =>
-        TermShapeTraversal.validateSupportedInScope(shape, binderId)
-      case None =>
-        TermShapeTraversal.validateSupported(shape)
+    if enclosingBinderIds.isEmpty then TermShapeTraversal.validateSupported(shape)
+    else TermShapeTraversal.validateSupportedInScope(shape, enclosingBinderIds)
 
   private def deriveSimpleAscriptions(
       names: Vector[String]

@@ -21,6 +21,12 @@ private[quasiquotes] object TermShapeTraversal:
   ): Either[TermConstructionError, Unit] =
     validateSupportedUsingScope(shape, binderId :: Nil)
 
+  def validateSupportedInScope(
+      shape: TermShape,
+      binderIds: Vector[BinderId]
+  ): Either[TermConstructionError, Unit] =
+    validateSupportedUsingScope(shape, binderIds.toList)
+
   def canonicalizePlaceholders(shape: TermShape): TermShape =
     shape match
       case TermShape.Identifier(name, _) =>
@@ -210,6 +216,12 @@ private[quasiquotes] object TermShapeTraversal:
       binderId: BinderId
   ): TermShape =
     alphaNormalizeUsing(shape, binderId :: Nil)
+
+  def alphaNormalizeInScope(
+      shape: TermShape,
+      binderIds: Vector[BinderId]
+  ): TermShape =
+    alphaNormalizeUsing(shape, binderIds.toList)
 
   private def alphaNormalizeUsing(
       shape: TermShape,
