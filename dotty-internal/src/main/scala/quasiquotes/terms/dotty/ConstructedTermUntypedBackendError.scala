@@ -19,6 +19,11 @@ private[quasiquotes] object ConstructedTermUntypedBackendError:
     def message: String =
       s"Cannot lower bound reference for inactive binder identity $binderId."
 
+  final case class MalformedBinderScope(detail: String)
+      extends ConstructedTermUntypedBackendError:
+    def message: String =
+      s"Malformed constructed-term binder scope: $detail"
+
   case object NestedLambda1Unsupported
       extends ConstructedTermUntypedBackendError:
     def message: String =

@@ -57,8 +57,48 @@ private[quasiquotes] object ConstructedDefinitionUntypedBackend:
             body
           )
         yield raw
-      case _: ConstructedDefinition.TwoParameterDef =>
-        Left(TwoParameterDefinitionExactBackendDeferred)
+      case method: ConstructedDefinition.TwoParameterDef =>
+        for
+          name <- lowerName(method.name)
+          firstParameterName <- lowerName(method.firstParameterName)
+          firstParameterType <- lowerType(method.firstParameterType)
+          secondParameterName <- lowerName(method.secondParameterName)
+          secondParameterType <- lowerType(method.secondParameterType)
+          resultType <- lowerType(method.resultType)
+          body <- lowerBodyInScopes(
+            method.body,
+            Vector(
+              method.firstParameterBinderId -> method.firstParameterName.decoded,
+              method.secondParameterBinderId -> method.secondParameterName.decoded
+            )
+          )
+          firstParameter = untpd
+            .ValDef(firstParameterName, firstParameterType, untpd.EmptyTree)
+            .withMods(untpd.Modifiers(Flags.Param))
+          secondParameter = untpd
+            .ValDef(secondParameterName, secondParameterType, untpd.EmptyTree)
+            .withMods(untpd.Modifiers(Flags.Param))
+          raw = untpd
+            .DefDef(
+              name,
+              List(List(firstParameter, secondParameter)),
+              resultType,
+              body
+            )
+            .withMods(untpd.Modifiers(Flags.Method))
+          _ <- validateTwoParameterMethod(
+            raw,
+            name,
+            firstParameter,
+            firstParameterName,
+            firstParameterType,
+            secondParameter,
+            secondParameterName,
+            secondParameterType,
+            resultType,
+            body
+          )
+        yield raw
       case value: ConstructedDefinition.ImmutableVal =>
         for
           name <- lowerName(value.name)
@@ -135,6 +175,23 @@ private[quasiquotes] object ConstructedDefinitionUntypedBackend:
       .flatMap(
         ConstructedTermUntypedBackend
           .lowerInScope(_, binderId, declarationName)
+          .left
+          .map(error => DefinitionBodyLoweringFailure(error.message))
+      )
+
+  private def lowerBodyInScopes(
+      term: quasiquotes.terms.ConstructedTerm,
+      binders: Vector[(quasiquotes.parser.BinderId, String)]
+  ): Either[ConstructedDefinitionUntypedBackendError, untpd.Tree] =
+    Option(term)
+      .toRight(
+        DefinitionBodyLoweringFailure(
+          "the completed definition body was null."
+        )
+      )
+      .flatMap(
+        ConstructedTermUntypedBackend
+          .lowerInScopes(_, binders)
           .left
           .map(error => DefinitionBodyLoweringFailure(error.message))
       )
@@ -219,6 +276,57 @@ private[quasiquotes] object ConstructedDefinitionUntypedBackend:
       (),
       RawDefinitionConstructionInvariantFailure(
         "the single-ordinary-parameter DefDef shape diverged from the refreshed parser contract."
+      )
+    )
+
+  private def validateTwoParameterMethod(
+      definition: untpd.DefDef,
+      expectedName: TermName,
+      expectedFirstParameter: untpd.ValDef,
+      expectedFirstParameterName: TermName,
+      expectedFirstParameterType: untpd.Tree,
+      expectedSecondParameter: untpd.ValDef,
+      expectedSecondParameterName: TermName,
+      expectedSecondParameterType: untpd.Tree,
+      expectedResultType: untpd.Tree,
+      expectedBody: untpd.Tree
+  ): Either[ConstructedDefinitionUntypedBackendError, Unit] =
+    val valid =
+      definition.name == expectedName &&
+        definition.paramss == List(
+          List(expectedFirstParameter, expectedSecondParameter)
+        ) &&
+        expectedFirstParameter.name == expectedFirstParameterName &&
+        (expectedFirstParameter.tpt eq expectedFirstParameterType) &&
+        expectedFirstParameter.unforcedRhs.asInstanceOf[untpd.Tree].isEmpty &&
+        expectedFirstParameter.mods.flags == Flags.Param &&
+        !expectedFirstParameter.mods.hasAnnotations &&
+        !expectedFirstParameter.mods.hasPrivateWithin &&
+        expectedSecondParameter.name == expectedSecondParameterName &&
+        (expectedSecondParameter.tpt eq expectedSecondParameterType) &&
+        expectedSecondParameter.unforcedRhs.asInstanceOf[untpd.Tree].isEmpty &&
+        expectedSecondParameter.mods.flags == Flags.Param &&
+        !expectedSecondParameter.mods.hasAnnotations &&
+        !expectedSecondParameter.mods.hasPrivateWithin &&
+        (definition.tpt eq expectedResultType) &&
+        (definition.unforcedRhs.asInstanceOf[AnyRef] eq expectedBody) &&
+        definition.mods.flags == Flags.Method &&
+        !definition.mods.hasAnnotations &&
+        !definition.mods.hasPrivateWithin &&
+        sourceAndSpanFree(
+          definition,
+          expectedFirstParameter,
+          expectedFirstParameterType,
+          expectedSecondParameter,
+          expectedSecondParameterType,
+          expectedResultType,
+          expectedBody
+        )
+    Either.cond(
+      valid,
+      (),
+      RawDefinitionConstructionInvariantFailure(
+        "the exact-two-ordinary-parameter DefDef shape diverged from the refreshed parser contract."
       )
     )
 

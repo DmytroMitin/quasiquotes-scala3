@@ -30,11 +30,6 @@ private[quasiquotes] object ConstructedDefinitionGeneratedOriginError:
     def message: String =
       s"Generated-definition raw structural lowering failed: $detail"
 
-  case object TwoParameterDefinitionExactBackendDeferred
-      extends ConstructedDefinitionGeneratedOriginError:
-    def message: String =
-      "Generated-origin exact backend lowering for two-parameter definitions is deliberately deferred."
-
   final case class UnsupportedConstructedDefinitionVariant(variant: String)
       extends ConstructedDefinitionGeneratedOriginError:
     def message: String =

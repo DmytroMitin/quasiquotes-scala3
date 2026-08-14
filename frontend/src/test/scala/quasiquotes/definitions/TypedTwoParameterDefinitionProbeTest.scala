@@ -4,15 +4,15 @@ private object TypedTwoParameterDefinitionExamples:
   val evidence = TypedTwoParameterDefinitionProbe.inspect {
     def first(x: Int, y: String): Int = x
     def second(x: Int, y: String): String = y
-    def add(x: Int, y: Int): Int = x + y
-    (first(1, "a"), second(1, "b"), add(1, 2))
+    def plus(x: Int, y: Int): Int = x + y
+    (first(1, "a"), second(1, "b"), plus(1, 2))
   }
 
 class TypedTwoParameterDefinitionProbeTest extends munit.FunSuite:
   private val evidence = TypedTwoParameterDefinitionExamples.evidence
 
   test("typed exact-two definitions retain one ordered clause of distinct method-owned parameters") {
-    assertEquals(evidence.map(_.name), List("first", "second", "add"))
+    assertEquals(evidence.map(_.name), List("first", "second", "plus"))
     assertEquals(evidence.map(_.parameterClauseSizes), List.fill(3)(List(2)))
     assertEquals(evidence.map(_.parameterNames), List.fill(3)(List("x", "y")))
     assert(evidence.forall(_.parameterSymbolsDistinct))

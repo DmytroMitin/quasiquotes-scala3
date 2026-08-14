@@ -38,7 +38,41 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
       binderId: BinderId,
       declarationName: String
   ): Either[ConstructedTermUntypedBackendError, untpd.Tree] =
-    lowerUsing(constructed, Map(binderId -> declarationName))
+    lowerInScopes(constructed, Vector(binderId -> declarationName))
+
+  private[quasiquotes] def lowerInScopes(
+      constructed: ConstructedTerm,
+      binders: Vector[(BinderId, String)]
+  ): Either[ConstructedTermUntypedBackendError, untpd.Tree] =
+    validateBinderScope(binders).flatMap(lowerUsing(constructed, _))
+
+  private def validateBinderScope(
+      binders: Vector[(BinderId, String)]
+  ): Either[ConstructedTermUntypedBackendError, Map[BinderId, String]] =
+    if binders == null then Left(MalformedBinderScope("the binding vector was null."))
+    else
+      binders.zipWithIndex.collectFirst {
+        case (null, index) =>
+          MalformedBinderScope(s"binding $index was null.")
+        case ((null, _), index) =>
+          MalformedBinderScope(s"binder identity at binding $index was null.")
+        case ((_, null), index) =>
+          MalformedBinderScope(s"declaration name at binding $index was null.")
+        case ((_, name), index) if name.isEmpty =>
+          MalformedBinderScope(s"declaration name at binding $index was empty.")
+      } match
+        case Some(error) => Left(error)
+        case None =>
+          binders
+            .groupMapReduce(_._1)(_ => 1)(_ + _)
+            .collectFirst { case (binderId, count) if count > 1 => binderId }
+            .toLeft(binders.toMap)
+            .left
+            .map(binderId =>
+              MalformedBinderScope(
+                s"duplicate binder identity ${binderId.value}."
+              )
+            )
 
   private def lowerUsing(
       constructed: ConstructedTerm,

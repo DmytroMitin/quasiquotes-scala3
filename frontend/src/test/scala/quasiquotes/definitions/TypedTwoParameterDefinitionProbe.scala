@@ -29,7 +29,7 @@ private[definitions] object TypedTwoParameterDefinitionProbe:
     def kind(tree: Tree): String =
       tree.getClass.getSimpleName.stripSuffix("$")
 
-    val admittedNames = Set("first", "second", "add")
+    val admittedNames = Set("first", "second", "plus")
     val definitions = ListBuffer.empty[DefDef]
     val discovery = new TreeTraverser:
       override def traverseTree(tree: Tree)(owner: Symbol): Unit =

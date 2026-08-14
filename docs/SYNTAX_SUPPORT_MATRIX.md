@@ -60,7 +60,7 @@ read-only projections. There is no public definition string interpolator.
 | Parameterless definition | `def answer: Int = 42` | Yes | No | Internal bounded adapter | `INTERNAL`; no public projection |
 | Immutable value | `val answer: Int = 42` | Yes | No | Internal bounded adapter | `INTERNAL`; no public projection |
 | Single ordinary parameter | `def id(x: Int): Int = x` | Yes | Yes | Internal exact source-free and generated-origin modes | `BOUNDED`; public body selects the declared parameter |
-| Exactly two ordinary parameters | `def first(x: Int, y: String): Int = x` | Yes | Yes | Deferred with controlled diagnostic | `BOUNDED`; one ordered list, distinct names, body selects either parameter |
+| Exactly two ordinary parameters | `def first(x: Int, y: String): Int = x` | Yes | Yes | Internal exact source-free and generated-origin modes | `BOUNDED`; one ordered list, distinct names, binder-aware bounded body |
 | Public definition source interpolation | `dqr"..."` | Internal research only | No | — | `INTERNAL`; package-private and not public API |
 | Definition pattern interpolation | `dqq"..."` | No | No | No | `NOT_YET`; no such surface exists |
 | Curried, contextual exact-two, defaults, varargs, general arity | broader methods | No | No | No | `NOT_YET`; no general method-definition claim |

@@ -49,8 +49,9 @@ private[quasiquotes] object ConstructedDefinitionGeneratedOriginAdapter:
       case method: ConstructedDefinition.SingleParameterDef =>
         SingleParameterDefinitionGeneratedOriginAdapter
           .lower(method, virtualSourceName)
-      case _: ConstructedDefinition.TwoParameterDef =>
-        Left(TwoParameterDefinitionExactBackendDeferred)
+      case method: ConstructedDefinition.TwoParameterDef =>
+        TwoParameterDefinitionGeneratedOriginAdapter
+          .lower(method, virtualSourceName)
       case _ =>
         lowerExisting(constructed, virtualSourceName)
 

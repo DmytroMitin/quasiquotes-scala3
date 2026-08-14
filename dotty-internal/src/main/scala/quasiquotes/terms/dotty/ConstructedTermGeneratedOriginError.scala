@@ -72,6 +72,11 @@ private[quasiquotes] object ConstructedTermGeneratedOriginError:
     def message: String =
       s"Cannot render bound reference for inactive binder identity $binderId."
 
+  final case class MalformedBinderScope(detail: String)
+      extends ConstructedTermGeneratedOriginError:
+    def message: String =
+      s"Malformed generated-origin binder scope: $detail"
+
   case object NestedLambda1Unsupported
       extends ConstructedTermGeneratedOriginError:
     def message: String =

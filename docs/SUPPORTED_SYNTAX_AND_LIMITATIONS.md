@@ -39,8 +39,8 @@ Important limitations:
 - public definition construction is intentionally narrow;
 - ordinary-parameter method surfaces have no public source interpolator,
   located parameter-span carrier, or arithmetic/literal/general-expression
-  body builder; the single-parameter exact backend remains package-private and
-  exact-two lowering remains deliberately deferred;
+  body builder; the single- and exact-two-parameter exact backends remain
+  package-private;
 - interpolation and type support expands incrementally, so unsupported shapes
   return explicit errors rather than falling back to unchecked trees;
 - ordinary quoted standard-`s` interpolation has a bounded exact internal
@@ -133,10 +133,10 @@ Richer public bodies and a source adapter are not implied. The existing located
 definition carrier cannot truthfully describe parameter and parameter-type
 spans for these variants, so it rejects them.
 
-The unpublished exact internal backend supports this same compiler-free shape
-in two modes. Source-free lowering constructs one ordinary parameter `ValDef`
-and a `DefDef` directly with no source, meaningful span, symbol, owner, parser,
-or typer claim. Generated-origin lowering renders deterministic ordinary Scala
+The unpublished exact internal backend supports the single-parameter shape in
+two modes. Source-free lowering constructs one ordinary parameter `ValDef` and
+a `DefDef` directly with no source, meaningful span, symbol, owner, parser, or
+typer claim. Generated-origin lowering renders deterministic ordinary Scala
 and recursively assigns parser-equivalent positions under one virtual source.
 Both modes resolve bound references by the project binder identity and emit the
 validated parameter declaration spelling, while free same-text identifiers
@@ -160,8 +160,12 @@ same-text references fail with `invalid-two-parameter-method-contract`.
 
 The exact-two public result preserves first/second names and types in source
 order. It remains a projection over the package-private compiler-free model.
-Source metadata and both exact backends deliberately reject this variant with
-controlled diagnostics pending a later exact-lowering decision.
+Its unpublished exact internal backend constructs one ordered two-parameter
+clause directly in source-free mode and a canonical, recursively positioned
+tree in generated-origin mode. Binder identity, rather than display text,
+selects either declaration; free same-text references remain free. This is an
+exact-two adapter only: it adds no general-arity, alternate-clause, ownership,
+placement, typing, or public compiler-tree contract.
 
 Unsupported type inputs report the rejected constructor, selected syntax,
 expected arity, or unsupported family where available. Located source adapters

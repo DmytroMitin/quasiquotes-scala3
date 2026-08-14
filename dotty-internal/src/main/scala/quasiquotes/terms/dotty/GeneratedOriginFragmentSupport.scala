@@ -95,10 +95,46 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
       binderId: BinderId,
       declarationSource: String
   ): Either[ConstructedTermGeneratedOriginError, TermFragment] =
-    planDefinitionBodyUsing(
+    planDefinitionBodyInScopes(
       constructed,
-      Map(binderId -> declarationSource)
+      Vector(binderId -> declarationSource)
     )
+
+  private[quasiquotes] def planDefinitionBodyInScopes(
+      constructed: ConstructedTerm,
+      binders: Vector[(BinderId, String)]
+  ): Either[ConstructedTermGeneratedOriginError, TermFragment] =
+    validateBinderScope(binders).flatMap(
+      planDefinitionBodyUsing(constructed, _)
+    )
+
+  private def validateBinderScope(
+      binders: Vector[(BinderId, String)]
+  ): Either[ConstructedTermGeneratedOriginError, Map[BinderId, String]] =
+    if binders == null then Left(MalformedBinderScope("the binding vector was null."))
+    else
+      binders.zipWithIndex.collectFirst {
+        case (null, index) =>
+          MalformedBinderScope(s"binding $index was null.")
+        case ((null, _), index) =>
+          MalformedBinderScope(s"binder identity at binding $index was null.")
+        case ((_, null), index) =>
+          MalformedBinderScope(s"declaration source at binding $index was null.")
+        case ((_, source), index) if source.isEmpty =>
+          MalformedBinderScope(s"declaration source at binding $index was empty.")
+      } match
+        case Some(error) => Left(error)
+        case None =>
+          binders
+            .groupMapReduce(_._1)(_ => 1)(_ + _)
+            .collectFirst { case (binderId, count) if count > 1 => binderId }
+            .toLeft(binders.toMap)
+            .left
+            .map(binderId =>
+              MalformedBinderScope(
+                s"duplicate binder identity ${binderId.value}."
+              )
+            )
 
   private def planDefinitionBodyUsing(
       constructed: ConstructedTerm,

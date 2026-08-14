@@ -17,12 +17,13 @@ as Lambda1 for one or exactly two ordinary method parameters; display spelling
 never replaces semantic identity. The public compiler-free constructors create
 those package-private bound-reference representations and return only narrow
 projections. The current source-metadata carrier remains package-private. The
-exact definition backend lowers the one-parameter variant directly to an
-ordinary raw `DefDef` in source-free mode and to a canonical, recursively
-positioned generated-origin tree. Both modes map the project `BinderId` to the
-validated parameter declaration spelling; they do not manufacture compiler
-symbols or treat reference display text as binding. Exact-two lowering remains
-deliberately deferred behind controlled diagnostics.
+exact definition backend lowers the one-parameter and exact-two variants
+directly to ordinary raw `DefDef` trees in source-free mode and to canonical,
+recursively positioned generated-origin trees. Both modes map project
+`BinderId` values to validated parameter declaration spellings; they do not
+manufacture compiler symbols or treat reference display text as binding. The
+exact-two path remains a dedicated bounded adapter rather than a general
+parameter-list abstraction.
 
 `frontend` owns source parsing, macros, quoted reflection, source-to-core
 adapters, and compiler-version-sensitive lowering. It uses full Scala compiler

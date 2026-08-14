@@ -157,8 +157,9 @@ source-free and generated-origin modes; broader lambda/block syntax remains
 excluded.
 
 The unpublished exact internal definition backend also supports the bounded
-single-ordinary-parameter definition shape behind the compiler-free public
-projection. It constructs source-free raw trees or deterministic
-generated-origin trees without parsing in production, resolving parameter
-references by project binder identity rather than display text. This does not
-expose compiler trees publicly or add general method placement/owner support.
+single-ordinary-parameter and exact-two-ordinary-parameter definition shapes
+behind the compiler-free public projections. It constructs source-free raw
+trees or deterministic generated-origin trees without parsing in production,
+resolving parameter references by project binder identity rather than display
+text. This does not expose compiler trees publicly, generalize parameter-list
+syntax, or add general method placement/owner support.

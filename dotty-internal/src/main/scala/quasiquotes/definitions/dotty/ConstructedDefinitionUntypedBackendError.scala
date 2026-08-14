@@ -25,11 +25,6 @@ private[quasiquotes] object ConstructedDefinitionUntypedBackendError:
     def message: String =
       s"Raw constructed-definition invariant failed: $detail"
 
-  case object TwoParameterDefinitionExactBackendDeferred
-      extends ConstructedDefinitionUntypedBackendError:
-    def message: String =
-      "Exact backend lowering for two-parameter definitions is deliberately deferred."
-
   final case class UnsupportedConstructedDefinitionVariant(variant: String)
       extends ConstructedDefinitionUntypedBackendError:
     def message: String =
