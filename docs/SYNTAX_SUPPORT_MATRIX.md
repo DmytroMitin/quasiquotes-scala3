@@ -70,8 +70,8 @@ compile-time diagnostic.
 
 ## Definitions
 
-Public definitions are ordinary `DefinitionConstruction` functions and
-read-only projections. There is no public definition string interpolator.
+Public definitions include ordinary `DefinitionConstruction` functions and
+read-only projections plus one exact caller-owned reflected interpolator.
 
 | Family | Example | Core representation | Public construction | Exact backend | Status / limits |
 | --- | --- | --- | --- | --- | --- |
@@ -80,7 +80,7 @@ read-only projections. There is no public definition string interpolator.
 | Immutable value | `val answer: Int = 42` | Yes | No | Internal bounded adapter | `INTERNAL`; no public projection |
 | Single ordinary parameter | `def id(x: Int): Int = x` | Yes | Yes | Internal exact source-free and generated-origin modes | `BOUNDED`; public body selects the declared parameter |
 | Exactly two ordinary parameters | `def first(x: Int, y: String): Int = x` | Yes | Yes | Internal exact source-free and generated-origin modes | `BOUNDED`; one ordered list, distinct names, binder-aware bounded body |
-| Public definition source interpolation | `dqr"..."` | Internal research only | No | — | `INTERNAL`; package-private and not public API |
+| Public reflected identity definition interpolation | `dqr"def id(x: $parameterType): $resultType = x"` | Binder-aware bounded core validation | Yes, caller-owned `DefDef` | Public Quotes lowering only | `BOUNDED`; one clause/parameter, two equal supported `TypeRepr` slots, literal parameter body, immediate same-Quotes local placement |
 | Definition pattern interpolation | `dqq"..."` | No | No | No | `NOT_YET`; no such surface exists |
 | Curried, contextual exact-two, defaults, varargs, general arity | broader methods | No | No | No | `NOT_YET`; no general method-definition claim |
 

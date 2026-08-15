@@ -35,8 +35,8 @@ SURFACE_ROWS = {
         "Public research API",
     ),
     "Definition construction": (
-        '`dqr"..."`',
-        "Internal research, not public",
+        '`dqr"def id(x: $parameterType): $resultType = x"`',
+        "Public now, exact bounded shape",
         "`DefinitionConstruction.*`",
         "Public bounded compiler-free API",
     ),
@@ -58,6 +58,7 @@ PUBLIC_API = {
     ("quasiquotes.types.QuasiTypequotes", "tqr"),
     ("quasiquotes.types.QuasiTypequotes", "tqq"),
     ("quasiquotes.types.TypePatternExtractor", "unapplySeq"),
+    ("quasiquotes.construct.Quasiquotes", "dqr"),
     ("quasiquotes.publicapi.DefinitionConstruction", "twoParameterMethod"),
 }
 
@@ -119,7 +120,7 @@ def api_findings(root: Path) -> list[str]:
         f"missing public API inventory entry: {owner}.{name}"
         for owner, name in sorted(PUBLIC_API - available)
     ]
-    for forbidden in ("dqr", "dqq"):
+    for forbidden in ("dqq",):
         if any(name == forbidden for _, name in available):
             findings.append(f"internal/not-yet surface leaked into public API: {forbidden}")
     return findings
@@ -142,11 +143,16 @@ def source_findings(root: Path) -> list[str]:
     type_extractor_source = (
         root / "frontend/src/main/scala/quasiquotes/types/TypePatternExtractor.scala"
     ).read_text(encoding="utf-8")
+    construct_surface_source = (
+        root / "frontend/src/main/scala/quasiquotes/construct/Quasiquotes.scala"
+    ).read_text(encoding="utf-8")
     findings = []
     if "private[quasiquotes] object DefinitionQuasiquotes" not in definition_source:
         findings.append("dqr owner is no longer package-private")
     if "def dqr" not in definition_source:
         findings.append("documented internal dqr implementation is absent")
+    if "def dqr(using q: Quotes)(args: q.reflect.TypeRepr*): q.reflect.DefDef" not in construct_surface_source:
+        findings.append("public dqr signature no longer matches documentation")
     if "def qq(using q: Quotes): TermPatternExtractor[q.reflect.Term]" not in pattern_source:
         findings.append("public qq signature no longer matches documentation")
     if "def unapplySeq(value: T): Option[Seq[T]]" not in extractor_source:

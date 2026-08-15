@@ -1,5 +1,6 @@
 package external.consumer
 
+import scala.compiletime.testing.typeCheckErrors
 import scala.quoted.Quotes
 
 import quasiquotes.types.ConstructedType
@@ -101,6 +102,61 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     assert(!TypeInterpolatorFirstUseSnippet.zeroHoleMatches[String])
     assert(TypeInterpolatorFirstUseSnippet.unsupportedTargetFallsThrough)
     assert(TypeInterpolatorFirstUseSnippet.ordinaryApisCoexist)
+
+  test("public dqr builds an owner-correct local identity method outside quasiquotes packages"):
+    assertEquals(DqrFirstUseSnippet.identity(42), 42)
+    assertEquals(DqrSelectiveImportSnippet.identity(41), 41)
+
+  test("public dqr reports a hostile null literal part without internal leakage"):
+    val errors = typeCheckErrors("external.consumer.DqrNegativeMacros.nullLiteralPart")
+    assert(errors.nonEmpty)
+    assert(errors.exists(_.message.contains("Invalid dqr definition template:")))
+    assert(errors.forall(error => !error.message.contains("NullPointerException")))
+
+  test("public dqr rejects every excluded definition and splice category cleanly"):
+    val failures = Vector(
+      typeCheckErrors("external.consumer.DqrNegativeMacros.malformed"),
+      typeCheckErrors("external.consumer.DqrNegativeMacros.parameterless"),
+      typeCheckErrors("external.consumer.DqrNegativeMacros.twoParameters"),
+      typeCheckErrors("external.consumer.DqrNegativeMacros.multipleClauses"),
+      typeCheckErrors("external.consumer.DqrNegativeMacros.contextualParameter"),
+      typeCheckErrors("external.consumer.DqrNegativeMacros.typeParameter"),
+      typeCheckErrors("external.consumer.DqrNegativeMacros.bodyHole"),
+      typeCheckErrors("external.consumer.DqrNegativeMacros.nameHole"),
+      typeCheckErrors("external.consumer.DqrNegativeMacros.wholeDefinitionHole"),
+      typeCheckErrors("external.consumer.DqrNegativeMacros.wrongArity"),
+      typeCheckErrors("external.consumer.DqrNegativeMacros.unsupportedType"),
+      typeCheckErrors("external.consumer.DqrNegativeMacros.unequalTypes"),
+      typeCheckErrors("external.consumer.DqrNegativeMacros.wrongBodyBinder"),
+      typeCheckErrors("external.consumer.DqrNegativeMacros.constructorSyntax"),
+      typeCheckErrors("external.consumer.DqrNegativeMacros.otherDefinitionSyntax"),
+      typeCheckErrors("external.consumer.DqrNegativeMacros.sequenceShapedHoles")
+    )
+    val messages = failures.flatten.map(_.message)
+
+    assert(failures.forall(_.nonEmpty))
+    assert(messages.forall(_.contains("Invalid dqr definition template:")))
+    assert(messages.forall(message =>
+      !message.contains("PublicDefinitionQuasiquote") &&
+        !message.contains("DefinitionName") &&
+        !message.contains("dotty.tools") &&
+        !message.contains("quotes.reflect")
+    ))
+
+  test("public dqr rejects a non-TypeRepr splice at the Scala signature boundary"):
+    val errors = typeCheckErrors(
+      """{
+        import scala.quoted.*
+        import quasiquotes.construct.Quasiquotes.*
+        def invalid(using q: Quotes): q.reflect.DefDef =
+          import q.reflect.*
+          val notATypeRepr = "Int"
+          val resultType = TypeRepr.of[Int]
+          dqr"def id(x: $notATypeRepr): $resultType = x"
+      }"""
+    )
+    assert(errors.nonEmpty)
+    assert(errors.exists(_.message.contains("TypeRepr")))
 
   test("external frontend consumer receives actionable located diagnostics"):
     val failures = Vector(

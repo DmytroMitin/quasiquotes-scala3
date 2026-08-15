@@ -17,14 +17,16 @@ class PublicDocsCheckTest(unittest.TestCase):
         root: Path,
         *,
         matrix_link: str = "docs/SYNTAX_SUPPORT_MATRIX.md",
-        dqr_status: str = "Internal research, not public",
+        dqr_status: str = "Public now, exact bounded shape",
     ) -> None:
         docs = root / "docs"
         docs.mkdir(parents=True)
         definitions = root / "frontend/src/main/scala/quasiquotes/definitions"
+        construct = root / "frontend/src/main/scala/quasiquotes/construct"
         matching = root / "frontend/src/main/scala/quasiquotes/matching"
         types = root / "frontend/src/main/scala/quasiquotes/types"
         definitions.mkdir(parents=True)
+        construct.mkdir(parents=True)
         matching.mkdir(parents=True)
         types.mkdir(parents=True)
 
@@ -37,7 +39,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             "| Term pattern matching | `case qq\"...\"` | Public now | `QuasiPattern.term(...)`, `termOrThrow(...)` | Public now |\n"
             "| Type construction | `tqr\"...\"` | Public now | `QuasiTypequotes.tqr(...)` | Public research API |\n"
             "| Type pattern matching | `case tqq\"...\"` | Public now | `QuasiTypequotes.tqq(...)` / `QuasiTypePattern.*` | Public research API |\n"
-            f"| Definition construction | `dqr\"...\"` | {dqr_status} | `DefinitionConstruction.*` | Public bounded compiler-free API |\n"
+            f"| Definition construction | `dqr\"def id(x: $parameterType): $resultType = x\"` | {dqr_status} | `DefinitionConstruction.*` | Public bounded compiler-free API |\n"
             "| Definition pattern matching | `case dqq\"...\"` | TODO / not implemented | — | Not yet |\n"
             "<!-- public-surface-table:end -->\n",
             encoding="utf-8",
@@ -61,11 +63,17 @@ class PublicDocsCheckTest(unittest.TestCase):
             "frontend\tquasiquotes.types.QuasiTypequotes\tdef\ttqr\ttqr signature\n"
             "frontend\tquasiquotes.types.QuasiTypequotes\tdef\ttqq\ttqq signature\n"
             "frontend\tquasiquotes.types.TypePatternExtractor\tdef\tunapplySeq\tunapply signature\n"
+            "frontend\tquasiquotes.construct.Quasiquotes\tdef\tdqr\tdqr signature\n"
             "core\tquasiquotes.publicapi.DefinitionConstruction\tdef\ttwoParameterMethod\ttwo signature\n",
             encoding="utf-8",
         )
         (definitions / "DefinitionQuasiquotes.scala").write_text(
             "private[quasiquotes] object DefinitionQuasiquotes:\n  def dqr = ()\n",
+            encoding="utf-8",
+        )
+        (construct / "Quasiquotes.scala").write_text(
+            "object Quasiquotes:\n"
+            "  def dqr(using q: Quotes)(args: q.reflect.TypeRepr*): q.reflect.DefDef = ???\n",
             encoding="utf-8",
         )
         (matching / "QuasiPattern.scala").write_text(
@@ -117,10 +125,10 @@ class PublicDocsCheckTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("missing relative link", result.stderr)
 
-    def test_rejects_public_dqr_claim(self) -> None:
+    def test_rejects_stale_internal_only_dqr_claim(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            self.make_fixture(root, dqr_status="Public now")
+            self.make_fixture(root, dqr_status="Internal research, not public")
 
             result = self.run_checker(root)
 

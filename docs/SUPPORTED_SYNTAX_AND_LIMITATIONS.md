@@ -37,10 +37,9 @@ Important limitations:
   lambdas, binder-name holes, local definitions, and general blocks;
 - compiler-internal behavior is exact-version-sensitive;
 - public definition construction is intentionally narrow;
-- ordinary-parameter method surfaces have no public source interpolator,
-  located parameter-span carrier, or arithmetic/literal/general-expression
-  body builder; the single- and exact-two-parameter exact backends remain
-  package-private;
+- public `dqr` has no recoverable source carrier, parameter-span projection, or
+  arithmetic/literal/general-expression body builder; exact-two syntax and the
+  exact internal definition backends remain package-private;
 - interpolation and type support expands incrementally, so unsupported shapes
   return explicit errors rather than falling back to unchecked trees;
 - public `qq` extractor templates require at least one interpolated term slot;
@@ -164,6 +163,32 @@ parameter-type sidecar. Nested lambdas and broader lambda/block syntax remain
 outside that internal contract and fail closed.
 
 ## Ordinary-parameter definitions
+
+Inside an active macro `Quotes`, the public reflected construction surface is
+exactly:
+
+```scala
+val definition: q.reflect.DefDef =
+  dqr"def id(x: $parameterType): $resultType = x"
+```
+
+Both holes are caller-owned `q.reflect.TypeRepr` values inspected through the
+bounded neutral `TypeNormalForm`; their normalized forms must be equal. The
+literal method and parameter names are validated ordinary identifiers, and the
+literal body must name that parameter exactly. The same private binder-aware
+single-parameter core validates this identity contract before public Quotes
+lowering creates `MethodType`, a method symbol under `Symbol.spliceOwner`, its
+owned parameter symbol, and a body reference to that exact parameter symbol.
+
+The returned `DefDef` is caller-owned and supports only immediate placement in
+a local `Block` produced by the same macro invocation. It is not detached or
+portable across Quotes universes and provides no arbitrary owner/member/class/
+package placement, subtree reownership, or owner repair. There are no name,
+body, sequence, whole-definition, type-parameter, contextual-parameter,
+multi-clause, multi-parameter, or exact-two holes. `dqq` remains unimplemented.
+All rejected templates owned by this surface abort with
+`Invalid dqr definition template:`; there is no successful source-evidence
+wrapper.
 
 The public compiler-free first-use surface admits the identity-like subset:
 

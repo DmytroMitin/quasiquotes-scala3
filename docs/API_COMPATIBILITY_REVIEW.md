@@ -35,9 +35,14 @@ baseline remains a review artifact, not a stability promise.
 
 ## Current accepted shape
 
-The accepted inventory contains 603 rows: 305 from `core` and 298 from
-`frontend`. Relative to the prior 598-row inventory, the bounded reflected type
-syntax review recorded exactly five additions and no removals:
+The accepted inventory contains 604 rows: 305 from `core` and 299 from
+`frontend`. Relative to the immediately prior 603-row inventory, the bounded
+reflected definition review recorded exactly one addition and no removals:
+
+- addition of `Quasiquotes.dqr(using q: Quotes)(args:
+  q.reflect.TypeRepr*): q.reflect.DefDef`.
+
+The prior bounded reflected type syntax review had recorded five additions:
 
 - addition of `QuasiTypequotes.tqr(using q: Quotes)(args:
   q.reflect.TypeRepr*): q.reflect.TypeRepr`;
@@ -48,14 +53,17 @@ syntax review recorded exactly five additions and no removals:
 - addition of `QuasiTypequotes.tqr(templateSource: String, bindings:
   Seq[(String, TypeNormalForm)])`, with a distinct JVM target name.
 
-The sequence overload is a source-compatibility adapter: without it, adding the
+The type sequence overload is a source-compatibility adapter: without it, adding the
 same-named interpolator prevents Scala from eta-expanding the existing varargs
 function under its previously supported `(String, Seq[(String,
 TypeNormalForm)]) => Either[...]` expected type. Direct varargs calls remain
 unchanged, and compile tests cover wildcard imports, selective imports,
-ordinary calls, and method values. The real delta is additive-only, so the
-source line remains `0.2.0-SNAPSHOT`. Regeneration against this accepted
-baseline must report `NO_PUBLIC_API_DELTA`.
+ordinary calls, and method values. The `dqr` addition uses the already-public
+`Quasiquotes.*` host and adds no overload to an existing name. Its Quotes-owned
+result and bounded local-placement semantics remain explicitly experimental.
+The real delta is additive-only, so the source line remains
+`0.2.0-SNAPSHOT`. Regeneration against this accepted baseline must report
+`NO_PUBLIC_API_DELTA`.
 
 ## Explicit non-guarantees
 

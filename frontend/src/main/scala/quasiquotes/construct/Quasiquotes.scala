@@ -8,3 +8,6 @@ object Quasiquotes:
       QuasiquoteBuilder.buildLocated(sc.parts, args) match
         case Right(term) => term
         case Left(failure) => QuasiquoteDiagnosticReporter.abort(failure, args)
+
+    def dqr(using q: Quotes)(args: q.reflect.TypeRepr*): q.reflect.DefDef =
+      PublicDefinitionQuasiquote.build(sc, args)

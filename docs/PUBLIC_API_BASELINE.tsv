@@ -364,6 +364,7 @@ frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	typedHole	typedHole(x
 frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	typedHoleApplication	typedHoleApplication(x: Int): Int
 frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	unsupportedComplexTypeAscriptionMessage	unsupportedComplexTypeAscriptionMessage: String
 frontend	quasiquotes.construct.QuasiquoteMacroExamples	def	unsupportedSyntaxMessage	unsupportedSyntaxMessage: String
+frontend	quasiquotes.construct.Quasiquotes	def	dqr	dqr(using q: Quotes)(args: q.reflect.TypeRepr*): q.reflect.DefDef
 frontend	quasiquotes.construct.Quasiquotes	def	qr	qr(using q: Quotes)(args: q.reflect.Term | QuasiTypeSplice*): q.reflect.Term
 frontend	quasiquotes.construct.TypedTermConstruct	def	ascribe	ascribe(using q: Quotes)(term: q.reflect.Term, constructedType: ConstructedType): Either[TypeQuasiquoteError, q.reflect.Term]
 frontend	quasiquotes.construct.TypedTermConstruct	def	ascribeNormalForm	ascribeNormalForm(using q: Quotes)(term: q.reflect.Term, normalForm: TypeNormalForm): Either[TypeQuasiquoteError, q.reflect.Term]

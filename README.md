@@ -51,7 +51,7 @@ matching, type, Lambda1, and compiler-free definition examples.
 | Term pattern matching | `case qq"..."` | Public now | `QuasiPattern.term(...)`, `termOrThrow(...)` | Public now |
 | Type construction | `tqr"..."` | Public now | `QuasiTypequotes.tqr(...)` | Public research API |
 | Type pattern matching | `case tqq"..."` | Public now | `QuasiTypequotes.tqq(...)` / `QuasiTypePattern.*` | Public research API |
-| Definition construction | `dqr"..."` | Internal research, not public | `DefinitionConstruction.*` | Public bounded compiler-free API |
+| Definition construction | `dqr"def id(x: $parameterType): $resultType = x"` | Public now, exact bounded shape | `DefinitionConstruction.*` | Public bounded compiler-free API |
 | Definition pattern matching | `case dqq"..."` | TODO / not implemented | — | Not yet |
 <!-- public-surface-table:end -->
 
@@ -70,8 +70,13 @@ order. The same imports retain the recoverable neutral functions
 `QuasiTypequotes.tqr(...)` and `QuasiTypequotes.tqq(...)`. The interpolated
 slots are distinct ordinal positions, while named and repeated-hole semantics
 remain available through the programmatic API. `DefinitionConstruction.*` is
-bounded compiler-free semantic construction/projection; it is not the
-package-private `dqr` source-parser contract.
+bounded compiler-free semantic construction/projection. The public `dqr`
+interpolator is a separate caller-owned Quotes surface: it admits exactly one
+ordinary parameter, two equal supported `TypeRepr` splices, and a literal body
+that names that parameter. It returns a `DefDef` owned by the current
+`Symbol.spliceOwner` for immediate placement in the same macro-generated local
+block. It is not a detached tree, body-hole API, or general owner/placement
+facility.
 
 See the [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md) for the current
 construct/match boundary and its deliberate limits.
@@ -134,7 +139,7 @@ See [Getting started](docs/GETTING_STARTED.md),
 [release process](docs/RELEASE_PROCESS.md).
 
 The machine-readable [public API baseline](docs/PUBLIC_API_BASELINE.tsv)
-contains 305 core and 298 frontend Scaladoc-visible entries. It excludes the
+contains 305 core and 299 frontend Scaladoc-visible entries. It excludes the
 root, unpublished `dottyInternal`, and package-private internals and is a diff
 baseline rather than a compatibility promise.
 

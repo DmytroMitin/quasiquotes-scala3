@@ -160,7 +160,9 @@ lazy val publicApiExamples = (project in file("public-api-examples"))
   .settings(
     name := "quasiquotes-scala3-public-api-examples",
     publish / skip := true,
-    Compile / sources := Nil
+    Compile / sources := Seq(
+      (Compile / scalaSource).value / "external" / "consumer" / "DqrNegativeMacros.scala"
+    )
   )
 
 lazy val publicCoreExamples = (project in file("public-core-examples"))

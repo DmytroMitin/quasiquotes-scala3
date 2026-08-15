@@ -118,6 +118,22 @@ Use `QuasiTypeConstruct.fromTemplateLocated` or
 diagnostic is required. The interpolator/extractor protocols intentionally
 return a reflected result or Scala pattern match rather than an `Either`.
 
+## `dqr` diagnostics
+
+Every rejection owned by the public reflected definition interpolator begins:
+
+```text
+Invalid dqr definition template:
+```
+
+This includes malformed or excluded definition shapes, wrong splice arity,
+unsupported reflected types, unequal normalized parameter/result types, a
+wrong literal body binder, and hostile null or inconsistent `StringContext`
+inputs. A non-`TypeRepr` interpolation argument is rejected earlier by the
+Scala method signature. The interpolator aborts the surrounding macro
+expansion; use the compiler-free `DefinitionConstruction.singleParameterMethod`
+when a recoverable `Either[PublicFailure, ...]` is required.
+
 ## Lambda1 failures
 
 `QuasiPattern.termLocated` returns an actionable located error for unsupported

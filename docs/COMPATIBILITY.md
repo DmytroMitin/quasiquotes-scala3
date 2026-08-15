@@ -37,3 +37,10 @@ The bounded public `tqr` interpolator and `tqq` extractor are additive in the
 varargs function's eta-expanded method-value shape beside the same-named
 interpolator. Reflected construction results and captures remain owned by the
 caller's active `Quotes`; they are not cross-compiler or cross-Quotes portable.
+
+The bounded public `dqr` interpolator is additive in the `0.2.x` source line.
+Its result is a caller-owned `DefDef` under the current `Symbol.spliceOwner`,
+tested only for immediate same-Quotes local-block placement. It is not a binary
+or semantic promise across compiler lines, a detached-tree format, or a general
+owner/placement API. The package-private pre-existing definition parser and
+exact internal backends retain their separate contracts.
