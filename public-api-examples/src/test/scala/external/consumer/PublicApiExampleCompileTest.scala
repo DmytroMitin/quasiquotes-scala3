@@ -114,6 +114,43 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     assertEquals(DefinitionPatternFirstUseMacros.preservesMixedReferences(2), 42)
     assert(DefinitionPatternFirstUseMacros.mismatchesAreNone)
 
+  test("public dqq captures only the original body and composes with public imports"):
+    assertEquals(DefinitionPatternFirstUseMacros.dqqMatchDqr(42), 42)
+    assertEquals(DefinitionPatternFirstUseMacros.dqqMatchIndependent(123), 3)
+    assertEquals(DefinitionPatternFirstUseMacros.dqqPreservesMixedReferences(2), 42)
+    assert(DefinitionPatternFirstUseMacros.dqqMismatchesFallThrough)
+    assertEquals(DefinitionPatternFirstUseMacros.dqqSelectiveImport(41), 41)
+    assertEquals(DefinitionPatternFirstUseMacros.dqqWildcardImports(40), 40)
+
+  test("public dqq rejects hostile contexts and excluded template shapes without leakage"):
+    val failures = Vector(
+      typeCheckErrors("external.consumer.DefinitionPatternFirstUseMacros.dqqNullContext"),
+      typeCheckErrors("external.consumer.DefinitionPatternFirstUseMacros.dqqNullLiteralPart"),
+      typeCheckErrors("external.consumer.DefinitionPatternFirstUseMacros.dqqZeroSlots"),
+      typeCheckErrors("external.consumer.DefinitionPatternFirstUseMacros.dqqTwoSlots"),
+      typeCheckErrors("external.consumer.DefinitionPatternFirstUseMacros.dqqMethodNameSlot"),
+      typeCheckErrors("external.consumer.DefinitionPatternFirstUseMacros.dqqParameterNameSlot"),
+      typeCheckErrors("external.consumer.DefinitionPatternFirstUseMacros.dqqParameterTypeSlot"),
+      typeCheckErrors("external.consumer.DefinitionPatternFirstUseMacros.dqqResultTypeSlot"),
+      typeCheckErrors("external.consumer.DefinitionPatternFirstUseMacros.dqqPartialRhsSlot"),
+      typeCheckErrors("external.consumer.DefinitionPatternFirstUseMacros.dqqTwoParameters"),
+      typeCheckErrors("external.consumer.DefinitionPatternFirstUseMacros.dqqContextualParameter"),
+      typeCheckErrors("external.consumer.DefinitionPatternFirstUseMacros.dqqTypeParameter"),
+      typeCheckErrors("external.consumer.DefinitionPatternFirstUseMacros.dqqWrongDefinitionCategory"),
+      typeCheckErrors("external.consumer.DefinitionPatternFirstUseMacros.dqqMalformed")
+    )
+    val messages = failures.flatten.map(_.message)
+
+    assert(failures.forall(_.nonEmpty))
+    assert(messages.forall(_.contains("Invalid dqq definition-pattern template:")))
+    assert(messages.forall(message =>
+      !message.contains("DefinitionTemplate") &&
+        !message.contains("SingleParameterDefinition") &&
+        !message.contains("dotty.tools") &&
+        !message.contains("quotes.reflect") &&
+        !message.contains("NullPointerException")
+    ))
+
   test("public single-parameter definition pattern rejects invalid configurations without leakage"):
     val invalidSources = Vector(
       null,

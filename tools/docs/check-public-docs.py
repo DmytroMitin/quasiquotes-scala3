@@ -41,8 +41,8 @@ SURFACE_ROWS = {
         "Public bounded compiler-free API",
     ),
     "Definition pattern matching": (
-        '`case dqq"..."`',
-        "TODO / not implemented",
+        '`case dqq"def id(x: Int): Int = $body"`',
+        "Public now, exact bounded shape",
         "`DefinitionPattern.singleParameter(...)`",
         "Public now, exact bounded shape",
     ),
@@ -60,7 +60,9 @@ PUBLIC_API = {
     ("quasiquotes.types.TypePatternExtractor", "unapplySeq"),
     ("quasiquotes.construct.Quasiquotes", "dqr"),
     ("quasiquotes.matching.DefinitionPattern", "singleParameter"),
+    ("quasiquotes.matching.DefinitionPattern", "dqq"),
     ("quasiquotes.matching.SingleParameterDefinitionPattern", "matchDefinition"),
+    ("quasiquotes.matching.SingleParameterDefinitionPattern", "unapply"),
     ("quasiquotes.publicapi.DefinitionConstruction", "twoParameterMethod"),
 }
 
@@ -122,9 +124,6 @@ def api_findings(root: Path) -> list[str]:
         f"missing public API inventory entry: {owner}.{name}"
         for owner, name in sorted(PUBLIC_API - available)
     ]
-    for forbidden in ("dqq",):
-        if any(name == forbidden for _, name in available):
-            findings.append(f"internal/not-yet surface leaked into public API: {forbidden}")
     return findings
 
 
@@ -172,11 +171,10 @@ def source_findings(root: Path) -> list[str]:
         findings.append("public definition-pattern factory no longer matches documentation")
     if "def matchDefinition(using q: Quotes)(" not in definition_pattern_source:
         findings.append("public definition matcher no longer matches documentation")
-    for source in sorted((root / "core/src/main").rglob("*.scala")) + sorted(
-        (root / "frontend/src/main").rglob("*.scala")
-    ):
-        if re.search(r"\bdef\s+dqq\b", source.read_text(encoding="utf-8")):
-            findings.append(f"dqq implementation exists but is documented not yet: {source}")
+    if "def dqq(using q: Quotes): SingleParameterDefinitionPattern" not in definition_pattern_source:
+        findings.append("public dqq signature no longer matches documentation")
+    if "def unapply(using q: Quotes)(" not in definition_pattern_source:
+        findings.append("public definition extractor protocol no longer matches documentation")
     return findings
 
 

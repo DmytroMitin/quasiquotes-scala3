@@ -40,7 +40,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             "| Type construction | `tqr\"...\"` | Public now | `QuasiTypequotes.tqr(...)` | Public research API |\n"
             "| Type pattern matching | `case tqq\"...\"` | Public now | `QuasiTypequotes.tqq(...)` / `QuasiTypePattern.*` | Public research API |\n"
             f"| Definition construction | `dqr\"def id(x: $parameterType): $resultType = x\"` | {dqr_status} | `DefinitionConstruction.*` | Public bounded compiler-free API |\n"
-            "| Definition pattern matching | `case dqq\"...\"` | TODO / not implemented | `DefinitionPattern.singleParameter(...)` | Public now, exact bounded shape |\n"
+            "| Definition pattern matching | `case dqq\"def id(x: Int): Int = $body\"` | Public now, exact bounded shape | `DefinitionPattern.singleParameter(...)` | Public now, exact bounded shape |\n"
             "<!-- public-surface-table:end -->\n",
             encoding="utf-8",
         )
@@ -65,7 +65,9 @@ class PublicDocsCheckTest(unittest.TestCase):
             "frontend\tquasiquotes.types.TypePatternExtractor\tdef\tunapplySeq\tunapply signature\n"
             "frontend\tquasiquotes.construct.Quasiquotes\tdef\tdqr\tdqr signature\n"
             "frontend\tquasiquotes.matching.DefinitionPattern\tdef\tsingleParameter\tsingle signature\n"
+            "frontend\tquasiquotes.matching.DefinitionPattern\tdef\tdqq\tdqq signature\n"
             "frontend\tquasiquotes.matching.SingleParameterDefinitionPattern\tdef\tmatchDefinition\tmatch signature\n"
+            "frontend\tquasiquotes.matching.SingleParameterDefinitionPattern\tdef\tunapply\tunapply signature\n"
             "core\tquasiquotes.publicapi.DefinitionConstruction\tdef\ttwoParameterMethod\ttwo signature\n",
             encoding="utf-8",
         )
@@ -89,9 +91,12 @@ class PublicDocsCheckTest(unittest.TestCase):
         )
         (matching / "DefinitionPattern.scala").write_text(
             "object DefinitionPattern:\n"
+            "  extension (sc: StringContext)\n"
+            "    def dqq(using q: Quotes): SingleParameterDefinitionPattern = ???\n"
             "  def singleParameter(source: String) = ???\n"
             "final class SingleParameterDefinitionPattern:\n"
-            "  def matchDefinition(using q: Quotes)(target: q.reflect.DefDef) = ???\n",
+            "  def matchDefinition(using q: Quotes)(target: q.reflect.DefDef) = ???\n"
+            "  def unapply(using q: Quotes)(target: q.reflect.DefDef) = ???\n",
             encoding="utf-8",
         )
         (types / "QuasiTypequotes.scala").write_text(

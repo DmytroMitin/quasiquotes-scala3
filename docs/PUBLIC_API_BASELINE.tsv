@@ -405,6 +405,7 @@ frontend	quasiquotes.matching.CanonicalTerm	class	Unary	Unary(operator: String, 
 frontend	quasiquotes.matching.CanonicalTerm	def	render	render(term: CanonicalTerm): String
 frontend	quasiquotes.matching.CanonicalTerm	def	render	render: String
 frontend	quasiquotes.matching.CanonicalTerm	given	derived$CanEqual	derived$CanEqual: CanEqual[CanonicalTerm, CanonicalTerm]
+frontend	quasiquotes.matching.DefinitionPattern	def	dqq	dqq(using q: Quotes): SingleParameterDefinitionPattern
 frontend	quasiquotes.matching.DefinitionPattern	def	singleParameter	singleParameter(source: String): Either[DefinitionPatternError, SingleParameterDefinitionPattern]
 frontend	quasiquotes.matching.DefinitionPatternError	val	message	message: String
 frontend	quasiquotes.matching.MatchNormalizer	def	normalizePattern	normalizePattern(pattern: TermPattern): TermPattern
@@ -438,6 +439,7 @@ frontend	quasiquotes.matching.SingleParameterDefinitionMatch	val	parameterName	p
 frontend	quasiquotes.matching.SingleParameterDefinitionMatch	val	parameterType	parameterType: Tpe
 frontend	quasiquotes.matching.SingleParameterDefinitionMatch	val	resultType	resultType: Tpe
 frontend	quasiquotes.matching.SingleParameterDefinitionPattern	def	matchDefinition	matchDefinition(using q: Quotes)(target: q.reflect.DefDef): Option[SingleParameterDefinitionMatch[q.reflect.TypeRepr, q.reflect.Term]]
+frontend	quasiquotes.matching.SingleParameterDefinitionPattern	def	unapply	unapply(using q: Quotes)(target: q.reflect.DefDef): Option[q.reflect.Term]
 frontend	quasiquotes.matching.TargetTermView	class	Apply	Apply[T](function: TargetTermView[T], arguments: List[TargetTermView[T]], original: T) extends TargetTermView[T]
 frontend	quasiquotes.matching.TargetTermView	class	Identifier	Identifier[T](name: String, original: T) extends TargetTermView[T]
 frontend	quasiquotes.matching.TargetTermView	class	If	If[T](condition: TargetTermView[T], thenBranch: TargetTermView[T], elseBranch: TargetTermView[T], original: T) extends TargetTermView[T]

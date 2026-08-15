@@ -263,6 +263,7 @@ import quasiquotes.matching.{
   DefinitionPattern,
   SingleParameterDefinitionMatch
 }
+import quasiquotes.matching.DefinitionPattern.*
 
 object DefinitionPatternFirstUseSnippet:
   val configured = DefinitionPattern.singleParameter(
@@ -274,6 +275,15 @@ object DefinitionPatternFirstUseSnippet:
 
   def independent(value: Int): Int =
     DefinitionPatternFirstUseMacros.matchIndependent(value)
+
+  def captureBody(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[q.reflect.Term] =
+    target match
+      case dqq"def boundedIdentity(value: Int): Int = $body" =>
+        val originalBody: q.reflect.Term = body
+        Some(originalBody)
+      case _ => None
 
   def inspect(using q: Quotes)(
       target: q.reflect.DefDef
@@ -304,8 +314,9 @@ object DefinitionPatternFirstUseSnippet:
 The matcher source must have exactly the form
 `def name(parameter: FixedType): FixedResultType = $body`. Parameter and result
 types may differ. The compiled external fixture exercises both current `dqr`
-output and an independently authored definition. This API is programmatic;
-`case dqq"..."` is not implemented.
+output and an independently authored definition. `dqq` accepts the same exact
+grammar in interpolated pattern syntax and captures only the complete original
+RHS `Term`; ordinary target mismatches fall through to the next pattern case.
 
 ## Lambda1 construction and matching
 

@@ -150,6 +150,20 @@ not `DefinitionPatternError` values and not compiler diagnostics. A successful
 match returns `Some(result)` containing the original caller-owned reflected
 objects.
 
+`dqq` validates its `StringContext` before compiling the same bounded matcher
+source. Null contexts or literal parts, zero or multiple interpolation slots,
+malformed templates, and every out-of-grammar slot position abort macro
+expansion with the stable prefix:
+
+```text
+Invalid dqq definition-pattern template:
+```
+
+The remainder is only the public `DefinitionPatternError.message`; parser,
+matcher, placeholder, and compiler-internal details are not exposed. Once the
+template is valid, a target mismatch is an ordinary extractor fall-through,
+not a diagnostic.
+
 ## Lambda1 failures
 
 `QuasiPattern.termLocated` returns an actionable located error for unsupported

@@ -35,10 +35,22 @@ baseline remains a review artifact, not a stability promise.
 
 ## Current accepted shape
 
-The accepted inventory contains 616 rows: 305 from `core` and 311 from
-`frontend`. Relative to the immediately prior 604-row inventory, the bounded
-programmatic definition matcher review recorded exactly 12 additions and no
+The accepted inventory contains 618 rows: 305 from `core` and 313 from
+`frontend`. Relative to the immediately prior 616-row inventory, the bounded
+body-only definition extractor review recorded exactly two additions and no
 removals:
+
+- `DefinitionPattern.dqq(using q: Quotes)` on `StringContext`;
+- `SingleParameterDefinitionPattern.unapply(using q: Quotes)` returning the
+  original RHS `q.reflect.Term`.
+
+The generated review found no public constructors, companion factories,
+helpers, removals, replacements, owner moves, or overload changes. Both rows
+delegate to the already accepted bounded programmatic matcher, so the source
+line remains `0.2.0-SNAPSHOT`.
+
+The preceding bounded programmatic definition matcher review recorded exactly
+12 additions and no removals:
 
 - `DefinitionPattern` and its `singleParameter` factory;
 - `DefinitionPatternError` and its sole `message` projection;
@@ -47,10 +59,7 @@ removals:
   projections: method name, parameter name, parameter type, result type, and
   body.
 
-The generated review found no public constructors, companion factories,
-helpers, removals, replacements, owner moves, or overload changes. The matcher
-is additive and source-safe under the reviewed source shapes, so the source
-line remains `0.2.0-SNAPSHOT`.
+That matcher was additive and source-safe under the reviewed source shapes.
 
 The preceding bounded reflected definition review recorded exactly one
 addition and no removals:

@@ -32,6 +32,11 @@ The bounded `DefinitionPattern.singleParameter` matcher is also additive within
 this source line: it introduces new names and no overloads or replacements.
 Its caller-`Quotes` reflected result remains experimental and is limited to the
 documented exact single-parameter matcher grammar.
+The bounded `DefinitionPattern.dqq` extension and
+`SingleParameterDefinitionPattern.unapply` protocol are two further additive
+members on those existing owners. They delegate to the same matcher grammar,
+capture only the original complete RHS `Term`, and add no overload or implicit
+replacement of an existing public name.
 
 ## Module-specific compatibility
 

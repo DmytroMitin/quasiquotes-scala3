@@ -79,6 +79,11 @@ final class SingleParameterDefinitionPattern private[matching] (
             case _ => None
         case _ => None
 
+  def unapply(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[q.reflect.Term] =
+    matchDefinition(target).map(_.body)
+
   private def admittedParameter(using q: Quotes)(
       target: q.reflect.DefDef,
       parameter: q.reflect.ValDef
@@ -102,6 +107,28 @@ object DefinitionPattern:
 
   private val InvalidPatternMessage =
     "Invalid single-parameter definition pattern; expected one ordinary method with fixed supported parameter and result types and `$body` as the complete right-hand side."
+
+  private val InvalidDqqPrefix =
+    "Invalid dqq definition-pattern template:"
+
+  extension (sc: StringContext)
+    def dqq(using q: Quotes): SingleParameterDefinitionPattern =
+      def abort(message: String): Nothing =
+        q.reflect.report.errorAndAbort(s"$InvalidDqqPrefix $message")
+
+      if sc == null then abort("StringContext must not be null.")
+      val parts = sc.parts
+      if parts == null || parts.isEmpty then
+        abort("StringContext must contain exactly two literal parts.")
+      if parts.exists(_ == null) then
+        abort("StringContext literal parts must not be null.")
+      if parts.size != 2 then
+        abort(s"Expected exactly one body capture slot, but found ${parts.size - 1}.")
+
+      val source = parts.head + "$body" + parts.last
+      singleParameter(source) match
+        case Right(pattern) => pattern
+        case Left(error) => abort(error.message)
 
   def singleParameter(
       source: String

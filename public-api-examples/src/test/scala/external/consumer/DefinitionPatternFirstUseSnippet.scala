@@ -7,6 +7,7 @@ import quasiquotes.matching.{
   DefinitionPattern,
   SingleParameterDefinitionMatch
 }
+import quasiquotes.matching.DefinitionPattern.*
 
 object DefinitionPatternFirstUseSnippet:
   val configured = DefinitionPattern.singleParameter(
@@ -18,6 +19,15 @@ object DefinitionPatternFirstUseSnippet:
 
   def independent(value: Int): Int =
     DefinitionPatternFirstUseMacros.matchIndependent(value)
+
+  def captureBody(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[q.reflect.Term] =
+    target match
+      case dqq"def boundedIdentity(value: Int): Int = $body" =>
+        val originalBody: q.reflect.Term = body
+        Some(originalBody)
+      case _ => None
 
   def inspect(using q: Quotes)(
       target: q.reflect.DefDef

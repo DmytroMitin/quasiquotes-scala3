@@ -185,12 +185,21 @@ a local `Block` produced by the same macro invocation. It is not detached or
 portable across Quotes universes and provides no arbitrary owner/member/class/
 package placement, subtree reownership, or owner repair. There are no name,
 body, sequence, whole-definition, type-parameter, contextual-parameter,
-multi-clause, multi-parameter, or exact-two holes. `dqq` remains unimplemented.
+multi-clause, multi-parameter, or exact-two construction holes.
 All rejected templates owned by this surface abort with
 `Invalid dqr definition template:`; there is no successful source-evidence
 wrapper.
 
-The separate public programmatic matcher is configured with exactly:
+The public definition matcher may be used through the bounded extractor:
+
+```scala
+target match
+  case dqq"def id(x: Int): String = $body" =>
+    val originalBody: q.reflect.Term = body
+  case _ => ()
+```
+
+or configured programmatically with exactly:
 
 ```scala
 DefinitionPattern.singleParameter(
@@ -205,16 +214,19 @@ type, sequence, repeated, fragment, whole-definition, type-parameter,
 contextual, default, varargs, extra-parameter, and extra-clause forms are not
 admitted.
 
-`matchDefinition` accepts a caller-owned `q.reflect.DefDef` with one ordinary
-parameter. It checks the exact names, bounded type normal forms, RHS presence,
-and the method/parameter symbol-owner relationship. A target difference or an
-unsupported target type returns `None`; it is not a configuration error. On
-success, the result exposes the exact original `parameter.tpt.tpe`,
-`target.returnTpt.tpe`, and `target.rhs.get`. The captured body is unconstrained
-and may contain bound or free references, so it remains owner-sensitive and
-must not be treated as a detached tree. No symbols or owners are exposed, and
-the matcher performs no construction, owner mutation, or reparenting. This is
-not general definition matching and does not add `dqq`.
+`matchDefinition` and the `dqq` extractor accept a caller-owned
+`q.reflect.DefDef` with one ordinary parameter. They check the exact names,
+bounded type normal forms, RHS presence, and the method/parameter symbol-owner
+relationship. A target difference or an unsupported target type returns
+`None`; in a `dqq` match this falls through normally. On success, `dqq`
+captures exactly `target.rhs.get`; the programmatic result additionally exposes
+the exact original `parameter.tpt.tpe` and `target.returnTpt.tpe`. The captured
+body is unconstrained and may contain bound or free references, so it remains
+owner-sensitive and must not be treated as a detached tree. No symbols or
+owners are exposed, and the matcher performs no construction, owner mutation,
+or reparenting. This is not general definition matching: there are no name,
+type, partial-body, sequence, whole-definition, multi-parameter, contextual,
+default, varargs, type-parameter, or multi-clause captures.
 
 The public compiler-free first-use surface admits the identity-like subset:
 
