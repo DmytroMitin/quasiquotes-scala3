@@ -190,6 +190,32 @@ All rejected templates owned by this surface abort with
 `Invalid dqr definition template:`; there is no successful source-evidence
 wrapper.
 
+The separate public programmatic matcher is configured with exactly:
+
+```scala
+DefinitionPattern.singleParameter(
+  "def id(x: Int): String = $body"
+)
+```
+
+Its method and parameter names are fixed ordinary identifiers. Its parameter
+and result types are fixed members of the existing bounded type grammar and
+may differ. `$body` is the only hole and must occupy the complete RHS. Name,
+type, sequence, repeated, fragment, whole-definition, type-parameter,
+contextual, default, varargs, extra-parameter, and extra-clause forms are not
+admitted.
+
+`matchDefinition` accepts a caller-owned `q.reflect.DefDef` with one ordinary
+parameter. It checks the exact names, bounded type normal forms, RHS presence,
+and the method/parameter symbol-owner relationship. A target difference or an
+unsupported target type returns `None`; it is not a configuration error. On
+success, the result exposes the exact original `parameter.tpt.tpe`,
+`target.returnTpt.tpe`, and `target.rhs.get`. The captured body is unconstrained
+and may contain bound or free references, so it remains owner-sensitive and
+must not be treated as a detached tree. No symbols or owners are exposed, and
+the matcher performs no construction, owner mutation, or reparenting. This is
+not general definition matching and does not add `dqq`.
+
 The public compiler-free first-use surface admits the identity-like subset:
 
 ```scala

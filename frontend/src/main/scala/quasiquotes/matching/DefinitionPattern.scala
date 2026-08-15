@@ -1,0 +1,262 @@
+package quasiquotes.matching
+
+import scala.quoted.*
+import scala.util.control.NonFatal
+
+import quasiquotes.definitions.DefinitionName
+import quasiquotes.types.{
+  TargetTypeReprInspector,
+  TypeNormalForm,
+  TypeNormalFormSource
+}
+
+final class DefinitionPatternError private[matching] (
+    val message: String
+)
+
+final class SingleParameterDefinitionMatch[Tpe, Trm] private[matching] (
+    val methodName: String,
+    val parameterName: String,
+    val parameterType: Tpe,
+    val resultType: Tpe,
+    val body: Trm
+)
+
+final class SingleParameterDefinitionPattern private[matching] (
+    private val expectedMethodName: String,
+    private val expectedParameterName: String,
+    private val expectedParameterType: TypeNormalForm,
+    private val expectedResultType: TypeNormalForm
+):
+  def matchDefinition(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[
+    SingleParameterDefinitionMatch[q.reflect.TypeRepr, q.reflect.Term]
+  ] =
+    import q.reflect.*
+
+    if target == null ||
+        target.name != expectedMethodName ||
+        target.symbol == Symbol.noSymbol ||
+        !target.symbol.isDefDef ||
+        target.symbol.isClassConstructor ||
+        target.symbol.flags.is(Flags.ExtensionMethod) ||
+        target.symbol.flags.is(Flags.FieldAccessor) ||
+        target.symbol.flags.is(Flags.ParamAccessor) ||
+        target.symbol.flags.is(Flags.CaseAccessor) ||
+        target.symbol.flags.is(Flags.Given)
+    then None
+    else
+      target.paramss match
+        case List(clause: TermParamClause)
+            if !clause.isImplicit && !clause.isGiven && !clause.isErased =>
+          clause.params match
+            case List(parameter)
+                if admittedParameter(target, parameter) &&
+                  parameter.name == expectedParameterName =>
+              val parameterType = parameter.tpt.tpe
+              val resultType = target.returnTpt.tpe
+              val body = target.rhs
+
+              for
+                rhs <- body
+                actualParameterType <- TargetTypeReprInspector
+                  .inspect(parameterType)
+                  .toOption
+                if actualParameterType == expectedParameterType
+                actualResultType <- TargetTypeReprInspector
+                  .inspect(resultType)
+                  .toOption
+                if actualResultType == expectedResultType
+              yield
+                new SingleParameterDefinitionMatch(
+                  target.name,
+                  parameter.name,
+                  parameterType,
+                  resultType,
+                  rhs
+                )
+            case _ => None
+        case _ => None
+
+  private def admittedParameter(using q: Quotes)(
+      target: q.reflect.DefDef,
+      parameter: q.reflect.ValDef
+  ): Boolean =
+    import q.reflect.*
+
+    val methodParameters = target.symbol.paramSymss.flatten
+    parameter.symbol != Symbol.noSymbol &&
+      !parameter.symbol.flags.is(Flags.HasDefault) &&
+      methodParameters.size == 1 &&
+      methodParameters.head == parameter.symbol &&
+      parameter.symbol.owner == target.symbol
+
+object DefinitionPattern:
+  private final case class ParsedPattern(
+      methodName: String,
+      parameterName: String,
+      parameterTypeSource: String,
+      resultTypeSource: String
+  )
+
+  private val InvalidPatternMessage =
+    "Invalid single-parameter definition pattern; expected one ordinary method with fixed supported parameter and result types and `$body` as the complete right-hand side."
+
+  def singleParameter(
+      source: String
+  ): Either[DefinitionPatternError, SingleParameterDefinitionPattern] =
+    if source == null then
+      Left(new DefinitionPatternError("Definition pattern source must not be null."))
+    else
+      try compile(source)
+      catch
+        case NonFatal(_) => invalidPattern
+
+  private def compile(
+      source: String
+  ): Either[DefinitionPatternError, SingleParameterDefinitionPattern] =
+    parseExactShape(source).flatMap(compileParsed)
+
+  private def compileParsed(
+      parsed: ParsedPattern
+  ): Either[DefinitionPatternError, SingleParameterDefinitionPattern] =
+    for
+      _ <- DefinitionName.plain(parsed.methodName).left.map(_ => patternError)
+      _ <- DefinitionName
+        .plain(parsed.parameterName)
+        .left
+        .map(_ => patternError)
+      parameterType <- TypeNormalFormSource
+        .fromSource(parsed.parameterTypeSource)
+        .left
+        .map(_ => patternError)
+      resultType <- TypeNormalFormSource
+        .fromSource(parsed.resultTypeSource)
+        .left
+        .map(_ => patternError)
+    yield
+      new SingleParameterDefinitionPattern(
+        parsed.methodName,
+        parsed.parameterName,
+        parameterType,
+        resultType
+      )
+
+  private def parseExactShape(
+      source: String
+  ): Either[DefinitionPatternError, ParsedPattern] =
+    var cursor = 0
+
+    def skipWhitespace(): Unit =
+      while cursor < source.length && source.charAt(cursor).isWhitespace do
+        cursor += 1
+
+    def consume(text: String): Boolean =
+      if source.startsWith(text, cursor) then
+        cursor += text.length
+        true
+      else false
+
+    def consumeWhitespace(): Boolean =
+      val start = cursor
+      skipWhitespace()
+      cursor > start
+
+    def consumePunctuation(text: String): Boolean =
+      skipWhitespace()
+      consume(text)
+
+    def readName(): Option[String] =
+      skipWhitespace()
+      val start = cursor
+      if cursor < source.length && isNameStart(source.charAt(cursor)) then
+        cursor += 1
+        while cursor < source.length && isNamePart(source.charAt(cursor)) do
+          cursor += 1
+        Some(source.substring(start, cursor))
+      else None
+
+    def readParameterType(): Option[String] =
+      skipWhitespace()
+      val start = cursor
+      var parentheses = 0
+      var brackets = 0
+      while cursor < source.length do
+        source.charAt(cursor) match
+          case '(' => parentheses += 1
+          case ')' if parentheses == 0 && brackets == 0 =>
+            return nonEmptySlice(source, start, cursor)
+          case ')' => parentheses -= 1
+          case '[' => brackets += 1
+          case ']' => brackets -= 1
+          case _ => ()
+        if parentheses < 0 || brackets < 0 then return None
+        cursor += 1
+      None
+
+    def readResultType(): Option[String] =
+      skipWhitespace()
+      val start = cursor
+      var parentheses = 0
+      var brackets = 0
+      while cursor < source.length do
+        source.charAt(cursor) match
+          case '(' => parentheses += 1
+          case ')' => parentheses -= 1
+          case '[' => brackets += 1
+          case ']' => brackets -= 1
+          case '='
+              if parentheses == 0 && brackets == 0 &&
+                (cursor + 1 >= source.length || source.charAt(cursor + 1) != '>') =>
+            return nonEmptySlice(source, start, cursor)
+          case _ => ()
+        if parentheses < 0 || brackets < 0 then return None
+        cursor += 1
+      None
+
+    def atEnd: Boolean =
+      skipWhitespace()
+      cursor == source.length
+
+    skipWhitespace()
+    val parsed = for
+      _ <- Option.when(consume("def") && consumeWhitespace())(())
+      methodName <- readName()
+      _ <- Option.when(consumePunctuation("("))(())
+      parameterName <- readName()
+      _ <- Option.when(consumePunctuation(":"))(())
+      parameterType <- readParameterType()
+      _ <- Option.when(consumePunctuation(")"))(())
+      _ <- Option.when(consumePunctuation(":"))(())
+      resultType <- readResultType()
+      _ <- Option.when(consumePunctuation("="))(())
+      _ <- Option.when(consumePunctuation("$body"))(())
+      _ <- Option.when(atEnd)(())
+    yield ParsedPattern(
+      methodName,
+      parameterName,
+      parameterType,
+      resultType
+    )
+
+    parsed.toRight(patternError)
+
+  private def nonEmptySlice(
+      source: String,
+      start: Int,
+      end: Int
+  ): Option[String] =
+    Option(source.substring(start, end).trim).filter(_.nonEmpty)
+
+  private def isNameStart(char: Char): Boolean =
+    char == '_' || char.isLetter && char <= '\u007f'
+
+  private def isNamePart(char: Char): Boolean =
+    isNameStart(char) || char.isDigit && char <= '\u007f'
+
+  private def invalidPattern[A]: Either[DefinitionPatternError, A] =
+    Left(patternError)
+
+  private def patternError: DefinitionPatternError =
+    new DefinitionPatternError(InvalidPatternMessage)

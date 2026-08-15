@@ -43,8 +43,8 @@ SURFACE_ROWS = {
     "Definition pattern matching": (
         '`case dqq"..."`',
         "TODO / not implemented",
-        "—",
-        "Not yet",
+        "`DefinitionPattern.singleParameter(...)`",
+        "Public now, exact bounded shape",
     ),
 }
 
@@ -59,6 +59,8 @@ PUBLIC_API = {
     ("quasiquotes.types.QuasiTypequotes", "tqq"),
     ("quasiquotes.types.TypePatternExtractor", "unapplySeq"),
     ("quasiquotes.construct.Quasiquotes", "dqr"),
+    ("quasiquotes.matching.DefinitionPattern", "singleParameter"),
+    ("quasiquotes.matching.SingleParameterDefinitionPattern", "matchDefinition"),
     ("quasiquotes.publicapi.DefinitionConstruction", "twoParameterMethod"),
 }
 
@@ -146,6 +148,9 @@ def source_findings(root: Path) -> list[str]:
     construct_surface_source = (
         root / "frontend/src/main/scala/quasiquotes/construct/Quasiquotes.scala"
     ).read_text(encoding="utf-8")
+    definition_pattern_source = (
+        root / "frontend/src/main/scala/quasiquotes/matching/DefinitionPattern.scala"
+    ).read_text(encoding="utf-8")
     findings = []
     if "private[quasiquotes] object DefinitionQuasiquotes" not in definition_source:
         findings.append("dqr owner is no longer package-private")
@@ -163,6 +168,10 @@ def source_findings(root: Path) -> list[str]:
         findings.append("public tqq extractor signature no longer matches documentation")
     if "def unapplySeq(value: T): Option[Seq[T]]" not in type_extractor_source:
         findings.append("public tqq extractor protocol no longer matches documentation")
+    if "def singleParameter(" not in definition_pattern_source:
+        findings.append("public definition-pattern factory no longer matches documentation")
+    if "def matchDefinition(using q: Quotes)(" not in definition_pattern_source:
+        findings.append("public definition matcher no longer matches documentation")
     for source in sorted((root / "core/src/main").rglob("*.scala")) + sorted(
         (root / "frontend/src/main").rglob("*.scala")
     ):

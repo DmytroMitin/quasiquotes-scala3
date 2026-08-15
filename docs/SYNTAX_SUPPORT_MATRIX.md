@@ -81,6 +81,7 @@ read-only projections plus one exact caller-owned reflected interpolator.
 | Single ordinary parameter | `def id(x: Int): Int = x` | Yes | Yes | Internal exact source-free and generated-origin modes | `BOUNDED`; public body selects the declared parameter |
 | Exactly two ordinary parameters | `def first(x: Int, y: String): Int = x` | Yes | Yes | Internal exact source-free and generated-origin modes | `BOUNDED`; one ordered list, distinct names, binder-aware bounded body |
 | Public reflected identity definition interpolation | `dqr"def id(x: $parameterType): $resultType = x"` | Binder-aware bounded core validation | Yes, caller-owned `DefDef` | Public Quotes lowering only | `BOUNDED`; one clause/parameter, two equal supported `TypeRepr` slots, literal parameter body, immediate same-Quotes local placement |
+| Programmatic single-parameter definition matching | `DefinitionPattern.singleParameter("def id(x: Int): Int = $body")` | Private neutral comparison keys only | Yes | Public Quotes inspection | `BOUNDED`; fixed ordinary names/types, complete RHS capture, mismatch is `None`, original reflected values preserved |
 | Definition pattern interpolation | `dqq"..."` | No | No | No | `NOT_YET`; no such surface exists |
 | Curried, contextual exact-two, defaults, varargs, general arity | broader methods | No | No | No | `NOT_YET`; no general method-definition claim |
 

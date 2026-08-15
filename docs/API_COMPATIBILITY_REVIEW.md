@@ -35,9 +35,25 @@ baseline remains a review artifact, not a stability promise.
 
 ## Current accepted shape
 
-The accepted inventory contains 604 rows: 305 from `core` and 299 from
-`frontend`. Relative to the immediately prior 603-row inventory, the bounded
-reflected definition review recorded exactly one addition and no removals:
+The accepted inventory contains 616 rows: 305 from `core` and 311 from
+`frontend`. Relative to the immediately prior 604-row inventory, the bounded
+programmatic definition matcher review recorded exactly 12 additions and no
+removals:
+
+- `DefinitionPattern` and its `singleParameter` factory;
+- `DefinitionPatternError` and its sole `message` projection;
+- `SingleParameterDefinitionPattern` and `matchDefinition`;
+- generic `SingleParameterDefinitionMatch[Tpe, Trm]` and exactly its five
+  projections: method name, parameter name, parameter type, result type, and
+  body.
+
+The generated review found no public constructors, companion factories,
+helpers, removals, replacements, owner moves, or overload changes. The matcher
+is additive and source-safe under the reviewed source shapes, so the source
+line remains `0.2.0-SNAPSHOT`.
+
+The preceding bounded reflected definition review recorded exactly one
+addition and no removals:
 
 - addition of `Quasiquotes.dqr(using q: Quotes)(args:
   q.reflect.TypeRepr*): q.reflect.DefDef`.
@@ -61,8 +77,7 @@ unchanged, and compile tests cover wildcard imports, selective imports,
 ordinary calls, and method values. The `dqr` addition uses the already-public
 `Quasiquotes.*` host and adds no overload to an existing name. Its Quotes-owned
 result and bounded local-placement semantics remain explicitly experimental.
-The real delta is additive-only, so the source line remains
-`0.2.0-SNAPSHOT`. Regeneration against this accepted baseline must report
+Regeneration against this accepted baseline must report
 `NO_PUBLIC_API_DELTA`.
 
 ## Explicit non-guarantees

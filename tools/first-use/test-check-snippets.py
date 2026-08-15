@@ -21,6 +21,7 @@ class CheckSnippetsTest(unittest.TestCase):
         documented_qq_extractor: str = "val qqExtractor = 8",
         documented_type_interpolator: str = "val typeInterpolator = 9",
         documented_dqr: str = "val dqr = 10",
+        documented_definition_pattern: str = "val definitionPattern = 11",
     ) -> None:
         docs = root / "docs"
         sources = root / "public-api-examples/src/test/scala/external/consumer"
@@ -71,6 +72,12 @@ class CheckSnippetsTest(unittest.TestCase):
             "// snippet:dqr-first-use:end\n",
             encoding="utf-8",
         )
+        (sources / "DefinitionPatternFirstUseSnippet.scala").write_text(
+            "// snippet:definition-pattern-first-use:start\n"
+            "val definitionPattern = 11\n"
+            "// snippet:definition-pattern-first-use:end\n",
+            encoding="utf-8",
+        )
         (sources / "ReadmeQuickStart.scala").write_text(
             "// snippet:readme-quick-start:start\nval quickStart = 5\n"
             "// snippet:readme-quick-start:end\n",
@@ -105,7 +112,10 @@ class CheckSnippetsTest(unittest.TestCase):
             + "\n```\n<!-- snippet:type-interpolator-first-use:end -->\n"
             + "<!-- snippet:dqr-first-use:start -->\n```scala\n"
             + documented_dqr
-            + "\n```\n<!-- snippet:dqr-first-use:end -->\n",
+            + "\n```\n<!-- snippet:dqr-first-use:end -->\n"
+            + "<!-- snippet:definition-pattern-first-use:start -->\n```scala\n"
+            + documented_definition_pattern
+            + "\n```\n<!-- snippet:definition-pattern-first-use:end -->\n",
             encoding="utf-8",
         )
 
@@ -126,7 +136,7 @@ class CheckSnippetsTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(
-                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, readme-quick-start",
+                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, readme-quick-start",
                 result.stdout,
             )
 

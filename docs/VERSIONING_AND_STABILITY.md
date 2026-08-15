@@ -28,6 +28,10 @@ TASTy-compatible with the `0.1.x` line and is the reason for the minor change.
 The bounded reflected `tqr` and `tqq` type syntax is additive within this
 source line. Its extra sequence-shaped `tqr` overload is retained specifically
 to preserve the prior varargs function's supported eta-expansion shape.
+The bounded `DefinitionPattern.singleParameter` matcher is also additive within
+this source line: it introduces new names and no overloads or replacements.
+Its caller-`Quotes` reflected result remains experimental and is limited to the
+documented exact single-parameter matcher grammar.
 
 ## Module-specific compatibility
 

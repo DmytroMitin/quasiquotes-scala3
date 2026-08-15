@@ -134,6 +134,22 @@ Scala method signature. The interpolator aborts the surrounding macro
 expansion; use the compiler-free `DefinitionConstruction.singleParameterMethod`
 when a recoverable `Either[PublicFailure, ...]` is required.
 
+## Programmatic definition matcher errors and mismatches
+
+`DefinitionPattern.singleParameter(source)` returns
+`Left(DefinitionPatternError)` for null, malformed, unsupported, or
+out-of-grammar matcher source. The error's `message` is phase-neutral and does
+not expose parser placeholders or compiler internals. This configuration step
+does not abort macro expansion.
+
+After configuration succeeds, `pattern.matchDefinition(target)` returns
+`None` for an ordinary mismatch: different fixed names or types, unsupported
+target types, wrong parameter-list shape, missing RHS, or an invalid
+method/parameter symbol-owner relationship. These are normal matching results,
+not `DefinitionPatternError` values and not compiler diagnostics. A successful
+match returns `Some(result)` containing the original caller-owned reflected
+objects.
+
 ## Lambda1 failures
 
 `QuasiPattern.termLocated` returns an actionable located error for unsupported

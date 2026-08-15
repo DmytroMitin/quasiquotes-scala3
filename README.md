@@ -52,7 +52,7 @@ matching, type, Lambda1, and compiler-free definition examples.
 | Type construction | `tqr"..."` | Public now | `QuasiTypequotes.tqr(...)` | Public research API |
 | Type pattern matching | `case tqq"..."` | Public now | `QuasiTypequotes.tqq(...)` / `QuasiTypePattern.*` | Public research API |
 | Definition construction | `dqr"def id(x: $parameterType): $resultType = x"` | Public now, exact bounded shape | `DefinitionConstruction.*` | Public bounded compiler-free API |
-| Definition pattern matching | `case dqq"..."` | TODO / not implemented | — | Not yet |
+| Definition pattern matching | `case dqq"..."` | TODO / not implemented | `DefinitionPattern.singleParameter(...)` | Public now, exact bounded shape |
 <!-- public-surface-table:end -->
 
 `qr` is the ergonomic aborting term-construction syntax;
@@ -77,6 +77,13 @@ that names that parameter. It returns a `DefDef` owned by the current
 `Symbol.spliceOwner` for immediate placement in the same macro-generated local
 block. It is not a detached tree, body-hole API, or general owner/placement
 facility.
+
+The programmatic `DefinitionPattern.singleParameter(...)` matcher separately
+admits one fixed ordinary method name, one fixed ordinary parameter and fixed
+bounded parameter/result types, with `$body` as the complete RHS. A valid
+pattern returns `None` for an ordinary target mismatch and preserves the
+caller's original reflected parameter type, result type, and RHS on success.
+There is no public `dqq` interpolator/extractor yet.
 
 See the [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md) for the current
 construct/match boundary and its deliberate limits.

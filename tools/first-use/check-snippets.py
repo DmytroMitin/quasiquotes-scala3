@@ -39,6 +39,10 @@ SNIPPETS = {
         Path("public-api-examples/src/test/scala/external/consumer/DqrFirstUseSnippet.scala"),
         Path("docs/GETTING_STARTED.md"),
     ),
+    "definition-pattern-first-use": (
+        Path("public-api-examples/src/test/scala/external/consumer/DefinitionPatternFirstUseSnippet.scala"),
+        Path("docs/GETTING_STARTED.md"),
+    ),
     "readme-quick-start": (
         Path("public-api-examples/src/test/scala/external/consumer/ReadmeQuickStart.scala"),
         Path("README.md"),

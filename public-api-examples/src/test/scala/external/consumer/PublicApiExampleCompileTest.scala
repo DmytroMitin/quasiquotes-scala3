@@ -107,6 +107,42 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     assertEquals(DqrFirstUseSnippet.identity(42), 42)
     assertEquals(DqrSelectiveImportSnippet.identity(41), 41)
 
+  test("public single-parameter definition pattern preserves exact caller-owned trees"):
+    assert(DefinitionPatternFirstUseSnippet.configured.isRight)
+    assertEquals(DefinitionPatternFirstUseSnippet.dqrIdentity(42), 42)
+    assertEquals(DefinitionPatternFirstUseSnippet.independent(123), 3)
+    assertEquals(DefinitionPatternFirstUseMacros.preservesMixedReferences(2), 42)
+    assert(DefinitionPatternFirstUseMacros.mismatchesAreNone)
+
+  test("public single-parameter definition pattern rejects invalid configurations without leakage"):
+    val invalidSources = Vector(
+      null,
+      "not a definition",
+      "def parameterless: Int = $body",
+      "def two(left: Int, right: Int): Int = $body",
+      "def clauses(left: Int)(right: Int): Int = $body",
+      "def contextual(using value: Int): Int = $body",
+      "def polymorphic[A](value: Int): Int = $body",
+      "def selected(value: Map[Int, String]): Int = $body",
+      "def selected(value: Int): Map[Int, String] = $body",
+      "def selected(value: Int): Int = value",
+      "def selected(value: $input): Int = $body",
+      "def selected(value: Int): $output = $body",
+      "def $method(value: Int): Int = $body",
+      "def selected($parameter: Int): Int = $body",
+      "def `selected`(value: Int): Int = $body"
+    )
+    val errors = invalidSources.map(quasiquotes.matching.DefinitionPattern.singleParameter).map(_.swap.toOption.get)
+
+    assert(errors.forall(_.message.nonEmpty))
+    assert(errors.forall(error =>
+      !error.message.contains("Phase") &&
+        !error.message.contains("DefinitionTemplate") &&
+        !error.message.contains("__") &&
+        !error.message.contains("dotty.tools") &&
+        !error.message.contains("quotes.reflect")
+    ))
+
   test("public dqr reports a hostile null literal part without internal leakage"):
     val errors = typeCheckErrors("external.consumer.DqrNegativeMacros.nullLiteralPart")
     assert(errors.nonEmpty)
