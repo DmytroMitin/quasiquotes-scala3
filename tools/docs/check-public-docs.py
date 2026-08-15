@@ -2,6 +2,7 @@
 """Check public documentation links and the quasiquote surface boundary."""
 
 import argparse
+from collections import Counter
 import csv
 from pathlib import Path
 import re
@@ -66,6 +67,13 @@ PUBLIC_API = {
     ("quasiquotes.publicapi.DefinitionConstruction", "twoParameterMethod"),
 }
 
+PUBLIC_API_MODULES = {"core", "frontend"}
+API_COUNT_STATEMENT = re.compile(
+    r"The machine-readable \[public API baseline\]\(docs/PUBLIC_API_BASELINE\.tsv\)\s+"
+    r"contains (?P<core>\d+) core and (?P<frontend>\d+) frontend "
+    r"Scaladoc-visible entries\."
+)
+
 
 def marked(text: str, start: str, end: str, path: Path) -> str:
     if text.count(start) != 1 or text.count(end) != 1:
@@ -115,16 +123,48 @@ def table_findings(root: Path) -> list[str]:
     ]
 
 
-def api_findings(root: Path) -> list[str]:
+def api_rows(root: Path) -> list[dict[str, str]]:
     baseline = root / "docs/PUBLIC_API_BASELINE.tsv"
     with baseline.open(encoding="utf-8", newline="") as handle:
-        rows = list(csv.DictReader(handle, delimiter="\t"))
+        return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def api_findings(rows: list[dict[str, str]]) -> list[str]:
     available = {(row["owner"], row["name"]) for row in rows}
     findings = [
         f"missing public API inventory entry: {owner}.{name}"
         for owner, name in sorted(PUBLIC_API - available)
     ]
     return findings
+
+
+def api_count_findings(root: Path, rows: list[dict[str, str]]) -> list[str]:
+    counts = Counter(row["module"] for row in rows)
+    if set(counts) != PUBLIC_API_MODULES:
+        found = ", ".join(sorted(module or "<empty>" for module in counts))
+        return [
+            "public API count contract requires exactly core and frontend modules; "
+            f"found: {found or '<none>'}"
+        ]
+
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    matches = list(API_COUNT_STATEMENT.finditer(readme))
+    if len(matches) != 1:
+        return [
+            "README public API count statement must appear exactly once; "
+            f"found {len(matches)}"
+        ]
+
+    documented = {
+        module: int(matches[0].group(module)) for module in PUBLIC_API_MODULES
+    }
+    if any(documented[module] != counts[module] for module in PUBLIC_API_MODULES):
+        return [
+            "public API count drift: "
+            f"README core={documented['core']} frontend={documented['frontend']}; "
+            f"baseline core={counts['core']} frontend={counts['frontend']}"
+        ]
+    return []
 
 
 def source_findings(root: Path) -> list[str]:
@@ -194,10 +234,12 @@ def matrix_findings(root: Path) -> list[str]:
 
 
 def check(root: Path) -> list[str]:
+    rows = api_rows(root)
     return sorted(
         relative_link_findings(root)
         + table_findings(root)
-        + api_findings(root)
+        + api_findings(rows)
+        + api_count_findings(root, rows)
         + source_findings(root)
         + matrix_findings(root)
     )

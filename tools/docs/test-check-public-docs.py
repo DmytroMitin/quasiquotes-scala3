@@ -18,6 +18,8 @@ class PublicDocsCheckTest(unittest.TestCase):
         *,
         matrix_link: str = "docs/SYNTAX_SUPPORT_MATRIX.md",
         dqr_status: str = "Public now, exact bounded shape",
+        readme_core_count: int = 1,
+        readme_frontend_count: int = 14,
     ) -> None:
         docs = root / "docs"
         docs.mkdir(parents=True)
@@ -41,7 +43,9 @@ class PublicDocsCheckTest(unittest.TestCase):
             "| Type pattern matching | `case tqq\"...\"` | Public now | `QuasiTypequotes.tqq(...)` / `QuasiTypePattern.*` | Public research API |\n"
             f"| Definition construction | `dqr\"def id(x: $parameterType): $resultType = x\"` | {dqr_status} | `DefinitionConstruction.*` | Public bounded compiler-free API |\n"
             "| Definition pattern matching | `case dqq\"def id(x: Int): Int = $body\"` | Public now, exact bounded shape | `DefinitionPattern.singleParameter(...)` | Public now, exact bounded shape |\n"
-            "<!-- public-surface-table:end -->\n",
+            "<!-- public-surface-table:end -->\n\n"
+            "The machine-readable [public API baseline](docs/PUBLIC_API_BASELINE.tsv)\n"
+            f"contains {readme_core_count} core and {readme_frontend_count} frontend Scaladoc-visible entries.\n",
             encoding="utf-8",
         )
         (docs / "SYNTAX_SUPPORT_MATRIX.md").write_text(
@@ -164,6 +168,68 @@ class PublicDocsCheckTest(unittest.TestCase):
             result = self.run_checker(root)
 
             self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_rejects_stale_frontend_api_count(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root, readme_frontend_count=13)
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("public API count drift", result.stderr)
+            self.assertIn("README core=1 frontend=13", result.stderr)
+            self.assertIn("baseline core=1 frontend=14", result.stderr)
+
+    def test_rejects_stale_core_api_count(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root, readme_core_count=2)
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("public API count drift", result.stderr)
+            self.assertIn("README core=2 frontend=14", result.stderr)
+            self.assertIn("baseline core=1 frontend=14", result.stderr)
+
+    def test_rejects_baseline_growth_without_readme_count_update(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            baseline = root / "docs/PUBLIC_API_BASELINE.tsv"
+            baseline.write_text(
+                baseline.read_text(encoding="utf-8")
+                + "core\tquasiquotes.publicapi.AddedApi\tdef\tadded\tadded signature\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("public API count drift", result.stderr)
+            self.assertIn("README core=1 frontend=14", result.stderr)
+            self.assertIn("baseline core=2 frontend=14", result.stderr)
+
+    def test_rejects_unexpected_public_api_module(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            baseline = root / "docs/PUBLIC_API_BASELINE.tsv"
+            baseline.write_text(
+                baseline.read_text(encoding="utf-8")
+                + "experimental\tquasiquotes.experimental.Api\tdef\tvalue\tvalue signature\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "public API count contract requires exactly core and frontend modules",
+                result.stderr,
+            )
+            self.assertIn("experimental", result.stderr)
 
 
 if __name__ == "__main__":

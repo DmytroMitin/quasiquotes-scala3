@@ -147,7 +147,7 @@ See [Getting started](docs/GETTING_STARTED.md),
 [release process](docs/RELEASE_PROCESS.md).
 
 The machine-readable [public API baseline](docs/PUBLIC_API_BASELINE.tsv)
-contains 305 core and 299 frontend Scaladoc-visible entries. It excludes the
+contains 305 core and 313 frontend Scaladoc-visible entries. It excludes the
 root, unpublished `dottyInternal`, and package-private internals and is a diff
 baseline rather than a compatibility promise.
 
