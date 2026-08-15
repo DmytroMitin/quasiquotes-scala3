@@ -1,5 +1,7 @@
 .bsp/
 .idea/
+.agents/
+.codex/
 .metals/
 .scala-build/
 .vscode/
