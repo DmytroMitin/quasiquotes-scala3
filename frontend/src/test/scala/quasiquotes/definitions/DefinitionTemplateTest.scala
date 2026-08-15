@@ -363,7 +363,7 @@ class DefinitionTemplateTest extends munit.FunSuite:
     )
   }
 
-  test("Phase 45Q source templates compose without a production parser dependency") {
+  test("categorized source templates compose without a production parser dependency") {
     import TermTemplateHoleCategory.*
 
     val located =

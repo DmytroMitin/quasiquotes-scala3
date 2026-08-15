@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-TEXT_SUFFIXES = {".md", ".txt", ".yml", ".yaml"}
+TEXT_SUFFIXES = {".md", ".txt", ".yml", ".yaml", ".scala"}
 CHRONOLOGY_PATTERNS = (
     re.compile(r"\bPrompt\s+[0-9]+(?:\.[0-9]+)?\b", re.IGNORECASE),
     re.compile(r"\bPhase\s+[0-9]+[A-Za-z0-9]*\b", re.IGNORECASE),

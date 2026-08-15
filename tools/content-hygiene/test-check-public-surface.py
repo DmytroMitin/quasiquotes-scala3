@@ -100,6 +100,24 @@ class PublicSurfaceHygieneTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("WORKFLOW_READ_ONLY_PERMISSION_MISSING", result.stderr)
 
+    def test_rejects_private_delivery_chronology_in_scala_source(self) -> None:
+        result = self.run_checker(
+            {
+                "src/main/scala/example/Public.scala": (
+                    "package example\n\n"
+                    "object Public:\n"
+                    "  // Phase 42 implementation detail.\n"
+                    "  val value = 42\n"
+                )
+            }
+        )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "PRIVATE_DELIVERY_CHRONOLOGY\tsrc/main/scala/example/Public.scala:4",
+            result.stderr,
+        )
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

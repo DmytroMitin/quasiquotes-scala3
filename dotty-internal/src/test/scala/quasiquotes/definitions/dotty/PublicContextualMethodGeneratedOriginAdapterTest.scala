@@ -170,7 +170,7 @@ class PublicContextualMethodGeneratedOriginAdapterTest extends munit.FunSuite:
     }
   }
 
-  test("leaves the Phase 59 raw backend source-free and span-free") {
+  test("leaves the contextual-method raw backend source-free and span-free") {
     withContext {
       val raw = PublicContextualMethodUntypedBackend
         .lower(canonicalMethod())

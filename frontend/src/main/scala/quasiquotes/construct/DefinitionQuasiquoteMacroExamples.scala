@@ -8,7 +8,7 @@ import quasiquotes.source.*
 import quasiquotes.terms.ConstructedTerm
 import quasiquotes.types.TypeNormalForm
 
-/** Package-internal macro proof surface used only by the Phase 53 tests. */
+/** Package-internal macro proof surface used only by definition-quasiquote tests. */
 private[quasiquotes] object DefinitionQuasiquoteMacroExamples:
   inline def successfulCaller(inline anchor: Int): String =
     ${ successfulCallerImpl('anchor) }

@@ -23,7 +23,7 @@ class DefinitionQuasiquoteRawVsSurfaceRepetitionTest extends munit.FunSuite:
     )
   }
 
-  test("raw Phase 50 repetition retains one semantic identity and whole-definition fallback") {
+  test("raw repeated-hole semantics retain one identity and whole-definition fallback") {
     val located = DefinitionTemplateSourceAdapter
       .parseLocated(
         "def pair: (Int, Int) = ($same, $same)",

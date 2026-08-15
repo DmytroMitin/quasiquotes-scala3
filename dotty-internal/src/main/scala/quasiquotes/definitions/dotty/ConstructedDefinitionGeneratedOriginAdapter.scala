@@ -387,7 +387,7 @@ private[quasiquotes] object ConstructedDefinitionGeneratedOriginAdapter:
               !method.mods.hasPrivateWithin,
             (method.name.toString, method.tpt, method.rhs),
             RawDefinitionPlanMismatch(
-              "positioned parameterless method diverged from the Phase 48 raw contract"
+              "positioned parameterless method diverged from the parser-free raw contract"
             )
           )
         case (value: untpd.ValDef, DefinitionKind.ImmutableVal) =>
@@ -398,7 +398,7 @@ private[quasiquotes] object ConstructedDefinitionGeneratedOriginAdapter:
               !value.mods.hasPrivateWithin,
             (value.name.toString, value.tpt, value.rhs),
             RawDefinitionPlanMismatch(
-              "positioned immutable value diverged from the Phase 48 raw contract"
+              "positioned immutable value diverged from the parser-free raw contract"
             )
           )
         case _ =>

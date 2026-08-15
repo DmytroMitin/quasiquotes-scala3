@@ -127,7 +127,7 @@ class QuasiTypeReprTest extends munit.FunSuite:
     assertEquals(QuasiTypeExamples.targetInspectionComparisonSummary("List[Int]", "List[String]"), "source=STypeApply(STypeIdent(List), [STypeIdent(Int)]) target=STypeApply(STypeIdent(List), [STypeIdent(String)]) matched=false")
   }
 
-  test("direct target TypeRepr matching reports TypeNormalForm after Phase 17 migration") {
+  test("direct target TypeRepr matching reports TypeNormalForm") {
     assertEquals(
       QuasiTypeExamples.matchingSubstrateSummary("List[Int]"),
       "source=TypeNormalForm targetTypeRepr=TypeNormalForm exact-rendered-TypeRepr=debug"

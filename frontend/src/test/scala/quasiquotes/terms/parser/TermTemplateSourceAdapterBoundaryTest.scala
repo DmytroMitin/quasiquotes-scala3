@@ -77,7 +77,7 @@ class TermTemplateSourceAdapterBoundaryTest extends munit.FunSuite:
     finally stream.close()
   }
 
-  test("Phase 44 backend remains parser-free") {
+  test("exact term backend remains parser-free") {
     val stream = Files.walk(backendRoot)
     try
       stream

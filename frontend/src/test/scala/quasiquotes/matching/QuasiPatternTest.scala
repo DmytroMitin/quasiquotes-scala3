@@ -272,7 +272,7 @@ class QuasiPatternTest extends munit.FunSuite:
     assertEquals(pattern.pattern.render, "Infix(Hole($x), +, Hole($y))")
   }
 
-  test("Phase 26 constructed-type splice syntax does not add type-hole capture to term matching") {
+  test("constructed-type splice syntax does not add type-hole capture to term matching") {
     val pattern = QuasiPattern.termOrThrow("($x: $t)")
     assertEquals(pattern.pattern.render, "Parens(Typed(Hole($x), Type(__qqhole_t)))")
     assertEquals(pattern.placeholderSource, "(__qqhole_x: __qqhole_t)")
