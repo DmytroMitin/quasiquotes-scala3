@@ -1,6 +1,6 @@
 # Compatibility
 
-The required source-build baseline is Scala 3.8.4 on JDK 25 with sbt 1.12.8.
+The required source-build baseline is Scala 3.8.4 on JDK 25 with sbt 1.12.15.
 The test dependency is MUnit 1.2.4.
 
 Additional source lanes have been used as experimental evidence, including
@@ -18,9 +18,9 @@ Artifact policy:
 - `dottyInternal`: exact-build test source only, unpublished;
 - aggregate root and example modules: unpublished.
 
-Version `0.2.0-SNAPSHOT` and group `io.github.dmytromitin` are provisional
-local-publication settings. No remote repository availability or stable release
-support is promised. The selected experimental 0.x policy requires breaking
+Version `0.2.0` and group `io.github.dmytromitin` identify the selected local
+release candidate. No remote repository availability or stable release support
+is promised. The selected experimental 0.x policy requires breaking
 changes to increment the minor version and expects patch compatibility within
 one minor line; see [Versioning and stability](VERSIONING_AND_STABILITY.md).
 

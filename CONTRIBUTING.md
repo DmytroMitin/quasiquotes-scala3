@@ -14,7 +14,7 @@ repository imposes no CLA, DCO, or copyright-assignment requirement.
 ## Development baseline
 
 - JDK 25
-- sbt 1.12.8
+- sbt 1.12.15
 - required Scala baseline 3.8.4
 
 Run the complete local gate before proposing a change:

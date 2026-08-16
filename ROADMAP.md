@@ -33,11 +33,15 @@ delivery chronology.
 
 ## Before remote artifact publication
 
-- Select a non-SNAPSHOT version and release repository.
-- Complete signing, provenance, POM, source/Javadoc, and reproducibility checks.
+- Reconfirm the selected `0.2.0` version and Central Portal publication path.
+- Replace synthetic rehearsal identity with explicitly approved public
+  developer and signing identity inputs.
+- Complete real-key signing, provenance, POM, source/Javadoc, and
+  reproducibility checks.
 - Validate clean coordinate-only consumers on every promised Scala/JDK lane.
-- Publish only `core` and `frontend`; keep the aggregate root and
-  `dottyInternal` unpublished.
+- Publish only `core_3`, `frontend_3.3.8`, and `frontend_3.8.4`; keep the
+  forward-probe frontend, aggregate root, examples, and `dottyInternal`
+  unpublished.
 
 Remote release and public visibility are separate decisions. If either remains
 unapproved, development continues through bounded language, usability,

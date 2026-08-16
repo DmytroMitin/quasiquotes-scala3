@@ -2,9 +2,11 @@ import java.nio.charset.StandardCharsets
 import java.util.jar.JarFile
 import scala.collection.JavaConverters._
 
-ThisBuild / version := "0.2.0-SNAPSHOT"
+ThisBuild / version := "0.2.0"
 ThisBuild / scalaVersion := "3.8.4"
 ThisBuild / organization := "io.github.dmytromitin"
+ThisBuild / organizationName := "io.github.dmytromitin"
+ThisBuild / organizationHomepage := Some(url("https://github.com/DmytroMitin/quasiquotes-scala3"))
 ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / homepage := Some(url("https://github.com/DmytroMitin/quasiquotes-scala3"))
 ThisBuild / scmInfo := Some(
@@ -13,6 +15,9 @@ ThisBuild / scmInfo := Some(
     "scm:git:git@github.com:DmytroMitin/quasiquotes-scala3.git"
   )
 )
+ThisBuild / publishMavenStyle := true
+ThisBuild / pomIncludeRepository := { _ => false }
+ThisBuild / publishTo := localStaging.value
 Global / concurrentRestrictions := Seq(Tags.limitAll(1))
 
 lazy val munitVersion = "1.2.4"
@@ -23,6 +28,35 @@ lazy val verifyCoreBoundary = taskKey[Unit](
 lazy val verifyModuleGraph = taskKey[Unit](
   "Verify the selected project dependency graph and aggregate-root packaging"
 )
+lazy val verifyReleaseIdentity = taskKey[Unit](
+  "Require explicitly supplied public developer metadata before signed staging"
+)
+
+lazy val releaseDeveloperProperties = Vector(
+  "quasiquotes.release.developer.id",
+  "quasiquotes.release.developer.name",
+  "quasiquotes.release.developer.email",
+  "quasiquotes.release.developer.url"
+)
+
+ThisBuild / developers := {
+  val values = releaseDeveloperProperties.map(name => sys.props.get(name).map(_.trim))
+  if (values.forall(_.exists(_.nonEmpty))) {
+    List(Developer(values(0).get, values(1).get, values(2).get, url(values(3).get)))
+  } else Nil
+}
+
+ThisBuild / verifyReleaseIdentity := {
+  val missing = releaseDeveloperProperties.filter(name =>
+    sys.props.get(name).forall(_.trim.isEmpty)
+  )
+  if (missing.nonEmpty) {
+    sys.error(
+      "Signed release staging requires owner-approved public developer metadata: " +
+        missing.mkString(", ")
+    )
+  }
+}
 
 lazy val commonSettings = Seq(
   libraryDependencies += "org.scalameta" %% "munit" % munitVersion % Test,
@@ -40,7 +74,8 @@ lazy val publicationLicenseSettings = Seq(
   Compile / packageSrc / mappings +=
     baseDirectory.value.getParentFile / "LICENSE" -> "META-INF/LICENSE",
   Compile / packageDoc / mappings +=
-    baseDirectory.value.getParentFile / "LICENSE" -> "META-INF/LICENSE"
+    baseDirectory.value.getParentFile / "LICENSE" -> "META-INF/LICENSE",
+  PgpKeys.publishSigned := PgpKeys.publishSigned.dependsOn(verifyReleaseIdentity).value
 )
 
 lazy val core = (project in file("core"))

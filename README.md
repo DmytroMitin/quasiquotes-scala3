@@ -108,7 +108,7 @@ quasiquotes nor provides a Scalameta replacement or full-fidelity Scala AST.
 
 ## Try the source build
 
-Requirements are JDK 25 and sbt 1.12.8. The required baseline is Scala 3.8.4.
+Requirements are JDK 25 and sbt 1.12.15. The required baseline is Scala 3.8.4.
 
 ```sh
 sbt -batch clean test publicCoreExamples/test publicApiExamples/test \
@@ -118,22 +118,24 @@ sbt -batch clean test publicCoreExamples/test publicApiExamples/test \
 The build serializes tasks and uses exported test/compile JARs with flat test
 class-loader layering to keep the aggregate gate deterministic.
 
-## Provisional local coordinates
+## Selected release-candidate coordinates
 
-Local publication experiments use version `0.2.0-SNAPSHOT`:
+The reviewed local candidate uses version `0.2.0`:
 
 ```scala
 libraryDependencies +=
-  "io.github.dmytromitin" %% "quasiquotes-scala3-core" % "0.2.0-SNAPSHOT"
+  "io.github.dmytromitin" %% "quasiquotes-scala3-core" % "0.2.0"
 
 libraryDependencies +=
   "io.github.dmytromitin" %
-    "quasiquotes-scala3-frontend_3.8.4" % "0.2.0-SNAPSHOT"
+    "quasiquotes-scala3-frontend_3.8.4" % "0.2.0"
 ```
 
 `core` uses ordinary Scala 3 binary crossing. `frontend` uses full compiler
-version crossing and must match the consuming compiler line. These coordinates
-are provisional local evidence, not a release or remote-availability claim.
+version crossing and must match the consuming compiler line. The selected
+candidate set contains `core_3` plus frontend artifacts for Scala 3.3.8 and
+3.8.4 only. These coordinates describe local candidate evidence; no remote
+repository availability is claimed.
 
 See [Getting started](docs/GETTING_STARTED.md),
 [diagnostics](docs/DIAGNOSTICS.md),

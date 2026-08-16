@@ -17,7 +17,6 @@ EXPECTED_ARTIFACTS = (
     "quasiquotes-scala3-core_3",
     "quasiquotes-scala3-frontend_3.3.8",
     "quasiquotes-scala3-frontend_3.8.4",
-    "quasiquotes-scala3-frontend_3.9.0-RC1",
 )
 EXPECTED_LICENSE_NAME = "Apache-2.0"
 EXPECTED_LICENSE_URL = "https://www.apache.org/licenses/LICENSE-2.0"
@@ -122,7 +121,20 @@ def check_pom(
             "expected existing project URL and Git connection",
         )
 
-    for forbidden in ("developers", "distributionManagement"):
+    developer_containers = children(root, "developers")
+    developers = (
+        children(developer_containers[0], "developer")
+        if len(developer_containers) == 1
+        else []
+    )
+    valid_developer = (
+        len(developers) == 1
+        and all(one_text(developers[0], field) for field in ("id", "name", "email", "url"))
+    )
+    if not valid_developer:
+        add(findings, "POM_DEVELOPER_INVALID", artifact, "expected one complete developer entry")
+
+    for forbidden in ("distributionManagement",):
         if children(root, forbidden):
             add(findings, "POM_UNAUTHORIZED_METADATA", artifact, forbidden)
 

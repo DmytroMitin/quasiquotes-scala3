@@ -21,7 +21,7 @@ removal/breaking risk. Additive overloads, givens, and extensions still require
 human review before a patch release; they are not automatically source-safe.
 See [public API shape compatibility review](API_COMPATIBILITY_REVIEW.md).
 
-The current source line is `0.2.0-SNAPSHOT`. It deliberately replaces the
+The current source line is the selected `0.2.0` release candidate. It deliberately replaces the
 previous unusable `qq: Nothing` placeholder with the bounded Quotes-dependent
 term extractor. That signature replacement is not source-, binary-, or
 TASTy-compatible with the `0.1.x` line and is the reason for the minor change.
@@ -52,6 +52,6 @@ Passing Scala 3.3.8, 3.8.4, 3.9.0-RC1, or nightly tests is evidence for those
 tested revisions only. It is not a promise about future TASTy, reflection,
 parser, or Dotty-internal compatibility.
 
-A command-local candidate version used in a task-owned repository is review
-evidence only. It does not change the retained source version, reserve a remote
-version, authorize a tag, or establish that artifact bytes are reproducible.
+Local signed staging and coordinate-only consumption are review evidence only.
+The retained version does not establish remote availability, authorize a tag,
+or by itself establish that artifact bytes are reproducible.

@@ -46,8 +46,8 @@ removals:
 
 The generated review found no public constructors, companion factories,
 helpers, removals, replacements, owner moves, or overload changes. Both rows
-delegate to the already accepted bounded programmatic matcher, so the source
-line remains `0.2.0-SNAPSHOT`.
+delegate to the already accepted bounded programmatic matcher, so the selected
+candidate remains on the `0.2.0` source line.
 
 The preceding bounded programmatic definition matcher review recorded exactly
 12 additions and no removals:

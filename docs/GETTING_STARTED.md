@@ -5,14 +5,14 @@ compiler-free structural values. Use `frontend` only when source parsing,
 quoted reflection, `qr`, or term patterns are required.
 
 No artifact is available from a remote resolver yet. The declarations below
-describe local-publication coordinates and use the retained development
-version `0.2.0-SNAPSHOT`.
+describe the selected locally staged release-candidate coordinates at version
+`0.2.0`.
 
 ## Compiler-free core
 
 ```scala
 libraryDependencies +=
-  "io.github.dmytromitin" %% "quasiquotes-scala3-core" % "0.2.0-SNAPSHOT"
+  "io.github.dmytromitin" %% "quasiquotes-scala3-core" % "0.2.0"
 ```
 
 The core first-use path needs only `quasiquotes.publicapi.*`. It does not put
@@ -132,7 +132,7 @@ exactly match the compiler used by the consumer build:
 libraryDependencies +=
   "io.github.dmytromitin" %
     s"quasiquotes-scala3-frontend_${scalaVersion.value}" %
-    "0.2.0-SNAPSHOT"
+    "0.2.0"
 ```
 
 The following fixture is compiled from outside all `quasiquotes.*` packages.

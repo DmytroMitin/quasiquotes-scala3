@@ -17,7 +17,6 @@ ARTIFACTS = (
     "quasiquotes-scala3-core_3",
     "quasiquotes-scala3-frontend_3.3.8",
     "quasiquotes-scala3-frontend_3.8.4",
-    "quasiquotes-scala3-frontend_3.9.0-RC1",
 )
 VERSION = "0.1.0-RC1"
 
@@ -61,6 +60,14 @@ class LicenseDistributionTest(unittest.TestCase):
     <url>https://github.com/DmytroMitin/quasiquotes-scala3</url>
     <connection>scm:git:git@github.com:DmytroMitin/quasiquotes-scala3.git</connection>
   </scm>
+  <developers>
+    <developer>
+      <id>rehearsal</id>
+      <name>Quasiquotes Release Rehearsal</name>
+      <email>rehearsal@example.invalid</email>
+      <url>https://example.invalid/rehearsal</url>
+    </developer>
+  </developers>
 </project>
 """.replace("ARTIFACT", artifact).replace("VERSION", VERSION),
             encoding="utf-8",
@@ -102,7 +109,7 @@ class LicenseDistributionTest(unittest.TestCase):
             "BLOCKING_APACHE_2_0_DISTRIBUTION_FAILURE",
         )
 
-    def test_exact_four_coordinate_distribution_passes(self) -> None:
+    def test_exact_selected_three_coordinate_distribution_passes(self) -> None:
         self.assert_passes()
 
     def test_missing_jar_license_blocks(self) -> None:
@@ -147,7 +154,7 @@ class LicenseDistributionTest(unittest.TestCase):
         self.assert_blocks("UNEXPECTED_NOTICE")
 
     def test_duplicate_pom_license_blocks(self) -> None:
-        artifact = ARTIFACTS[3]
+        artifact = ARTIFACTS[2]
         pom = (
             self.repository
             / GROUP_PATH
@@ -202,6 +209,15 @@ class LicenseDistributionTest(unittest.TestCase):
     def test_unexpected_coordinate_blocks(self) -> None:
         self._write_coordinate("quasiquotes-scala3-dotty-internal_3")
         self.assert_blocks("UNEXPECTED_COORDINATE")
+
+    def test_missing_developer_metadata_blocks(self) -> None:
+        artifact = ARTIFACTS[0]
+        pom = self.repository / GROUP_PATH / artifact / VERSION / f"{artifact}-{VERSION}.pom"
+        text = pom.read_text(encoding="utf-8")
+        start = text.index("  <developers>")
+        end = text.index("  </developers>") + len("  </developers>\n")
+        pom.write_text(text[:start] + text[end:], encoding="utf-8")
+        self.assert_blocks("POM_DEVELOPER_INVALID")
 
 
 if __name__ == "__main__":
