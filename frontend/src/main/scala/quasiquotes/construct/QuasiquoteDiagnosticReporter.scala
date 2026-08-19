@@ -2,6 +2,8 @@ package quasiquotes.construct
 
 import scala.quoted.Quotes
 
+import quasiquotes.source.ReflectedPositionProvenance
+
 private[construct] object MacroArgumentPositionResolver:
   def resolve(using q: Quotes)(
       index: Int,
@@ -13,7 +15,8 @@ private[construct] object MacroArgumentPositionResolver:
     arguments.lift(index) match
       case Some(argument) =>
         val position = argument.pos
-        if isUsableBounds(position.start, position.end) then position else fallback
+        if ReflectedPositionProvenance.usableBounds(position).nonEmpty then position
+        else fallback
       case None => fallback
 
   private[construct] def isUsableBounds(start: Int, end: Int): Boolean =

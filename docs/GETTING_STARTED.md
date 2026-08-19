@@ -4,6 +4,10 @@ The project has two deliberately different entry points. Use `core` for
 compiler-free structural values. Use `frontend` only when source parsing,
 quoted reflection, `qr`, or term patterns are required.
 
+For the distinct compile-time macro, runtime `staging.withQuotes`, runtime
+`staging.run`, compiler-free `TermShape`, and compiler-backed parser modes, see
+[Execution environments and AST representations](EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md).
+
 No artifact is available from a remote resolver yet. The declarations below
 describe the selected locally staged release-candidate coordinates at version
 `0.2.0`.

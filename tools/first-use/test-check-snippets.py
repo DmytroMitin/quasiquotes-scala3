@@ -22,6 +22,8 @@ class CheckSnippetsTest(unittest.TestCase):
         documented_type_interpolator: str = "val typeInterpolator = 9",
         documented_dqr: str = "val dqr = 10",
         documented_definition_pattern: str = "val definitionPattern = 11",
+        documented_runtime_term_shape: str = "val runtimeTermShape = 12",
+        documented_runtime_parser: str = "val runtimeParser = 13",
     ) -> None:
         docs = root / "docs"
         sources = root / "public-api-examples/src/test/scala/external/consumer"
@@ -78,6 +80,16 @@ class CheckSnippetsTest(unittest.TestCase):
             "// snippet:definition-pattern-first-use:end\n",
             encoding="utf-8",
         )
+        (core_sources / "RuntimeTermShapeExample.scala").write_text(
+            "// snippet:runtime-term-shape:start\nval runtimeTermShape = 12\n"
+            "// snippet:runtime-term-shape:end\n",
+            encoding="utf-8",
+        )
+        (sources / "RuntimeParserExample.scala").write_text(
+            "// snippet:runtime-parser:start\nval runtimeParser = 13\n"
+            "// snippet:runtime-parser:end\n",
+            encoding="utf-8",
+        )
         (sources / "ReadmeQuickStart.scala").write_text(
             "// snippet:readme-quick-start:start\nval quickStart = 5\n"
             "// snippet:readme-quick-start:end\n",
@@ -118,6 +130,15 @@ class CheckSnippetsTest(unittest.TestCase):
             + "\n```\n<!-- snippet:definition-pattern-first-use:end -->\n",
             encoding="utf-8",
         )
+        (docs / "EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md").write_text(
+            "<!-- snippet:runtime-term-shape:start -->\n```scala\n"
+            + documented_runtime_term_shape
+            + "\n```\n<!-- snippet:runtime-term-shape:end -->\n"
+            + "<!-- snippet:runtime-parser:start -->\n```scala\n"
+            + documented_runtime_parser
+            + "\n```\n<!-- snippet:runtime-parser:end -->\n",
+            encoding="utf-8",
+        )
 
     def run_checker(self, root: Path) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -136,9 +157,23 @@ class CheckSnippetsTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(
-                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, readme-quick-start",
+                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start",
                 result.stdout,
             )
+
+    def test_rejects_runtime_parser_documentation_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(
+                root,
+                documented_lambda="val lambda = 3",
+                documented_runtime_parser="val runtimeParser = 14",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("First-use snippet drift: runtime-parser", result.stderr)
 
     def test_rejects_documentation_drift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

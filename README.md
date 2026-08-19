@@ -40,7 +40,10 @@ module.
 
 This exact example is compiled from an external-package fixture. See
 [Getting started](docs/GETTING_STARTED.md) for the larger construction,
-matching, type, Lambda1, and compiler-free definition examples.
+matching, type, Lambda1, and compiler-free definition examples. See
+[execution environments and AST representations](docs/EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md)
+for compile-time macros, runtime staging, compiler-free values, and
+compiler-backed parsing without `Quotes`.
 
 ## Quasiquote surfaces
 
@@ -138,6 +141,7 @@ candidate set contains `core_3` plus frontend artifacts for Scala 3.3.8 and
 repository availability is claimed.
 
 See [Getting started](docs/GETTING_STARTED.md),
+[execution environments and AST representations](docs/EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md),
 [diagnostics](docs/DIAGNOSTICS.md),
 [architecture](docs/ARCHITECTURE.md),
 [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md),

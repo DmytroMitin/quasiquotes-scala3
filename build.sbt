@@ -194,6 +194,8 @@ lazy val publicApiExamples = (project in file("public-api-examples"))
   .settings(commonSettings)
   .settings(
     name := "quasiquotes-scala3-public-api-examples",
+    libraryDependencies +=
+      "org.scala-lang" %% "scala3-staging" % scalaVersion.value % Test,
     publish / skip := true,
     Compile / sources := Seq(
       (Compile / scalaSource).value / "external" / "consumer" / "DqrNegativeMacros.scala",

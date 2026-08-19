@@ -11,6 +11,13 @@ import quasiquotes.parser.TypeShape
 import quasiquotes.types.{ConstructedType, TypeNormalForm, TypePattern, TypeTemplate}
 
 final class PublicCoreExampleCompileTest extends munit.FunSuite:
+  test("ordinary runtime TermShape data supports Scala pattern matching"):
+    assertEquals(RuntimeTermShapeExample.literalOperands, Some(("1", "2")))
+    assertEquals(
+      RuntimeTermShapeExample.tree.render,
+      "Infix(Literal(1), +, Literal(2))"
+    )
+
   private def showMethod(
       methodName: String = "apply",
       typeParameterName: String = "A",

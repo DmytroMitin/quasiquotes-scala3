@@ -49,3 +49,8 @@ Only `core` and compiler-matching `frontend` are intended release artifacts.
 Their public surface is recorded in the reviewable API baseline. The inventory
 does not promote package-private implementation or create a compatibility
 promise beyond the experimental versioning policy.
+
+The [execution-environment and representation guide](EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md)
+maps these module boundaries to compile-time macros, runtime staging,
+compiler-free structural values, parser results, and the current term/type/
+definition representation inventory.

@@ -43,6 +43,14 @@ SNIPPETS = {
         Path("public-api-examples/src/test/scala/external/consumer/DefinitionPatternFirstUseSnippet.scala"),
         Path("docs/GETTING_STARTED.md"),
     ),
+    "runtime-term-shape": (
+        Path("public-core-examples/src/test/scala/external/consumer/RuntimeTermShapeExample.scala"),
+        Path("docs/EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md"),
+    ),
+    "runtime-parser": (
+        Path("public-api-examples/src/test/scala/external/consumer/RuntimeParserExample.scala"),
+        Path("docs/EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md"),
+    ),
     "readme-quick-start": (
         Path("public-api-examples/src/test/scala/external/consumer/ReadmeQuickStart.scala"),
         Path("README.md"),

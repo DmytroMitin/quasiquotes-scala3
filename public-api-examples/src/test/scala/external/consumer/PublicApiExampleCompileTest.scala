@@ -15,6 +15,37 @@ import quasiquotes.matching.QuasiPattern
 import quasiquotes.source.DiagnosticPrecision
 
 final class PublicApiExampleCompileTest extends munit.FunSuite:
+  test("compiler-backed runtime parsing needs no active Quotes"):
+    val (source, shape, rawClass) = RuntimeParserExample.summary.toOption
+      .getOrElse(fail("expected runtime parser success"))
+    assertEquals(source, "1 + 2")
+    assertEquals(shape, "Infix(Literal(1), +, Literal(2))")
+    assert(rawClass.startsWith("dotty.tools.dotc.ast."), rawClass)
+
+  test("source-backed compile-time qr and qq remain executable"):
+    assertEquals(StagingNoSpanExamples.add(1, 2), 3)
+
+  test("staging.withQuotes matches source-free qr trees without evaluation"):
+    assertEquals(StagingNoSpanExamples.inspectWithQuotes(1, 2), ("1", "2"))
+
+  test("staging.run compiles and evaluates a source-free qr and qq result"):
+    assertEquals(StagingNoSpanExamples.runAdd(1, 2), 3)
+
+  test("runtime-staged Expr values expose unavailable source positions"):
+    val evidence = StagingNoSpanExamples.sourceFreePositionEvidence(1)
+    assert(
+      evidence.sourceCode.fold(_.contains("NoSpan"), _.isEmpty),
+      evidence.toString
+    )
+    assert(evidence.start.left.exists(_.contains("NoSpan")), evidence.toString)
+    assert(evidence.end.left.exists(_.contains("NoSpan")), evidence.toString)
+
+  test("generated staging arguments use the macro diagnostic fallback"):
+    assert(
+      quasiquotes.construct.StagingGeneratedPositionExamples
+        .generatedArgumentPositionFallsBack(1)
+    )
+
   test("frontend source adapters are callable outside quasiquotes packages"):
     val intType = TypeNormalFormSource.fromSource("Int")
     val equalTypes = TypeNormalFormSource.equalSources("List[Int]", "List[Int]")

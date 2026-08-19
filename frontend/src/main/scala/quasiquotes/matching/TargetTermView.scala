@@ -4,6 +4,7 @@ import scala.quoted.Quotes
 import scala.util.matching.Regex
 
 import quasiquotes.parser.{BinderId, TermShape, TinyTermParser}
+import quasiquotes.source.ReflectedPositionProvenance
 
 sealed trait TargetTermView[+T] derives CanEqual:
   def original: T
@@ -196,7 +197,8 @@ object TargetTermView:
         case TermShape.Parenthesized(inner) => unwrap(inner)
         case other => other
 
-    term.pos.sourceCode
+    ReflectedPositionProvenance
+      .sourceCode(term.pos)
       .flatMap(source => TinyTermParser.parse(source).toOption)
       .map(parsed => unwrap(parsed.shape))
       .collect {
