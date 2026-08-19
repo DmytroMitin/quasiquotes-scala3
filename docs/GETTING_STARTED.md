@@ -16,7 +16,7 @@ describe the selected locally staged release-candidate coordinates at version
 
 ```scala
 libraryDependencies +=
-  "io.github.dmytromitin" %% "quasiquotes-scala3-core" % "0.2.0"
+  "com.github.dmytromitin" %% "quasiquotes-scala3-core" % "0.2.0"
 ```
 
 The core first-use path needs only `quasiquotes.publicapi.*`. It does not put
@@ -134,7 +134,7 @@ exactly match the compiler used by the consumer build:
 
 ```scala
 libraryDependencies +=
-  "io.github.dmytromitin" %
+  "com.github.dmytromitin" %
     s"quasiquotes-scala3-frontend_${scalaVersion.value}" %
     "0.2.0"
 ```

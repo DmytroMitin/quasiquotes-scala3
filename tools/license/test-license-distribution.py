@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parent
 CHECKER = ROOT / "check-license-distribution.py"
 
 LICENSE_BYTES = b"canonical Apache-2.0 fixture\n"
-GROUP_PATH = Path("io/github/dmytromitin")
+GROUP_PATH = Path("com/github/dmytromitin")
 ARTIFACTS = (
     "quasiquotes-scala3-core_3",
     "quasiquotes-scala3-frontend_3.3.8",
@@ -42,7 +42,7 @@ class LicenseDistributionTest(unittest.TestCase):
         (directory / f"{base}.pom").write_text(
             """<project xmlns="http://maven.apache.org/POM/4.0.0">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>io.github.dmytromitin</groupId>
+  <groupId>com.github.dmytromitin</groupId>
   <artifactId>ARTIFACT</artifactId>
   <version>VERSION</version>
   <licenses>
@@ -53,7 +53,7 @@ class LicenseDistributionTest(unittest.TestCase):
     </license>
   </licenses>
   <organization>
-    <name>io.github.dmytromitin</name>
+    <name>com.github.dmytromitin</name>
     <url>https://github.com/DmytroMitin/quasiquotes-scala3</url>
   </organization>
   <scm>
@@ -182,7 +182,7 @@ class LicenseDistributionTest(unittest.TestCase):
         )
         text = pom.read_text(encoding="utf-8")
         pom.write_text(
-            text.replace("<name>io.github.dmytromitin</name>", "<name>Apache Software Foundation</name>"),
+            text.replace("<name>com.github.dmytromitin</name>", "<name>Apache Software Foundation</name>"),
             encoding="utf-8",
         )
         self.assert_blocks("POM_ORGANIZATION_INVALID")

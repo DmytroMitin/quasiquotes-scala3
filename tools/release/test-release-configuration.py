@@ -10,7 +10,11 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class ReleaseConfigurationTest(unittest.TestCase):
     def test_selected_version_and_tool_versions_are_pinned(self) -> None:
-        self.assertIn('ThisBuild / version := "0.2.0"', (ROOT / "build.sbt").read_text())
+        build = (ROOT / "build.sbt").read_text()
+        self.assertIn('ThisBuild / version := "0.2.0"', build)
+        self.assertIn('ThisBuild / organization := "com.github.dmytromitin"', build)
+        self.assertIn('ThisBuild / organizationName := "com.github.dmytromitin"', build)
+        self.assertNotIn("io.github.dmytromitin", build)
         self.assertEqual((ROOT / "project/build.properties").read_text().strip(), "sbt.version=1.12.15")
         self.assertIn(
             'addSbtPlugin("com.github.sbt" % "sbt-pgp" % "2.3.1")',

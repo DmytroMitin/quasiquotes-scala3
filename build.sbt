@@ -4,8 +4,8 @@ import scala.collection.JavaConverters._
 
 ThisBuild / version := "0.2.0"
 ThisBuild / scalaVersion := "3.8.4"
-ThisBuild / organization := "io.github.dmytromitin"
-ThisBuild / organizationName := "io.github.dmytromitin"
+ThisBuild / organization := "com.github.dmytromitin"
+ThisBuild / organizationName := "com.github.dmytromitin"
 ThisBuild / organizationHomepage := Some(url("https://github.com/DmytroMitin/quasiquotes-scala3"))
 ThisBuild / versionScheme := Some("early-semver")
 ThisBuild / homepage := Some(url("https://github.com/DmytroMitin/quasiquotes-scala3"))

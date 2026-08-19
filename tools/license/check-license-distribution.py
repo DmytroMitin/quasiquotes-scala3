@@ -11,8 +11,8 @@ from pathlib import Path
 
 PASS = "APACHE_2_0_DISTRIBUTION_PASS"
 BLOCKED = "BLOCKING_APACHE_2_0_DISTRIBUTION_FAILURE"
-GROUP_ID = "io.github.dmytromitin"
-GROUP_PATH = Path("io/github/dmytromitin")
+GROUP_ID = "com.github.dmytromitin"
+GROUP_PATH = Path("com/github/dmytromitin")
 EXPECTED_ARTIFACTS = (
     "quasiquotes-scala3-core_3",
     "quasiquotes-scala3-frontend_3.3.8",

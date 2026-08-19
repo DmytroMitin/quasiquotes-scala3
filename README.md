@@ -127,10 +127,10 @@ The reviewed local candidate uses version `0.2.0`:
 
 ```scala
 libraryDependencies +=
-  "io.github.dmytromitin" %% "quasiquotes-scala3-core" % "0.2.0"
+  "com.github.dmytromitin" %% "quasiquotes-scala3-core" % "0.2.0"
 
 libraryDependencies +=
-  "io.github.dmytromitin" %
+  "com.github.dmytromitin" %
     "quasiquotes-scala3-frontend_3.8.4" % "0.2.0"
 ```
 

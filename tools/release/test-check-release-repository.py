@@ -61,6 +61,18 @@ class ReleaseRepositoryTest(unittest.TestCase):
         (self.repository / CHECKER.GROUP_PATH / "quasiquotes-scala3-frontend_3.9.0-RC1").mkdir()
         self.assertTrue(any(error.startswith("COORDINATE_UNEXPECTED") for error in self.run_check()))
 
+    def test_legacy_namespace_coordinate_blocks(self) -> None:
+        legacy = (
+            self.repository
+            / "io/github/dmytromitin"
+            / "quasiquotes-scala3-core_3"
+            / CHECKER.VERSION
+        )
+        legacy.mkdir(parents=True)
+        self.assertTrue(
+            any(error.startswith("LEGACY_NAMESPACE_PRESENT") for error in self.run_check())
+        )
+
     def test_missing_checksum_blocks(self) -> None:
         artifact = next(iter(CHECKER.COORDINATES))
         directory = self.repository / CHECKER.GROUP_PATH / artifact / CHECKER.VERSION

@@ -7,10 +7,10 @@ An ordinary branch push never runs artifact publication.
 ## Selected local candidate
 
 - version: `0.2.0`;
-- `io.github.dmytromitin:quasiquotes-scala3-core_3:0.2.0`, built once with
+- `com.github.dmytromitin:quasiquotes-scala3-core_3:0.2.0`, built once with
   Scala 3.3.8;
-- `io.github.dmytromitin:quasiquotes-scala3-frontend_3.3.8:0.2.0`;
-- `io.github.dmytromitin:quasiquotes-scala3-frontend_3.8.4:0.2.0`.
+- `com.github.dmytromitin:quasiquotes-scala3-frontend_3.3.8:0.2.0`;
+- `com.github.dmytromitin:quasiquotes-scala3-frontend_3.8.4:0.2.0`.
 
 The Scala 3.9.0-RC1 frontend is a forward test probe and is excluded. The
 aggregate root, `dottyInternal`, and example modules are also excluded.

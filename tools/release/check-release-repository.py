@@ -12,8 +12,9 @@ from pathlib import Path
 from typing import Callable
 
 
-GROUP = "io.github.dmytromitin"
-GROUP_PATH = Path("io/github/dmytromitin")
+GROUP = "com.github.dmytromitin"
+GROUP_PATH = Path("com/github/dmytromitin")
+LEGACY_GROUP_PATH = Path("io/github/dmytromitin")
 VERSION = "0.2.0"
 COORDINATES = {
     "quasiquotes-scala3-core_3": "3.3.8",
@@ -25,7 +26,7 @@ LICENSE_NAME = "Apache-2.0"
 LICENSE_URL = "https://www.apache.org/licenses/LICENSE-2.0"
 PROJECT_URL = "https://github.com/DmytroMitin/quasiquotes-scala3"
 SCM_CONNECTION = "scm:git:git@github.com:DmytroMitin/quasiquotes-scala3.git"
-PASS = "PHASE103_LOCAL_SIGNATURE_AND_CHECKSUM_MANIFEST_PASS"
+PASS = "PHASE103N_LOCAL_SIGNATURE_AND_CHECKSUM_MANIFEST_PASS"
 
 
 def digest(path: Path, algorithm: str) -> str:
@@ -135,6 +136,10 @@ def check(
 ) -> tuple[dict[str, object], list[str]]:
     errors: list[str] = []
     group_root = repository / GROUP_PATH
+    legacy_group_root = repository / LEGACY_GROUP_PATH
+    if legacy_group_root.is_dir():
+        for artifact in sorted(path.name for path in legacy_group_root.iterdir() if path.is_dir()):
+            errors.append(f"LEGACY_NAMESPACE_PRESENT:{artifact}")
     actual = {path.name for path in group_root.iterdir() if path.is_dir()} if group_root.is_dir() else set()
     expected = set(COORDINATES)
     for artifact in sorted(expected - actual):
@@ -196,7 +201,7 @@ def check(
             "license": LICENSE_NAME,
         })
     manifest: dict[str, object] = {
-        "schema": "quasiquotes-phase103-release-manifest-v1",
+        "schema": "quasiquotes-phase103n-release-manifest-v1",
         "source_identity": source_identity,
         "candidate_version": VERSION,
         "sbt_version": sbt_version,
@@ -242,7 +247,7 @@ def main() -> int:
     if errors:
         for error in errors:
             print(error, file=sys.stderr)
-        print("PHASE103_RELEASE_MANIFEST_BLOCKED", file=sys.stderr)
+        print("PHASE103N_RELEASE_MANIFEST_BLOCKED", file=sys.stderr)
         return 3
     args.json.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     args.markdown.write_text(markdown(manifest), encoding="utf-8")
