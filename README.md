@@ -107,8 +107,10 @@ construct/match boundary and its deliberate limits.
   Scalameta AST APIs, lowers through the active caller `Quotes`, and retains the
   current Dotty engine as an explicit fallback and oracle. It does not change
   the public `qr`/`qq` implementation or published dependency contract.
-- `dottyInternal` contains exact-compiler internal adapters. Its source is
-  present for review and testing, but its artifact is deliberately unpublished.
+- `dottyInternal` contains exact-compiler internal adapters and one narrow
+  experimental foreign-package peer bridge for contextual-method lowering.
+  Its source is present for review and testing, but its artifact is deliberately
+  unpublished and consumers must match the exact Scala compiler version.
 - `public-core-examples` and `public-api-examples` compile consumer code from
   outside the library packages.
 
@@ -117,8 +119,9 @@ quotation/pattern syntax and compiler-coupled construction and matching.
 `core` remains a small project-owned validated structural model rather than a
 full Scala AST. The experimental Scalameta layer sits above it and projects
 only admitted shapes downward; it does not make `core` depend on Scalameta.
-See the [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md)
-and the [hybrid term frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md).
+See the [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md),
+the [hybrid term frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md),
+and the [experimental contextual-method peer bridge](docs/EXPERIMENTAL_CONTEXTUAL_METHOD_PEER_BRIDGE.md).
 
 ## Try the source build
 

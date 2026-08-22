@@ -18,7 +18,9 @@ Artifact policy:
 - `neutralScalameta`: ordinary Scala 3 binary crossing, Scalameta 4.17.3,
   experimental and unpublished; compatibility is tested on Scala 3.3.8 and
   3.8.4 and remains bounded by Scalameta dialect support;
-- `dottyInternal`: exact-build test source only, unpublished;
+- `dottyInternal`: full Scala-version crossing, unpublished, with an
+  experimental `ContextualMethodPeerBridge` whose compiler-internal input and
+  output require an exact producer/consumer compiler match;
 - aggregate root and example modules: unpublished.
 
 Version `0.2.0` and group `com.github.dmytromitin` identify the selected local

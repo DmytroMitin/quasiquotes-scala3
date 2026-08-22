@@ -1,6 +1,6 @@
 # Scalameta opt-in artifact topology
 
-Phase 110 selects a future two-coordinate Scalameta topology while keeping all
+The selected future topology uses two Scalameta coordinates while keeping all
 new coordinates remotely unpublished and disabled by default:
 
 ```text
@@ -20,7 +20,7 @@ silent import replacement is introduced.
 | --- | --- | --- | --- |
 | compiler-free bridge | `com.github.dmytromitin:quasiquotes-scala3-neutral-scalameta_3:<future-version>` | Scala 3 binary | `core_3`, Scalameta 4.17.3 |
 | typed Term opt-in | `com.github.dmytromitin:quasiquotes-scala3-scalameta-frontend_<exact-scala>:<future-version>` | full Scala version | matching `frontend_<exact-scala>`, `neutral-scalameta_3` |
-| package-friend peer backend | `com.github.dmytromitin:quasiquotes-scala3-dotty-internal_<exact-scala>:<future-version>` | full Scala version | `neutral-scalameta_3`, matching `scala3-compiler_3` |
+| exact-version peer backend | `com.github.dmytromitin:quasiquotes-scala3-dotty-internal_<exact-scala>:<future-version>` | full Scala version | `neutral-scalameta_3`, matching `scala3-compiler_3` |
 
 The first two rows are the selected user-facing topology. The third is a
 separately version-coupled integration artifact, not a stable public raw-tree
@@ -111,20 +111,19 @@ fallback, and an unchanged current-Dotty control.
 
 ## Peer backend boundary
 
-The historical nightly proof is retained as evidence but not reused as a
-stable coordinate promise. On Scala 3.8.4, a clean package-friend consumer can
-resolve the full-cross internal backend coordinate, project the neutral
-`Show.apply` method, and call
-`quasiquotes.definitions.dotty.PublicContextualMethodGeneratedOriginAdapter`.
-It receives a positioned `untpd.DefDef` with deterministic virtual source,
-complete method span, exact method/type/contextual-parameter flags, and
-`NoSymbol` before insertion.
+The historical package-friend proof is retained as evidence but is superseded
+for foreign-package use by
+`quasiquotes.definitions.dotty.ContextualMethodPeerBridge`. On exact Scala
+3.8.4, the bridge accepts only the admitted Scalameta contextual method and a
+validated virtual source name. It returns a positioned `untpd.DefDef`,
+deterministic generated source and virtual-source provenance, with exact
+method/type/contextual-parameter flags and `NoSymbol` before insertion.
 
-The entry point remains `private[quasiquotes]`. A later Macro-Paradise handler
-must therefore be packaged under a reviewed `quasiquotes.*` friend namespace,
-as in the historical proof. Macro-Paradise continues to own annotation
-lifecycle, companion merge, placement, insertion, rollback, and typing. No
-public `u*` family and no public exact-`tpd` family is created.
+The bridge is callable from an AUXify-owned package without claiming a
+`quasiquotes.*` friend namespace. It remains compiler-internal, full-cross,
+experimental, and remotely unpublished. Macro-Paradise continues to own
+annotation lifecycle, companion merge, placement, insertion, rollback, and
+typing. No public `u*`, generic raw-tree, or exact-`tpd` family is created.
 
 ## Alternatives and release recommendation
 

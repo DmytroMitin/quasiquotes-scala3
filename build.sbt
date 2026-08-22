@@ -308,7 +308,7 @@ lazy val dottyInternal = (project in file("dotty-internal"))
   .settings(publicationLicenseSettings)
   .settings(
     name := "quasiquotes-scala3-dotty-internal",
-    description := "Exact-Scala-version internal backend for package-friend peer integration",
+    description := "Exact-Scala-version experimental backend for tightly coupled peer integration",
     crossVersion := CrossVersion.full,
     libraryDependencies +=
       "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,

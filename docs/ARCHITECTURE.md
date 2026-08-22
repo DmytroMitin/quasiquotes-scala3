@@ -56,13 +56,17 @@ parser/tree closure only for opt-in consumers; it is not remotely published.
 
 `dottyInternal` owns raw untyped-tree and compiler-internal adapters for
 exact-version integration. It now uses full Scala-version crossing and is the
-selected future package-friend backend boundary for the first peer consumer.
+selected future version-coupled backend boundary for the first peer consumer.
 The source remains part of this repository, but `publish / skip := true`
-prevents an unsupported standalone artifact promise. Its admitted Scalameta
-bridge lowers through the validated IR
-and projects exact raw trees back to generated/no-position Scalameta definitions
-structurally. It does not print/reparse or manufacture comments, tokens,
-formatting, offsets, symbols, or owners.
+prevents an unsupported standalone artifact promise. The public-for-JVM-access
+`ContextualMethodPeerBridge` is deliberately confined to one Scalameta
+`Defn.Def` plus virtual-source-name input and one positioned `untpd.DefDef`
+plus provenance output. It delegates to the existing neutral projection,
+validated IR, raw lowering, and generated-origin position planner. Its compiler
+types make it exact-version experimental API, not a stable raw quasiquote
+family. Other adapters, planning objects, errors, and reverse projections stay
+package-private. The backend does not print/reparse or manufacture comments,
+tokens, formatting, symbols, or owners.
 
 Its bounded term backend includes ordinary quoted standard-`s` interpolation:
 compiler-free semantic parts and guest terms lower directly to

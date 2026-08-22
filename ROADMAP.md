@@ -17,7 +17,9 @@ delivery chronology.
   slice only through differential tests, exact-compiler validation, original
   reflected-hole/capture identity, and compiler-line dialect selection; do not
   switch the public default without a separate compatibility decision.
-- Keep `dottyInternal` source visible but its artifact unpublished.
+- Keep `dottyInternal` source visible but its artifact unpublished. Retain only
+  the narrow exact-version `ContextualMethodPeerBridge` for tightly coupled
+  foreign-package peers; do not grow it into a generic raw-tree API.
 - Preserve Apache-2.0 POM and JAR metadata for intended `core` and `frontend`
   distributions.
 - Expand structural term and type support through narrow, test-backed slices.

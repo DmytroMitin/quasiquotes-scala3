@@ -50,6 +50,8 @@ replacement of an existing public name.
   any consumer-local `n*` aliases are experimental and carry no compatibility
   promise.
 - `dottyInternal` is exact-compiler integration source and remains unpublished.
+  Its narrow public peer bridge is an experimental JVM-access seam, not a
+  stable general raw-tree API or a cross-compiler compatibility promise.
 - The aggregate root and example modules remain unpublished.
 
 Passing Scala 3.3.8, 3.8.4, 3.9.0-RC1, or nightly tests is evidence for those
