@@ -35,7 +35,14 @@ class ReleaseConfigurationTest(unittest.TestCase):
 
     def test_only_selected_modules_are_publishable(self) -> None:
         build = (ROOT / "build.sbt").read_text()
-        for module in ("dottyInternal", "publicApiExamples", "publicCoreExamples", "root"):
+        for module in (
+            "neutralScalameta",
+            "dottyInternal",
+            "hybridScalametaFrontend",
+            "publicApiExamples",
+            "publicCoreExamples",
+            "root",
+        ):
             start = build.index(f"lazy val {module}")
             end = build.find("\nlazy val ", start + 1)
             section = build[start:] if end < 0 else build[start:end]

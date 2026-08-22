@@ -9,7 +9,7 @@ import quasiquotes.matching.{QuasiPattern, TermPattern}
 import quasiquotes.matching.hybrid.HybridPatternFrontend
 
 /** Explicit, immutable selector for the unpublished typed-term harness. */
-object TermQ3FrontendSelector:
+private[quasiquotes] object TermQ3FrontendSelector:
   enum Selection derives CanEqual:
     case CurrentDotty
     case ScalametaPrimary

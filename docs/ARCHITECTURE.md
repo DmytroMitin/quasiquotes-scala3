@@ -32,26 +32,34 @@ adapters, and compiler-version-sensitive lowering. It uses full Scala compiler
 version coordinates because its public surface and dependency graph are tied to
 the compiler line.
 
-`neutralScalameta` owns the unpublished compiler-free Scalameta 4.17.3 source
-AST boundary and the bounded structural projection into existing validated
-core results. It uses ordinary Scala 3 binary crossing. Its compile/runtime
+`neutralScalameta` owns the remotely unpublished compiler-free Scalameta 4.17.3
+source-AST boundary and the bounded structural projection into existing
+validated core results. It is the selected future binary-cross neutral
+coordinate. Its compile/runtime
 classpath contains neither the Scala compiler implementation, `scala3-staging`,
 nor SemanticDB. Scalameta remains absent from `core` and `frontend`.
 
-`hybridScalametaFrontend` is an unpublished typed-term experiment. It parses
+`hybridScalametaFrontend` is the remotely unpublished implementation of the
+selected future full-cross `quasiquotes-scala3-scalameta-frontend` coordinate.
+It parses
 with public Scalameta AST APIs, lowers directly into caller-`Quotes` reflected
 terms or the existing typed pattern IR, and retains the exact Dotty frontend as
-an explicit parser fallback and comparison oracle. Its engine selector is an
-ordinary immutable argument; it does not use a process-global or environment
-default. The released `qr` and `qq` entrypoints still select the current Dotty
-engine, and the experiment does not authorize changes to type or definition
-frontends. A future opt-in coordinate would add Scalameta 4.17.3 and its parser
-tree closure; no such coordinate is currently published.
+an explicit parser fallback and comparison oracle. The intended public surface
+is confined to `quasiquotes.scalameta`: distinct `qr`/`qq` import hosts plus a
+programmatic `TermFrontend`. The research lowerers, selector, dialect policy,
+parity inventory, and evidence macros remain package-private. Selection is an
+ordinary immutable call/import choice; it does not use a process-global or
+environment default. The released `qr` and `qq` entrypoints still select the
+current Dotty engine, and the experiment does not authorize changes to type or
+definition frontends. The future coordinate adds Scalameta 4.17.3 and its
+parser/tree closure only for opt-in consumers; it is not remotely published.
 
-`dottyInternal` owns raw untyped-tree and compiler-internal adapters that are
-useful for exact-version integration proofs. The source remains part of this
-repository, but `publish / skip := true` prevents an unsupported standalone
-artifact promise. Its admitted Scalameta bridge lowers through the validated IR
+`dottyInternal` owns raw untyped-tree and compiler-internal adapters for
+exact-version integration. It now uses full Scala-version crossing and is the
+selected future package-friend backend boundary for the first peer consumer.
+The source remains part of this repository, but `publish / skip := true`
+prevents an unsupported standalone artifact promise. Its admitted Scalameta
+bridge lowers through the validated IR
 and projects exact raw trees back to generated/no-position Scalameta definitions
 structurally. It does not print/reparse or manufacture comments, tokens,
 formatting, offsets, symbols, or owners.
@@ -67,10 +75,12 @@ module-graph verification task checks source ownership and rejects hidden
 frontend/backend cycles.
 
 Only `core` and compiler-matching `frontend` are existing release artifacts.
-The experimental neutral module remains unpublished, and its provisional APIs
-are not included in the released API baseline. That inventory does not promote
+The Scalameta and exact-backend coordinates are future candidates only and
+remain remotely skipped. Their experimental APIs are not included in the
+released 618-row `core`/`frontend` baseline. That inventory does not promote
 package-private implementation or create a compatibility promise beyond the
-experimental versioning policy.
+experimental versioning policy. See the
+[Scalameta opt-in artifact topology](SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md).
 
 The [execution-environment and representation guide](EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md)
 maps these module boundaries to compile-time macros, runtime staging,

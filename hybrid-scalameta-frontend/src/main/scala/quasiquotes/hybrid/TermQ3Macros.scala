@@ -9,7 +9,7 @@ import quasiquotes.matching.hybrid.ScalametaPatternFrontend
 import quasiquotes.types.{ConstructedType, TypeNormalForm}
 
 /** Compile-time evidence for the unpublished side-by-side term tranche. */
-object TermQ3Macros:
+private[quasiquotes] object TermQ3Macros:
   inline def constructionEvidence: List[String] = ${ constructionEvidenceImpl }
   inline def identifierValue: Int = ${ identifierValueImpl }
   inline def matchingEvidence: List[String] = ${ matchingEvidenceImpl }

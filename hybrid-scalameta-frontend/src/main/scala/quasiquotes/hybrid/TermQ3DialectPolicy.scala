@@ -4,7 +4,7 @@ import scala.meta.Dialect
 import scala.meta.dialects
 
 /** Compiler-line policy for the unpublished side-by-side term frontend. */
-object TermQ3DialectPolicy:
+private[quasiquotes] object TermQ3DialectPolicy:
   val compilerVersion: String =
     _root_.dotty.tools.dotc.config.Properties.versionNumberString
 

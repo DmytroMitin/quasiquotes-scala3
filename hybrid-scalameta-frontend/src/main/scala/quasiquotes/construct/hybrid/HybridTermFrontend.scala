@@ -6,7 +6,7 @@ import scala.meta.Dialect
 import quasiquotes.construct.{QuasiTypeSplice, QuasiquoteBuilder}
 import quasiquotes.hybrid.TermQ3DialectPolicy
 
-object HybridTermFrontend:
+private[quasiquotes] object HybridTermFrontend:
   enum Engine derives CanEqual:
     case Scalameta
     case CurrentDottyFallback

@@ -32,6 +32,9 @@ lazy val verifyNeutralScalametaBoundary = taskKey[Unit](
 lazy val verifyModuleGraph = taskKey[Unit](
   "Verify the selected project dependency graph and aggregate-root packaging"
 )
+lazy val verifyScalametaArtifactTopology = taskKey[Unit](
+  "Verify the future local-only Scalameta coordinates, POM graph, packages, and remote skip guards"
+)
 lazy val verifyReleaseIdentity = taskKey[Unit](
   "Require explicitly supplied public developer metadata before signed staging"
 )
@@ -194,6 +197,7 @@ lazy val frontend = (project in file("frontend"))
 lazy val neutralScalameta = (project in file("neutral-scalameta"))
   .dependsOn(core % "compile->compile;test->test")
   .settings(commonSettings)
+  .settings(publicationLicenseSettings)
   .settings(
     name := "quasiquotes-scala3-neutral-scalameta",
     description := "Experimental compiler-free Scalameta-backed neutral quasiquotes",
@@ -301,8 +305,11 @@ lazy val neutralScalameta = (project in file("neutral-scalameta"))
 lazy val dottyInternal = (project in file("dotty-internal"))
   .dependsOn(neutralScalameta % "compile->compile;test->test")
   .settings(commonSettings)
+  .settings(publicationLicenseSettings)
   .settings(
     name := "quasiquotes-scala3-dotty-internal",
+    description := "Exact-Scala-version internal backend for package-friend peer integration",
+    crossVersion := CrossVersion.full,
     libraryDependencies +=
       "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
     publish / skip := true
@@ -314,9 +321,11 @@ lazy val hybridScalametaFrontend = (project in file("hybrid-scalameta-frontend")
     neutralScalameta % "compile->compile;test->test"
   )
   .settings(commonSettings)
+  .settings(publicationLicenseSettings)
   .settings(
-    name := "quasiquotes-scala3-hybrid-scalameta-frontend",
-    description := "Unpublished side-by-side Scalameta term frontend experiment",
+    name := "quasiquotes-scala3-scalameta-frontend",
+    description := "Experimental explicit opt-in Scalameta-primary Term frontend",
+    crossVersion := CrossVersion.full,
     libraryDependencies +=
       "org.scala-lang" %% "scala3-staging" % scalaVersion.value % Test,
     publish / skip := true
@@ -472,6 +481,93 @@ lazy val root = (project in file("."))
           "core/neutralScalameta/frontend/dottyInternal/hybridScalametaFrontend production source roots are owned, " +
           "no sibling compile/test classpath edges or hidden production source reuse, " +
           "aggregate root packages no classes"
+      )
+    },
+    verifyScalametaArtifactTopology := {
+      val log = streams.value.log
+      val line = scalaVersion.value
+      val neutralPom = IO.read((neutralScalameta / Compile / makePom).value)
+      val frontendPom = IO.read((hybridScalametaFrontend / Compile / makePom).value)
+      val backendPom = IO.read((dottyInternal / Compile / makePom).value)
+
+      def requirePom(pom: String, label: String, tokens: Seq[String]): Unit = {
+        val missing = tokens.filterNot(pom.contains)
+        if (missing.nonEmpty) {
+          sys.error(s"$label POM missing: ${missing.mkString(", ")}")
+        }
+      }
+
+      requirePom(
+        neutralPom,
+        "neutral Scalameta",
+        Seq(
+          "<artifactId>quasiquotes-scala3-neutral-scalameta_3</artifactId>",
+          "<artifactId>quasiquotes-scala3-core_3</artifactId>",
+          "<artifactId>scalameta_3</artifactId>",
+          "<version>4.17.3</version>",
+          "<name>Apache-2.0</name>"
+        )
+      )
+      requirePom(
+        frontendPom,
+        "Scalameta frontend",
+        Seq(
+          s"<artifactId>quasiquotes-scala3-scalameta-frontend_$line</artifactId>",
+          s"<artifactId>quasiquotes-scala3-frontend_$line</artifactId>",
+          "<artifactId>quasiquotes-scala3-neutral-scalameta_3</artifactId>",
+          "<name>Apache-2.0</name>"
+        )
+      )
+      requirePom(
+        backendPom,
+        "exact backend",
+        Seq(
+          s"<artifactId>quasiquotes-scala3-dotty-internal_$line</artifactId>",
+          "<artifactId>quasiquotes-scala3-neutral-scalameta_3</artifactId>",
+          "<artifactId>scala3-compiler_3</artifactId>",
+          s"<version>$line</version>",
+          "<name>Apache-2.0</name>"
+        )
+      )
+
+      val forbiddenPomTokens = Seq("ProjectRef", "target/scala-", "quasiquotes-scala3-control")
+      val contaminated = Seq(
+        "neutral" -> neutralPom,
+        "frontend" -> frontendPom,
+        "backend" -> backendPom
+      ).flatMap { case (label, pom) =>
+        forbiddenPomTokens.filter(pom.contains).map(token => s"$label:$token")
+      }
+      if (contaminated.nonEmpty) {
+        sys.error("Candidate POM contamination: " + contaminated.mkString(", "))
+      }
+
+      val neutralRemotelySkipped = (neutralScalameta / publish / skip).value
+      val frontendRemotelySkipped = (hybridScalametaFrontend / publish / skip).value
+      val backendRemotelySkipped = (dottyInternal / publish / skip).value
+      if (!neutralRemotelySkipped || !frontendRemotelySkipped || !backendRemotelySkipped) {
+        sys.error("Candidate modules must remain remotely skipped by default.")
+      }
+
+      val packages = Seq(
+        (neutralScalameta / Compile / packageBin).value,
+        (neutralScalameta / Compile / packageSrc).value,
+        (neutralScalameta / Compile / packageDoc).value,
+        (hybridScalametaFrontend / Compile / packageBin).value,
+        (hybridScalametaFrontend / Compile / packageSrc).value,
+        (hybridScalametaFrontend / Compile / packageDoc).value,
+        (dottyInternal / Compile / packageBin).value,
+        (dottyInternal / Compile / packageSrc).value,
+        (dottyInternal / Compile / packageDoc).value
+      )
+      val empty = packages.filter(file => !file.isFile || file.length == 0L)
+      if (empty.nonEmpty) {
+        sys.error("Missing or empty candidate package(s): " + empty.mkString(", "))
+      }
+
+      log.info(
+        s"Scalameta artifact topology verified for Scala $line: neutral binary-cross, frontend/backend full-cross, " +
+          "truthful POM closure, binary/source/doc packages, Apache-2.0 metadata, and remote skip guards"
       )
     }
   )

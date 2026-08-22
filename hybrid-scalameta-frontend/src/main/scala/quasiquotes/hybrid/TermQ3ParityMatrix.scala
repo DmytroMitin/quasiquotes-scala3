@@ -4,7 +4,7 @@ package quasiquotes.hybrid
   * contract and its explicit exclusions; this unpublished value is executable
   * evidence, not a new public frontend API.
   */
-object TermQ3ParityMatrix:
+private[quasiquotes] object TermQ3ParityMatrix:
   enum Classification derives CanEqual:
     case CURRENT_ENGINE_SUPPORTED
     case HYBRID_SCALAMETA_SUPPORTED

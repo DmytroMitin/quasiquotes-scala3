@@ -9,7 +9,7 @@ import _root_.quasiquotes.hybrid.TermQ3DialectPolicy
 import _root_.quasiquotes.source.GeneratedHoleIndex
 
 /** Scalameta syntax-to-existing-pattern-IR compiler for the bounded term slice. */
-object ScalametaPatternFrontend:
+private[quasiquotes] object ScalametaPatternFrontend:
   type Failure = ScalametaTermFrontend.Failure
   private val SupportedUnaryOperators = Set("+", "-", "!", "~")
 

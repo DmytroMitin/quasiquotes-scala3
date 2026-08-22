@@ -14,7 +14,7 @@ import _root_.quasiquotes.types.toTypeRepr
 /** Public-Scalameta syntax parsing followed by project-owned Quotes lowering.
   * This lives only in the unpublished side-by-side module.
   */
-object ScalametaTermFrontend:
+private[quasiquotes] object ScalametaTermFrontend:
   private val UnaryMethodByOperator = Map(
     "+" -> "unary_+",
     "-" -> "unary_-",
