@@ -308,6 +308,20 @@ lazy val dottyInternal = (project in file("dotty-internal"))
     publish / skip := true
   )
 
+lazy val hybridScalametaFrontend = (project in file("hybrid-scalameta-frontend"))
+  .dependsOn(
+    frontend % "compile->compile;test->test",
+    neutralScalameta % "compile->compile;test->test"
+  )
+  .settings(commonSettings)
+  .settings(
+    name := "quasiquotes-scala3-hybrid-scalameta-frontend",
+    description := "Unpublished side-by-side Scalameta term frontend experiment",
+    libraryDependencies +=
+      "org.scala-lang" %% "scala3-staging" % scalaVersion.value % Test,
+    publish / skip := true
+  )
+
 lazy val publicApiExamples = (project in file("public-api-examples"))
   .dependsOn(frontend)
   .settings(commonSettings)
@@ -332,7 +346,7 @@ lazy val publicCoreExamples = (project in file("public-core-examples"))
   )
 
 lazy val root = (project in file("."))
-  .aggregate(core, neutralScalameta, frontend, dottyInternal)
+  .aggregate(core, neutralScalameta, frontend, dottyInternal, hybridScalametaFrontend)
   .settings(
     name := "quasiquotes-scala3",
     publish / skip := true,
@@ -352,6 +366,10 @@ lazy val root = (project in file("."))
       val neutralCompile = (neutralScalameta / Compile / fullClasspath).value
         .map(_.data.getAbsolutePath.replace('\\', '/')).mkString("\n")
       val neutralTest = (neutralScalameta / Test / fullClasspath).value
+        .map(_.data.getAbsolutePath.replace('\\', '/')).mkString("\n")
+      val hybridCompile = (hybridScalametaFrontend / Compile / fullClasspath).value
+        .map(_.data.getAbsolutePath.replace('\\', '/')).mkString("\n")
+      val hybridTest = (hybridScalametaFrontend / Test / fullClasspath).value
         .map(_.data.getAbsolutePath.replace('\\', '/')).mkString("\n")
       val coreCompile = (core / Compile / fullClasspath).value
         .map(_.data.getAbsolutePath.replace('\\', '/')).mkString("\n")
@@ -389,6 +407,15 @@ lazy val root = (project in file("."))
       if (Vector("neutral-scalameta", "scalameta_3", "parsers_3", "trees_3", "semanticdb")
           .exists(token => coreCompile.contains(token) || coreRuntime.contains(token)))
         hiddenCycleViolations :+= "core -> neutralScalameta or Scalameta"
+      if (!hybridCompile.contains("/frontend/target/") ||
+          !hybridCompile.contains("/neutral-scalameta/target/"))
+        hiddenCycleViolations :+= "hybridScalametaFrontend compile missing frontend or neutralScalameta"
+      if (!hybridTest.contains("/frontend/target/") ||
+          !hybridTest.contains("/neutral-scalameta/target/"))
+        hiddenCycleViolations :+= "hybridScalametaFrontend test missing frontend or neutralScalameta"
+      if (frontendCompile.contains("/hybrid-scalameta-frontend/target/") ||
+          neutralCompile.contains("/hybrid-scalameta-frontend/target/"))
+        hiddenCycleViolations :+= "published or neutral module -> hybridScalametaFrontend"
       if (publicCoreClasspath.contains("/frontend/target/"))
         hiddenCycleViolations :+= "publicCoreExamples test -> frontend"
       if (publicCoreClasspath.contains("/dotty-internal/target/"))
@@ -410,11 +437,13 @@ lazy val root = (project in file("."))
       val neutralProduction = (neutralScalameta / Compile / sources).value
       val frontendProduction = (frontend / Compile / sources).value
       val backendProduction = (dottyInternal / Compile / sources).value
+      val hybridProduction = (hybridScalametaFrontend / Compile / sources).value
       val misplacedSources =
         coreProduction.filterNot(_.getAbsolutePath.contains("/core/src/main/")) ++
           neutralProduction.filterNot(_.getAbsolutePath.contains("/neutral-scalameta/src/main/")) ++
           frontendProduction.filterNot(_.getAbsolutePath.contains("/frontend/src/main/")) ++
-          backendProduction.filterNot(_.getAbsolutePath.contains("/dotty-internal/src/main/"))
+          backendProduction.filterNot(_.getAbsolutePath.contains("/dotty-internal/src/main/")) ++
+          hybridProduction.filterNot(_.getAbsolutePath.contains("/hybrid-scalameta-frontend/src/main/"))
       if (misplacedSources.nonEmpty) {
         sys.error(
           "Hidden production source reuse detected:\n" +
@@ -438,8 +467,9 @@ lazy val root = (project in file("."))
       } finally archive.close()
       log.info(
         "Module graph verified: neutralScalameta -> core, dottyInternal -> neutralScalameta -> core, frontend -> core, " +
+          "hybridScalametaFrontend -> frontend + neutralScalameta, " +
           "publicCoreExamples -> core without compiler implementation, " +
-          "core/neutralScalameta/frontend/dottyInternal production source roots are owned, " +
+          "core/neutralScalameta/frontend/dottyInternal/hybridScalametaFrontend production source roots are owned, " +
           "no sibling compile/test classpath edges or hidden production source reuse, " +
           "aggregate root packages no classes"
       )

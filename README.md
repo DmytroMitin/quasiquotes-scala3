@@ -102,6 +102,11 @@ construct/match boundary and its deliberate limits.
   Scalameta 4.17.3. It provides direct source-AST authoring plus a bounded
   structural projection into the existing validated IR, without `Quotes`,
   compiler implementation dependencies, staging, SemanticDB, or exact trees.
+- `hybridScalametaFrontend` is an unpublished, compiler-coupled side-by-side
+  term experiment. It parses a bounded `qr`/`qq` syntax slice with public
+  Scalameta AST APIs, lowers through the active caller `Quotes`, and retains the
+  current Dotty engine as an explicit fallback and oracle. It does not change
+  the public `qr`/`qq` implementation or published dependency contract.
 - `dottyInternal` contains exact-compiler internal adapters. Its source is
   present for review and testing, but its artifact is deliberately unpublished.
 - `public-core-examples` and `public-api-examples` compile consumer code from
@@ -112,7 +117,8 @@ quotation/pattern syntax and compiler-coupled construction and matching.
 `core` remains a small project-owned validated structural model rather than a
 full Scala AST. The experimental Scalameta layer sits above it and projects
 only admitted shapes downward; it does not make `core` depend on Scalameta.
-See the [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md).
+See the [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md)
+and the [hybrid term frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md).
 
 ## Try the source build
 
@@ -151,6 +157,7 @@ See [Getting started](docs/GETTING_STARTED.md),
 [diagnostics](docs/DIAGNOSTICS.md),
 [architecture](docs/ARCHITECTURE.md),
 [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md),
+[hybrid term frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md),
 [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md),
 [exact constructor backend](docs/EXACT_BACKEND_CONSTRUCTOR_NEW.md),
 [supported syntax and limitations](docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md),
@@ -162,8 +169,8 @@ See [Getting started](docs/GETTING_STARTED.md),
 The machine-readable [public API baseline](docs/PUBLIC_API_BASELINE.tsv)
 contains 305 core and 313 frontend Scaladoc-visible entries. It excludes the
 root, unpublished experimental `neutralScalameta`, unpublished
-`dottyInternal`, and package-private internals and is a diff baseline rather
-than a compatibility promise.
+`hybridScalametaFrontend`, unpublished `dottyInternal`, and package-private
+internals and is a diff baseline rather than a compatibility promise.
 
 The structural type subset includes recursively nested `List` and `Option`
 applications plus binary `Either`, including patterns, construction, quoted

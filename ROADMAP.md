@@ -12,6 +12,11 @@ delivery chronology.
   isolated from compiler implementation, staging, and SemanticDB dependencies.
   Use direct Scalameta authoring until a genuinely reusable façade can delegate
   upstream macros without forwarding or duplicating them.
+- Keep the compiler-coupled `hybridScalametaFrontend` experiment unpublished
+  and side by side with the current term engine. Expand its admitted `qr`/`qq`
+  slice only through differential tests, exact-compiler validation, original
+  reflected-hole/capture identity, and compiler-line dialect selection; do not
+  switch the public default without a separate compatibility decision.
 - Keep `dottyInternal` source visible but its artifact unpublished.
 - Preserve Apache-2.0 POM and JAR metadata for intended `core` and `frontend`
   distributions.
@@ -25,6 +30,9 @@ delivery chronology.
 - Preserve the bounded structural Scalameta-to-validated-IR projection and the
   exact backend-only reverse projection without print/reparse or fabricated
   source provenance.
+- Measure whether public Scalameta parsing materially reduces grammar
+  maintenance while the current Dotty parser remains the fallback and exact
+  compiler oracle.
 
 ## Before a public preview
 
@@ -47,8 +55,8 @@ delivery chronology.
   reproducibility checks.
 - Validate clean coordinate-only consumers on every promised Scala/JDK lane.
 - Publish only `core_3`, `frontend_3.3.8`, and `frontend_3.8.4`; keep the
-  forward-probe frontend, aggregate root, examples, and `dottyInternal`
-  unpublished.
+  forward-probe frontend, aggregate root, examples, `neutralScalameta`,
+  `hybridScalametaFrontend`, and `dottyInternal` unpublished.
 
 Remote release and public visibility are separate decisions. If either remains
 unapproved, development continues through bounded language, usability,
