@@ -8,6 +8,10 @@ delivery chronology.
 - Keep `core` compiler-free and independently consumable.
 - Keep `frontend` compiler-version-coupled and test source parsing, matching,
   construction, diagnostics, and quoted lowering together.
+- Keep the binary-crossed `neutralScalameta` experiment unpublished and
+  isolated from compiler implementation, staging, and SemanticDB dependencies.
+  Use direct Scalameta authoring until a genuinely reusable façade can delegate
+  upstream macros without forwarding or duplicating them.
 - Keep `dottyInternal` source visible but its artifact unpublished.
 - Preserve Apache-2.0 POM and JAR metadata for intended `core` and `frontend`
   distributions.
@@ -18,6 +22,9 @@ delivery chronology.
 - Maintain end-to-end recursive `List`/`Option` and binary `Either` support
   without turning fixed constructor admission into a general type resolver.
 - Preserve a deterministic clean aggregate build and external-package examples.
+- Preserve the bounded structural Scalameta-to-validated-IR projection and the
+  exact backend-only reverse projection without print/reparse or fabricated
+  source provenance.
 
 ## Before a public preview
 

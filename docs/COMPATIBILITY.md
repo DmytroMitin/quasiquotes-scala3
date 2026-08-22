@@ -15,6 +15,9 @@ Artifact policy:
 - `frontend`: full Scala compiler-version crossing; producer and consumer
   compiler lines must match exactly (for example, a Scala 3.8.4 consumer uses
   `quasiquotes-scala3-frontend_3.8.4`, never a 3.3.8 or 3.9 artifact);
+- `neutralScalameta`: ordinary Scala 3 binary crossing, Scalameta 4.17.3,
+  experimental and unpublished; compatibility is tested on Scala 3.3.8 and
+  3.8.4 and remains bounded by Scalameta dialect support;
 - `dottyInternal`: exact-build test source only, unpublished;
 - aggregate root and example modules: unpublished.
 
@@ -44,3 +47,8 @@ tested only for immediate same-Quotes local-block placement. It is not a binary
 or semantic promise across compiler lines, a detached-tree format, or a general
 owner/placement API. The package-private pre-existing definition parser and
 exact internal backends retain their separate contracts.
+
+The neutral experiment uses the imported standard `Scala3` dialect singleton
+for compile-time quasiquotes. Explicit parser calls select `Scala38` or
+`Scala3Future` values separately. This is syntax compatibility evidence only:
+the module does not promise semantic resolution of every parsed form.

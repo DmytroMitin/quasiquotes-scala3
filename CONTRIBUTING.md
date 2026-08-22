@@ -21,15 +21,17 @@ Run the complete local gate before proposing a change:
 
 ```sh
 sbt -batch clean test publicCoreExamples/test publicApiExamples/test \
-  core/verifyCoreBoundary verifyModuleGraph package
+  core/verifyCoreBoundary neutralScalameta/verifyNeutralScalametaBoundary \
+  verifyModuleGraph package
 git diff --check
 ```
 
-Changes must keep `core` free of `scala.quoted` and Dotty compiler dependencies,
-retain full-version crossing for `frontend`, and leave the root and
-`dottyInternal` artifacts unpublished. Update user documentation when behavior,
-dependencies, build steps, module responsibilities, or compatibility policy
-changes.
+Changes must keep `core` free of Scalameta, `scala.quoted`, and Dotty compiler
+dependencies; keep `neutralScalameta` free of compiler implementation,
+staging, and SemanticDB dependencies; retain full-version crossing for
+`frontend`; and leave the root, `neutralScalameta`, and `dottyInternal`
+artifacts unpublished. Update user documentation when behavior, dependencies,
+build steps, module responsibilities, or compatibility policy changes.
 
 Do not include credentials, private repository links, machine-local paths, or
 generated build output.

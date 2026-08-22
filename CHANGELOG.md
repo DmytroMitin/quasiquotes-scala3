@@ -22,6 +22,13 @@ applicable. Dates and release links are added only when a release exists.
   boundaries.
 - External-package core and frontend examples and deterministic build-boundary
   checks.
+- An unpublished binary-crossed `neutralScalameta` experiment using Scalameta
+  4.17.3 for direct term/type/definition construction and matching, plus a
+  bounded structural contextual-method projection into the existing validated
+  IR.
+- An unpublished exact-backend bridge for the admitted contextual method in
+  both directions, including generated/no-position reverse matching without
+  print/reparse.
 
 ### Changed
 
@@ -32,6 +39,8 @@ applicable. Dates and release links are added only when a release exists.
 - Experimental compatibility is documented as early-semver-style 0.x policy:
   breaking changes increment the minor version; patch releases remain
   compatible within that minor line.
+- The exact backend now depends through `neutralScalameta` to `core`; existing
+  released `core` and `frontend` API inventories remain separate and unchanged.
 
 ### Security
 

@@ -98,6 +98,10 @@ construct/match boundary and its deliberate limits.
   matching, source metadata, and stable diagnostic projections.
 - `frontend` supplies Scala 3 compiler-coupled parsing, macros, quoted
   reflection adapters, and public source-oriented conveniences.
+- `neutralScalameta` is an unpublished compiler-free experiment backed by
+  Scalameta 4.17.3. It provides direct source-AST authoring plus a bounded
+  structural projection into the existing validated IR, without `Quotes`,
+  compiler implementation dependencies, staging, SemanticDB, or exact trees.
 - `dottyInternal` contains exact-compiler internal adapters. Its source is
   present for review and testing, but its artifact is deliberately unpublished.
 - `public-core-examples` and `public-api-examples` compile consumer code from
@@ -105,9 +109,10 @@ construct/match boundary and its deliberate limits.
 
 In role, `frontend` is closest to Scala 2 quasiquotes: it owns source-like
 quotation/pattern syntax and compiler-coupled construction and matching.
-`core` is closer to a small Scalameta-like neutral structural model. This is
-only an architectural analogy: the project neither reimplements all Scala 2
-quasiquotes nor provides a Scalameta replacement or full-fidelity Scala AST.
+`core` remains a small project-owned validated structural model rather than a
+full Scala AST. The experimental Scalameta layer sits above it and projects
+only admitted shapes downward; it does not make `core` depend on Scalameta.
+See the [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md).
 
 ## Try the source build
 
@@ -115,7 +120,8 @@ Requirements are JDK 25 and sbt 1.12.15. The required baseline is Scala 3.8.4.
 
 ```sh
 sbt -batch clean test publicCoreExamples/test publicApiExamples/test \
-  core/verifyCoreBoundary verifyModuleGraph package
+  core/verifyCoreBoundary neutralScalameta/verifyNeutralScalametaBoundary \
+  verifyModuleGraph package
 ```
 
 The build serializes tasks and uses exported test/compile JARs with flat test
@@ -144,6 +150,7 @@ See [Getting started](docs/GETTING_STARTED.md),
 [execution environments and AST representations](docs/EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md),
 [diagnostics](docs/DIAGNOSTICS.md),
 [architecture](docs/ARCHITECTURE.md),
+[neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md),
 [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md),
 [exact constructor backend](docs/EXACT_BACKEND_CONSTRUCTOR_NEW.md),
 [supported syntax and limitations](docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md),
@@ -154,8 +161,9 @@ See [Getting started](docs/GETTING_STARTED.md),
 
 The machine-readable [public API baseline](docs/PUBLIC_API_BASELINE.tsv)
 contains 305 core and 313 frontend Scaladoc-visible entries. It excludes the
-root, unpublished `dottyInternal`, and package-private internals and is a diff
-baseline rather than a compatibility promise.
+root, unpublished experimental `neutralScalameta`, unpublished
+`dottyInternal`, and package-private internals and is a diff baseline rather
+than a compatibility promise.
 
 The structural type subset includes recursively nested `List` and `Option`
 applications plus binary `Either`, including patterns, construction, quoted

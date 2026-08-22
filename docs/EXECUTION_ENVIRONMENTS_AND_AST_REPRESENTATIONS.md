@@ -12,6 +12,7 @@ classpath, and execution rules.
 | D3 | runtime `staging.run` | `Expr[T]` / `quotes.reflect.Term` | supplied at runtime | yes |
 | D4 | ordinary compiler-free runtime | `TermShape` | no | no |
 | D5 | compiler-backed runtime parsing | `ParsedExpression` plus raw tree and `TermShape` | no | no |
+| D6 | compiler-free Scalameta authoring/matching | `scala.meta.Term`, `Type`, and `Defn` | no | no |
 
 The examples below are compiled in the unpublished `public-core-examples` or
 `public-api-examples` projects. `scala3-staging` is a test-only dependency of
@@ -164,6 +165,19 @@ not compiler-free: the parser and raw tree are Dotty compiler internals owned by
 the compiler-coupled `frontend` module. Parsing does not typecheck or execute
 the expression.
 
+## D6: compiler-free Scalameta source AST
+
+The unpublished `neutralScalameta` module uses Scalameta 4.17.3 directly for
+source construction and extractor matching. It requires neither an active
+`Quotes` nor `scala3-staging`, and its dependency boundary excludes the Scala
+compiler implementation and SemanticDB.
+
+Scalameta trees are source syntax, not typed reflection or exact Dotty trees.
+The bounded `ScalametaContextualMethodProjection` can admit one contextual
+method into the existing validated core IR. Exact lowering and reverse raw-tree
+projection remain in `dottyInternal`. See the
+[neutral Scalameta experiment](NEUTRAL_SCALAMETA_EXPERIMENT.md).
+
 ## Current representation inventory
 
 ### Terms
@@ -174,6 +188,7 @@ the expression.
 | `TermPattern` / `MatchResult` | Public neutral structural matching data in `core`. |
 | `TermTemplate` / `ConstructedTerm` | Package-internal validated construction IR in `core`; deliberately not public. |
 | `CompletedTerm` | Public bounded definition-body payload; not the general term AST. |
+| `scala.meta.Term` | Experimental unpublished source-syntax term in `neutralScalameta`; direct Scalameta construction and matching. |
 | `Expr[T]` / `quotes.reflect.Term` | Caller-`Quotes` staged and reflected values used by `qr`/`qq`; compiler-coupled and universe-dependent. |
 | `dotty.tools.dotc.ast.untpd.Tree` | Exact compiler-internal value used by parsing and the unpublished exact backend; not a published AST contract. |
 
@@ -185,6 +200,7 @@ the expression.
 | `TypeNormalForm` | Public neutral semantic structural form. |
 | `TypePattern`, `TypeTemplate`, `ConstructedType` | Public neutral matching and construction machinery. |
 | `CompletedType` | Public bounded definition payload; not the universal type AST. |
+| `scala.meta.Type` | Experimental unpublished source-syntax type in `neutralScalameta`; not semantically resolved. |
 | `TypeRepr`, `TypeTree`, `Type[T]` | Caller-`Quotes` reflected/staged values used by the reflected type surfaces. |
 | compiler-internal type trees | Exact unpublished backend/parser values with compiler-version coupling. |
 
@@ -196,12 +212,16 @@ types are package-internal. Public compiler-free construction is limited to
 `DefinitionConstruction` and the bounded `DefinitionResultView`,
 `SingleParameterMethodResultView`, and `TwoParameterMethodResultView`
 projections. Public reflected `dqr`/`dqq` are bounded `DefDef` surfaces in the
-caller's `Quotes`. The exact raw/generated-origin definition backend remains
-unpublished.
+caller's `Quotes`. Experimental `scala.meta.Defn` values supply direct neutral
+source construction/matching in the unpublished module, and only the admitted
+contextual-method shape projects into `DefinitionResultView`. The exact
+raw/generated-origin definition backend remains unpublished.
 
-Not every internal representation warrants another interpolation syntax.
-Neutral term, type, and definition quasiquotes remain a design topic; no
-`nqr`/`nqq`, `ntqr`/`ntqq`, or `ndqr`/`ndqq` API is currently provided.
+Not every internal representation warrants another interpolation syntax. Local
+imports can rename Scalameta `q`/`t` to provisional `nqr`/`nqq`,
+`ntqr`/`ntqq`, and `ndqr`/`ndqq` spellings, but the project exports no such
+members: forwarding the macro interpolators is rejected upstream, and copying
+their implementation is outside this experiment.
 
 ## Source provenance policy
 

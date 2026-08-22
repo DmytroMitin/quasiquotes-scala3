@@ -45,6 +45,10 @@ replacement of an existing public name.
   but compatibility across library minor lines is not promised.
 - `frontend` uses the full Scala compiler version in its artifact name. A
   consumer must use the frontend artifact built for the same compiler line.
+- `neutralScalameta` uses the Scala 3 binary suffix `_3` but remains
+  unpublished. Its direct Scalameta AST boundary, admitted projection API, and
+  any consumer-local `n*` aliases are experimental and carry no compatibility
+  promise.
 - `dottyInternal` is exact-compiler integration source and remains unpublished.
 - The aggregate root and example modules remain unpublished.
 

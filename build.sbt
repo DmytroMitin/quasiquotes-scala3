@@ -21,9 +21,13 @@ ThisBuild / publishTo := localStaging.value
 Global / concurrentRestrictions := Seq(Tags.limitAll(1))
 
 lazy val munitVersion = "1.2.4"
+lazy val scalametaVersion = "4.17.3"
 
 lazy val verifyCoreBoundary = taskKey[Unit](
   "Verify core source, classpath, artifact, and TASTy compiler freedom"
+)
+lazy val verifyNeutralScalametaBoundary = taskKey[Unit](
+  "Verify neutral Scalameta source, dependency, artifact, and TASTy purity"
 )
 lazy val verifyModuleGraph = taskKey[Unit](
   "Verify the selected project dependency graph and aggregate-root packaging"
@@ -86,7 +90,8 @@ lazy val core = (project in file("core"))
     description := "Compiler-free structural quasiquote values and algorithms for Scala 3",
     verifyCoreBoundary := {
       val log = streams.value.log
-      val forbiddenSourceTokens = Vector("scala.quoted", "dotty.tools.dotc")
+      val forbiddenSourceTokens =
+        Vector("scala.quoted", "dotty.tools.dotc", "scala.meta.")
       val coreSources: Seq[File] = (Compile / sources).value
       val sourceViolations = for {
         source <- coreSources
@@ -100,8 +105,14 @@ lazy val core = (project in file("core"))
         )
       }
 
-      val forbiddenClasspathTokens =
-        Vector("scala3-compiler", "scala3-interfaces", "tasty-core", "scala-asm")
+      val forbiddenClasspathTokens = Vector(
+        "scala3-compiler",
+        "scala3-interfaces",
+        "tasty-core",
+        "scala-asm",
+        "scalameta_3",
+        "semanticdb"
+      )
       val compileClasspath = (Compile / fullClasspath).value.map(_.data)
       val runtimeClasspath = (Runtime / fullClasspath).value.map(_.data)
       val classpath = (compileClasspath ++ runtimeClasspath).distinct
@@ -117,7 +128,8 @@ lazy val core = (project in file("core"))
 
       val pom = (Compile / makePom).value
       val pomText = IO.read(pom)
-      val pomViolations = forbiddenClasspathTokens.filter(pomText.contains)
+      val forbiddenPomTokens = forbiddenClasspathTokens ++ Vector("parsers_3", "trees_3")
+      val pomViolations = forbiddenPomTokens.filter(pomText.contains)
       if (pomViolations.nonEmpty) {
         sys.error(
           "Core generated POM purity violation(s): " + pomViolations.mkString(", ")
@@ -179,8 +191,115 @@ lazy val frontend = (project in file("frontend"))
       "org.scala-lang" %% "scala3-compiler" % scalaVersion.value
   )
 
-lazy val dottyInternal = (project in file("dotty-internal"))
+lazy val neutralScalameta = (project in file("neutral-scalameta"))
   .dependsOn(core % "compile->compile;test->test")
+  .settings(commonSettings)
+  .settings(
+    name := "quasiquotes-scala3-neutral-scalameta",
+    description := "Experimental compiler-free Scalameta-backed neutral quasiquotes",
+    libraryDependencies +=
+      "org.scalameta" %% "scalameta" % scalametaVersion,
+    publish / skip := true,
+    verifyNeutralScalametaBoundary := {
+      val log = streams.value.log
+      val forbiddenSourceTokens = Vector("scala.quoted", "dotty.tools.dotc")
+      val productionSources = (Compile / sources).value
+      val sourceViolations = for {
+        source <- productionSources
+        text = IO.read(source)
+        token <- forbiddenSourceTokens
+        if text.contains(token)
+      } yield s"${source.getAbsolutePath}: $token"
+      if (sourceViolations.nonEmpty) {
+        sys.error(
+          "Neutral Scalameta source purity violation(s):\n" +
+            sourceViolations.mkString("\n")
+        )
+      }
+
+      val forbiddenClasspathTokens = Vector(
+        "scala3-compiler",
+        "scala3-interfaces",
+        "tasty-core",
+        "scala-asm",
+        "scala3-staging",
+        "semanticdb"
+      )
+      val compileClasspath = (Compile / fullClasspath).value.map(_.data)
+      val runtimeClasspath = (Runtime / fullClasspath).value.map(_.data)
+      val classpath = (compileClasspath ++ runtimeClasspath).distinct
+      val classpathViolations = classpath.filter(path =>
+        forbiddenClasspathTokens.exists(path.getName.contains)
+      )
+      if (classpathViolations.nonEmpty) {
+        sys.error(
+          "Neutral Scalameta classpath purity violation(s):\n" +
+            classpathViolations.map(_.getAbsolutePath).mkString("\n")
+        )
+      }
+      if (!classpath.exists(_.getName.startsWith("scalameta_3-4.17.3"))) {
+        sys.error("Neutral Scalameta classpath is missing scalameta_3 4.17.3.")
+      }
+
+      val pom = (Compile / makePom).value
+      val pomText = IO.read(pom)
+      val pomViolations = forbiddenClasspathTokens.filter(pomText.contains)
+      if (pomViolations.nonEmpty) {
+        sys.error(
+          "Neutral Scalameta generated POM purity violation(s): " +
+            pomViolations.mkString(", ")
+        )
+      }
+      if (!pomText.contains("<artifactId>scalameta_3</artifactId>") ||
+          !pomText.contains("<version>4.17.3</version>")) {
+        sys.error("Neutral Scalameta generated POM lacks the exact Scalameta dependency.")
+      }
+
+      val jar = (Compile / packageBin).value
+      val archive = new JarFile(jar)
+      try {
+        val forbiddenEntryPrefixes = Vector("dotty/", "scala/quoted/")
+        val forbiddenEntries = archive.entries().asScala
+          .map(_.getName)
+          .filter(name => forbiddenEntryPrefixes.exists(name.startsWith))
+          .toVector
+        if (forbiddenEntries.nonEmpty) {
+          sys.error(
+            "Neutral Scalameta artifact contains forbidden entries:\n" +
+              forbiddenEntries.mkString("\n")
+          )
+        }
+      } finally archive.close()
+
+      val classAndTastyFiles =
+        ((Compile / classDirectory).value ** ("*.class" | "*.tasty")).get
+      val forbiddenBinaryTokens =
+        Vector("dotty/tools/dotc", "scala/quoted", "semanticdb")
+      val binaryViolations = for {
+        file <- classAndTastyFiles
+        bytes = IO.readBytes(file)
+        text = new String(bytes, StandardCharsets.ISO_8859_1)
+        token <- forbiddenBinaryTokens
+        if text.contains(token)
+      } yield s"${file.getAbsolutePath}: $token"
+      if (binaryViolations.nonEmpty) {
+        sys.error(
+          "Neutral Scalameta class/TASTy purity violation(s):\n" +
+            binaryViolations.mkString("\n")
+        )
+      }
+
+      log.info(
+        s"Neutral Scalameta boundary verified: ${productionSources.size} sources, " +
+          s"${compileClasspath.size} compile and ${runtimeClasspath.size} runtime classpath entries, " +
+          s"${classAndTastyFiles.size} class/TASTy files; Scalameta 4.17.3 present; " +
+          "no compiler implementation, scala3-staging, or SemanticDB"
+      )
+    }
+  )
+
+lazy val dottyInternal = (project in file("dotty-internal"))
+  .dependsOn(neutralScalameta % "compile->compile;test->test")
   .settings(commonSettings)
   .settings(
     name := "quasiquotes-scala3-dotty-internal",
@@ -213,7 +332,7 @@ lazy val publicCoreExamples = (project in file("public-core-examples"))
   )
 
 lazy val root = (project in file("."))
-  .aggregate(core, frontend, dottyInternal)
+  .aggregate(core, neutralScalameta, frontend, dottyInternal)
   .settings(
     name := "quasiquotes-scala3",
     publish / skip := true,
@@ -230,6 +349,14 @@ lazy val root = (project in file("."))
         .map(_.data.getAbsolutePath.replace('\\', '/')).mkString("\n")
       val backendTest = (dottyInternal / Test / fullClasspath).value
         .map(_.data.getAbsolutePath.replace('\\', '/')).mkString("\n")
+      val neutralCompile = (neutralScalameta / Compile / fullClasspath).value
+        .map(_.data.getAbsolutePath.replace('\\', '/')).mkString("\n")
+      val neutralTest = (neutralScalameta / Test / fullClasspath).value
+        .map(_.data.getAbsolutePath.replace('\\', '/')).mkString("\n")
+      val coreCompile = (core / Compile / fullClasspath).value
+        .map(_.data.getAbsolutePath.replace('\\', '/')).mkString("\n")
+      val coreRuntime = (core / Runtime / fullClasspath).value
+        .map(_.data.getAbsolutePath.replace('\\', '/')).mkString("\n")
       val publicCoreClasspath =
         (publicCoreExamples / Test / fullClasspath).value
           .map(_.data.getAbsolutePath.replace('\\', '/')).mkString("\n")
@@ -238,14 +365,38 @@ lazy val root = (project in file("."))
         hiddenCycleViolations :+= "frontend compile -> dottyInternal"
       if (frontendTest.contains("/dotty-internal/target/"))
         hiddenCycleViolations :+= "frontend test -> dottyInternal"
+      if (frontendCompile.contains("/neutral-scalameta/target/"))
+        hiddenCycleViolations :+= "frontend compile -> neutralScalameta"
+      if (frontendTest.contains("/neutral-scalameta/target/"))
+        hiddenCycleViolations :+= "frontend test -> neutralScalameta"
       if (backendCompile.contains("/frontend/target/"))
         hiddenCycleViolations :+= "dottyInternal compile -> frontend"
       if (backendTest.contains("/frontend/target/"))
         hiddenCycleViolations :+= "dottyInternal test -> frontend"
+      if (!backendCompile.contains("/neutral-scalameta/target/"))
+        hiddenCycleViolations :+= "dottyInternal compile missing neutralScalameta"
+      if (!neutralCompile.contains("/core/target/"))
+        hiddenCycleViolations :+= "neutralScalameta compile missing core"
+      if (neutralCompile.contains("/frontend/target/") ||
+          neutralCompile.contains("/dotty-internal/target/"))
+        hiddenCycleViolations :+= "neutralScalameta compile -> compiler-coupled sibling"
+      if (neutralTest.contains("/frontend/target/") ||
+          neutralTest.contains("/dotty-internal/target/"))
+        hiddenCycleViolations :+= "neutralScalameta test -> compiler-coupled sibling"
+      if (Vector("scala3-compiler", "scala3-interfaces", "tasty-core", "scala-asm", "scala3-staging", "semanticdb")
+          .exists(token => neutralCompile.contains(token) || neutralTest.contains(token)))
+        hiddenCycleViolations :+= "neutralScalameta -> compiler implementation, staging, or SemanticDB"
+      if (Vector("neutral-scalameta", "scalameta_3", "parsers_3", "trees_3", "semanticdb")
+          .exists(token => coreCompile.contains(token) || coreRuntime.contains(token)))
+        hiddenCycleViolations :+= "core -> neutralScalameta or Scalameta"
       if (publicCoreClasspath.contains("/frontend/target/"))
         hiddenCycleViolations :+= "publicCoreExamples test -> frontend"
       if (publicCoreClasspath.contains("/dotty-internal/target/"))
         hiddenCycleViolations :+= "publicCoreExamples test -> dottyInternal"
+      if (publicCoreClasspath.contains("/neutral-scalameta/target/") ||
+          Vector("scalameta_3", "parsers_3", "trees_3", "semanticdb")
+            .exists(publicCoreClasspath.contains))
+        hiddenCycleViolations :+= "publicCoreExamples test -> neutralScalameta or Scalameta"
       if (Vector("scala3-compiler", "scala3-interfaces", "tasty-core", "scala-asm")
           .exists(publicCoreClasspath.contains))
         hiddenCycleViolations :+= "publicCoreExamples test -> compiler implementation"
@@ -256,10 +407,12 @@ lazy val root = (project in file("."))
       }
 
       val coreProduction = (core / Compile / sources).value
+      val neutralProduction = (neutralScalameta / Compile / sources).value
       val frontendProduction = (frontend / Compile / sources).value
       val backendProduction = (dottyInternal / Compile / sources).value
       val misplacedSources =
         coreProduction.filterNot(_.getAbsolutePath.contains("/core/src/main/")) ++
+          neutralProduction.filterNot(_.getAbsolutePath.contains("/neutral-scalameta/src/main/")) ++
           frontendProduction.filterNot(_.getAbsolutePath.contains("/frontend/src/main/")) ++
           backendProduction.filterNot(_.getAbsolutePath.contains("/dotty-internal/src/main/"))
       if (misplacedSources.nonEmpty) {
@@ -284,9 +437,9 @@ lazy val root = (project in file("."))
         }
       } finally archive.close()
       log.info(
-        "Module graph verified: frontend -> core, dottyInternal -> core, " +
+        "Module graph verified: neutralScalameta -> core, dottyInternal -> neutralScalameta -> core, frontend -> core, " +
           "publicCoreExamples -> core without compiler implementation, " +
-          "core/frontend/dottyInternal production source roots are owned, " +
+          "core/neutralScalameta/frontend/dottyInternal production source roots are owned, " +
           "no sibling compile/test classpath edges or hidden production source reuse, " +
           "aggregate root packages no classes"
       )
