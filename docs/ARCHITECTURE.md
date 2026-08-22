@@ -6,6 +6,7 @@ The dependency direction is intentionally one-way:
 frontend ----------------> core
 neutralScalameta ---------> core
 dottyInternal ---> neutralScalameta ---> core
+hybridScalametaFrontend ---> frontend + neutralScalameta
 publicApiExamples -> frontend
 publicCoreExamples -> core
 ```
@@ -36,6 +37,16 @@ AST boundary and the bounded structural projection into existing validated
 core results. It uses ordinary Scala 3 binary crossing. Its compile/runtime
 classpath contains neither the Scala compiler implementation, `scala3-staging`,
 nor SemanticDB. Scalameta remains absent from `core` and `frontend`.
+
+`hybridScalametaFrontend` is an unpublished typed-term experiment. It parses
+with public Scalameta AST APIs, lowers directly into caller-`Quotes` reflected
+terms or the existing typed pattern IR, and retains the exact Dotty frontend as
+an explicit parser fallback and comparison oracle. Its engine selector is an
+ordinary immutable argument; it does not use a process-global or environment
+default. The released `qr` and `qq` entrypoints still select the current Dotty
+engine, and the experiment does not authorize changes to type or definition
+frontends. A future opt-in coordinate would add Scalameta 4.17.3 and its parser
+tree closure; no such coordinate is currently published.
 
 `dottyInternal` owns raw untyped-tree and compiler-internal adapters that are
 useful for exact-version integration proofs. The source remains part of this

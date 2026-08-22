@@ -14,6 +14,7 @@ object TermQ3Macros:
   inline def identifierValue: Int = ${ identifierValueImpl }
   inline def matchingEvidence: List[String] = ${ matchingEvidenceImpl }
   inline def currentEngineEvidence: (Int, (Int, Int)) = ${ currentEngineEvidenceImpl }
+  inline def fullDifferentialEvidence: (List[String], List[String]) = ${ fullDifferentialEvidenceImpl }
 
   private def orDie[E, A](value: Either[E, A]): A =
     value.fold(error => throw new IllegalArgumentException(error.toString), identity)
@@ -159,3 +160,74 @@ object TermQ3Macros:
         '{ (${left.asExprOf[Int]}, ${right.asExprOf[Int]}) }
       case _ => '{ (-1, -1) }
     '{ ($constructed, $captures) }
+
+  private def fullDifferentialEvidenceImpl(using q: Quotes): Expr[(List[String], List[String])] =
+    import q.reflect.*
+
+    def render(term: Term): String = orDie(TargetTermView.fromTerm(term)).render
+    def compareBuild(
+        id: String,
+        parts: Seq[String],
+        arguments: Seq[Term | QuasiTypeSplice] = Nil
+    ): String =
+      val current = orDie(QuasiquoteBuilder.build(parts, arguments))
+      val candidate = orDie(ScalametaTermFrontend.lower(parts, arguments))
+      s"$id=${render(current) == render(candidate)}"
+
+    def compareTreeStructure(
+        id: String,
+        parts: Seq[String],
+        arguments: Seq[Term | QuasiTypeSplice]
+    ): String =
+      val current = orDie(QuasiquoteBuilder.build(parts, arguments))
+      val candidate = orDie(ScalametaTermFrontend.lower(parts, arguments))
+      s"$id=${current.show == candidate.show}"
+
+    val hole = '{ 7 }.asTerm
+    val booleanHole = '{ true }.asTerm
+    val function = '{ (value: Int) => value + 1 }.asTerm
+    val functionApply = Select.unique(function, "apply")
+    val constructedInt = ConstructedType(TypeNormalForm.STypeIdent("Int"))
+    val typeSplice = QuasiTypeSplices.typeSplice(constructedInt)
+
+    val builds = List(
+      compareBuild("literal", Seq("42")),
+      compareBuild("hole", Seq("", ""), Seq(hole)),
+      compareBuild("selection-application", Seq("", ".apply(", ")"), Seq(function, hole)),
+      compareBuild("infix", Seq("", " + 1"), Seq(hole)),
+      compareBuild("unary", Seq("-", ""), Seq(hole)),
+      compareBuild("tuple", Seq("(", ", 2)"), Seq(hole)),
+      compareBuild("if", Seq("if ", " then 1 else 2"), Seq(booleanHole)),
+      compareBuild("ascription", Seq("(", ": Int)"), Seq(hole)),
+      compareBuild("type-splice", Seq("(", ": ", ")"), Seq(hole, typeSplice)),
+      compareTreeStructure("interpolation", Seq("s\"value ", "\""), Seq(hole)),
+      compareBuild("constructor", Seq("new java.lang.StringBuilder(", ")"), Seq(hole)),
+      compareBuild("lambda1", Seq("(x: Int) => x + ", ""), Seq(hole)),
+      compareBuild("nested", Seq("", "(", ")"), Seq(functionApply, hole))
+    )
+
+    val patternSources = List(
+      "42",
+      "$value",
+      "$receiver.apply($argument)",
+      "$left + $right",
+      "-$value",
+      "($left, $right)",
+      "if $condition then $left else $right",
+      "$value: Int",
+      "s\"value $value\"",
+      "new java.lang.StringBuilder($capacity)",
+      "(x: Int) => x + $value"
+    )
+    val patterns = patternSources.zipWithIndex.map { (source, index) =>
+      val current = orDie(QuasiPattern.term(source)).pattern.render
+      val candidate = orDie(ScalametaPatternFrontend.compile(source)).render
+      s"pattern-$index=${current == candidate}"
+    }
+
+    '{
+      (
+        ${Expr.ofList(builds.map(Expr(_)))},
+        ${Expr.ofList(patterns.map(Expr(_)))}
+      )
+    }

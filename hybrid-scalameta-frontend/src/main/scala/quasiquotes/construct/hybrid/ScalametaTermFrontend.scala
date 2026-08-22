@@ -7,7 +7,7 @@ import scala.meta.*
 import scala.meta.parsers.Parsed
 
 import _root_.quasiquotes.construct.*
-import _root_.quasiquotes.parser.TinyTermParser
+import _root_.quasiquotes.parser.{ConstructorNamePolicy, Lambda1DiagnosticMessages, TinyTermParser}
 import _root_.quasiquotes.hybrid.TermQ3DialectPolicy
 import _root_.quasiquotes.types.toTypeRepr
 
@@ -15,6 +15,13 @@ import _root_.quasiquotes.types.toTypeRepr
   * This lives only in the unpublished side-by-side module.
   */
 object ScalametaTermFrontend:
+  private val UnaryMethodByOperator = Map(
+    "+" -> "unary_+",
+    "-" -> "unary_-",
+    "!" -> "unary_!",
+    "~" -> "unary_~"
+  )
+
   final case class Failure(
       category: String,
       start: Int,
@@ -66,8 +73,11 @@ object ScalametaTermFrontend:
     PlaceholderSource.synthesizeCategorized(parts, holes)
       .left.map(error => Failure.template(error.message))
       .flatMap { synthesized =>
+        val parserSource = synthesized.bindings.foldLeft(synthesized.source) { (source, binding) =>
+          source.replace("$" + binding.name, "${" + binding.name + "}")
+        }
         for
-          tree <- parse(synthesized.source, dialect)
+          tree <- parse(parserSource, dialect)
           _ <- validateExactCompiler(synthesized.source)
           typeHoles <- lowerTypeHoles(synthesized.bindings)
           term <- lowerTree(
@@ -138,37 +148,137 @@ object ScalametaTermFrontend:
       catch
         case NonFatal(error) => Left(Failure.lowering(s"selection $name failed: ${error.getMessage}"))
 
-    def loop(current: scala.meta.Term): Either[Failure, Term] =
+    def containsOwnedDefinition(term: Term): Boolean =
+      var found = false
+      val traverser = new TreeTraverser:
+        override def traverseTree(tree: Tree)(owner: Symbol): Unit =
+          tree match
+            case _: ValDef | _: DefDef | _: ClassDef => found = true
+            case _ if !found => super.traverseTree(tree)(owner)
+            case _ => ()
+      traverser.traverseTree(term)(Symbol.spliceOwner)
+      found
+
+    def constructorName(tpe: scala.meta.Type): Either[Failure, String] =
+      tpe match
+        case name: scala.meta.Type.Name => Right(name.value)
+        case select: scala.meta.Type.Select => Right(select.syntax)
+        case _ => unsupported(tpe, "constructor type arguments are not supported")
+
+    def lowerConstructor(name: String, arguments: List[Term]): Either[Failure, Term] =
+      val classSymbol =
+        try
+          Class.forName(name, false, ScalametaTermFrontend.getClass.getClassLoader)
+          Right(Symbol.requiredClass(name))
+        catch case NonFatal(error) => Left(Failure.lowering(s"unresolved constructor $name: ${error.getMessage}"))
+      classSymbol.flatMap { symbol =>
+        try Right(Select.overloaded(New(TypeTree.ref(symbol)), "<init>", Nil, arguments))
+        catch case NonFatal(error) => Left(Failure.lowering(s"constructor $name failed: ${error.getMessage}"))
+      }
+
+    def loop(
+        current: scala.meta.Term,
+        boundTerms: List[(String, Term)] = Nil,
+        lambdaDepth: Int = 0
+    ): Either[Failure, Term] =
+      def lowerChild(child: scala.meta.Term): Either[Failure, Term] =
+        loop(child, boundTerms, lambdaDepth)
+
       current match
         case name: scala.meta.Term.Name =>
           termHoles.get(name.value) match
+            case Some(term) if lambdaDepth > 0 && containsOwnedDefinition(term) =>
+              Left(Failure.lowering(Lambda1DiagnosticMessages.OwnedDefinitionSplice))
             case Some(term) => Right(term)
             case None if typeHoles.contains(name.value) =>
               Left(Failure.lowering(s"type placeholder used in term position: ${name.value}"))
             case None if PlaceholderSource.isCategorizedName(name.value) && !literalCategorizedNames(name.value) =>
               Left(Failure.lowering(s"unknown term placeholder: ${name.value}"))
-            case None => IdentifierResolver.resolve(name.value).left.map(error => Failure.lowering(error.message))
+            case None =>
+              boundTerms.collectFirst { case (boundName, term) if boundName == name.value => term } match
+                case Some(term) => Right(term)
+                case None => IdentifierResolver.resolve(name.value).left.map(error => Failure.lowering(error.message))
+        case function: scala.meta.Term.Function =>
+          if lambdaDepth > 0 then unsupported(function, Lambda1DiagnosticMessages.NestedLambda)
+          else
+            function.paramClause.values match
+              case parameter :: Nil if parameter.decltpe.nonEmpty && parameter.mods.isEmpty =>
+                val parameterName = parameter.name.value
+                lowerType(parameter.decltpe.get).flatMap { parameterTypeTree =>
+                  val parameterType = parameterTypeTree.tpe
+                  val previewSymbol = Symbol.newVal(
+                    Symbol.spliceOwner,
+                    parameterName,
+                    parameterType,
+                    Flags.EmptyFlags,
+                    Symbol.noSymbol
+                  )
+                  val previewParameter = Ref(previewSymbol)
+                  loop(
+                    function.body,
+                    (parameterName -> previewParameter) :: boundTerms,
+                    lambdaDepth + 1
+                  ).flatMap { previewBody =>
+                    val methodType = MethodType(List(parameterName))(
+                      _ => List(parameterType),
+                      _ => previewBody.tpe.widen
+                    )
+                    var bodyFailure: Option[Failure] = None
+                    val lambda = Lambda(
+                      owner = Symbol.spliceOwner,
+                      tpe = methodType,
+                      rhsFn = (_, parameters) =>
+                        val parameterTerm = parameters.head.asInstanceOf[Term]
+                        loop(
+                          function.body,
+                          (parameterName -> parameterTerm) :: boundTerms,
+                          lambdaDepth + 1
+                        ) match
+                          case Right(lowered) => lowered
+                          case Left(failure) =>
+                            bodyFailure = Some(failure)
+                            Literal(UnitConstant())
+                    )
+                    bodyFailure.toLeft(lambda)
+                  }
+                }
+              case _ :: Nil => unsupported(function, Lambda1DiagnosticMessages.ExplicitParameterType)
+              case _ => unsupported(function, Lambda1DiagnosticMessages.ExactlyOneParameter)
         case Lit.Int(value) => Right(Literal(IntConstant(value)))
         case Lit.String(value) => Right(Literal(StringConstant(value)))
         case Lit.Boolean(value) => Right(Literal(BooleanConstant(value)))
         case select: scala.meta.Term.Select =>
-          loop(select.qual).flatMap(selectMember(_, select.name.value))
+          lowerChild(select.qual).flatMap(selectMember(_, select.name.value))
+        case unary: scala.meta.Term.ApplyUnary if UnaryMethodByOperator.contains(unary.op.value) =>
+          lowerChild(unary.arg).flatMap(selectMember(_, UnaryMethodByOperator(unary.op.value)))
+        case fresh: scala.meta.Term.New =>
+          val argumentLists = fresh.init.argss
+          if argumentLists.size != 1 then unsupported(fresh, "multiple constructor argument lists are not supported")
+          else if argumentLists.head.exists(_.isInstanceOf[scala.meta.Term.Assign]) then
+            unsupported(fresh, "named constructor arguments are not supported")
+          else
+            for
+              name <- constructorName(fresh.init.tpe)
+              _ <- ConstructorNamePolicy.validate(name).left.map(Failure.lowering)
+              arguments <- sequence(argumentLists.head.map(lowerChild))
+              result <- lowerConstructor(name, arguments)
+            yield result
         case application: scala.meta.Term.Apply =>
           for
-            function <- loop(application.fun)
-            arguments <- sequence(application.args.map(loop))
+            function <- lowerChild(application.fun)
+            arguments <- sequence(application.args.map(lowerChild))
             result <- applyFunction(function, arguments)
           yield result
         case infix: scala.meta.Term.ApplyInfix if infix.argClause.values.size == 1 =>
           for
-            left <- loop(infix.lhs)
-            right <- loop(infix.argClause.values.head)
+            left <- lowerChild(infix.lhs)
+            right <- lowerChild(infix.argClause.values.head)
             result <-
               try Right(Select.overloaded(left, infix.op.value, Nil, right :: Nil))
               catch case NonFatal(error) => Left(Failure.lowering(s"infix ${infix.op.value} failed: ${error.getMessage}"))
           yield result
         case tuple: scala.meta.Term.Tuple =>
-          sequence(tuple.args.map(loop)).flatMap { elements =>
+          sequence(tuple.args.map(lowerChild)).flatMap { elements =>
             if elements.size < 2 || elements.size > 22 then
               unsupported(tuple, s"unsupported tuple arity ${elements.size}")
             else
@@ -177,18 +287,25 @@ object ScalametaTermFrontend:
           }
         case conditional: scala.meta.Term.If =>
           for
-            condition <- loop(conditional.cond)
-            thenBranch <- loop(conditional.thenp)
-            elseBranch <- loop(conditional.elsep)
+            condition <- lowerChild(conditional.cond)
+            thenBranch <- lowerChild(conditional.thenp)
+            elseBranch <- lowerChild(conditional.elsep)
           yield If(condition, thenBranch, elseBranch)
         case ascription: scala.meta.Term.Ascribe =>
           for
-            expression <- loop(ascription.expr)
+            expression <- lowerChild(ascription.expr)
             tpe <- lowerType(ascription.tpe)
           yield Typed(expression, tpe)
         case interpolation: scala.meta.Term.Interpolate if interpolation.prefix.value == "s" =>
+          def interpolationArgument(argument: scala.meta.Term): Either[Failure, Term] =
+            argument match
+              case block: scala.meta.Term.Block =>
+                block.stats match
+                  case (term: scala.meta.Term) :: Nil => lowerChild(term)
+                  case _ => unsupported(block, "interpolation argument blocks must contain one admitted term")
+              case term => lowerChild(term)
           for
-            arguments <- sequence(interpolation.args.map(loop))
+            arguments <- sequence(interpolation.args.map(interpolationArgument))
             parts <- sequence(interpolation.parts.map {
               case Lit.String(value) => Right(value)
               case other => unsupported(other, "non-string interpolation segment")

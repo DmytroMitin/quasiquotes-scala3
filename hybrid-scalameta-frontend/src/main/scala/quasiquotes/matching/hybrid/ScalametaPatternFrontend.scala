@@ -4,13 +4,14 @@ import scala.meta.*
 
 import _root_.quasiquotes.construct.hybrid.ScalametaTermFrontend
 import _root_.quasiquotes.matching.{PatternSource, TermPattern}
-import _root_.quasiquotes.parser.BinderId
+import _root_.quasiquotes.parser.{BinderId, ConstructorNamePolicy, Lambda1DiagnosticMessages}
 import _root_.quasiquotes.hybrid.TermQ3DialectPolicy
 import _root_.quasiquotes.source.GeneratedHoleIndex
 
 /** Scalameta syntax-to-existing-pattern-IR compiler for the bounded term slice. */
 object ScalametaPatternFrontend:
   type Failure = ScalametaTermFrontend.Failure
+  private val SupportedUnaryOperators = Set("+", "-", "!", "~")
 
   def compile(
       pattern: String,
@@ -19,8 +20,19 @@ object ScalametaPatternFrontend:
     PatternSource.synthesizeMapped(pattern)
       .left.map(error => ScalametaTermFrontend.Failure.template(error.message))
       .flatMap { mapped =>
+        val parserSource = mapped.occurrences
+          .sortBy(_.generatedSpan.start)
+          .reverse
+          .foldLeft(mapped.patternSource.source) { (source, occurrence) =>
+            val span = occurrence.generatedSpan
+            if span.start > 0 && source.charAt(span.start - 1) == '$' then
+              source.substring(0, span.start) + "{" +
+                source.substring(span.start, span.end) + "}" +
+                source.substring(span.end)
+            else source
+          }
         for
-          tree <- ScalametaTermFrontend.parse(mapped.patternSource.source, dialect)
+          tree <- ScalametaTermFrontend.parse(parserSource, dialect)
           _ <- ScalametaTermFrontend.validateExactCompiler(mapped.patternSource.source)
           compiled <- compileTree(tree, mapped.generatedHoleIndex)
         yield compiled
@@ -54,6 +66,12 @@ object ScalametaPatternFrontend:
         case select: scala.meta.Type.Select => Right(normalizeType(select.syntax))
         case _ => unsupported(tpe, "ascription type must be a stable name")
 
+    def constructorName(tpe: scala.meta.Type): Either[Failure, String] =
+      tpe match
+        case name: scala.meta.Type.Name => Right(name.value)
+        case select: scala.meta.Type.Select => Right(select.syntax)
+        case _ => unsupported(tpe, "constructor type arguments are not supported")
+
     def literal(lit: Lit): Either[Failure, TermPattern] =
       lit match
         case Lit.Int(value) => Right(TermPattern.Literal(value.toString))
@@ -73,9 +91,35 @@ object ScalametaPatternFrontend:
               scope.collectFirst { case (boundName, id) if boundName == name.value => id } match
                 case Some(id) => Right(TermPattern.BoundReference(id, name.value))
                 case None => Right(TermPattern.Identifier(name.value))
+        case function: scala.meta.Term.Function =>
+          if scope.nonEmpty then unsupported(function, Lambda1DiagnosticMessages.NestedLambda)
+          else
+            function.paramClause.values match
+              case parameter :: Nil if parameter.decltpe.nonEmpty && parameter.mods.isEmpty =>
+                val binderId = BinderId(0)
+                val parameterName = parameter.name.value
+                for
+                  parameterType <- renderType(parameter.decltpe.get)
+                  body <- loop(function.body, (parameterName -> binderId) :: scope)
+                yield TermPattern.Lambda1(binderId, parameterName, parameterType, body)
+              case _ :: Nil => unsupported(function, Lambda1DiagnosticMessages.ExplicitParameterType)
+              case _ => unsupported(function, Lambda1DiagnosticMessages.ExactlyOneParameter)
         case value: Lit => literal(value)
         case select: scala.meta.Term.Select =>
           loop(select.qual, scope).map(TermPattern.Select(_, select.name.value))
+        case unary: scala.meta.Term.ApplyUnary if SupportedUnaryOperators(unary.op.value) =>
+          loop(unary.arg, scope).map(TermPattern.Unary(unary.op.value, _))
+        case fresh: scala.meta.Term.New =>
+          val argumentLists = fresh.init.argss
+          if argumentLists.size != 1 then unsupported(fresh, "multiple constructor argument lists are not supported")
+          else if argumentLists.head.exists(_.isInstanceOf[scala.meta.Term.Assign]) then
+            unsupported(fresh, "named constructor arguments are not supported")
+          else
+            for
+              name <- constructorName(fresh.init.tpe)
+              _ <- ConstructorNamePolicy.validate(name).left.map(ScalametaTermFrontend.Failure.lowering)
+              arguments <- sequence(argumentLists.head.map(loop(_, scope)))
+            yield TermPattern.New(name, arguments)
         case application: scala.meta.Term.Apply =>
           for
             function <- loop(application.fun, scope)
@@ -99,6 +143,21 @@ object ScalametaPatternFrontend:
             expression <- loop(ascription.expr, scope)
             tpe <- renderType(ascription.tpe)
           yield TermPattern.Typed(expression, tpe)
+        case interpolation: scala.meta.Term.Interpolate if interpolation.prefix.value == "s" =>
+          def interpolationArgument(argument: scala.meta.Term): Either[Failure, TermPattern] =
+            argument match
+              case block: scala.meta.Term.Block =>
+                block.stats match
+                  case (term: scala.meta.Term) :: Nil => loop(term, scope)
+                  case _ => unsupported(block, "interpolation argument blocks must contain one admitted term")
+              case term => loop(term, scope)
+          for
+            arguments <- sequence(interpolation.args.map(interpolationArgument))
+            parts <- sequence(interpolation.parts.map {
+              case Lit.String(value) => Right(value)
+              case other => unsupported(other, "non-string interpolation segment")
+            })
+          yield TermPattern.InterpolatedString("s", parts, arguments)
         case other => unsupported(other, "outside the bounded side-by-side term-pattern tranche")
 
     loop(tree)
