@@ -2,6 +2,7 @@ package quasiquotes.matching
 
 import dotty.tools.dotc.ast.untpd
 import quasiquotes.parser.{BinderId, ConstructorNamePolicy, DottySourceSpanAdapter, InterpolatedStringSegments, Lambda1DiagnosticMessages}
+import quasiquotes.parser.P1BlockDiagnosticMessages
 import quasiquotes.source.{GeneratedHoleIndex, SourceSpan}
 
 private[matching] final case class PatternCompileFailure(
@@ -107,6 +108,24 @@ object PatternCompiler:
           compiledThenBranch <- compileChild(thenBranch)
           compiledElseBranch <- compileChild(elseBranch)
         yield TermPattern.If(compiledCondition, compiledThenBranch, compiledElseBranch)
+      case untpd.Block(Nil, result) =>
+        compileChild(result)
+      case block @ untpd.Block(statements, result) =>
+        statements.collectFirst {
+          case value: untpd.ValDef => unsupportedBlock(value, P1BlockDiagnosticMessages.LocalVal)
+          case definition: untpd.DefDef => unsupportedBlock(definition, P1BlockDiagnosticMessages.LocalDef)
+          case statement if !statement.isTerm =>
+            unsupportedBlock(
+              statement,
+              P1BlockDiagnosticMessages.UnsupportedStatement(statement.getClass.getSimpleName)
+            )
+        } match
+          case Some(failure) => failure
+          case None =>
+            for
+              compiledStatements <- sequence(statements.map(compileChild))
+              compiledResult <- compileChild(result)
+            yield TermPattern.Block(compiledStatements, compiledResult)
       case untpd.Parens(inner) =>
         compileChild(inner).map(TermPattern.Parenthesized.apply)
       case untpd.TypedSplice(inner) =>
@@ -150,6 +169,17 @@ object PatternCompiler:
     Left(
       PatternCompileFailure(
         PatternError.UnsupportedPatternShape("Lambda1", detail),
+        DottySourceSpanAdapter.fromTree(tree).filter(!_.isEmpty)
+      )
+    )
+
+  private def unsupportedBlock(
+      tree: untpd.Tree,
+      detail: String
+  ): Either[PatternCompileFailure, Nothing] =
+    Left(
+      PatternCompileFailure(
+        PatternError.UnsupportedPatternShape("Block", detail),
         DottySourceSpanAdapter.fromTree(tree).filter(!_.isEmpty)
       )
     )

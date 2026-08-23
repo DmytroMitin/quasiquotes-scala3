@@ -82,6 +82,10 @@ object TermMatcher:
           scopedEquivalent(leftCondition, leftScope, rightCondition, rightScope) &&
             scopedEquivalent(leftThen, leftScope, rightThen, rightScope) &&
             scopedEquivalent(leftElse, leftScope, rightElse, rightScope)
+        case (TargetTermView.Block(leftPrefix, leftResult, _), TargetTermView.Block(rightPrefix, rightResult, _)) =>
+          leftPrefix.size == rightPrefix.size &&
+            leftPrefix.zip(rightPrefix).forall((left, right) => scopedEquivalent(left, leftScope, right, rightScope)) &&
+            scopedEquivalent(leftResult, leftScope, rightResult, rightScope)
         case _ => false
 
     def normalizedEquality(
@@ -221,6 +225,18 @@ object TermMatcher:
                 thenBindings <- loop(thenBranch, targetThenBranch, conditionBindings, patternScope, targetScope)
                 elseBindings <- loop(elseBranch, targetElseBranch, thenBindings, patternScope, targetScope)
               yield elseBindings
+            case other => Left(shapeMismatch(pattern, other))
+        case TermPattern.Block(prefix, result) =>
+          target match
+            case TargetTermView.Block(targetPrefix, targetResult, _) if targetPrefix.length == prefix.length =>
+              for
+                prefixBindings <- prefix.zip(targetPrefix).foldLeft(
+                  Right(bindings): Either[MatchFailure, Map[String, Captured]]
+                ) { case (acc, (patternChild, targetChild)) =>
+                  acc.flatMap(loop(patternChild, targetChild, _, patternScope, targetScope))
+                }
+                resultBindings <- loop(result, targetResult, prefixBindings, patternScope, targetScope)
+              yield resultBindings
             case other => Left(shapeMismatch(pattern, other))
         case TermPattern.Parenthesized(inner) =>
           if normalized then loop(inner, target, bindings, patternScope, targetScope)

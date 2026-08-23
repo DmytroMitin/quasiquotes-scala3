@@ -5,6 +5,7 @@ import scala.meta.*
 import _root_.quasiquotes.construct.hybrid.ScalametaTermFrontend
 import _root_.quasiquotes.matching.{PatternSource, TermPattern}
 import _root_.quasiquotes.parser.{BinderId, ConstructorNamePolicy, Lambda1DiagnosticMessages}
+import _root_.quasiquotes.parser.P1BlockDiagnosticMessages
 import _root_.quasiquotes.hybrid.TermQ3DialectPolicy
 import _root_.quasiquotes.source.GeneratedHoleIndex
 
@@ -138,6 +139,24 @@ private[quasiquotes] object ScalametaPatternFrontend:
             thenBranch <- loop(conditional.thenp, scope)
             elseBranch <- loop(conditional.elsep, scope)
           yield TermPattern.If(condition, thenBranch, elseBranch)
+        case block: scala.meta.Term.Block =>
+          block.stats match
+            case (result: scala.meta.Term) :: Nil => loop(result, scope)
+            case stats if stats.size >= 2 && stats.forall(_.isInstanceOf[scala.meta.Term]) =>
+              val terms = stats.map(_.asInstanceOf[scala.meta.Term])
+              for
+                prefix <- sequence(terms.init.map(loop(_, scope)))
+                result <- loop(terms.last, scope)
+              yield TermPattern.Block(prefix, result)
+            case stats =>
+              stats.collectFirst {
+                case _: scala.meta.Defn.Val | _: scala.meta.Defn.Var => P1BlockDiagnosticMessages.LocalVal
+                case _: scala.meta.Defn.Def => P1BlockDiagnosticMessages.LocalDef
+                case stat if !stat.isInstanceOf[scala.meta.Term] =>
+                  P1BlockDiagnosticMessages.UnsupportedStatement(stat.productPrefix)
+              } match
+                case Some(detail) => unsupported(block, detail)
+                case None => unsupported(block, "P1 block requires at least one expression statement and a final result")
         case ascription: scala.meta.Term.Ascribe =>
           for
             expression <- loop(ascription.expr, scope)

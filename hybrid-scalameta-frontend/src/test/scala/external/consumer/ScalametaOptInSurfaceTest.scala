@@ -15,6 +15,12 @@ class ScalametaOptInSurfaceTest extends munit.FunSuite:
   test("Scalameta pattern host preserves a generated NoSpan subtree by identity"):
     assert(ScalametaOptInMacros.generatedCaptureIsOriginal)
 
+  test("Scalameta opt-in block construction preserves caller-owned prefix and result children"):
+    assert(ScalametaOptInMacros.blockConstructionPreservesChildren)
+
+  test("Scalameta opt-in block matching returns original generated prefix and result children"):
+    assert(ScalametaOptInMacros.blockCapturesAreOriginal)
+
   test("programmatic opt-in reports parse-only fallback without global state"):
     given Compiler = Compiler.make(getClass.getClassLoader)
     val result = withQuotes:

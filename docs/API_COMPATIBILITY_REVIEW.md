@@ -33,6 +33,24 @@ The machine report is deterministically sorted and the human summary maps the
 exact shape result to the project's experimental `early-semver` policy. The
 baseline remains a review artifact, not a stability promise.
 
+## Phase-115 source candidate
+
+The binder-free P1 block tranche generates 622 rows: 307 from `core` and 315
+from `frontend`. Against the immutable released 618-row baseline, the exact
+report records four additions, no removals, no overload/signature additions,
+and no owner or kind moves:
+
+- `quasiquotes.parser.TermShape.Block`;
+- `quasiquotes.matching.TermPattern.Block`;
+- `quasiquotes.matching.CanonicalTerm.Block`;
+- `quasiquotes.matching.TargetTermView.Block`.
+
+This is `ADDITIVE_API_SHAPE_DELTA_REVIEW_REQUIRED` and is deliberate future
+source growth, not an automatic patch-safe or binary/TASTy compatibility
+claim. The unpublished Scalameta opt-in implementation adds behavior only and
+no separate public inventory row. Released `0.2.0` artifacts and the accepted
+baseline below remain unchanged.
+
 ## Current accepted shape
 
 The accepted inventory contains 618 rows: 305 from `core` and 313 from

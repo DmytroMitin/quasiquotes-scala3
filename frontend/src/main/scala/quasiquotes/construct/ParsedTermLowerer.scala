@@ -9,6 +9,7 @@ import quasiquotes.parser.DottySourceSpanAdapter
 import quasiquotes.parser.InterpolatedStringSegments
 import quasiquotes.parser.ConstructorNamePolicy
 import quasiquotes.parser.Lambda1DiagnosticMessages
+import quasiquotes.parser.P1BlockDiagnosticMessages
 import quasiquotes.types.toTypeRepr
 
 object ParsedTermLowerer:
@@ -216,6 +217,29 @@ object ParsedTermLowerer:
             loweredThenBranch <- lowerChild(thenBranch)
             loweredElseBranch <- lowerChild(elseBranch)
           yield If(loweredCondition, loweredThenBranch, loweredElseBranch)
+        case untpd.Block(Nil, result) =>
+          lowerChild(result)
+        case block @ untpd.Block(statements, result) =>
+          statements.collectFirst {
+            case value: untpd.ValDef =>
+              located(QuasiquoteError.UnsupportedTree("Block", P1BlockDiagnosticMessages.LocalVal), value)
+            case definition: untpd.DefDef =>
+              located(QuasiquoteError.UnsupportedTree("Block", P1BlockDiagnosticMessages.LocalDef), definition)
+            case statement if !statement.isTerm =>
+              located(
+                QuasiquoteError.UnsupportedTree(
+                  "Block",
+                  P1BlockDiagnosticMessages.UnsupportedStatement(statement.getClass.getSimpleName)
+                ),
+                statement
+              )
+          } match
+            case Some(failure) => Left(failure)
+            case None =>
+              for
+                loweredStatements <- sequenceLocated(statements.map(lowerChild))
+                loweredResult <- lowerChild(result)
+              yield Block(loweredStatements, loweredResult)
         case untpd.Parens(inner) =>
           lowerChild(inner)
         case untpd.TypedSplice(tree) =>

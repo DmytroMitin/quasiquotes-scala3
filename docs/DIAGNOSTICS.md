@@ -97,6 +97,13 @@ protocol cannot return rich mismatch details; use `QuasiPattern.termLocated`
 for recoverable template diagnostics and `matchTerm` for explicit match
 failures.
 
+For P1 blocks, local `val`/`var` and local `def` statements are rejected
+explicitly as unsupported binder-bearing block forms. The public-default and
+Scalameta opt-in paths use the same block-family wording. Located parsing maps
+the deepest truthful unsupported subtree when available; malformed blocks
+remain `PatternError.ParseFailure` values and may have an exact parser span or
+no usable location. Generated target matching requires no source reconstruction.
+
 ## `tqr` and `tqq` diagnostics
 
 The reflected type syntax has two controlled macro-expansion prefixes:

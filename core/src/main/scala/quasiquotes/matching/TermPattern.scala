@@ -33,6 +33,8 @@ object TermPattern:
   final case class Typed(expression: TermPattern, typeName: String) extends TermPattern
   final case class Tuple(elements: List[TermPattern]) extends TermPattern
   final case class If(condition: TermPattern, thenBranch: TermPattern, elseBranch: TermPattern) extends TermPattern
+  final case class Block(prefix: List[TermPattern], result: TermPattern) extends TermPattern:
+    require(prefix.nonEmpty, "P1 block prefix must contain at least one expression")
   final case class Parenthesized(expression: TermPattern) extends TermPattern
 
   def render(pattern: TermPattern): String =
@@ -58,6 +60,8 @@ object TermPattern:
       case Tuple(elements) => s"Tuple([${elements.map(render).mkString(", ")}])"
       case If(condition, thenBranch, elseBranch) =>
         s"If(${render(condition)}, ${render(thenBranch)}, ${render(elseBranch)})"
+      case Block(prefix, result) =>
+        s"Block([${prefix.map(render).mkString(", ")}], ${render(result)})"
       case Parenthesized(expression) => s"Parens(${render(expression)})"
 
   private def quote(value: String): String =

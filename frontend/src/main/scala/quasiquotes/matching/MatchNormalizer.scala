@@ -34,6 +34,8 @@ object MatchNormalizer:
         TermPattern.Tuple(elements.map(normalizePattern))
       case TermPattern.If(condition, thenBranch, elseBranch) =>
         TermPattern.If(normalizePattern(condition), normalizePattern(thenBranch), normalizePattern(elseBranch))
+      case TermPattern.Block(prefix, result) =>
+        TermPattern.Block(prefix.map(normalizePattern), normalizePattern(result))
       case other =>
         other
 
@@ -67,6 +69,8 @@ object MatchNormalizer:
         TargetTermView.Tuple(elements.map(normalizeTarget), original)
       case TargetTermView.If(condition, thenBranch, elseBranch, original) =>
         TargetTermView.If(normalizeTarget(condition), normalizeTarget(thenBranch), normalizeTarget(elseBranch), original)
+      case TargetTermView.Block(prefix, result, original) =>
+        TargetTermView.Block(prefix.map(normalizeTarget), normalizeTarget(result), original)
       case other =>
         other
 

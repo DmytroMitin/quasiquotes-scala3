@@ -47,6 +47,7 @@ object TargetTermView:
   final case class Typed[T](expression: TargetTermView[T], typeName: String, original: T) extends TargetTermView[T]
   final case class Tuple[T](elements: List[TargetTermView[T]], original: T) extends TargetTermView[T]
   final case class If[T](condition: TargetTermView[T], thenBranch: TargetTermView[T], elseBranch: TargetTermView[T], original: T) extends TargetTermView[T]
+  final case class Block[T](prefix: List[TargetTermView[T]], result: TargetTermView[T], original: T) extends TargetTermView[T]
 
   def fromTerm(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, TargetTermView[q.reflect.Term]] =
     fromTermInScope(term, Nil)
@@ -85,7 +86,7 @@ object TargetTermView:
         scope: List[(BinderId, Symbol)]
     ): Either[MatchFailure, TargetTermView[Term]] =
       term match
-        case block: Block if Lambda.unapply(block).nonEmpty =>
+        case block: q.reflect.Block if Lambda.unapply(block).nonEmpty =>
           if scope.nonEmpty then
             Left(MatchFailure.UnsupportedTargetShape("nested lambdas are outside the bounded Lambda1 tranche"))
           else
@@ -157,6 +158,15 @@ object TargetTermView:
             extractedThenBranch <- extract(thenBranch, scope)
             extractedElseBranch <- extract(elseBranch, scope)
           yield TargetTermView.If(extractedCondition, extractedThenBranch, extractedElseBranch, current)
+        case block @ q.reflect.Block(statements, result) =>
+          val terms = statements.collect { case term: Term => term }
+          if terms.size != statements.size then
+            Left(MatchFailure.UnsupportedTargetShape("P1 block target contains a local definition or non-expression statement"))
+          else
+            for
+              extractedPrefix <- sequence(terms.map(extract(_, scope)))
+              extractedResult <- extract(result, scope)
+            yield TargetTermView.Block(extractedPrefix, extractedResult, block)
         case other =>
           Left(MatchFailure.UnsupportedTargetShape(other.show(using Printer.TreeStructure)))
 
@@ -186,6 +196,8 @@ object TargetTermView:
         s"Tuple([${elements.map(render).mkString(", ")}])"
       case If(condition, thenBranch, elseBranch, _) =>
         s"If(${render(condition)}, ${render(thenBranch)}, ${render(elseBranch)})"
+      case Block(prefix, result, _) =>
+        s"Block([${prefix.map(render).mkString(", ")}], ${render(result)})"
 
   private def sourceInterpolation(using q: Quotes)(
       term: q.reflect.Term
@@ -238,7 +250,7 @@ object TargetTermView:
     import q.reflect.*
     term match
       case Inlined(_, _, inner) => unwrapWrappers(inner)
-      case Block(Nil, inner: Term) => unwrapWrappers(inner)
+      case q.reflect.Block(Nil, inner: Term) => unwrapWrappers(inner)
       case ident: Ident if ident.symbol.exists && ident.symbol.pos.nonEmpty =>
         ident.symbol.tree match
           case ValDef(_, _, Some(rhs)) => unwrapWrappers(rhs)

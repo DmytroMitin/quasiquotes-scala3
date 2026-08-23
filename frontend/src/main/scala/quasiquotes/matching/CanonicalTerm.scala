@@ -24,6 +24,7 @@ object CanonicalTerm:
   final case class Typed(expression: CanonicalTerm, typeName: String) extends CanonicalTerm
   final case class Tuple(elements: List[CanonicalTerm]) extends CanonicalTerm
   final case class If(condition: CanonicalTerm, thenBranch: CanonicalTerm, elseBranch: CanonicalTerm) extends CanonicalTerm
+  final case class Block(prefix: List[CanonicalTerm], result: CanonicalTerm) extends CanonicalTerm
 
   def render(term: CanonicalTerm): String =
     term match
@@ -49,6 +50,8 @@ object CanonicalTerm:
         s"CTuple([${elements.map(render).mkString(", ")}])"
       case If(condition, thenBranch, elseBranch) =>
         s"CIf(${render(condition)}, ${render(thenBranch)}, ${render(elseBranch)})"
+      case Block(prefix, result) =>
+        s"CBlock([${prefix.map(render).mkString(", ")}], ${render(result)})"
 
   private def quote(value: String): String =
     "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
@@ -111,6 +114,11 @@ object TermCanonicalizer:
           canonicalThenBranch <- canonicalizeView(thenBranch, scope)
           canonicalElseBranch <- canonicalizeView(elseBranch, scope)
         yield CanonicalTerm.If(canonicalCondition, canonicalThenBranch, canonicalElseBranch)
+      case TargetTermView.Block(prefix, result, _) =>
+        for
+          canonicalPrefix <- sequence(prefix.map(canonicalizeView(_, scope)))
+          canonicalResult <- canonicalizeView(result, scope)
+        yield CanonicalTerm.Block(canonicalPrefix, canonicalResult)
 
   private def sequence[A](values: List[Either[MatchFailure, A]]): Either[MatchFailure, List[A]] =
     values.foldRight(Right(Nil): Either[MatchFailure, List[A]]) { (next, acc) =>

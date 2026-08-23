@@ -27,8 +27,9 @@ Status vocabulary:
 | Standard interpolation | `s"hello $name"` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; standard single-quoted `s` only, with layered-dollar holes |
 | Constructor | `new java.lang.StringBuilder(16)` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; fully-qualified, non-generic name and one ordinary argument list |
 | Lambda1 | `(x: Int) => x` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; exactly one explicitly typed ordinary parameter, alpha-aware |
+| Binder-free P1 block | `{ effect1(); effect2(); result }` | Yes | Yes | `qr`, `qq`, `QuasiPattern.term` | `BOUNDED`; one or more ordered expression prefixes plus a distinct final result; children must already be admitted Terms |
 | Ordered term capture extractor | `case qq"$left + $right"` | No | Yes | `qq`, with `QuasiPattern.term` retained | `BOUNDED`; at least one distinct term slot, captures in source order, mismatch falls through |
-| Blocks and local definitions | `{ val x = 1; x }` | No | No | — | `NOT_YET`; requires ownership and local-scope policy |
+| Local-value/local-definition blocks | `{ val x = 1; x }`, `{ def x = 1; x }` | No | No | — | `NOT_YET`; P2/P3 require separate binder, ownership, and local-scope policy |
 | Match / try / loops / for | `value match ...` | No | No | — | `NOT_YET`; no broad control-flow surface |
 | General term AST | arbitrary Scala expression | No | No | — | `NOT_PLANNED`; this project intentionally exposes a bounded structural subset |
 

@@ -6,6 +6,8 @@ object ScalametaOptInMacros:
   inline def constructed: (Int, Int) = ${ constructedImpl }
   inline def matched: (Int, Int) = ${ matchedImpl }
   inline def generatedCaptureIsOriginal: Boolean = ${ generatedCaptureIsOriginalImpl }
+  inline def blockConstructionPreservesChildren: Boolean = ${ blockConstructionPreservesChildrenImpl }
+  inline def blockCapturesAreOriginal: Boolean = ${ blockCapturesAreOriginalImpl }
   inline def currentDefaultControl: (Int, (Int, Int)) = ${ currentDefaultControlImpl }
 
   private def constructedImpl(using q: Quotes): Expr[(Int, Int)] =
@@ -35,6 +37,35 @@ object ScalametaOptInMacros:
       case qq"$whole" => whole
       case _ => report.errorAndAbort("generated Scalameta opt-in match failed")
     Expr(captured.asInstanceOf[AnyRef].eq(generated.asInstanceOf[AnyRef]))
+
+  private def blockConstructionPreservesChildrenImpl(using q: Quotes): Expr[Boolean] =
+    import q.reflect.*
+    import quasiquotes.scalameta.ScalametaQuasiquotes.*
+
+    val prefix = Literal(IntConstant(1))
+    val result = Literal(IntConstant(2))
+    val constructed = qr"{ $prefix; $result }"
+    val preserved = constructed match
+      case Block((first: Term) :: Nil, last) =>
+        first.asInstanceOf[AnyRef].eq(prefix.asInstanceOf[AnyRef]) &&
+          last.asInstanceOf[AnyRef].eq(result.asInstanceOf[AnyRef])
+      case _ => false
+    Expr(preserved)
+
+  private def blockCapturesAreOriginalImpl(using q: Quotes): Expr[Boolean] =
+    import q.reflect.*
+    import quasiquotes.scalameta.ScalametaQuasiPattern.*
+
+    val prefix = Literal(IntConstant(1))
+    val result = Literal(IntConstant(2))
+    val generated = Block(List(prefix), result)
+    generated match
+      case qq"{ $capturedPrefix; $capturedResult }" =>
+        Expr(
+          capturedPrefix.asInstanceOf[AnyRef].eq(prefix.asInstanceOf[AnyRef]) &&
+            capturedResult.asInstanceOf[AnyRef].eq(result.asInstanceOf[AnyRef])
+        )
+      case _ => Expr(false)
 
   private def currentDefaultControlImpl(using q: Quotes): Expr[(Int, (Int, Int))] =
     import q.reflect.*

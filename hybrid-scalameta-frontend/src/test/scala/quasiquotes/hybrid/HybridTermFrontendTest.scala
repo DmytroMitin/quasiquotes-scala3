@@ -21,14 +21,18 @@ class HybridTermFrontendTest extends munit.FunSuite:
     val rows = TermQ3ParityMatrix.rows
     assertEquals(rows.map(_.id).distinct.size, rows.size)
     assertEquals(rows.map(_.id).toSet, TermQ3ParityMatrix.requiredIds)
-    assertEquals(rows.size, 35)
+    assertEquals(rows.size, 36)
     assertEquals(
       rows.count(_.classification == TermQ3ParityMatrix.Classification.HYBRID_SCALAMETA_SUPPORTED),
-      29
+      30
     )
     assertEquals(
       rows.count(_.classification == TermQ3ParityMatrix.Classification.NOT_A_PUBLIC_TERM_CASE),
       6
+    )
+    assertEquals(
+      rows.find(_.id == "p1-expression-block").map(_.classification),
+      Some(TermQ3ParityMatrix.Classification.HYBRID_SCALAMETA_SUPPORTED)
     )
 
   test("Scalameta construction preserves caller-owned holes and matches current structure"):
@@ -194,6 +198,46 @@ class HybridTermFrontendTest extends munit.FunSuite:
       ScalametaPatternFrontend.compile("($x, $x)").map(_.render),
       Right("Tuple([Hole($x), Hole($x)])")
     )
+
+  test("Scalameta construction and matching share the P1 block structure and original captures"):
+    given Compiler = Compiler.make(getClass.getClassLoader)
+    val evidence = withQuotes:
+      val q = summon[scala.quoted.Quotes]
+      import q.reflect.*
+
+      def render(term: Term) =
+        TargetTermView.fromTerm(using q)(term).map(_.render)
+
+      val current = quasiquotes.construct.QuasiquoteBuilder.build(using q)(Seq("{ 1; 2; 3 }"), Nil)
+      val candidate = ScalametaTermFrontend.lower(using q)(Seq("{ 1; 2; 3 }"), Nil)
+      val pattern = ScalametaPatternFrontend.compile("{ $prefix; $result }")
+      val first = Literal(IntConstant(1))
+      val result = Literal(IntConstant(2))
+      val generated = Block(List(first), result)
+      val identities = pattern.flatMap(compiled =>
+        TermMatcher.matchTerm(using q)(compiled, generated)
+          .left.map(error => ScalametaTermFrontend.Failure.lowering(error.message))
+          .map(matched =>
+            matched.bindings("prefix").asInstanceOf[AnyRef].eq(first.asInstanceOf[AnyRef]) &&
+              matched.bindings("result").asInstanceOf[AnyRef].eq(result.asInstanceOf[AnyRef])
+          )
+      )
+
+      (
+        current.left.map(error => ScalametaTermFrontend.Failure.lowering(error.message)).flatMap(render),
+        candidate.flatMap(term => render(term).left.map(error => ScalametaTermFrontend.Failure.lowering(error.message))),
+        pattern.map(_.render),
+        identities
+      )
+
+    val expected = "Block([Literal(1), Literal(2)], Literal(3))"
+    assertEquals(evidence._1, Right(expected))
+    assertEquals(evidence._2, Right(expected))
+    assertEquals(
+      evidence._3,
+      Right("Block([Hole($prefix)], Hole($result))")
+    )
+    assertEquals(evidence._4, Right(true))
 
   test("pattern fallback remains callable without changing explicit QuasiPattern semantics"):
     val restricted = HybridPatternFrontend.compile("if true then $value else 0", dialects.Scala213)

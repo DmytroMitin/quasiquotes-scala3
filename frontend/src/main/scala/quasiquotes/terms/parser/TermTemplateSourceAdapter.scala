@@ -714,6 +714,8 @@ private[quasiquotes] object RawTermTemplateAdapter:
           loop(condition, boundNames) ++
             loop(thenBranch, boundNames) ++
             loop(elseBranch, boundNames)
+        case untpd.Block(statements, result) =>
+          statements.toVector.flatMap(loop(_, boundNames)) ++ loop(result, boundNames)
         case untpd.Parens(inner) =>
           loop(inner, boundNames)
         case untpd.TypedSplice(inner) =>
@@ -745,6 +747,8 @@ private[quasiquotes] object RawTermTemplateAdapter:
         rawTermFields(condition) ++
           rawTermFields(thenBranch) ++
           rawTermFields(elseBranch)
+      case untpd.Block(statements, result) =>
+        statements.toVector.flatMap(rawTermFields) ++ rawTermFields(result)
       case untpd.Parens(inner) =>
         rawTermFields(inner)
       case untpd.TypedSplice(inner) =>
@@ -777,6 +781,8 @@ private[quasiquotes] object RawTermTemplateAdapter:
         rawTypedTypeTrees(condition) ++
           rawTypedTypeTrees(thenBranch) ++
           rawTypedTypeTrees(elseBranch)
+      case untpd.Block(statements, result) =>
+        statements.toVector.flatMap(rawTypedTypeTrees) ++ rawTypedTypeTrees(result)
       case untpd.Parens(inner) =>
         rawTypedTypeTrees(inner)
       case untpd.TypedSplice(inner) =>
@@ -834,6 +840,9 @@ private[quasiquotes] object RawTermTemplateAdapter:
         firstUnsupported(condition)
           .orElse(firstUnsupported(thenBranch))
           .orElse(firstUnsupported(elseBranch))
+      case TermShape.Block(prefix, result) =>
+        prefix.iterator.flatMap(firstUnsupported).nextOption()
+          .orElse(firstUnsupported(result))
       case TermShape.Parenthesized(expression) =>
         firstUnsupported(expression)
       case TermShape.Lambda1(_, _, _, body) =>

@@ -1,6 +1,7 @@
 package quasiquotes.definitions.parser
 
 import dotty.tools.dotc.core.Contexts.Context
+import dotty.tools.dotc.ast.untpd
 
 import quasiquotes.definitions.*
 import quasiquotes.definitions.dotty.{
@@ -329,6 +330,16 @@ private[quasiquotes] object DefinitionTemplateSourceAdapter:
     given Context = envelope.context
     for
       _ <- validateCategories(mapped, envelope.components)
+      _ <- Either.cond(
+        !envelope.body.isInstanceOf[untpd.Block],
+        (),
+        LocatedDiagnostic(
+          InvalidDefinitionBodyTemplate(
+            "brace-delimited bodies remain outside the bounded definition grammar"
+          ),
+          componentLocation(mapped.originMap, envelope.components.body)
+        )
+      )
       definitionType <- adaptDefinitionType(scan, mapped, envelope)
       body <- RawTermTemplateAdapter
         .adapt(

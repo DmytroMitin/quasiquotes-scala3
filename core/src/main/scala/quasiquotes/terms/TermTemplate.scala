@@ -51,6 +51,10 @@ private object SemanticTermKey:
       thenBranch: SemanticTermKey,
       elseBranch: SemanticTermKey
   ) extends SemanticTermKey
+  final case class Block(
+      prefix: Vector[SemanticTermKey],
+      result: SemanticTermKey
+  ) extends SemanticTermKey
   final case class Parenthesized(expression: SemanticTermKey)
       extends SemanticTermKey
   final case class Unsupported(nodeKind: String, detail: String)
@@ -427,6 +431,28 @@ private[quasiquotes] final class TermTemplate private (
           completedElse.nextIdentifierOrdinal,
           completedElse.nextTypedOrdinal
         )
+      case TermShape.Block(prefix, result) =>
+        for
+          completedPrefix <- completeChildren(
+            prefix,
+            identifierOrdinal,
+            typedOrdinal,
+            termBindings,
+            typeBindings
+          )
+          completedResult <- completeSubtree(
+            result,
+            completedPrefix.nextIdentifierOrdinal,
+            completedPrefix.nextTypedOrdinal,
+            termBindings,
+            typeBindings
+          )
+        yield CompletedSubtree(
+          TermShape.Block(completedPrefix.shapes, completedResult.shape),
+          completedPrefix.ascriptions ++ completedResult.ascriptions,
+          completedResult.nextIdentifierOrdinal,
+          completedResult.nextTypedOrdinal
+        )
       case TermShape.Parenthesized(expression) =>
         completeSubtree(
           expression,
@@ -656,6 +682,16 @@ private[quasiquotes] final class TermTemplate private (
           )
         (
           SemanticTermKey.If(conditionKey, thenKey, elseKey),
+          nextIdentifier,
+          nextTyped
+        )
+      case TermShape.Block(prefix, result) =>
+        val (prefixKeys, afterPrefixIdentifier, afterPrefixTyped) =
+          semanticChildrenKey(prefix, identifierOrdinal, typedOrdinal, scope)
+        val (resultKey, nextIdentifier, nextTyped) =
+          semanticShapeKey(result, afterPrefixIdentifier, afterPrefixTyped, scope)
+        (
+          SemanticTermKey.Block(prefixKeys, resultKey),
           nextIdentifier,
           nextTyped
         )

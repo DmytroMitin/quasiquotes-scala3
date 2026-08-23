@@ -24,6 +24,7 @@ class CheckSnippetsTest(unittest.TestCase):
         documented_definition_pattern: str = "val definitionPattern = 11",
         documented_runtime_term_shape: str = "val runtimeTermShape = 12",
         documented_runtime_parser: str = "val runtimeParser = 13",
+        documented_p1_block: str = "val p1Block = 14",
     ) -> None:
         docs = root / "docs"
         sources = root / "public-api-examples/src/test/scala/external/consumer"
@@ -56,6 +57,11 @@ class CheckSnippetsTest(unittest.TestCase):
         (sources / "Lambda1FirstUseSnippet.scala").write_text(
             "// snippet:lambda1-first-use:start\nval lambda = 3\n"
             "// snippet:lambda1-first-use:end\n",
+            encoding="utf-8",
+        )
+        (sources / "P1BlockFirstUseSnippet.scala").write_text(
+            "// snippet:p1-block-first-use:start\nval p1Block = 14\n"
+            "// snippet:p1-block-first-use:end\n",
             encoding="utf-8",
         )
         (sources / "QqExtractorFirstUseSnippet.scala").write_text(
@@ -116,6 +122,9 @@ class CheckSnippetsTest(unittest.TestCase):
             "<!-- snippet:lambda1-first-use:start -->\n```scala\n"
             + documented_lambda
             + "\n```\n<!-- snippet:lambda1-first-use:end -->\n"
+            "<!-- snippet:p1-block-first-use:start -->\n```scala\n"
+            + documented_p1_block
+            + "\n```\n<!-- snippet:p1-block-first-use:end -->\n"
             "<!-- snippet:qq-extractor-first-use:start -->\n```scala\n"
             + documented_qq_extractor
             + "\n```\n<!-- snippet:qq-extractor-first-use:end -->\n"
@@ -157,9 +166,23 @@ class CheckSnippetsTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(
-                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start",
+                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, p1-block-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start",
                 result.stdout,
             )
+
+    def test_rejects_p1_block_documentation_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(
+                root,
+                documented_lambda="val lambda = 3",
+                documented_p1_block="val p1Block = 15",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("First-use snippet drift: p1-block-first-use", result.stderr)
 
     def test_rejects_runtime_parser_documentation_drift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

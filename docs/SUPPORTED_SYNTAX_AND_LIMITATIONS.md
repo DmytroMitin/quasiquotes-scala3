@@ -9,8 +9,9 @@ the detailed semantic and diagnostic caveats behind that table.
 
 Currently exercised areas include:
 
-- identifiers, selections, applications, typed terms, blocks, tuples, unary
-  operations, and standard string interpolation in bounded structural forms;
+- identifiers, selections, applications, typed terms, binder-free P1 blocks,
+  tuples, unary operations, and standard string interpolation in bounded
+  structural forms;
 - ordinary lambdas with exactly one explicitly typed parameter, with scoped
   binder identity, alpha-aware construction/matching, and complete-body holes;
 - compiler-free public single- and exact-two-parameter method constructors,
@@ -34,7 +35,10 @@ Important limitations:
 - no stable raw-tree public API;
 - no general owner/symbol repair or arbitrary generated-definition placement;
 - Lambda1 excludes inferred or multiple parameters, nested/context/pattern
-  lambdas, binder-name holes, local definitions, and general blocks;
+  lambdas, binder-name holes, and local definitions;
+- P1 blocks admit only one or more ordered expression prefixes plus a final
+  result; local `val`/`var` (P2), local `def` (P3), imports, definitions, and
+  unrelated control-flow statement families remain excluded;
 - compiler-internal behavior is exact-version-sensitive;
 - public definition construction is intentionally narrow;
 - public `dqr` has no recoverable source carrier, parameter-span projection, or
@@ -85,6 +89,33 @@ expansion; use `termLocated` when a recoverable structured diagnostic is needed.
 Captured terms retain the caller's active `q.reflect.Term` path and original
 compiler ownership. They are not detached portable trees and the extractor
 does not create another `Quotes` universe.
+
+## Binder-free P1 blocks
+
+The admitted block form preserves an ordered nonempty prefix of already
+supported Term expressions and a distinct final result:
+
+```scala
+val built = qr"{ $first; consume($second); $result }"
+
+target match
+  case qq"{ $first; consume($second); $result }" =>
+    // captures are the original reflected children, in source order
+  case _ =>
+```
+
+Single-expression braces are P0 wrappers and collapse to the enclosed Term;
+they are not represented as a P1 block. Every P1 child must already be
+supported outside a block, so the block surface does not implicitly admit
+assignment, `return`, `throw`, `try`, loops, match/case, for-comprehensions, or
+other unsupported families.
+
+Programmatic repeated names retain the existing structural-equality rule, and
+successful matches preserve the exact original reflected subtrees even for
+generated/source-poor targets. Local `val`/`var` and local `def` neighbors are
+rejected with block-family diagnostics. P1 introduces no binder, owner repair,
+alpha-equivalence, or capture-avoidance semantics beyond those already owned
+by admitted child forms.
 
 ## Bounded reflected type interpolators
 

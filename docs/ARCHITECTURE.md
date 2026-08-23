@@ -14,6 +14,10 @@ publicCoreExamples -> core
 `core` owns compiler-free values, structural normal forms, templates,
 construction and matching algorithms, and neutral source/diagnostic metadata.
 Its compile and runtime classpaths must not contain Scala compiler artifacts.
+The shared Term model represents binder-free blocks as an ordered nonempty
+prefix plus a distinct result. Current-Dotty and Scalameta frontends both map
+that P1 shape into the same `TermShape`/`TermPattern` semantics; no source-string
+or block-only comparison model participates in matching.
 Its package-private definition model reuses the same `BinderId` scope algebra
 as Lambda1 for one or exactly two ordinary method parameters; display spelling
 never replaces semantic identity. The public compiler-free constructors create
@@ -86,7 +90,9 @@ frontend/backend cycles.
 Only `core` and compiler-matching `frontend` are existing release artifacts.
 The Scalameta and exact-backend coordinates are future candidates only and
 remain remotely skipped. Their experimental APIs are not included in the
-released 618-row `core`/`frontend` baseline. That inventory does not promote
+released 618-row `core`/`frontend` baseline. The Phase-115 source candidate is
+622 rows because the shared P1 model deliberately adds four public case-class
+rows; no released `0.2.0` artifact is changed. That inventory does not promote
 package-private implementation or create a compatibility promise beyond the
 experimental versioning policy. See the
 [Scalameta opt-in artifact topology](SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md).

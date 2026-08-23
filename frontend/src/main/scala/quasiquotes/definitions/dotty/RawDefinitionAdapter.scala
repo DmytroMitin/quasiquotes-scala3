@@ -48,43 +48,57 @@ private[dotty] object RawDefinitionAdapter:
     given Context = envelope.context
     val definitionLocation =
       exactLocation(sourceId, envelope.components.definition)
-    val typeShape = TypeShapeInspector.inspect(envelope.definitionType)
-    val termShape = TermShapeInspector.inspect(envelope.body)
-    val create =
-      envelope.variant match
-        case RawDefinitionVariant.ParameterlessDef =>
-          DefinitionShape.parameterlessDef
-        case RawDefinitionVariant.ImmutableVal =>
-          DefinitionShape.immutableVal
-    for
-      shape <- create(envelope.name, typeShape, termShape).left.map {
-        case error: DefinitionError.UnsupportedDefinitionType =>
+    envelope.body match
+      case _: untpd.Block =>
+        Left(
           LocatedDiagnostic(
-            RawDefinitionAdapterError.UnsupportedDefinitionType(error),
-            exactLocation(sourceId, envelope.components.declaredType)
-          )
-        case error: DefinitionError.UnsupportedDefinitionBody =>
-          LocatedDiagnostic(
-            RawDefinitionAdapterError.UnsupportedDefinitionBody(error),
+            RawDefinitionAdapterError.UnsupportedDefinitionBody(
+              DefinitionError.UnsupportedDefinitionBody(
+                "definition body",
+                "brace-delimited bodies remain outside the bounded definition grammar"
+              )
+            ),
             exactLocation(sourceId, envelope.components.body)
           )
-        case error =>
-          LocatedDiagnostic(
-            RawDefinitionAdapterError.IndefensibleComponentSpan(error.message),
+        )
+      case _ =>
+        val typeShape = TypeShapeInspector.inspect(envelope.definitionType)
+        val termShape = TermShapeInspector.inspect(envelope.body)
+        val create =
+          envelope.variant match
+            case RawDefinitionVariant.ParameterlessDef =>
+              DefinitionShape.parameterlessDef
+            case RawDefinitionVariant.ImmutableVal =>
+              DefinitionShape.immutableVal
+        for
+          shape <- create(envelope.name, typeShape, termShape).left.map {
+            case error: DefinitionError.UnsupportedDefinitionType =>
+              LocatedDiagnostic(
+                RawDefinitionAdapterError.UnsupportedDefinitionType(error),
+                exactLocation(sourceId, envelope.components.declaredType)
+              )
+            case error: DefinitionError.UnsupportedDefinitionBody =>
+              LocatedDiagnostic(
+                RawDefinitionAdapterError.UnsupportedDefinitionBody(error),
+                exactLocation(sourceId, envelope.components.body)
+              )
+            case error =>
+              LocatedDiagnostic(
+                RawDefinitionAdapterError.IndefensibleComponentSpan(error.message),
+                definitionLocation
+              )
+          }
+          locatedShape <- liftDefinition(
+            LocatedDefinitionShape.create(
+              shape,
+              sourceId,
+              envelope.components
+            ),
+            error =>
+              RawDefinitionAdapterError.IndefensibleComponentSpan(error.message),
             definitionLocation
           )
-      }
-      locatedShape <- liftDefinition(
-        LocatedDefinitionShape.create(
-          shape,
-          sourceId,
-          envelope.components
-        ),
-        error =>
-          RawDefinitionAdapterError.IndefensibleComponentSpan(error.message),
-        definitionLocation
-      )
-    yield locatedShape
+        yield locatedShape
 
   private def extractDef(
       definition: untpd.DefDef,

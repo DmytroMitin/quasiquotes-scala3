@@ -179,6 +179,8 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
         lowerTerm(expression, state).map { case (rawExpression, next) =>
           untpd.Parens(rawExpression) -> next
         }
+      case TermShape.Block(_, _) =>
+        Left(UnsupportedTermNode("Block"))
       case TermShape.Unsupported(nodeKind, _) =>
         Left(UnsupportedTermNode(nodeKind))
 

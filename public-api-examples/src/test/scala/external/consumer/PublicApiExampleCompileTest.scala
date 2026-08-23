@@ -1,5 +1,6 @@
 package external.consumer
 
+import scala.collection.mutable.ArrayBuffer
 import scala.compiletime.testing.typeCheckErrors
 import scala.quoted.Quotes
 
@@ -113,6 +114,30 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     assert(Lambda1FirstUseSnippet.freeReferenceDoesNotMatchBound(free))
     assert(Lambda1FirstUseSnippet.completeBodyHoleMatches)
     assertEquals(Lambda1FirstUseSnippet.preserveX(41)(999), 41)
+
+  test("documented P1 block first use preserves order and captures outside quasiquotes packages"):
+    val log = ArrayBuffer.empty[Int]
+    def mark(value: Int): Int =
+      log += value
+      value
+
+    assertEquals(
+      P1BlockFirstUseSnippet.ordered(
+        { mark(1); () },
+        { mark(2); () },
+        mark(3)
+      ),
+      3
+    )
+    assertEquals(log.toList, List(1, 2, 3))
+    assertEquals(
+      P1BlockFirstUseSnippet.capture {
+        mark(4)
+        mark(5)
+        mark(6)
+      },
+      (4, 5, 6)
+    )
 
   test("documented qq extractor first use stays in the external caller Quotes path"):
     assertEquals(extractAddition(20, 22), (20, 22))

@@ -385,6 +385,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
             builder.append(')')
             node(NodeKind.Parens, start, start, Vector(rawExpression))
           }
+        case TermShape.Block(_, _) =>
+          Left(UnsupportedTermNode("Block"))
         case TermShape.Unsupported(nodeKind, _) =>
           Left(UnsupportedTermNode(nodeKind))
 
@@ -907,6 +909,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
         40
       case TermShape.If(_, _, _) =>
         20
+      case TermShape.Block(_, _) =>
+        0
       case TermShape.Unsupported(_, _) =>
         0
 

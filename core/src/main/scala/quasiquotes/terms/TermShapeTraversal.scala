@@ -71,6 +71,11 @@ private[quasiquotes] object TermShapeTraversal:
           canonicalizePlaceholders(thenBranch),
           canonicalizePlaceholders(elseBranch)
         )
+      case TermShape.Block(prefix, result) =>
+        TermShape.Block(
+          prefix.map(canonicalizePlaceholders),
+          canonicalizePlaceholders(result)
+        )
       case TermShape.Parenthesized(expression) =>
         TermShape.Parenthesized(canonicalizePlaceholders(expression))
       case unsupported: TermShape.Unsupported =>
@@ -113,6 +118,9 @@ private[quasiquotes] object TermShapeTraversal:
           loop(condition)
           loop(thenBranch)
           loop(elseBranch)
+        case TermShape.Block(prefix, result) =>
+          prefix.foreach(loop)
+          loop(result)
         case TermShape.Parenthesized(expression) =>
           loop(expression)
         case TermShape.Unsupported(_, _) =>
@@ -152,6 +160,9 @@ private[quasiquotes] object TermShapeTraversal:
           loop(condition)
           loop(thenBranch)
           loop(elseBranch)
+        case TermShape.Block(prefix, result) =>
+          prefix.foreach(loop)
+          loop(result)
         case TermShape.Parenthesized(expression) =>
           loop(expression)
         case TermShape.Identifier(_, _) | TermShape.BoundReference(_, _) | TermShape.Literal(_) |
@@ -199,6 +210,9 @@ private[quasiquotes] object TermShapeTraversal:
           loop(condition)
           loop(thenBranch)
           loop(elseBranch)
+        case TermShape.Block(prefix, result) =>
+          prefix.foreach(loop)
+          loop(result)
         case TermShape.Parenthesized(expression) =>
           loop(expression)
         case TermShape.Identifier(_, _) | TermShape.BoundReference(_, _) | TermShape.Literal(_) |
@@ -267,6 +281,8 @@ private[quasiquotes] object TermShapeTraversal:
             loop(thenBranch, scope),
             loop(elseBranch, scope)
           )
+        case TermShape.Block(prefix, result) =>
+          TermShape.Block(prefix.map(loop(_, scope)), loop(result, scope))
         case TermShape.Parenthesized(expression) =>
           TermShape.Parenthesized(loop(expression, scope))
         case unsupported: TermShape.Unsupported => unsupported
@@ -393,6 +409,9 @@ private[quasiquotes] object TermShapeTraversal:
         validateSupportedUsingScope(condition, scope)
           .flatMap(_ => validateSupportedUsingScope(thenBranch, scope))
           .flatMap(_ => validateSupportedUsingScope(elseBranch, scope))
+      case TermShape.Block(prefix, result) =>
+        validateAll(prefix, scope)
+          .flatMap(_ => validateSupportedUsingScope(result, scope))
       case TermShape.Parenthesized(expression) => validateSupportedUsingScope(expression, scope)
       case TermShape.Unsupported(_, _) => Left(TermConstructionError.UnsupportedTermShape())
 

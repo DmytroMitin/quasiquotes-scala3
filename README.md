@@ -183,8 +183,8 @@ applications plus binary `Either`, including patterns, construction, quoted
 lowering/inspection, typed ascriptions, and scoped type evidence. Constructor
 admission remains fixed and deliberately excludes general name resolution.
 
-The canonical first-use examples, including the complete Lambda1, bounded
-`qq`, and bounded `tqr`/`tqq` macro paths, are mirrored from compiled
+The canonical first-use examples, including the complete Lambda1, bounded P1
+block `qr`/`qq`, and bounded `tqr`/`tqq` macro paths, are mirrored from compiled
 external-package fixtures, and the repository's snippet drift check compares
 them byte for byte.
 Public type diagnostics describe the supported boundary without development
@@ -217,8 +217,12 @@ One ordinary explicitly typed Lambda1 form is also available for structural
 `qr` construction and matching. Its project-owned binder identity provides
 alpha-aware bound-reference comparison and same-text splice non-capture. The
 unpublished exact internal backend supports that same bounded Lambda1 shape in
-source-free and generated-origin modes; broader lambda/block syntax remains
-excluded.
+source-free and generated-origin modes.
+
+Binder-free P1 blocks are also available through ordinary `qr` construction
+and `qq`/programmatic matching. They preserve one or more ordered expression
+prefixes and a distinct final result. Local values and local definitions remain
+separate P2/P3 work and are rejected rather than partially admitted.
 
 The unpublished exact internal definition backend also supports the bounded
 single-ordinary-parameter and exact-two-ordinary-parameter definition shapes

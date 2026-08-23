@@ -272,6 +272,8 @@ private[quasiquotes] object DefinitionShape:
         firstUnsupportedTerm(condition, allowedDefinitionBinders)
           .orElse(firstUnsupportedTerm(thenBranch, allowedDefinitionBinders))
           .orElse(firstUnsupportedTerm(elseBranch, allowedDefinitionBinders))
+      case TermShape.Block(_, _) =>
+        Some("P1 blocks are not part of the bounded Definition quasiquote body tranche")
       case TermShape.Parenthesized(expression) =>
         firstUnsupportedTerm(expression, allowedDefinitionBinders)
       case TermShape.Unsupported(_, _) =>

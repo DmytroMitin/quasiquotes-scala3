@@ -89,6 +89,10 @@ object TermShapeInspector:
         TermShape.Tuple(elements.map(loop(_, scope)))
       case untpd.If(condition, thenBranch, elseBranch) =>
         TermShape.If(loop(condition, scope), loop(thenBranch, scope), loop(elseBranch, scope))
+      case untpd.Block(Nil, result) =>
+        loop(result, scope)
+      case untpd.Block(statements, result) =>
+        inspectBlock(statements, result, scope, loop)
       case untpd.TypedSplice(tree) =>
         loop(tree, scope)
       case untpd.Parens(tree) =>
@@ -133,6 +137,8 @@ object TermShapeInspector:
         s"Tuple([${elements.map(rawStructure).mkString(", ")}])"
       case untpd.If(condition, thenBranch, elseBranch) =>
         s"If(${rawStructure(condition)},${rawStructure(thenBranch)},${rawStructure(elseBranch)})"
+      case untpd.Block(statements, result) =>
+        s"Block([${statements.map(rawStructure).mkString(", ")}], ${rawStructure(result)})"
       case untpd.TypedSplice(tree) =>
         s"TypedSplice(${rawStructure(tree)})"
       case untpd.Parens(tree) =>
@@ -155,6 +161,25 @@ object TermShapeInspector:
         .fold(
           detail => TermShape.Unsupported("ConstructorNew", detail),
           name => TermShape.New(name, arguments.map(inspectInScope(_, scope)))
+        )
+
+  private def inspectBlock(
+      statements: List[untpd.Tree],
+      result: untpd.Tree,
+      scope: List[(String, BinderId)],
+      inspectInScope: (untpd.Tree, List[(String, BinderId)]) => TermShape
+  ): TermShape =
+    statements.collectFirst {
+      case _: untpd.ValDef => P1BlockDiagnosticMessages.LocalVal
+      case _: untpd.DefDef => P1BlockDiagnosticMessages.LocalDef
+      case statement if !statement.isTerm =>
+        P1BlockDiagnosticMessages.UnsupportedStatement(statement.getClass.getSimpleName)
+    } match
+      case Some(detail) => TermShape.Unsupported("Block", detail)
+      case None =>
+        TermShape.Block(
+          statements.map(inspectInScope(_, scope)),
+          inspectInScope(result, scope)
         )
 
   private def constructorName(tree: untpd.Tree): Either[String, String] =
