@@ -80,6 +80,24 @@ long-term compatibility mechanism. A future additive diagnostic view can be
 considered if concrete tooling needs justify one without breaking the existing
 `Either` entry points.
 
+The explicit canonical global selected-Type surface prefixes its controlled
+messages with stable categories:
+
+```text
+TYPE_NAME_RESOLUTION_UNRESOLVED
+TYPE_NAME_RESOLUTION_AMBIGUOUS
+TYPE_NAME_RESOLUTION_UNSUPPORTED_QUALIFIER
+TYPE_NAME_RESOLUTION_UNSTABLE_TERM_PREFIX
+TYPE_NAME_RESOLUTION_CONSTRUCTOR_POLICY_MISMATCH
+TYPE_NAME_RESOLUTION_COMPILER_SHAPE_UNSUPPORTED
+TYPE_NAME_RESOLVED_FAMILY_UNSUPPORTED
+```
+
+These distinguish missing/duplicate bindings, unsupported or unstable owner
+prefixes, fixed-constructor policy mismatch, unsupported public-reflection
+shape, and a resolved declaration outside the bounded family. Messages do not
+expose symbols, compiler trees, or implementation class names.
+
 ## `qq` extractor diagnostics
 
 The pattern extractor deliberately separates template failure from target

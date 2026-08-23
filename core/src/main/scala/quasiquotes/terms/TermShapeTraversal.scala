@@ -343,6 +343,8 @@ private[quasiquotes] object TermShapeTraversal:
     normalForm match
       case TypeNormalForm.STypeIdent(name) =>
         name
+      case TypeNormalForm.STypeResolved(id) =>
+        id.canonicalSource
       case TypeNormalForm.STypeApply(constructor, arguments) =>
         s"${renderNormalForm(constructor)}[${arguments.map(renderNormalForm).mkString(", ")}]"
       case TypeNormalForm.STypeTuple(elements) =>
@@ -361,6 +363,8 @@ private[quasiquotes] object TermShapeTraversal:
         generatedNameFor(name).toRight(s"unknown type hole `$name`")
       case TypeTemplate.TTIdent(name) =>
         Right(name)
+      case TypeTemplate.TTResolved(id) =>
+        Right(id.canonicalSource)
       case TypeTemplate.TTApply(constructor, arguments) =>
         for
           renderedConstructor <- renderTypeTemplate(constructor, generatedNameFor)
@@ -386,6 +390,8 @@ private[quasiquotes] object TermShapeTraversal:
         s"TypeHole($name)"
       case TypeTemplate.TTIdent(name) =>
         s"TypeIdent($name)"
+      case TypeTemplate.TTResolved(id) =>
+        s"TypeResolved(${id.render})"
       case TypeTemplate.TTApply(constructor, arguments) =>
         s"TypeApply(${renderLogicalTypeTemplate(constructor)}, [${arguments.map(renderLogicalTypeTemplate).mkString(", ")}])"
       case TypeTemplate.TTTuple(elements) =>
@@ -398,6 +404,8 @@ private[quasiquotes] object TermShapeTraversal:
       case TypeTemplate.TTHole(name) =>
         Vector(name)
       case TypeTemplate.TTIdent(_) =>
+        Vector.empty
+      case TypeTemplate.TTResolved(_) =>
         Vector.empty
       case TypeTemplate.TTApply(constructor, arguments) =>
         typeHoleOccurrences(constructor) ++ arguments.toVector.flatMap(typeHoleOccurrences)

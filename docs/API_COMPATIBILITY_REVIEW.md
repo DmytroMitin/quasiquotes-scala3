@@ -68,6 +68,24 @@ term expression. It is not accidental exposure and does not mutate released
 `0.2.0`; the current source tree therefore uses `0.3.0-SNAPSHOT` and still
 requires fresh binary/TASTy qualification before any release.
 
+## Phase-119 source candidate
+
+The explicit canonical global selected-Type tranche generates 655 packaged
+`core`/`frontend` rows. Against immutable released `0.2.0` (618 rows), 614 rows
+are unchanged, 41 signatures are added, four signatures are removed, and no
+symbol group is removed. The classification remains
+`BREAKING_API_SHAPE_DELTA_REQUIRES_NEW_0X_MINOR`; the four removals were already
+introduced by Phase 116's statement-algebra correction.
+
+Relative to the accepted pre-Phase-119 development candidate (634 rows), the
+increment is additive: 21 rows added, no rows or symbol groups removed. Twelve
+rows describe the resolved identity/environment and truthful new public sealed
+cases in `core`; nine expose the explicit witness environment and programmatic
+current-Dotty frontend. Adding `STypeResolved`, `TTResolved`, and `TPResolved`
+is source-exhaustivity-relevant for downstream matches on the public sealed
+algebras. The released baseline file remains unchanged and the development
+version remains `0.3.0-SNAPSHOT`.
+
 The separate compatibility qualification completes that review. Real released `0.2.0` has no
 public `TermShape.Block` or `TermPattern.Block`, so the new statement-list
 cases are new `0.3` source surfaces rather than changed released block cases.

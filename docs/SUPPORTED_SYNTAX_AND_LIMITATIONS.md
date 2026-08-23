@@ -60,9 +60,15 @@ Important limitations:
   custom interpolators, and triple-quoted `s` remain unsupported;
 - APIs and rendered forms remain experimental and may change;
 - applied constructor admission is fixed to `List` (arity 1), `Option`
-  (arity 1), and `Either` (arity 2); arbitrary or selected constructors,
-constructor holes, higher-kinded types, aliases, semantic name resolution,
-subtyping, and compiler equality are not supported.
+  (arity 1), and `Either` (arity 2); the experimental explicit
+  `GlobalSelectedTypeEnvironment`/`GlobalSelectedTypeFrontend` surface also
+  admits their canonical selected declarations by full resolved identity;
+- canonical globally addressable selected terminals are experimental and
+  programmatic only. Arbitrary selected constructors, arbitrary labels,
+  alternate/import-shortened spellings, stable-term paths, local owners,
+  constructor holes, higher-kinded types, aliases, semantic name resolution,
+  subtyping, and compiler equality are not supported. Ordinary `tqr`/`tqq`
+  behavior is unchanged.
 
 ## Bounded term-pattern extractor
 

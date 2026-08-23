@@ -190,8 +190,10 @@ lazy val frontend = (project in file("frontend"))
     name := "quasiquotes-scala3-frontend",
     description := "Scala compiler-coupled parsing, reflection, and quasiquote frontend",
     crossVersion := CrossVersion.full,
-    libraryDependencies +=
-      "org.scala-lang" %% "scala3-compiler" % scalaVersion.value
+    libraryDependencies ++= Seq(
+      "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
+      "org.scala-lang" %% "scala3-staging" % scalaVersion.value % Test
+    )
   )
 
 lazy val neutralScalameta = (project in file("neutral-scalameta"))

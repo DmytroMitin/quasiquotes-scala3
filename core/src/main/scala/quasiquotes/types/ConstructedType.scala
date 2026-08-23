@@ -8,6 +8,7 @@ object ConstructedType:
   def renderSource(normalForm: TypeNormalForm): String =
     normalForm match
       case TypeNormalForm.STypeIdent(name) => name
+      case TypeNormalForm.STypeResolved(id) => id.canonicalSource
       case TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent(name), argument :: Nil) =>
         s"$name[${renderSource(argument)}]"
       case TypeNormalForm.STypeApply(constructor, arguments) =>

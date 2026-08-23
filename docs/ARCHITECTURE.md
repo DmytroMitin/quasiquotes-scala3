@@ -103,11 +103,14 @@ frontend/backend cycles.
 Only `core` and compiler-matching `frontend` are existing release artifacts.
 The Scalameta and exact-backend coordinates are future candidates only and
 remain remotely skipped. Their experimental APIs are not included in the
-released 618-row `core`/`frontend` baseline. The Phase-116 source candidate
-is 634 rows. Its truthful statement supertraits and changed `Block`
-statement-list signatures produce 20 additions and four signature removals
-relative to that baseline, so the exact tool requires a new experimental 0.x
-minor. No released `0.2.0` artifact is changed, and source-level accounting is
+released 618-row `core`/`frontend` baseline. The pre-Phase-119 source candidate
+was 634 rows. Phase 119 adds a compiler-free structured resolved-name identity
+and environment to `core`, while exact `TypeRepr` witnesses remain in the
+compiler-matching `frontend`; the resulting candidate is 655 rows. The earlier
+statement changes account for four signature removals relative to the release,
+and Phase 119 contributes 21 additive rows relative to the 634-row development
+tree. The exact tool therefore still requires a new experimental 0.x minor.
+No released `0.2.0` artifact is changed, and source-level accounting is
 not a binary or TASTy compatibility promise. See the
 [Scalameta opt-in artifact topology](SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md).
 

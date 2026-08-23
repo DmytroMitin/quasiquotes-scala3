@@ -3,6 +3,8 @@ package external.consumer
 import scala.quoted.staging.{Compiler, withQuotes}
 
 import quasiquotes.scalameta.TypeFrontend
+import quasiquotes.types.GlobalSelectedTypeEnvironment
+import quasiquotes.types.phase119.{OwnerOne, TopLevel}
 
 class ScalametaTypeOptInSurfaceTest extends munit.FunSuite:
   test("opt-in tqr supports zero and ordered reflected slots"):
@@ -84,3 +86,46 @@ class ScalametaTypeOptInSurfaceTest extends munit.FunSuite:
 
   test("ordinary current-Dotty tqr and tqq remain independently callable"):
     assert(ScalametaTypeOptInMacros.currentDottyDefaultStillWorks)
+
+  test("explicit selected-Type environment has Scalameta construction and matching parity"):
+    given Compiler = Compiler.make(getClass.getClassLoader)
+    val evidence = withQuotes:
+      val q = summon[scala.quoted.Quotes]
+      import q.reflect.*
+
+      val environment = GlobalSelectedTypeEnvironment
+        .fromWitnesses(using q)(
+          TypeRepr.of[TopLevel],
+          TypeRepr.of[OwnerOne.Nested],
+          TypeRepr.of[List[Int]]
+        )
+        .toOption
+        .get
+      val built = TypeFrontend.buildResolved(using q)(
+        Seq("scala.collection.immutable.List[quasiquotes.types.phase119.TopLevel]"),
+        Nil,
+        environment
+      )
+      val compiled = TypeFrontend.compilePatternResolved(using q)(
+        "scala.collection.immutable.List[$item]",
+        environment
+      ).toOption.get
+      val target = TypeRepr.of[List[TopLevel]]
+      val expected = target match
+        case AppliedType(_, item :: Nil) => item
+      val matched = TypeFrontend.matchPatternResolved(using q)(
+        compiled,
+        target,
+        environment
+      )
+      (
+        built.map(_.engine),
+        matched.map(_.map(result =>
+          result.engine -> result.captures.head.asInstanceOf[AnyRef].eq(expected.asInstanceOf[AnyRef])
+        ))
+      )
+
+    assertEquals(
+      evidence,
+      (Right(TypeFrontend.Engine.Scalameta), Right(Some(TypeFrontend.Engine.Scalameta -> true)))
+    )

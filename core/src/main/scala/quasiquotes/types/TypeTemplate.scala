@@ -8,6 +8,7 @@ sealed trait TypeTemplate derives CanEqual
 object TypeTemplate:
   final case class TTHole(name: String) extends TypeTemplate
   final case class TTIdent(name: String) extends TypeTemplate
+  final case class TTResolved(id: ResolvedTypeNameId) extends TypeTemplate
   final case class TTApply(constructor: TypeTemplate, arguments: List[TypeTemplate]) extends TypeTemplate
   final case class TTTuple(elements: List[TypeTemplate]) extends TypeTemplate
   final case class TTFunction(arguments: List[TypeTemplate], result: TypeTemplate) extends TypeTemplate
@@ -32,6 +33,23 @@ object TypeTemplate:
       generatedHoles: GeneratedHoleIndex
   ): Either[TypeQuasiquoteError, TypeTemplate] =
     fromShapeUsing(shape, generatedHoles.semanticNameFor)
+
+  private[quasiquotes] def fromShapeResolvedWithHoles(
+      shape: TypeShape,
+      generatedHoles: GeneratedHoleIndex,
+      environment: ResolvedTypeEnvironment
+  ): Either[TypeQuasiquoteError, TypeTemplate] =
+    fromShapeResolvedUsing(shape, generatedHoles.semanticNameFor, environment)
+
+  private[quasiquotes] def fromShapeResolved(
+      shape: TypeShape,
+      environment: ResolvedTypeEnvironment
+  ): Either[TypeQuasiquoteError, TypeTemplate] =
+    fromShapeResolvedUsing(
+      shape,
+      name => Option.when(name.startsWith(HolePrefix))(name.drop(HolePrefix.length)),
+      environment
+    )
 
   private def fromShapeUsing(
       shape: TypeShape,
@@ -76,12 +94,60 @@ object TypeTemplate:
       case _ =>
         Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTypeSyntax("type-template construction")))
 
+  private def fromShapeResolvedUsing(
+      shape: TypeShape,
+      semanticHoleName: String => Option[String],
+      environment: ResolvedTypeEnvironment
+  ): Either[TypeQuasiquoteError, TypeTemplate] =
+    shape match
+      case TypeShape.Identifier(name) =>
+        semanticHoleName(name) match
+          case Some(holeName) => Right(TTHole(holeName))
+          case None => validateTemplateIdentifier(name).map(_ => TTIdent(name))
+      case selected @ TypeShape.Select(_, _) =>
+        environment.resolveSelected(selected).map(TTResolved(_))
+      case TypeShape.Parenthesized(inner) =>
+        fromShapeResolvedUsing(inner, semanticHoleName, environment)
+      case TypeShape.Apply(selected @ TypeShape.Select(_, _), arguments) =>
+        for
+          id <- environment.resolveSelected(selected)
+          _ <- AppliedTypeConstructorPolicy
+            .forResolved(id, arguments.size)
+            .toRight(
+              TypeQuasiquoteError(
+                TypeNameResolutionDiagnostics.constructorPolicyMismatch(id, arguments.size)
+              )
+            )
+          argumentTemplates <- collect(
+            arguments.map(fromShapeResolvedUsing(_, semanticHoleName, environment))
+          )
+        yield TTApply(TTResolved(id), argumentTemplates)
+      case TypeShape.Apply(TypeShape.Identifier(name), arguments)
+          if AppliedTypeConstructorPolicy.forConstruction(name, arguments.size).isDefined =>
+        collect(arguments.map(fromShapeResolvedUsing(_, semanticHoleName, environment)))
+          .map(forms => TTApply(TTIdent(name), forms))
+      case TypeShape.Apply(TypeShape.Identifier(name), arguments) =>
+        semanticHoleName(name) match
+          case Some(holeName) => Left(TypeQuasiquoteError(TypeDiagnosticMessages.constructorHole(holeName)))
+          case None => Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedAppliedConstructor(name, arguments.size)))
+      case TypeShape.Tuple(elements) if elements.size == 2 || elements.size == 3 =>
+        collect(elements.map(fromShapeResolvedUsing(_, semanticHoleName, environment))).map(TTTuple(_))
+      case TypeShape.Function(arguments, result) if arguments.size == 1 || arguments.size == 2 =>
+        for
+          argumentTemplates <- collect(arguments.map(fromShapeResolvedUsing(_, semanticHoleName, environment)))
+          resultTemplate <- fromShapeResolvedUsing(result, semanticHoleName, environment)
+        yield TTFunction(argumentTemplates, resultTemplate)
+      case _ =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTypeSyntax("resolved type-template construction")))
+
   def construct(template: TypeTemplate, bindings: Map[String, TypeNormalForm]): Either[TypeQuasiquoteError, TypeNormalForm] =
     template match
       case TTHole(name) =>
         bindings.get(name).toRight(TypeQuasiquoteError(s"Missing type-construction binding `$$$name`."))
       case TTIdent(name) =>
         Right(TypeNormalForm.STypeIdent(name))
+      case TTResolved(id) =>
+        Right(TypeNormalForm.STypeResolved(id))
       case TTApply(constructor, arguments) =>
         for
           constructorForm <- construct(constructor, bindings)
@@ -101,10 +167,15 @@ object TypeTemplate:
         Right(())
       case TypeNormalForm.STypeIdent(name) =>
         Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedConstructionIdentifier(name)))
+      case TypeNormalForm.STypeResolved(_) =>
+        Right(())
       case TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent(name), arguments)
           if AppliedTypeConstructorPolicy
             .forConstruction(name, arguments.size)
             .isDefined =>
+        collect(arguments.map(validateConstructed)).map(_ => ())
+      case TypeNormalForm.STypeApply(TypeNormalForm.STypeResolved(id), arguments)
+          if AppliedTypeConstructorPolicy.forResolved(id, arguments.size).isDefined =>
         collect(arguments.map(validateConstructed)).map(_ => ())
       case TypeNormalForm.STypeApply(constructor, arguments) =>
         Left(TypeQuasiquoteError(s"Unsupported constructed applied type `${ConstructedType.renderSource(TypeNormalForm.STypeApply(constructor, arguments))}`; supported constructors are ${TypeDiagnosticMessages.SupportedConstructors}."))
@@ -121,6 +192,7 @@ object TypeTemplate:
     template match
       case TTHole(name) => Set(name)
       case TTIdent(_) => Set.empty
+      case TTResolved(_) => Set.empty
       case TTApply(constructor, arguments) => holeNames(constructor) ++ arguments.flatMap(holeNames).toSet
       case TTTuple(elements) => elements.flatMap(holeNames).toSet
       case TTFunction(arguments, result) => arguments.flatMap(holeNames).toSet ++ holeNames(result)
@@ -161,6 +233,7 @@ object TypeTemplate:
     template match
       case TTHole(name) => Option.when(!bindings.contains(name))(name)
       case TTIdent(_) => None
+      case TTResolved(_) => None
       case TTApply(constructor, arguments) =>
         firstMissingHole(constructor, bindings).orElse(firstMissingIn(arguments, bindings))
       case TTTuple(elements) =>
@@ -198,6 +271,8 @@ object TypeTemplate:
       case TTHole(name) =>
         Vector(name)
       case TTIdent(_) =>
+        Vector.empty
+      case TTResolved(_) =>
         Vector.empty
       case TTApply(constructor, arguments) =>
         holeOccurrences(constructor) ++ arguments.toVector.flatMap(

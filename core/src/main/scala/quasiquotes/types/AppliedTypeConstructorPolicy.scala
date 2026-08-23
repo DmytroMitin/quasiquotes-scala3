@@ -30,3 +30,14 @@ private[quasiquotes] object AppliedTypeConstructorPolicy:
 
   def named(name: String): Option[Constructor] =
     constructors.find(_.name == name)
+
+  def forResolved(
+      id: ResolvedTypeNameId,
+      actualArity: Int
+  ): Option[Constructor] =
+    val expected =
+      if id == StandardResolvedTypeNames.ListId then Some("List")
+      else if id == StandardResolvedTypeNames.OptionId then Some("Option")
+      else if id == StandardResolvedTypeNames.EitherId then Some("Either")
+      else None
+    expected.flatMap(name => forNormalFormSource(name, actualArity))

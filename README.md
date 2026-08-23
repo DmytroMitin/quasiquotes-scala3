@@ -182,7 +182,12 @@ internals and is a diff baseline rather than a compatibility promise.
 The structural type subset includes recursively nested `List` and `Option`
 applications plus binary `Either`, including patterns, construction, quoted
 lowering/inspection, typed ascriptions, and scoped type evidence. Constructor
-admission remains fixed and deliberately excludes general name resolution.
+admission remains fixed. An experimental programmatic
+`GlobalSelectedTypeFrontend` accepts canonical globally addressable selected
+names only through an explicit `GlobalSelectedTypeEnvironment` built from
+typed witnesses. It supports selected standard `List`/`Option`/`Either` by
+full declaration identity; it does not add general name resolution, aliases,
+stable-term paths, or ambient lookup, and ordinary `tqr`/`tqq` remain unchanged.
 
 The canonical first-use examples, including the complete Lambda1, bounded P1
 block and single-typed-local-val P2 `qr`/`qq`, and bounded `tqr`/`tqq` macro paths, are mirrored from compiled

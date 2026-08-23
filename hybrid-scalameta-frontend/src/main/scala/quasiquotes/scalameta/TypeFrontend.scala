@@ -5,6 +5,7 @@ import scala.quoted.Quotes
 
 import quasiquotes.hybrid.TypeQ3DialectPolicy
 import quasiquotes.types.TypePattern
+import quasiquotes.types.GlobalSelectedTypeEnvironment
 import quasiquotes.types.hybrid.{HybridTypeFrontend, ScalametaTypeFrontend}
 
 /** Explicit programmatic entry point for the Scalameta-primary Type frontend.
@@ -62,6 +63,27 @@ object TypeFrontend:
         )
       )
 
+  /** Explicit canonical global selected-Type construction through the same
+    * validated environment used by the current-Dotty programmatic frontend.
+    */
+  def buildResolved(using q: Quotes)(
+      parts: Seq[String],
+      arguments: Seq[q.reflect.TypeRepr],
+      environment: GlobalSelectedTypeEnvironment[q.reflect.TypeRepr],
+      dialect: Dialect = TypeQ3DialectPolicy.selected
+  ): Either[Failure, BuildResult[q.reflect.TypeRepr]] =
+    HybridTypeFrontend
+      .constructResolved(parts, arguments, environment, dialect)
+      .left
+      .map(fromInternalFailure)
+      .map(result =>
+        BuildResult(
+          result.value,
+          fromInternalEngine(result.engine),
+          result.primaryFailure.map(fromInternalFailure)
+        )
+      )
+
   /** Compile an interpolator-shaped pattern from source parts. Each boundary
     * between parts becomes one ordered capture slot.
     */
@@ -88,6 +110,20 @@ object TypeFrontend:
       .map(fromInternalFailure)
       .map(fromInternalCompileResult)
 
+  /** Compile a canonical global selected-Type pattern through an explicit
+    * validated environment; the ordinary opt-in API remains unchanged.
+    */
+  def compilePatternResolved(using q: Quotes)(
+      source: String,
+      environment: GlobalSelectedTypeEnvironment[q.reflect.TypeRepr],
+      dialect: Dialect = TypeQ3DialectPolicy.selected
+  ): Either[Failure, CompileResult] =
+    HybridTypeFrontend
+      .compileProgrammaticResolved(source, environment.semanticEnvironment, dialect)
+      .left
+      .map(fromInternalFailure)
+      .map(fromInternalCompileResult)
+
   /** Match once-inspected target structure while returning the original
     * caller-owned reflected subtrees for successful captures.
     */
@@ -103,6 +139,26 @@ object TypeFrontend:
     )
     HybridTypeFrontend
       .matchPattern(internal, target)
+      .left
+      .map(fromInternalFailure)
+      .map(_.map(captures => MatchResult(captures, compiled.engine, compiled.primaryFailure)))
+
+  /** Match a selected-Type pattern with the same explicit environment that
+    * validated its canonical declaration identities.
+    */
+  def matchPatternResolved(using q: Quotes)(
+      compiled: CompileResult,
+      target: q.reflect.TypeRepr,
+      environment: GlobalSelectedTypeEnvironment[q.reflect.TypeRepr]
+  ): Either[Failure, Option[MatchResult[q.reflect.TypeRepr]]] =
+    val internal = HybridTypeFrontend.CompiledPattern(
+      compiled.pattern,
+      compiled.captureNames,
+      toInternalEngine(compiled.engine),
+      compiled.primaryFailure.map(toInternalFailure)
+    )
+    HybridTypeFrontend
+      .matchPatternResolved(internal, target, environment)
       .left
       .map(fromInternalFailure)
       .map(_.map(captures => MatchResult(captures, compiled.engine, compiled.primaryFailure)))

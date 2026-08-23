@@ -104,6 +104,8 @@ private[quasiquotes] object PublicDefinitionQuasiquote:
   private def toCompletedType(normalForm: TypeNormalForm): Either[String, CompletedType] =
     normalForm match
       case TypeNormalForm.STypeIdent(name) => named(name)
+      case TypeNormalForm.STypeResolved(id) =>
+        Left(s"Resolved selected Type `${id.canonicalSource}` is not admitted by the public Definition construction surface.")
       case TypeNormalForm.STypeApply(constructor, arguments) =>
         for
           completedConstructor <- toCompletedType(constructor)

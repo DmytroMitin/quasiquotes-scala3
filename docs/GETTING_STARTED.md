@@ -663,9 +663,40 @@ person. See [Diagnostics](DIAGNOSTICS.md) for exact examples.
 
 The type subset admits `Int`, `String`, `Boolean`, and (for inspection)
 `AnyVal`; recursive `List` and `Option`; binary `Either`; Tuple2/Tuple3; and
-Function1/Function2. General name resolution, `Map`, selected constructors such
-as `scala.Either`, constructor holes such as `$F[Int]`, Tuple4, and Function3
-are intentionally unsupported.
+Function1/Function2. General name resolution, `Map`, constructor holes such as
+`$F[Int]`, Tuple4, and Function3 are intentionally unsupported.
+
+## Experimental canonical global selected types
+
+Macro and staging code can opt into the bounded programmatic selected-Type
+surface by supplying exact typed witnesses explicitly:
+
+```scala
+import quasiquotes.types.{
+  GlobalSelectedTypeEnvironment,
+  GlobalSelectedTypeFrontend
+}
+import scala.quoted.*
+
+def buildSelected(using q: Quotes): Either[quasiquotes.types.TypeQuasiquoteError, q.reflect.TypeRepr] =
+  import q.reflect.*
+  for
+    environment <- GlobalSelectedTypeEnvironment.fromWitnesses(
+      TypeRepr.of[my.project.TopLevel],
+      TypeRepr.of[List[Int]]
+    )
+    result <- GlobalSelectedTypeFrontend.construct(
+      "my.project.TopLevel",
+      environment
+    )
+  yield result
+```
+
+The environment derives canonical Package/Type/Module owner paths from the
+witnesses; callers cannot attach arbitrary source labels. Selected
+`List`/`Option`/`Either` constructors are admitted only by exact full identity.
+Alias spellings, import-shortened alternatives, local owners, and stable-term
+paths remain deferred. This opt-in API does not change ordinary `tqr`/`tqq`.
 
 Term construction and matching are structural subsets too. Unsupported syntax
 returns an error instead of falling back to unchecked compiler trees. The

@@ -698,6 +698,7 @@ class ConstructedDefinitionGeneratedOriginAdapterTest extends munit.FunSuite:
   private def renderType(normalForm: TypeNormalForm): String =
     normalForm match
       case STypeIdent(name) => name
+      case STypeResolved(id) => id.canonicalSource
       case STypeApply(constructor, arguments) =>
         s"${renderType(constructor)}[${arguments.map(renderType).mkString(", ")}]"
       case STypeTuple(elements) =>

@@ -59,7 +59,9 @@ forms and the Quotes-dependent interpolator/extractor overloads.
 | Type holes | `Either[$left, $right]` | Yes | Yes | programmatic `tqr`, `tqq` | `BOUNDED`; named whole-type positions and repeated-hole structural equality |
 | Ordered reflected type construction | `tqr"Either[$left, $right]"` | Yes | No | interpolated `tqr` | `BOUNDED`; zero or more distinct ordinal `TypeRepr` slots, fixed constructors only |
 | Ordered reflected type capture extractor | `case tqq"Either[$left, $right]"` | No | Yes | interpolated `tqq` | `BOUNDED`; zero or more distinct ordinal slots, original target subtrees, mismatch falls through |
-| Selected/path-dependent types | `pkg.Type`, `value.Type` | No | No | — | `NOT_YET`; requires an explicit resolver and prefix policy |
+| Canonical global selected terminals | `some.pkg.TopLevel`, `some.pkg.Owner.Nested` | Yes | Yes | explicit `GlobalSelectedTypeEnvironment` + `GlobalSelectedTypeFrontend` | `EXPERIMENTAL_BOUNDED`; typed-witness-derived canonical Package/Type/Module ownership only |
+| Canonical selected fixed constructors | `scala.collection.immutable.List[Int]`, `scala.Option[String]`, `scala.util.Either[Int, String]` | Yes | Yes | explicit environment-aware programmatic surface | `EXPERIMENTAL_BOUNDED`; exact declaration identity and existing arities/child forms only |
+| Stable-term path-dependent types, aliases, alternate spellings | `value.Type`, alias source paths, import-shortened paths | No | No | — | `NOT_YET`; requires prefix identity or sound spelling validation; ordinary `tqr`/`tqq` still reject selected syntax |
 | Wildcards, refinements, match types | `List[?]`, `A { ... }`, `T match ...` | No | No | — | `NOT_YET`; outside the bounded normal form |
 
 The interpolated forms reuse the same normal-form construction and matching

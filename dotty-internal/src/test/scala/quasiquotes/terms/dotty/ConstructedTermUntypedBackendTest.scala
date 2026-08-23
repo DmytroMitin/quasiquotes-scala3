@@ -352,6 +352,7 @@ class ConstructedTermUntypedBackendTest extends munit.FunSuite:
   private def renderTypeSource(normalForm: TypeNormalForm): String =
     normalForm match
       case STypeIdent(name) => name
+      case STypeResolved(id) => id.canonicalSource
       case STypeApply(constructor, arguments) =>
         s"${renderTypeSource(constructor)}[${arguments.map(renderTypeSource).mkString(", ")}]"
       case STypeTuple(elements) =>

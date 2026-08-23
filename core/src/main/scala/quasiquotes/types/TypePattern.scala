@@ -9,6 +9,7 @@ sealed trait TypePattern derives CanEqual:
 object TypePattern:
   final case class TPHole(name: String) extends TypePattern
   final case class TPIdent(name: String) extends TypePattern
+  final case class TPResolved(id: ResolvedTypeNameId) extends TypePattern
   final case class TPApply(constructor: TypePattern, arguments: List[TypePattern]) extends TypePattern
   final case class TPTuple(elements: List[TypePattern]) extends TypePattern
   final case class TPFunction(arguments: List[TypePattern], result: TypePattern) extends TypePattern
@@ -42,6 +43,23 @@ object TypePattern:
       generatedHoles: GeneratedHoleIndex
   ): Either[TypeQuasiquoteError, TypePattern] =
     fromShapeUsing(shape, generatedHoles.semanticNameFor)
+
+  private[quasiquotes] def fromShapeResolvedWithHoles(
+      shape: TypeShape,
+      generatedHoles: GeneratedHoleIndex,
+      environment: ResolvedTypeEnvironment
+  ): Either[TypeQuasiquoteError, TypePattern] =
+    fromShapeResolvedUsing(shape, generatedHoles.semanticNameFor, environment)
+
+  private[quasiquotes] def fromShapeResolved(
+      shape: TypeShape,
+      environment: ResolvedTypeEnvironment
+  ): Either[TypeQuasiquoteError, TypePattern] =
+    fromShapeResolvedUsing(
+      shape,
+      name => Option.when(name.startsWith(HolePrefix))(name.drop(HolePrefix.length)),
+      environment
+    )
 
   private def fromShapeUsing(
       shape: TypeShape,
@@ -86,6 +104,52 @@ object TypePattern:
       case _ =>
         Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTypeSyntax("type-pattern construction")))
 
+  private def fromShapeResolvedUsing(
+      shape: TypeShape,
+      semanticHoleName: String => Option[String],
+      environment: ResolvedTypeEnvironment
+  ): Either[TypeQuasiquoteError, TypePattern] =
+    shape match
+      case TypeShape.Identifier(name) =>
+        semanticHoleName(name) match
+          case Some(holeName) => Right(TPHole(holeName))
+          case None => TypeNormalForm.fromShape(TypeShape.Identifier(name)).map(_ => TPIdent(name))
+      case selected @ TypeShape.Select(_, _) =>
+        environment.resolveSelected(selected).map(TPResolved(_))
+      case TypeShape.Parenthesized(inner) =>
+        fromShapeResolvedUsing(inner, semanticHoleName, environment)
+      case TypeShape.Apply(selected @ TypeShape.Select(_, _), arguments) =>
+        for
+          id <- environment.resolveSelected(selected)
+          _ <- AppliedTypeConstructorPolicy
+            .forResolved(id, arguments.size)
+            .toRight(
+              TypeQuasiquoteError(
+                TypeNameResolutionDiagnostics.constructorPolicyMismatch(id, arguments.size)
+              )
+            )
+          argumentPatterns <- collect(
+            arguments.map(fromShapeResolvedUsing(_, semanticHoleName, environment))
+          )
+        yield TPApply(TPResolved(id), argumentPatterns)
+      case TypeShape.Apply(TypeShape.Identifier(name), arguments)
+          if AppliedTypeConstructorPolicy.forNormalFormSource(name, arguments.size).isDefined =>
+        collect(arguments.map(fromShapeResolvedUsing(_, semanticHoleName, environment)))
+          .map(forms => TPApply(TPIdent(name), forms))
+      case TypeShape.Apply(TypeShape.Identifier(name), arguments) =>
+        semanticHoleName(name) match
+          case Some(holeName) => Left(TypeQuasiquoteError(TypeDiagnosticMessages.constructorHole(holeName)))
+          case None => Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedAppliedConstructor(name, arguments.size)))
+      case TypeShape.Tuple(elements) if elements.size == 2 || elements.size == 3 =>
+        collect(elements.map(fromShapeResolvedUsing(_, semanticHoleName, environment))).map(TPTuple(_))
+      case TypeShape.Function(arguments, result) if arguments.size == 1 || arguments.size == 2 =>
+        for
+          argumentPatterns <- collect(arguments.map(fromShapeResolvedUsing(_, semanticHoleName, environment)))
+          resultPattern <- fromShapeResolvedUsing(result, semanticHoleName, environment)
+        yield TPFunction(argumentPatterns, resultPattern)
+      case _ =>
+        Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTypeSyntax("resolved type-pattern construction")))
+
   def matchNormalForm(pattern: TypePattern, target: TypeNormalForm): Option[TypeMatchResult] =
     matchNormalFormWithPaths(pattern, target).map(_.result)
 
@@ -100,6 +164,7 @@ object TypePattern:
     pattern match
       case TPHole(_) => true
       case TPIdent(_) => false
+      case TPResolved(_) => false
       case TPApply(constructor, arguments) => containsHole(constructor) || arguments.exists(containsHole)
       case TPTuple(elements) => elements.exists(containsHole)
       case TPFunction(arguments, result) => arguments.exists(containsHole) || containsHole(result)
@@ -123,6 +188,11 @@ object TypePattern:
               )
             )
       case (TPIdent(name), TypeNormalForm.STypeIdent(targetName)) if name == targetName =>
+        Some(state)
+      case (TPIdent(name), TypeNormalForm.STypeResolved(id))
+          if StandardResolvedTypeNames.fixedSourceName(id).contains(name) =>
+        Some(state)
+      case (TPResolved(id), TypeNormalForm.STypeResolved(targetId)) if id == targetId =>
         Some(state)
       case (TPApply(patternConstructor, patternArguments), TypeNormalForm.STypeApply(targetConstructor, targetArguments))
           if patternArguments.size == targetArguments.size =>

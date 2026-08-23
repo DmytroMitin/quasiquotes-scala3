@@ -7,6 +7,7 @@ sealed trait TypeNormalForm derives CanEqual:
 
 object TypeNormalForm:
   final case class STypeIdent(name: String) extends TypeNormalForm
+  final case class STypeResolved(id: ResolvedTypeNameId) extends TypeNormalForm
   final case class STypeApply(constructor: TypeNormalForm, arguments: List[TypeNormalForm]) extends TypeNormalForm
   final case class STypeTuple(elements: List[TypeNormalForm]) extends TypeNormalForm
   final case class STypeFunction(arguments: List[TypeNormalForm], result: TypeNormalForm) extends TypeNormalForm
@@ -43,9 +44,45 @@ object TypeNormalForm:
       case _ =>
         Left(TypeQuasiquoteError(TypeDiagnosticMessages.unsupportedTypeSyntax("structural normal-form conversion")))
 
+  private[quasiquotes] def fromShapeResolved(
+      shape: TypeShape,
+      environment: ResolvedTypeEnvironment
+  ): Either[TypeQuasiquoteError, TypeNormalForm] =
+    shape match
+      case selected @ TypeShape.Select(_, _) =>
+        environment.resolveSelected(selected).map(STypeResolved(_))
+      case TypeShape.Apply(selected @ TypeShape.Select(_, _), arguments) =>
+        for
+          id <- environment.resolveSelected(selected)
+          _ <- AppliedTypeConstructorPolicy
+            .forResolved(id, arguments.size)
+            .toRight(
+              TypeQuasiquoteError(
+                TypeNameResolutionDiagnostics.constructorPolicyMismatch(id, arguments.size)
+              )
+            )
+          argumentForms <- collect(arguments.map(fromShapeResolved(_, environment)))
+        yield STypeApply(STypeResolved(id), argumentForms)
+      case TypeShape.Parenthesized(inner) =>
+        fromShapeResolved(inner, environment)
+      case TypeShape.Apply(TypeShape.Identifier(name), arguments)
+          if AppliedTypeConstructorPolicy.forNormalFormSource(name, arguments.size).isDefined =>
+        collect(arguments.map(fromShapeResolved(_, environment)))
+          .map(forms => STypeApply(STypeIdent(name), forms))
+      case TypeShape.Tuple(elements) if elements.size == 2 || elements.size == 3 =>
+        collect(elements.map(fromShapeResolved(_, environment))).map(STypeTuple(_))
+      case TypeShape.Function(arguments, result) if arguments.size == 1 || arguments.size == 2 =>
+        for
+          argumentForms <- collect(arguments.map(fromShapeResolved(_, environment)))
+          resultForm <- fromShapeResolved(result, environment)
+        yield STypeFunction(argumentForms, resultForm)
+      case other =>
+        fromShape(other)
+
   def render(normalForm: TypeNormalForm): String =
     normalForm match
       case STypeIdent(name) => s"STypeIdent($name)"
+      case STypeResolved(id) => s"STypeResolved(${id.render})"
       case STypeApply(constructor, arguments) =>
         s"STypeApply(${render(constructor)}, [${arguments.map(render).mkString(", ")}])"
       case STypeTuple(elements) =>

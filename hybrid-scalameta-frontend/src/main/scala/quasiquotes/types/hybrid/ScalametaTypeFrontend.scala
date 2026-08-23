@@ -86,6 +86,19 @@ private[quasiquotes] object ScalametaTypeFrontend:
         )
     }
 
+  def templateResolved(
+      source: String,
+      environment: ResolvedTypeEnvironment,
+      dialect: Dialect = TypeQ3DialectPolicy.selected
+  ): Either[Failure, TypeTemplate] =
+    val mapped = TypeTemplate.rewriteSourceMapped(source)
+    parseShape(mapped.generatedSource, dialect).flatMap { shape =>
+      TypeTemplate
+        .fromShapeResolvedWithHoles(shape, mapped.generatedHoleIndex, environment)
+        .left
+        .map(error => Failure.unsupported(source.length, error.message))
+    }
+
   def pattern(
       source: String,
       dialect: Dialect = TypeQ3DialectPolicy.selected
@@ -105,6 +118,19 @@ private[quasiquotes] object ScalametaTypeFrontend:
             )
           )
         )
+    }
+
+  def patternResolved(
+      source: String,
+      environment: ResolvedTypeEnvironment,
+      dialect: Dialect = TypeQ3DialectPolicy.selected
+  ): Either[Failure, TypePattern] =
+    val mapped = TypePattern.rewriteSourceMapped(source)
+    parseShape(mapped.generatedSource, dialect).flatMap { shape =>
+      TypePattern
+        .fromShapeResolvedWithHoles(shape, mapped.generatedHoleIndex, environment)
+        .left
+        .map(error => Failure.unsupported(source.length, error.message))
     }
 
 private[quasiquotes] object HybridTypeFrontend:
@@ -164,6 +190,29 @@ private[quasiquotes] object HybridTypeFrontend:
       }
     }
 
+  def constructResolved(using q: scala.quoted.Quotes)(
+      parts: Seq[String],
+      arguments: Seq[q.reflect.TypeRepr],
+      environment: GlobalSelectedTypeEnvironment[q.reflect.TypeRepr],
+      dialect: Dialect = TypeQ3DialectPolicy.selected
+  ): Either[ScalametaTypeFrontend.Failure, Result[q.reflect.TypeRepr]] =
+    checkedSource(parts, arguments.size, "tqr").flatMap { source =>
+      inspectBindingsResolved(arguments, "tqrSlot", environment).flatMap { bindings =>
+        ScalametaTypeFrontend.templateResolved(source, environment.semanticEnvironment, dialect) match
+          case Right(template) =>
+            constructResolvedTemplate(template, bindings, environment)
+              .map(Result(_, Engine.Scalameta, None))
+          case Left(primary) if primary.category == "SCALAMETA_PARSE_FAILURE" =>
+            GlobalSelectedTypeFrontend.resolvedTemplate(source, environment.semanticEnvironment) match
+              case Right(template) =>
+                constructResolvedTemplate(template, bindings, environment)
+                  .map(Result(_, Engine.CurrentDottyFallback, Some(primary)))
+              case Left(fallback) =>
+                Left(primary.copy(detail = s"${primary.detail}; current parser: ${fallback.message}"))
+          case Left(failure) => Left(failure)
+      }
+    }
+
   def compile(
       parts: Seq[String],
       dialect: Dialect = TypeQ3DialectPolicy.selected
@@ -180,12 +229,43 @@ private[quasiquotes] object HybridTypeFrontend:
     val names = TypePattern.rewriteSourceMapped(source).occurrences.map(_.name).distinct
     compileSource(source, names, dialect)
 
+  def compileProgrammaticResolved(
+      source: String,
+      environment: ResolvedTypeEnvironment,
+      dialect: Dialect = TypeQ3DialectPolicy.selected
+  ): Either[ScalametaTypeFrontend.Failure, CompiledPattern] =
+    val names = TypePattern.rewriteSourceMapped(source).occurrences.map(_.name).distinct
+    compileSourceResolved(source, names, environment, dialect)
+
   def matchPattern(using q: scala.quoted.Quotes)(
       compiled: CompiledPattern,
       target: q.reflect.TypeRepr
   ): Either[ScalametaTypeFrontend.Failure, Option[Vector[q.reflect.TypeRepr]]] =
     TargetTypeReprInspector
       .inspectWithOrigins(target)
+      .left
+      .map(error => ScalametaTypeFrontend.Failure.targetInspection(error.message))
+      .map { inspection =>
+        TypePattern.matchNormalFormWithPaths(compiled.value, inspection.normalForm).flatMap { trace =>
+          compiled.captureNames.foldLeft(Option(Vector.empty[q.reflect.TypeRepr])) {
+            case (captures, name) =>
+              captures.flatMap(current =>
+                trace.holePaths
+                  .get(name)
+                  .flatMap(inspection.originalsByPath.get)
+                  .map(current :+ _)
+              )
+          }
+        }
+      }
+
+  def matchPatternResolved(using q: scala.quoted.Quotes)(
+      compiled: CompiledPattern,
+      target: q.reflect.TypeRepr,
+      environment: GlobalSelectedTypeEnvironment[q.reflect.TypeRepr]
+  ): Either[ScalametaTypeFrontend.Failure, Option[Vector[q.reflect.TypeRepr]]] =
+    TargetTypeReprInspector
+      .inspectResolvedWithOrigins(target, environment)
       .left
       .map(error => ScalametaTypeFrontend.Failure.targetInspection(error.message))
       .map { inspection =>
@@ -223,6 +303,27 @@ private[quasiquotes] object HybridTypeFrontend:
             Left(primary.copy(detail = s"${primary.detail}; current parser: ${fallback.message}"))
       case Left(failure) => Left(failure)
 
+  private def compileSourceResolved(
+      source: String,
+      names: Vector[String],
+      environment: ResolvedTypeEnvironment,
+      dialect: Dialect
+  ): Either[ScalametaTypeFrontend.Failure, CompiledPattern] =
+    ScalametaTypeFrontend.patternResolved(source, environment, dialect) match
+      case Right(pattern) => Right(CompiledPattern(pattern, names, Engine.Scalameta, None))
+      case Left(primary) if primary.category == "SCALAMETA_PARSE_FAILURE" =>
+        val mapped = TypePattern.rewriteSourceMapped(source)
+        TinyTypeParser.parse(mapped.generatedSource) match
+          case Right(parsed) =>
+            TypePattern
+              .fromShapeResolvedWithHoles(parsed.shape, mapped.generatedHoleIndex, environment)
+              .left
+              .map(error => primary.copy(detail = s"${primary.detail}; current parser: ${error.message}"))
+              .map(pattern => CompiledPattern(pattern, names, Engine.CurrentDottyFallback, Some(primary)))
+          case Left(fallback) =>
+            Left(primary.copy(detail = s"${primary.detail}; current parser: ${fallback.summary}"))
+      case Left(failure) => Left(failure)
+
   private def inspectBindings(using q: scala.quoted.Quotes)(
       arguments: Seq[q.reflect.TypeRepr],
       prefix: String
@@ -234,6 +335,23 @@ private[quasiquotes] object HybridTypeFrontend:
         bindings <- accumulated
         normalForm <- TargetTypeReprInspector
           .inspect(argument)
+          .left
+          .map(error => ScalametaTypeFrontend.Failure.spliceInspection(error.message))
+      yield bindings.updated(s"$prefix$index", normalForm)
+    }
+
+  private def inspectBindingsResolved(using q: scala.quoted.Quotes)(
+      arguments: Seq[q.reflect.TypeRepr],
+      prefix: String,
+      environment: GlobalSelectedTypeEnvironment[q.reflect.TypeRepr]
+  ): Either[ScalametaTypeFrontend.Failure, Map[String, TypeNormalForm]] =
+    arguments.zipWithIndex.foldLeft(
+      Right(Map.empty): Either[ScalametaTypeFrontend.Failure, Map[String, TypeNormalForm]]
+    ) { case (accumulated, (argument, index)) =>
+      for
+        bindings <- accumulated
+        normalForm <- TargetTypeReprInspector
+          .inspectResolved(argument, environment)
           .left
           .map(error => ScalametaTypeFrontend.Failure.spliceInspection(error.message))
       yield bindings.updated(s"$prefix$index", normalForm)
@@ -254,6 +372,26 @@ private[quasiquotes] object HybridTypeFrontend:
         .map(error => ScalametaTypeFrontend.Failure.construction(error.message))
       lowered <- TypeReprLowerer
         .lowerNormalForm(normalForm)
+        .left
+        .map(error => ScalametaTypeFrontend.Failure.construction(error.message))
+    yield lowered
+
+  private def constructResolvedTemplate(using q: scala.quoted.Quotes)(
+      template: TypeTemplate,
+      bindings: Map[String, TypeNormalForm],
+      environment: GlobalSelectedTypeEnvironment[q.reflect.TypeRepr]
+  ): Either[ScalametaTypeFrontend.Failure, q.reflect.TypeRepr] =
+    for
+      normalForm <- TypeTemplate
+        .construct(template, bindings)
+        .left
+        .map(error => ScalametaTypeFrontend.Failure.construction(error.message))
+      _ <- TypeTemplate
+        .validateConstructed(normalForm)
+        .left
+        .map(error => ScalametaTypeFrontend.Failure.construction(error.message))
+      lowered <- GlobalSelectedTypeFrontend
+        .lowerResolved(normalForm, environment)
         .left
         .map(error => ScalametaTypeFrontend.Failure.construction(error.message))
     yield lowered
