@@ -3,9 +3,12 @@ package quasiquotes.matching.hybrid
 import scala.meta.*
 
 import _root_.quasiquotes.construct.hybrid.ScalametaTermFrontend
-import _root_.quasiquotes.matching.{PatternSource, TermPattern}
+import _root_.quasiquotes.matching.{BlockPatternStatement, PatternSource, TermPattern}
 import _root_.quasiquotes.parser.{BinderId, ConstructorNamePolicy, Lambda1DiagnosticMessages}
 import _root_.quasiquotes.parser.P1BlockDiagnosticMessages
+import _root_.quasiquotes.parser.P2LocalValDiagnosticMessages
+import _root_.quasiquotes.terms.TermShapeTraversal
+import _root_.quasiquotes.types.TypeNormalFormSource
 import _root_.quasiquotes.hybrid.TermQ3DialectPolicy
 import _root_.quasiquotes.source.GeneratedHoleIndex
 
@@ -66,6 +69,14 @@ private[quasiquotes] object ScalametaPatternFrontend:
         case name: scala.meta.Type.Name => Right(normalizeType(name.value))
         case select: scala.meta.Type.Select => Right(normalizeType(select.syntax))
         case _ => unsupported(tpe, "ascription type must be a stable name")
+
+    def renderP2DeclaredType(tpe: scala.meta.Type): Either[Failure, String] =
+      renderType(tpe).orElse(
+        TypeNormalFormSource
+          .fromSource(tpe.syntax)
+          .left.map(error => ScalametaTermFrontend.Failure.lowering(error.message))
+          .map(TermShapeTraversal.renderNormalForm)
+      )
 
     def constructorName(tpe: scala.meta.Type): Either[Failure, String] =
       tpe match
@@ -142,6 +153,8 @@ private[quasiquotes] object ScalametaPatternFrontend:
         case block: scala.meta.Term.Block =>
           block.stats match
             case (result: scala.meta.Term) :: Nil => loop(result, scope)
+            case (definition: scala.meta.Defn.Val) :: (result: scala.meta.Term) :: Nil =>
+              compileLocalVal(definition, result, scope)
             case stats if stats.size >= 2 && stats.forall(_.isInstanceOf[scala.meta.Term]) =>
               val terms = stats.map(_.asInstanceOf[scala.meta.Term])
               for
@@ -150,8 +163,9 @@ private[quasiquotes] object ScalametaPatternFrontend:
               yield TermPattern.Block(prefix, result)
             case stats =>
               stats.collectFirst {
-                case _: scala.meta.Defn.Val | _: scala.meta.Defn.Var => P1BlockDiagnosticMessages.LocalVal
-                case _: scala.meta.Defn.Def => P1BlockDiagnosticMessages.LocalDef
+                case _: scala.meta.Defn.Val => P2LocalValDiagnosticMessages.ExactlyOne
+                case _: scala.meta.Defn.Var => P2LocalValDiagnosticMessages.Mutable
+                case _: scala.meta.Defn.Def => P2LocalValDiagnosticMessages.LocalDef
                 case stat if !stat.isInstanceOf[scala.meta.Term] =>
                   P1BlockDiagnosticMessages.UnsupportedStatement(stat.productPrefix)
               } match
@@ -178,6 +192,38 @@ private[quasiquotes] object ScalametaPatternFrontend:
             })
           yield TermPattern.InterpolatedString("s", parts, arguments)
         case other => unsupported(other, "outside the bounded side-by-side term-pattern tranche")
+
+    def compileLocalVal(
+        definition: scala.meta.Defn.Val,
+        result: scala.meta.Term,
+        scope: List[(String, BinderId)]
+    ): Either[Failure, TermPattern] =
+      definition.pats match
+        case scala.meta.Pat.Var(name) :: Nil if definition.mods.exists(_.isInstanceOf[scala.meta.Mod.Lazy]) =>
+          unsupported(definition, P2LocalValDiagnosticMessages.Lazy)
+        case scala.meta.Pat.Var(name) :: Nil if definition.mods.nonEmpty =>
+          unsupported(definition, P2LocalValDiagnosticMessages.Pattern)
+        case scala.meta.Pat.Var(name) :: Nil =>
+          definition.decltpe match
+            case None => unsupported(definition, P2LocalValDiagnosticMessages.MissingExplicitType)
+            case Some(declaredType) =>
+              val binderId = BinderId(scope.size)
+              for
+                renderedType <- renderP2DeclaredType(declaredType)
+                initializer <- loop(definition.rhs, scope)
+                compiledResult <- loop(result, (name.value -> binderId) :: scope)
+              yield TermPattern.Block(
+                List(
+                  BlockPatternStatement.LocalVal(
+                    binderId,
+                    name.value,
+                    renderedType,
+                    initializer
+                  )
+                ),
+                compiledResult
+              )
+        case _ => unsupported(definition, P2LocalValDiagnosticMessages.Pattern)
 
     loop(tree)
 

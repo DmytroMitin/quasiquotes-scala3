@@ -7,10 +7,12 @@ import scala.meta.*
 import scala.meta.parsers.Parsed
 
 import _root_.quasiquotes.construct.*
-import _root_.quasiquotes.parser.{ConstructorNamePolicy, Lambda1DiagnosticMessages, TinyTermParser}
+import _root_.quasiquotes.parser.{BinderId, ConstructorNamePolicy, Lambda1DiagnosticMessages, TinyTermParser}
 import _root_.quasiquotes.parser.P1BlockDiagnosticMessages
+import _root_.quasiquotes.parser.P2LocalValDiagnosticMessages
 import _root_.quasiquotes.hybrid.TermQ3DialectPolicy
 import _root_.quasiquotes.types.toTypeRepr
+import _root_.quasiquotes.types.{TypeNormalFormSource, TypeReprLowerer}
 
 /** Public-Scalameta syntax parsing followed by project-owned Quotes lowering.
   * This lives only in the unpublished side-by-side module.
@@ -131,6 +133,15 @@ private[quasiquotes] object ScalametaTermFrontend:
               case _ => Left(Failure.lowering(s"unresolved type name: $name"))
       }
 
+    def lowerP2DeclaredType(tpe: scala.meta.Type): Either[Failure, TypeTree] =
+      lowerType(tpe).orElse(
+        TypeNormalFormSource
+          .fromSource(tpe.syntax)
+          .left.map(error => Failure.lowering(error.message))
+          .flatMap(TypeReprLowerer.lowerNormalForm(_).left.map(error => Failure.lowering(error.message)))
+          .map(Inferred.apply)
+      )
+
     def applyFunction(function: Term, arguments: List[Term]): Either[Failure, Term] =
       try Right(function.appliedToArgs(arguments))
       catch
@@ -179,15 +190,18 @@ private[quasiquotes] object ScalametaTermFrontend:
 
     def loop(
         current: scala.meta.Term,
-        boundTerms: List[(String, Term)] = Nil,
-        lambdaDepth: Int = 0
+        boundTerms: List[(String, BinderId, Term)] = Nil,
+        lambdaDepth: Int = 0,
+        localValDepth: Int = 0
     ): Either[Failure, Term] =
       def lowerChild(child: scala.meta.Term): Either[Failure, Term] =
-        loop(child, boundTerms, lambdaDepth)
+        loop(child, boundTerms, lambdaDepth, localValDepth)
 
       current match
         case name: scala.meta.Term.Name =>
           termHoles.get(name.value) match
+            case Some(term) if localValDepth > 0 && containsOwnedDefinition(term) =>
+              Left(Failure.lowering(P2LocalValDiagnosticMessages.OwnedDefinitionSplice))
             case Some(term) if lambdaDepth > 0 && containsOwnedDefinition(term) =>
               Left(Failure.lowering(Lambda1DiagnosticMessages.OwnedDefinitionSplice))
             case Some(term) => Right(term)
@@ -196,7 +210,7 @@ private[quasiquotes] object ScalametaTermFrontend:
             case None if PlaceholderSource.isCategorizedName(name.value) && !literalCategorizedNames(name.value) =>
               Left(Failure.lowering(s"unknown term placeholder: ${name.value}"))
             case None =>
-              boundTerms.collectFirst { case (boundName, term) if boundName == name.value => term } match
+              boundTerms.collectFirst { case (boundName, _, term) if boundName == name.value => term } match
                 case Some(term) => Right(term)
                 case None => IdentifierResolver.resolve(name.value).left.map(error => Failure.lowering(error.message))
         case function: scala.meta.Term.Function =>
@@ -205,6 +219,7 @@ private[quasiquotes] object ScalametaTermFrontend:
             function.paramClause.values match
               case parameter :: Nil if parameter.decltpe.nonEmpty && parameter.mods.isEmpty =>
                 val parameterName = parameter.name.value
+                val binderId = BinderId(boundTerms.size)
                 lowerType(parameter.decltpe.get).flatMap { parameterTypeTree =>
                   val parameterType = parameterTypeTree.tpe
                   val previewSymbol = Symbol.newVal(
@@ -217,8 +232,9 @@ private[quasiquotes] object ScalametaTermFrontend:
                   val previewParameter = Ref(previewSymbol)
                   loop(
                     function.body,
-                    (parameterName -> previewParameter) :: boundTerms,
-                    lambdaDepth + 1
+                    (parameterName, binderId, previewParameter) :: boundTerms,
+                    lambdaDepth + 1,
+                    localValDepth
                   ).flatMap { previewBody =>
                     val methodType = MethodType(List(parameterName))(
                       _ => List(parameterType),
@@ -232,8 +248,9 @@ private[quasiquotes] object ScalametaTermFrontend:
                         val parameterTerm = parameters.head.asInstanceOf[Term]
                         loop(
                           function.body,
-                          (parameterName -> parameterTerm) :: boundTerms,
-                          lambdaDepth + 1
+                          (parameterName, binderId, parameterTerm) :: boundTerms,
+                          lambdaDepth + 1,
+                          localValDepth
                         ) match
                           case Right(lowered) => lowered
                           case Left(failure) =>
@@ -295,6 +312,8 @@ private[quasiquotes] object ScalametaTermFrontend:
         case block: scala.meta.Term.Block =>
           block.stats match
             case (result: scala.meta.Term) :: Nil => lowerChild(result)
+            case (definition: scala.meta.Defn.Val) :: (result: scala.meta.Term) :: Nil =>
+              lowerLocalValBlock(definition, result, boundTerms, lambdaDepth, localValDepth)
             case stats if stats.size >= 2 && stats.forall(_.isInstanceOf[scala.meta.Term]) =>
               val terms = stats.map(_.asInstanceOf[scala.meta.Term])
               for
@@ -303,8 +322,9 @@ private[quasiquotes] object ScalametaTermFrontend:
               yield Block(prefix, result)
             case stats =>
               stats.collectFirst {
-                case _: scala.meta.Defn.Val | _: scala.meta.Defn.Var => P1BlockDiagnosticMessages.LocalVal
-                case _: scala.meta.Defn.Def => P1BlockDiagnosticMessages.LocalDef
+                case _: scala.meta.Defn.Val => P2LocalValDiagnosticMessages.ExactlyOne
+                case _: scala.meta.Defn.Var => P2LocalValDiagnosticMessages.Mutable
+                case _: scala.meta.Defn.Def => P2LocalValDiagnosticMessages.LocalDef
                 case stat if !stat.isInstanceOf[scala.meta.Term] =>
                   P1BlockDiagnosticMessages.UnsupportedStatement(stat.productPrefix)
               } match
@@ -331,6 +351,43 @@ private[quasiquotes] object ScalametaTermFrontend:
             })
           yield '{ StringContext(${Varargs(parts.map(Expr(_)))}*).s(${Varargs(arguments.map(_.asExpr))}*) }.asTerm
         case other => unsupported(other, "outside the bounded side-by-side term tranche")
+
+    def lowerLocalValBlock(
+        definition: scala.meta.Defn.Val,
+        result: scala.meta.Term,
+        boundTerms: List[(String, BinderId, Term)],
+        lambdaDepth: Int,
+        localValDepth: Int
+    ): Either[Failure, Term] =
+      definition.pats match
+        case scala.meta.Pat.Var(name) :: Nil if definition.mods.exists(_.isInstanceOf[scala.meta.Mod.Lazy]) =>
+          unsupported(definition, P2LocalValDiagnosticMessages.Lazy)
+        case scala.meta.Pat.Var(name) :: Nil if definition.mods.nonEmpty =>
+          unsupported(definition, P2LocalValDiagnosticMessages.Pattern)
+        case scala.meta.Pat.Var(name) :: Nil =>
+          definition.decltpe match
+            case None => unsupported(definition, P2LocalValDiagnosticMessages.MissingExplicitType)
+            case Some(declaredType) =>
+              for
+                typeTree <- lowerP2DeclaredType(declaredType)
+                initializer <- loop(definition.rhs, boundTerms, lambdaDepth, localValDepth)
+                binderId = BinderId(boundTerms.size)
+                symbol = Symbol.newVal(
+                  Symbol.spliceOwner,
+                  name.value,
+                  typeTree.tpe,
+                  Flags.EmptyFlags,
+                  Symbol.noSymbol
+                )
+                value = ValDef(symbol, Some(initializer))
+                loweredResult <- loop(
+                  result,
+                  (name.value, binderId, Ref(symbol)) :: boundTerms,
+                  lambdaDepth,
+                  localValDepth + 1
+                )
+              yield Block(List(value), loweredResult)
+        case _ => unsupported(definition, P2LocalValDiagnosticMessages.Pattern)
 
     loop(tree)
 

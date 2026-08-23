@@ -21,10 +21,10 @@ class HybridTermFrontendTest extends munit.FunSuite:
     val rows = TermQ3ParityMatrix.rows
     assertEquals(rows.map(_.id).distinct.size, rows.size)
     assertEquals(rows.map(_.id).toSet, TermQ3ParityMatrix.requiredIds)
-    assertEquals(rows.size, 36)
+    assertEquals(rows.size, 37)
     assertEquals(
       rows.count(_.classification == TermQ3ParityMatrix.Classification.HYBRID_SCALAMETA_SUPPORTED),
-      30
+      31
     )
     assertEquals(
       rows.count(_.classification == TermQ3ParityMatrix.Classification.NOT_A_PUBLIC_TERM_CASE),
@@ -32,6 +32,10 @@ class HybridTermFrontendTest extends munit.FunSuite:
     )
     assertEquals(
       rows.find(_.id == "p1-expression-block").map(_.classification),
+      Some(TermQ3ParityMatrix.Classification.HYBRID_SCALAMETA_SUPPORTED)
+    )
+    assertEquals(
+      rows.find(_.id == "p2-single-typed-local-immutable-val").map(_.classification),
       Some(TermQ3ParityMatrix.Classification.HYBRID_SCALAMETA_SUPPORTED)
     )
 
@@ -238,6 +242,93 @@ class HybridTermFrontendTest extends munit.FunSuite:
       Right("Block([Hole($prefix)], Hole($result))")
     )
     assertEquals(evidence._4, Right(true))
+
+  test("Scalameta P2 local val lowering and patterns share binder and owner semantics"):
+    given Compiler = Compiler.make(getClass.getClassLoader)
+    val evidence = withQuotes:
+      val q = summon[scala.quoted.Quotes]
+      import q.reflect.*
+
+      val candidate = ScalametaTermFrontend.lower(using q)(Seq("{ val renamed: Int = 7; renamed }"), Nil)
+      val pattern = ScalametaPatternFrontend.compile("{ val x: Int = $initializer; x }")
+      val matched = for
+        term <- candidate
+        compiled <- pattern
+        result <- TermMatcher.matchTerm(using q)(compiled, term)
+          .left.map(error => ScalametaTermFrontend.Failure.lowering(error.message))
+      yield
+        val initializer = result.bindings("initializer")
+        term match
+          case Block((definition: ValDef) :: Nil, bound: Ident) =>
+            (
+              definition.symbol.owner == Symbol.spliceOwner,
+              bound.symbol == definition.symbol,
+              definition.rhs.exists(_.asInstanceOf[AnyRef].eq(initializer.asInstanceOf[AnyRef]))
+            )
+          case _ => (false, false, false)
+
+      (
+        candidate.flatMap(term => TargetTermView.fromTerm(using q)(term)
+          .left.map(error => ScalametaTermFrontend.Failure.lowering(error.message))
+          .map(_.render)),
+        pattern.map(_.render),
+        matched
+      )
+
+    assertEquals(
+      evidence._1,
+      Right("Block([LocalVal(renamed: Int = Literal(7))], BoundRef(renamed))")
+    )
+    assertEquals(
+      evidence._2,
+      Right("Block([LocalVal(x: Int = Hole($initializer))], BoundRef(x))")
+    )
+    assertEquals(evidence._3, Right((true, true, true)))
+
+  test("Scalameta P2 accepts the existing applied declared-type subset"):
+    given Compiler = Compiler.make(getClass.getClassLoader)
+    val evidence = withQuotes:
+      val q = summon[scala.quoted.Quotes]
+      import q.reflect.*
+      val initializer = '{ List.empty[Int] }.asTerm
+      val candidate = ScalametaTermFrontend.lower(using q)(
+        Seq("{ val xs: List[Int] = ", "; xs }"),
+        Seq(initializer)
+      )
+      val pattern = ScalametaPatternFrontend.compile(
+        "{ val renamed: List[Int] = $initializer; renamed }"
+      )
+      (
+        candidate.map {
+          case Block((definition: ValDef) :: Nil, bound: Ident) =>
+            definition.tpt.tpe =:= TypeRepr.of[List[Int]] &&
+              definition.rhs.exists(_.asInstanceOf[AnyRef].eq(initializer.asInstanceOf[AnyRef])) &&
+              bound.symbol == definition.symbol
+          case _ => false
+        },
+        pattern.map(_.render)
+      )
+
+    assertEquals(evidence._1, Right(true))
+    assertEquals(
+      evidence._2,
+      Right("Block([LocalVal(renamed: List[Int] = Hole($initializer))], BoundRef(renamed))")
+    )
+
+  test("Scalameta P2 residual local forms fail closed with controlled diagnostics"):
+    val rejectedPatterns = List(
+      "{ val x = 1; x }",
+      "{ var x: Int = 1; x }",
+      "{ lazy val x: Int = 1; x }",
+      "{ val (x, y): (Int, Int) = (1, 2); x }",
+      "{ val x: Int = 1; val y: Int = 2; y }",
+      "{ def x: Int = 1; x }"
+    )
+    rejectedPatterns.foreach { source =>
+      val failure = ScalametaPatternFrontend.compile(source).swap.toOption
+      assert(failure.nonEmpty, source)
+      assertEquals(failure.get.category, "SCALAMETA_PATTERN_LOWERING_UNSUPPORTED")
+    }
 
   test("pattern fallback remains callable without changing explicit QuasiPattern semantics"):
     val restricted = HybridPatternFrontend.compile("if true then $value else 0", dialects.Scala213)

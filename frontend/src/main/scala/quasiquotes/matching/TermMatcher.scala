@@ -83,9 +83,26 @@ object TermMatcher:
             scopedEquivalent(leftThen, leftScope, rightThen, rightScope) &&
             scopedEquivalent(leftElse, leftScope, rightElse, rightScope)
         case (TargetTermView.Block(leftPrefix, leftResult, _), TargetTermView.Block(rightPrefix, rightResult, _)) =>
-          leftPrefix.size == rightPrefix.size &&
-            leftPrefix.zip(rightPrefix).forall((left, right) => scopedEquivalent(left, leftScope, right, rightScope)) &&
-            scopedEquivalent(leftResult, leftScope, rightResult, rightScope)
+          (leftPrefix, rightPrefix) match
+            case (
+                  List(TargetBlockStatementView.LocalVal(leftId, _, leftType, _, leftInitializer, _)),
+                  List(TargetBlockStatementView.LocalVal(rightId, _, rightType, _, rightInitializer, _))
+                ) =>
+              leftType == rightType &&
+                scopedEquivalent(leftInitializer, leftScope, rightInitializer, rightScope) &&
+                scopedEquivalent(leftResult, leftId :: leftScope, rightResult, rightId :: rightScope)
+            case _ if leftPrefix.forall(_.isInstanceOf[TargetTermView[?]]) &&
+                rightPrefix.forall(_.isInstanceOf[TargetTermView[?]]) =>
+              leftPrefix.size == rightPrefix.size &&
+                leftPrefix.zip(rightPrefix).forall { (left, right) =>
+                  scopedEquivalent(
+                    left.asInstanceOf[TargetTermView[Term]],
+                    leftScope,
+                    right.asInstanceOf[TargetTermView[Term]],
+                    rightScope
+                  )
+                } && scopedEquivalent(leftResult, leftScope, rightResult, rightScope)
+            case _ => false
         case _ => false
 
     def normalizedEquality(
@@ -228,15 +245,48 @@ object TermMatcher:
             case other => Left(shapeMismatch(pattern, other))
         case TermPattern.Block(prefix, result) =>
           target match
-            case TargetTermView.Block(targetPrefix, targetResult, _) if targetPrefix.length == prefix.length =>
-              for
-                prefixBindings <- prefix.zip(targetPrefix).foldLeft(
-                  Right(bindings): Either[MatchFailure, Map[String, Captured]]
-                ) { case (acc, (patternChild, targetChild)) =>
-                  acc.flatMap(loop(patternChild, targetChild, _, patternScope, targetScope))
-                }
-                resultBindings <- loop(result, targetResult, prefixBindings, patternScope, targetScope)
-              yield resultBindings
+            case TargetTermView.Block(targetPrefix, targetResult, _) =>
+              (prefix, targetPrefix) match
+                case (
+                      List(BlockPatternStatement.LocalVal(patternBinderId, _, patternType, patternInitializer)),
+                      List(TargetBlockStatementView.LocalVal(targetBinderId, _, targetType, binderSymbol, targetInitializer, _))
+                    ) if patternType == targetType =>
+                  for
+                    initializerBindings <- loop(
+                      patternInitializer,
+                      targetInitializer,
+                      bindings,
+                      patternScope,
+                      targetScope
+                    )
+                    resultBindings <- loop(
+                      result,
+                      targetResult,
+                      initializerBindings,
+                      patternBinderId :: patternScope,
+                      (targetBinderId -> binderSymbol.asInstanceOf[Symbol]) :: targetScope
+                    )
+                  yield resultBindings
+                case _ if prefix.length == targetPrefix.length &&
+                    prefix.forall(_.isInstanceOf[TermPattern]) &&
+                    targetPrefix.forall(_.isInstanceOf[TargetTermView[?]]) =>
+                  for
+                    prefixBindings <- prefix.zip(targetPrefix).foldLeft(
+                      Right(bindings): Either[MatchFailure, Map[String, Captured]]
+                    ) { case (acc, (patternChild, targetChild)) =>
+                      acc.flatMap(
+                        loop(
+                          patternChild.asInstanceOf[TermPattern],
+                          targetChild.asInstanceOf[TargetTermView[Term]],
+                          _,
+                          patternScope,
+                          targetScope
+                        )
+                      )
+                    }
+                    resultBindings <- loop(result, targetResult, prefixBindings, patternScope, targetScope)
+                  yield resultBindings
+                case _ => Left(shapeMismatch(pattern, target))
             case other => Left(shapeMismatch(pattern, other))
         case TermPattern.Parenthesized(inner) =>
           if normalized then loop(inner, target, bindings, patternScope, targetScope)

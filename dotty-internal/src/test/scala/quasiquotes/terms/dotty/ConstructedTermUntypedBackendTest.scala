@@ -8,6 +8,8 @@ import dotty.tools.dotc.core.Contexts.{Context, ContextBase}
 import dotty.tools.dotc.core.Symbols.NoSymbol
 
 import quasiquotes.parser.{
+  BinderId,
+  BlockStatement,
   DottySourceSpanAdapter,
   TermShape,
   TermShapeInspector,
@@ -320,6 +322,27 @@ class ConstructedTermUntypedBackendTest extends munit.FunSuite:
     assertEquals(
       UnconsumedTypeSidecars(1, 2).message,
       "Constructed-term lowering consumed 1 of 2 completed type sidecars."
+    )
+  }
+
+  test("exact untyped backend fails closed for the P2 local-val semantic node") {
+    val binderId = BinderId(0)
+    val shape = TermShape.Block(
+      List(
+        BlockStatement.LocalVal(
+          binderId,
+          "x",
+          "Int",
+          TermShape.Literal("1")
+        )
+      ),
+      TermShape.BoundReference(binderId, "x")
+    )
+    val constructed = ConstructedTerm.fromShape(shape).toOption.get
+
+    assertEquals(
+      ConstructedTermUntypedBackend.lower(constructed),
+      Left(UnsupportedTermNode("Block"))
     )
   }
 

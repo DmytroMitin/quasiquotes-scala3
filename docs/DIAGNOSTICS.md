@@ -97,12 +97,14 @@ protocol cannot return rich mismatch details; use `QuasiPattern.termLocated`
 for recoverable template diagnostics and `matchTerm` for explicit match
 failures.
 
-For P1 blocks, local `val`/`var` and local `def` statements are rejected
-explicitly as unsupported binder-bearing block forms. The public-default and
-Scalameta opt-in paths use the same block-family wording. Located parsing maps
-the deepest truthful unsupported subtree when available; malformed blocks
-remain `PatternError.ParseFailure` values and may have an exact parser span or
-no usable location. Generated target matching requires no source reconstruction.
+P2 admits exactly `{ val x: SupportedType = initializer; result }`. Diagnostics
+separate a missing explicit type, `var`, `lazy val`, a pattern/destructuring
+binder, multiple local values, local `def`, unsupported initializer/result
+children, and an owner-sensitive splice containing definitions. The
+public-default and Scalameta opt-in paths retain controlled block-family
+wording. Located parsing uses the deepest truthful source span available;
+generated target matching requires no source reconstruction. Broader P2/P3
+forms fail closed rather than falling back to P1.
 
 ## `tqr` and `tqq` diagnostics
 

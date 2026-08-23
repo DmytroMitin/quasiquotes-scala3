@@ -12,6 +12,8 @@ import dotty.tools.dotc.core.Constants.{
   StringTag
 }
 import dotty.tools.dotc.core.Names.Name
+import dotty.tools.dotc.core.Flags
+import quasiquotes.types.TypeNormalForm
 
 object TermShapeInspector:
   private val SupportedUnaryOperators = Set("+", "-", "!", "~")
@@ -92,7 +94,16 @@ object TermShapeInspector:
       case untpd.Block(Nil, result) =>
         loop(result, scope)
       case untpd.Block(statements, result) =>
-        inspectBlock(statements, result, scope, loop)
+        inspectBlock(
+          statements,
+          result,
+          scope,
+          loop,
+          () =>
+            val binderId = BinderId(nextBinderId)
+            nextBinderId += 1
+            binderId
+        )
       case untpd.TypedSplice(tree) =>
         loop(tree, scope)
       case untpd.Parens(tree) =>
@@ -167,20 +178,106 @@ object TermShapeInspector:
       statements: List[untpd.Tree],
       result: untpd.Tree,
       scope: List[(String, BinderId)],
-      inspectInScope: (untpd.Tree, List[(String, BinderId)]) => TermShape
+      inspectInScope: (untpd.Tree, List[(String, BinderId)]) => TermShape,
+      allocateBinder: () => BinderId
   ): TermShape =
-    statements.collectFirst {
-      case _: untpd.ValDef => P1BlockDiagnosticMessages.LocalVal
-      case _: untpd.DefDef => P1BlockDiagnosticMessages.LocalDef
-      case statement if !statement.isTerm =>
-        P1BlockDiagnosticMessages.UnsupportedStatement(statement.getClass.getSimpleName)
-    } match
-      case Some(detail) => TermShape.Unsupported("Block", detail)
-      case None =>
+    statements match
+      case (value: untpd.ValDef) :: Nil =>
+        inspectLocalVal(value, result, scope, inspectInScope, allocateBinder)
+      case values if values.exists(_.isInstanceOf[untpd.ValDef]) =>
+        TermShape.Unsupported("Block", P2LocalValDiagnosticMessages.ExactlyOne)
+      case definitions if definitions.exists(_.isInstanceOf[untpd.DefDef]) =>
+        TermShape.Unsupported("Block", P2LocalValDiagnosticMessages.LocalDef)
+      case patternDefinitions if patternDefinitions.exists(isPatternDefinition) =>
+        TermShape.Unsupported("Block", P2LocalValDiagnosticMessages.Pattern)
+      case expressionStatements if expressionStatements.forall(_.isTerm) =>
         TermShape.Block(
-          statements.map(inspectInScope(_, scope)),
+          expressionStatements.map(inspectInScope(_, scope)),
           inspectInScope(result, scope)
         )
+      case statement :: _ =>
+        TermShape.Unsupported(
+          "Block",
+          P1BlockDiagnosticMessages.UnsupportedStatement(statement.getClass.getSimpleName)
+        )
+      case Nil => inspectInScope(result, scope)
+
+  private def inspectLocalVal(
+      value: untpd.ValDef,
+      result: untpd.Tree,
+      scope: List[(String, BinderId)],
+      inspectInScope: (untpd.Tree, List[(String, BinderId)]) => TermShape,
+      allocateBinder: () => BinderId
+  ): TermShape =
+    val displayName = value.name.toString
+    if value.mods.is(Flags.Mutable) then
+      TermShape.Unsupported("Block", P2LocalValDiagnosticMessages.Mutable)
+    else if value.mods.is(Flags.Lazy) then
+      TermShape.Unsupported("Block", P2LocalValDiagnosticMessages.Lazy)
+    else if !isSimpleBinderName(displayName) then
+      TermShape.Unsupported("Block", P2LocalValDiagnosticMessages.Pattern)
+    else if value.tpt.isEmpty then
+      TermShape.Unsupported("Block", P2LocalValDiagnosticMessages.MissingExplicitType)
+    else
+      val typeShape = TypeShapeInspector.inspect(value.tpt)
+      TypeNormalForm.fromShape(typeShape) match
+        case Left(_) =>
+          TermShape.Unsupported("Block", P2LocalValDiagnosticMessages.UnsupportedType)
+        case Right(normalForm) =>
+          val initializer = inspectInScope(value.unforcedRhs.asInstanceOf[untpd.Tree], scope)
+          firstUnsupported(initializer) match
+            case Some(_) =>
+              TermShape.Unsupported("Block", P2LocalValDiagnosticMessages.UnsupportedInitializer)
+            case None =>
+              val binderId = allocateBinder()
+              val inspectedResult = inspectInScope(result, (displayName -> binderId) :: scope)
+              firstUnsupported(inspectedResult) match
+                case Some(_) =>
+                  TermShape.Unsupported("Block", P2LocalValDiagnosticMessages.UnsupportedResult)
+                case None =>
+                  TermShape.Block(
+                    List(
+                      BlockStatement.LocalVal(
+                        binderId,
+                        displayName,
+                        quasiquotes.terms.TermShapeTraversal.renderNormalForm(normalForm),
+                        initializer
+                      )
+                    ),
+                    inspectedResult
+                  )
+
+  private def isSimpleBinderName(name: String): Boolean =
+    name != "_" && name.matches("[A-Za-z_$][A-Za-z0-9_$]*")
+
+  private def isPatternDefinition(tree: untpd.Tree): Boolean =
+    val kind = tree.getClass.getSimpleName
+    kind.contains("PatDef") || kind.contains("Pattern") || kind.contains("Thicket")
+
+  private def firstUnsupported(shape: TermShape): Option[TermShape.Unsupported] =
+    shape match
+      case unsupported: TermShape.Unsupported => Some(unsupported)
+      case TermShape.Select(qualifier, _) => firstUnsupported(qualifier)
+      case TermShape.Apply(function, arguments) =>
+        firstUnsupported(function).orElse(arguments.iterator.flatMap(firstUnsupported).nextOption())
+      case TermShape.New(_, arguments) =>
+        arguments.iterator.flatMap(firstUnsupported).nextOption()
+      case TermShape.Infix(left, _, right) => firstUnsupported(left).orElse(firstUnsupported(right))
+      case TermShape.Unary(_, operand) => firstUnsupported(operand)
+      case TermShape.InterpolatedString(_, _, arguments) =>
+        arguments.iterator.flatMap(firstUnsupported).nextOption()
+      case TermShape.Typed(expression, _) => firstUnsupported(expression)
+      case TermShape.Tuple(elements) => elements.iterator.flatMap(firstUnsupported).nextOption()
+      case TermShape.If(condition, thenBranch, elseBranch) =>
+        firstUnsupported(condition).orElse(firstUnsupported(thenBranch)).orElse(firstUnsupported(elseBranch))
+      case TermShape.Block(statements, result) =>
+        statements.iterator.flatMap {
+          case BlockStatement.LocalVal(_, _, _, initializer) => firstUnsupported(initializer)
+          case term: TermShape => firstUnsupported(term)
+        }.nextOption().orElse(firstUnsupported(result))
+      case TermShape.Parenthesized(expression) => firstUnsupported(expression)
+      case TermShape.Lambda1(_, _, _, body) => firstUnsupported(body)
+      case TermShape.Identifier(_, _) | TermShape.BoundReference(_, _) | TermShape.Literal(_) => None
 
   private def constructorName(tree: untpd.Tree): Either[String, String] =
     tree match

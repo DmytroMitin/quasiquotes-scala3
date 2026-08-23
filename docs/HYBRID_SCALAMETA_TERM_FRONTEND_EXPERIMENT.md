@@ -26,10 +26,11 @@ including generated targets without a usable source span.
 The alternate construction slice covers identifiers; integer, string, and
 boolean literals; selection and application; unary infix application; tuples;
 `if`; supported type ascription; standard `s` interpolation; ordinary term
-holes; binder-free P1 blocks; and the existing constructed-type splice. A P1
-block is one or more ordered expression prefixes plus its final result; local
-values, local definitions, imports, and unrelated statement/control-flow forms
-remain excluded. The matching slice covers the
+holes; binder-free P1 blocks; one explicitly typed eager immutable local `val`
+with a simple binder; and the existing constructed-type splice. The P2
+initializer is lowered before the fresh local symbol enters scope, and only the
+final result resolves through that symbol. Inferred, mutable, lazy, pattern,
+multiple, recursive/shadowing, and local-method forms remain excluded. The matching slice covers the
 corresponding admitted literals, identifiers, selection/application, unary
 infix, tuples, `if`, supported ascription, P1 blocks, and ordinary captures.
 
@@ -52,11 +53,14 @@ The module depends on the existing `frontend` and unpublished
 it, so the selected published POMs and the 618-row `core`/`frontend` public API
 baseline remain immutable. The Phase-115 source candidate has a reviewed
 four-row additive `core`/`frontend` delta for the shared block model; the
-Scalameta-only implementation leaks no additional public row.
+Phase-116 source candidate deliberately grows the truthful shared statement
+ADT to 634 rows and therefore requires a new experimental 0.x minor. The
+Scalameta-only implementation itself leaks no additional public row.
 
-The mechanical Term parity inventory now contains 36 rows: 30 supported and 6
+The mechanical Term parity inventory now contains 37 rows: 31 supported and 6
 explicitly nonpublic. The experiment passes its focused construction,
-matching, fallback, dialect, macro, staging, generated-target, and P1 block
+matching, fallback, dialect, macro, staging, generated-target, P1 block, and
+P2 binder/owner
 checks on Scala 3.3.8 and 3.8.4. This is
 evidence for continued bounded evaluation, not authorization to retire the
 current engine or migrate the public default.

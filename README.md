@@ -40,7 +40,7 @@ module.
 
 This exact example is compiled from an external-package fixture. See
 [Getting started](docs/GETTING_STARTED.md) for the larger construction,
-matching, type, Lambda1, and compiler-free definition examples. See
+matching, type, Lambda1, P1/P2 block, and compiler-free definition examples. See
 [execution environments and AST representations](docs/EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md)
 for compile-time macros, runtime staging, compiler-free values, and
 compiler-backed parsing without `Quotes`.
@@ -184,7 +184,7 @@ lowering/inspection, typed ascriptions, and scoped type evidence. Constructor
 admission remains fixed and deliberately excludes general name resolution.
 
 The canonical first-use examples, including the complete Lambda1, bounded P1
-block `qr`/`qq`, and bounded `tqr`/`tqq` macro paths, are mirrored from compiled
+block and single-typed-local-val P2 `qr`/`qq`, and bounded `tqr`/`tqq` macro paths, are mirrored from compiled
 external-package fixtures, and the repository's snippet drift check compares
 them byte for byte.
 Public type diagnostics describe the supported boundary without development

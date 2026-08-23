@@ -25,6 +25,7 @@ class CheckSnippetsTest(unittest.TestCase):
         documented_runtime_term_shape: str = "val runtimeTermShape = 12",
         documented_runtime_parser: str = "val runtimeParser = 13",
         documented_p1_block: str = "val p1Block = 14",
+        documented_p2_local_val: str = "val p2LocalVal = 15",
     ) -> None:
         docs = root / "docs"
         sources = root / "public-api-examples/src/test/scala/external/consumer"
@@ -62,6 +63,11 @@ class CheckSnippetsTest(unittest.TestCase):
         (sources / "P1BlockFirstUseSnippet.scala").write_text(
             "// snippet:p1-block-first-use:start\nval p1Block = 14\n"
             "// snippet:p1-block-first-use:end\n",
+            encoding="utf-8",
+        )
+        (sources / "P2LocalValFirstUseSnippet.scala").write_text(
+            "// snippet:p2-local-val-first-use:start\nval p2LocalVal = 15\n"
+            "// snippet:p2-local-val-first-use:end\n",
             encoding="utf-8",
         )
         (sources / "QqExtractorFirstUseSnippet.scala").write_text(
@@ -125,6 +131,9 @@ class CheckSnippetsTest(unittest.TestCase):
             "<!-- snippet:p1-block-first-use:start -->\n```scala\n"
             + documented_p1_block
             + "\n```\n<!-- snippet:p1-block-first-use:end -->\n"
+            "<!-- snippet:p2-local-val-first-use:start -->\n```scala\n"
+            + documented_p2_local_val
+            + "\n```\n<!-- snippet:p2-local-val-first-use:end -->\n"
             "<!-- snippet:qq-extractor-first-use:start -->\n```scala\n"
             + documented_qq_extractor
             + "\n```\n<!-- snippet:qq-extractor-first-use:end -->\n"
@@ -166,7 +175,7 @@ class CheckSnippetsTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(
-                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, p1-block-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start",
+                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, p1-block-first-use, p2-local-val-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start",
                 result.stdout,
             )
 

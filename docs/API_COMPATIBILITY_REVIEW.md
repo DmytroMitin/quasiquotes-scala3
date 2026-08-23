@@ -51,6 +51,23 @@ claim. The unpublished Scalameta opt-in implementation adds behavior only and
 no separate public inventory row. Released `0.2.0` artifacts and the accepted
 baseline below remain unchanged.
 
+Phase 116 re-runs the same inventory after adding the P2 local-val behavior.
+The truthful definition-statement boundary produces exactly 634 rows. Against
+the immutable 618-row baseline, 614 rows are unchanged, 20 signatures are
+added, and four signatures are removed. The removals are the old bare
+supertrait signatures for `TermShape`, `TermPattern`, `CanonicalTerm`, and
+`TargetTermView`; each is replaced by a signature extending its corresponding
+new statement supertrait. The additions comprise those four replacement
+signatures, four changed `Block` signatures over statement lists, and the four
+statement traits/companions with their derived `CanEqual` rows. There are no
+removed symbol groups.
+
+This is the deliberate `BREAKING_API_SHAPE_DELTA_REQUIRES_NEW_0X_MINOR`
+classification required by a local definition being a statement rather than a
+term expression. It is not accidental exposure and does not mutate released
+`0.2.0`; any future artifact containing this candidate requires a new
+experimental 0.x minor and fresh binary/TASTy qualification.
+
 ## Current accepted shape
 
 The accepted inventory contains 618 rows: 305 from `core` and 313 from

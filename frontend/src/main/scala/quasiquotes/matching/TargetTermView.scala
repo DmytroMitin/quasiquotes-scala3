@@ -3,12 +3,26 @@ package quasiquotes.matching
 import scala.quoted.Quotes
 import scala.util.matching.Regex
 
-import quasiquotes.parser.{BinderId, TermShape, TinyTermParser}
+import quasiquotes.parser.{BinderId, P2LocalValDiagnosticMessages, TermShape, TinyTermParser}
 import quasiquotes.source.ReflectedPositionProvenance
+import quasiquotes.terms.TermShapeTraversal
+import quasiquotes.types.TargetTypeReprInspector
 
-sealed trait TargetTermView[+T] derives CanEqual:
+sealed trait TargetBlockStatementView[+T] derives CanEqual
+
+sealed trait TargetTermView[+T] extends TargetBlockStatementView[T] derives CanEqual:
   def original: T
   final def render: String = TargetTermView.render(this)
+
+object TargetBlockStatementView:
+  private[quasiquotes] final case class LocalVal[T](
+      binderId: BinderId,
+      displayName: String,
+      declaredType: String,
+      binderSymbol: Any,
+      initializer: TargetTermView[T],
+      original: Any
+  ) extends TargetBlockStatementView[T]
 
 object TargetTermView:
   private val UnaryOperatorByMethod = Map(
@@ -47,7 +61,7 @@ object TargetTermView:
   final case class Typed[T](expression: TargetTermView[T], typeName: String, original: T) extends TargetTermView[T]
   final case class Tuple[T](elements: List[TargetTermView[T]], original: T) extends TargetTermView[T]
   final case class If[T](condition: TargetTermView[T], thenBranch: TargetTermView[T], elseBranch: TargetTermView[T], original: T) extends TargetTermView[T]
-  final case class Block[T](prefix: List[TargetTermView[T]], result: TargetTermView[T], original: T) extends TargetTermView[T]
+  final case class Block[T](statements: List[TargetBlockStatementView[T]], result: TargetTermView[T], original: T) extends TargetTermView[T]
 
   def fromTerm(using q: Quotes)(term: q.reflect.Term): Either[MatchFailure, TargetTermView[q.reflect.Term]] =
     fromTermInScope(term, Nil)
@@ -65,7 +79,7 @@ object TargetTermView:
         term: Term,
         scope: List[(BinderId, Symbol)]
     ): Either[MatchFailure, TargetTermView[Term]] =
-      val current = unwrapWrappers(term)
+      val current = unwrapWrappersUnlessBound(term, scope)
       sourceInterpolation(term) match
         case Some((prefix, parts, sourceArgumentCount)) =>
           typedInterpolationArguments(current, sourceArgumentCount) match
@@ -109,7 +123,7 @@ object TargetTermView:
               case None =>
                 Left(MatchFailure.UnsupportedTargetShape(block.show(using Printer.TreeStructure)))
         case Ident(name) =>
-          val current = unwrapWrappers(term)
+          val current = unwrapWrappersUnlessBound(term, scope)
           scope.collectFirst { case (binderId, symbol) if current.symbol == symbol => binderId } match
             case Some(binderId) => Right(TargetTermView.BoundReference(binderId, name, current))
             case None => Right(TargetTermView.Identifier(name, current))
@@ -159,16 +173,74 @@ object TargetTermView:
             extractedElseBranch <- extract(elseBranch, scope)
           yield TargetTermView.If(extractedCondition, extractedThenBranch, extractedElseBranch, current)
         case block @ q.reflect.Block(statements, result) =>
-          val terms = statements.collect { case term: Term => term }
-          if terms.size != statements.size then
-            Left(MatchFailure.UnsupportedTargetShape("P1 block target contains a local definition or non-expression statement"))
-          else
-            for
-              extractedPrefix <- sequence(terms.map(extract(_, scope)))
-              extractedResult <- extract(result, scope)
-            yield TargetTermView.Block(extractedPrefix, extractedResult, block)
+          statements match
+            case (definition @ ValDef(_, _, _)) :: Nil =>
+              extractLocalValBlock(definition, result, block, scope)
+            case definitions if definitions.exists {
+                  case ValDef(_, _, _) => true
+                  case _ => false
+                } =>
+              Left(MatchFailure.UnsupportedTargetShape(P2LocalValDiagnosticMessages.ExactlyOne))
+            case definitions if definitions.exists {
+                  case DefDef(_, _, _, _) => true
+                  case _ => false
+                } =>
+              Left(MatchFailure.UnsupportedTargetShape(P2LocalValDiagnosticMessages.LocalDef))
+            case expressionStatements =>
+              val terms = expressionStatements.collect { case term: Term => term }
+              if terms.size != expressionStatements.size then
+                Left(MatchFailure.UnsupportedTargetShape("block target contains an unsupported statement"))
+              else
+                for
+                  extractedPrefix <- sequence(terms.map(extract(_, scope)))
+                  extractedResult <- extract(result, scope)
+                yield TargetTermView.Block(extractedPrefix, extractedResult, block)
         case other =>
           Left(MatchFailure.UnsupportedTargetShape(other.show(using Printer.TreeStructure)))
+
+    def extractLocalValBlock(
+        definition: ValDef,
+        result: Term,
+        block: Term,
+        scope: List[(BinderId, Symbol)]
+    ): Either[MatchFailure, TargetTermView[Term]] =
+      if definition.symbol.flags.is(Flags.Mutable) then
+        Left(MatchFailure.UnsupportedTargetShape(P2LocalValDiagnosticMessages.Mutable))
+      else if definition.symbol.flags.is(Flags.Lazy) then
+        Left(MatchFailure.UnsupportedTargetShape(P2LocalValDiagnosticMessages.Lazy))
+      else if !isSimpleBinderName(definition.name) then
+        Left(MatchFailure.UnsupportedTargetShape(P2LocalValDiagnosticMessages.Pattern))
+      else if sourceBackedInferredType(definition) then
+        Left(MatchFailure.UnsupportedTargetShape(P2LocalValDiagnosticMessages.MissingExplicitType))
+      else
+        TargetTypeReprInspector.inspect(definition.tpt.tpe) match
+          case Left(_) =>
+            Left(MatchFailure.UnsupportedTargetShape(P2LocalValDiagnosticMessages.UnsupportedType))
+          case Right(normalForm) =>
+            definition.rhs match
+              case Some(initializer) =>
+                val binderId = BinderId(nextBinderId)
+                for
+                  extractedInitializer <- extract(initializer, scope)
+                  extractedResult <- extract(result, (binderId -> definition.symbol) :: scope)
+                yield
+                  nextBinderId += 1
+                  TargetTermView.Block(
+                    List(
+                      TargetBlockStatementView.LocalVal(
+                        binderId,
+                        definition.name,
+                        TermShapeTraversal.renderNormalForm(normalForm),
+                        definition.symbol,
+                        extractedInitializer,
+                        definition
+                      )
+                    ),
+                    extractedResult,
+                    block
+                  )
+              case None =>
+                Left(MatchFailure.UnsupportedTargetShape(P2LocalValDiagnosticMessages.UnsupportedInitializer))
 
     extract(term, ambientScope)
 
@@ -196,8 +268,14 @@ object TargetTermView:
         s"Tuple([${elements.map(render).mkString(", ")}])"
       case If(condition, thenBranch, elseBranch, _) =>
         s"If(${render(condition)}, ${render(thenBranch)}, ${render(elseBranch)})"
-      case Block(prefix, result, _) =>
-        s"Block([${prefix.map(render).mkString(", ")}], ${render(result)})"
+      case Block(statements, result, _) =>
+        s"Block([${statements.map(renderStatement).mkString(", ")}], ${render(result)})"
+
+  private def renderStatement(statement: TargetBlockStatementView[?]): String =
+    statement match
+      case TargetBlockStatementView.LocalVal(_, displayName, declaredType, _, initializer, _) =>
+        s"LocalVal($displayName: $declaredType = ${render(initializer)})"
+      case term: TargetTermView[?] => render(term)
 
   private def sourceInterpolation(using q: Quotes)(
       term: q.reflect.Term
@@ -256,6 +334,26 @@ object TargetTermView:
           case ValDef(_, _, Some(rhs)) => unwrapWrappers(rhs)
           case _ => term
       case _ => term
+
+  private def unwrapWrappersUnlessBound(using q: Quotes)(
+      term: q.reflect.Term,
+      scope: List[(BinderId, q.reflect.Symbol)]
+  ): q.reflect.Term =
+    import q.reflect.*
+    term match
+      case q.reflect.Typed(inner, _)
+          if ReflectedPositionProvenance.sourceCode(term.pos).forall(!_.contains(":")) =>
+        unwrapWrappersUnlessBound(inner, scope)
+      case _ if term.symbol.exists && scope.exists(_._2 == term.symbol) => term
+      case _ => unwrapWrappers(term)
+
+  private def sourceBackedInferredType(using q: Quotes)(definition: q.reflect.ValDef): Boolean =
+    val definitionSource = ReflectedPositionProvenance.sourceCode(definition.pos)
+    val typeSource = ReflectedPositionProvenance.sourceCode(definition.tpt.pos)
+    definitionSource.nonEmpty && typeSource.forall(_.trim.isEmpty)
+
+  private def isSimpleBinderName(name: String): Boolean =
+    name != "_" && name.matches("[A-Za-z_$][A-Za-z0-9_$]*")
 
   private def renderType(using q: Quotes)(typeTree: q.reflect.TypeTree): String =
     import q.reflect.*

@@ -67,8 +67,10 @@ The typed coordinate exposes only the explicit package
 
 The research lowerers, selector, dialect policy, parity inventory, and evidence
 macros remain `private[quasiquotes]`. This prevents their provisional package
-layout from becoming the intended consumer surface. The existing `core` and
-`frontend` sources and their 618-row API inventory are unchanged.
+layout from becoming the intended consumer surface. Released `0.2.0` retains
+its immutable 618-row inventory. The Phase-116 source candidate's 634-row
+statement-ADT delta belongs to the shared Term model, not to accidental
+exposure from the opt-in Scalameta implementation.
 
 The complete-current-matrix Type-Q3 implementation stays in this same
 full-cross module. Its dialect policy, `scala.meta.Type` mapper, internal
@@ -138,6 +140,15 @@ ordinary current-Dotty control. The task-owned repository contained six local
 coordinates and 24 primary POM/binary/source/Javadoc files (72 files including
 checksums), with no checkout or controller coupling. This remains local-only
 evidence and does not make the coordinate remotely available.
+
+The P2 Term gate rehearsed fresh synthetic `0.3.0-phase116-local` typed
+coordinates on both supported compiler lines. Each coordinate-only consumer
+passed 4/4 tests for local-val construction, alpha-insensitive matching,
+initializer capture, and same-display-name external-splice noncapture. The
+task-owned repository again contains six local coordinates and 24 primary
+POM/binary/source/Javadoc files (72 including checksums); its POMs contain no
+`ProjectRef`, checkout, control, source-directory, or class-directory coupling.
+This proof is local-only and does not authorize remote publication.
 
 ## Peer backend boundary
 

@@ -434,8 +434,62 @@ object P1BlockFirstUseSnippet:
 ```
 <!-- snippet:p1-block-first-use:end -->
 
-Single-expression braces collapse as P0 wrappers. Local `val`/`var` and local
-`def` blocks are not P1 and remain controlled P2/P3 rejections.
+Single-expression braces collapse as P0 wrappers. Binder-bearing blocks are not
+P1; the next section documents the one admitted P2 form.
+
+## Single typed local immutable val first use
+
+P2 adds exactly one eager immutable simple local binder with an explicit
+supported type. The initializer is outside its scope; only the final result may
+resolve source-written references to it. The compiled fixture also proves
+alpha-insensitive matching, initializer capture, and same-name external-splice
+noncapture.
+
+<!-- snippet:p2-local-val-first-use:start -->
+```scala
+import scala.quoted.*
+
+import quasiquotes.construct.Quasiquotes.*
+import quasiquotes.matching.QuasiPattern.*
+
+object P2LocalValFirstUseSnippet:
+  inline def bind(inline initializer: Int): Int =
+    ${ bindImpl('initializer) }
+
+  inline def alphaEquivalent(inline expression: Int): Boolean =
+    ${ alphaEquivalentImpl('expression) }
+
+  inline def captureInitializer(inline expression: Int): Int =
+    ${ captureInitializerImpl('expression) }
+
+  inline def preserveExternal(inline x: Int): Int =
+    ${ preserveExternalImpl('x) }
+
+  private def bindImpl(initializer: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    qr"{ val x: Int = ${initializer.asTerm}; x }".asExprOf[Int]
+
+  private def alphaEquivalentImpl(expression: Expr[Int])(using Quotes): Expr[Boolean] =
+    import quotes.reflect.*
+    expression.asTerm match
+      case qq"{ val x: Int = $initializer; x }" => Expr(true)
+      case _ => Expr(false)
+
+  private def captureInitializerImpl(expression: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    expression.asTerm match
+      case qq"{ val x: Int = $initializer; x }" => initializer.asExprOf[Int]
+      case _ => Expr(-1)
+
+  private def preserveExternalImpl(external: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    qr"{ val x: Int = 1; ${external.asTerm} }".asExprOf[Int]
+```
+<!-- snippet:p2-local-val-first-use:end -->
+
+Inferred, mutable, lazy, pattern, multiple, recursive/shadowing, and local
+method forms are controlled rejections. External splices containing owned
+definitions are rejected rather than reowned.
 
 ## Bounded `qq` extractor first use
 

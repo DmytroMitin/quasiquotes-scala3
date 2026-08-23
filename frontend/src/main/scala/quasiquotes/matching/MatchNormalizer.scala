@@ -35,7 +35,7 @@ object MatchNormalizer:
       case TermPattern.If(condition, thenBranch, elseBranch) =>
         TermPattern.If(normalizePattern(condition), normalizePattern(thenBranch), normalizePattern(elseBranch))
       case TermPattern.Block(prefix, result) =>
-        TermPattern.Block(prefix.map(normalizePattern), normalizePattern(result))
+        TermPattern.Block(prefix.map(normalizePatternStatement), normalizePattern(result))
       case other =>
         other
 
@@ -70,7 +70,7 @@ object MatchNormalizer:
       case TargetTermView.If(condition, thenBranch, elseBranch, original) =>
         TargetTermView.If(normalizeTarget(condition), normalizeTarget(thenBranch), normalizeTarget(elseBranch), original)
       case TargetTermView.Block(prefix, result, original) =>
-        TargetTermView.Block(prefix.map(normalizeTarget), normalizeTarget(result), original)
+        TargetTermView.Block(prefix.map(normalizeTargetStatement), normalizeTarget(result), original)
       case other =>
         other
 
@@ -84,3 +84,29 @@ object MatchNormalizer:
     normalizedView(term) match
       case Right(view) => view.render
       case Left(_) => term.show(using Printer.TreeStructure)
+
+  private def normalizePatternStatement(statement: BlockPatternStatement): BlockPatternStatement =
+    statement match
+      case BlockPatternStatement.LocalVal(binderId, displayName, declaredType, initializer) =>
+        BlockPatternStatement.LocalVal(
+          binderId,
+          displayName,
+          declaredType,
+          normalizePattern(initializer)
+        )
+      case pattern: TermPattern => normalizePattern(pattern)
+
+  private def normalizeTargetStatement[T](
+      statement: TargetBlockStatementView[T]
+  ): TargetBlockStatementView[T] =
+    statement match
+      case TargetBlockStatementView.LocalVal(binderId, displayName, declaredType, binderSymbol, initializer, original) =>
+        TargetBlockStatementView.LocalVal(
+          binderId,
+          displayName,
+          declaredType,
+          binderSymbol,
+          normalizeTarget(initializer),
+          original
+        )
+      case term => normalizeTarget(term.asInstanceOf[TargetTermView[T]])

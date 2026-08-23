@@ -1,7 +1,17 @@
 package quasiquotes.parser
 
-sealed trait TermShape derives CanEqual:
+sealed trait BlockStatement derives CanEqual
+
+sealed trait TermShape extends BlockStatement derives CanEqual:
   final def render: String = TermShape.render(this)
+
+object BlockStatement:
+  private[quasiquotes] final case class LocalVal(
+      binderId: BinderId,
+      displayName: String,
+      declaredType: String,
+      initializer: TermShape
+  ) extends BlockStatement
 
 private[quasiquotes] final case class BinderId(value: Int) derives CanEqual:
   require(value >= 0, "binder identity must be non-negative")
@@ -33,8 +43,8 @@ object TermShape:
   final case class Typed(expression: TermShape, typeName: String) extends TermShape
   final case class Tuple(elements: List[TermShape]) extends TermShape
   final case class If(condition: TermShape, thenBranch: TermShape, elseBranch: TermShape) extends TermShape
-  final case class Block(prefix: List[TermShape], result: TermShape) extends TermShape:
-    require(prefix.nonEmpty, "P1 block prefix must contain at least one expression")
+  final case class Block(statements: List[BlockStatement], result: TermShape) extends TermShape:
+    require(statements.nonEmpty, "block must contain at least one statement")
   final case class Parenthesized(expression: TermShape) extends TermShape
   final case class Unsupported(nodeKind: String, detail: String) extends TermShape
 
@@ -61,10 +71,16 @@ object TermShape:
       case Tuple(elements) => s"Tuple([${elements.map(render).mkString(", ")}])"
       case If(condition, thenBranch, elseBranch) =>
         s"If(${render(condition)}, ${render(thenBranch)}, ${render(elseBranch)})"
-      case Block(prefix, result) =>
-        s"Block([${prefix.map(render).mkString(", ")}], ${render(result)})"
+      case Block(statements, result) =>
+        s"Block([${statements.map(renderStatement).mkString(", ")}], ${render(result)})"
       case Parenthesized(expression) => s"Parens(${render(expression)})"
       case Unsupported(nodeKind, detail) => s"Unsupported($nodeKind, $detail)"
 
   private def quote(value: String): String =
     "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+  private def renderStatement(statement: BlockStatement): String =
+    statement match
+      case BlockStatement.LocalVal(_, displayName, declaredType, initializer) =>
+        s"LocalVal($displayName: $declaredType = ${render(initializer)})"
+      case term: TermShape => render(term)

@@ -31,6 +31,10 @@ SNIPPETS = {
         Path("public-api-examples/src/test/scala/external/consumer/P1BlockFirstUseSnippet.scala"),
         Path("docs/GETTING_STARTED.md"),
     ),
+    "p2-local-val-first-use": (
+        Path("public-api-examples/src/test/scala/external/consumer/P2LocalValFirstUseSnippet.scala"),
+        Path("docs/GETTING_STARTED.md"),
+    ),
     "qq-extractor-first-use": (
         Path("public-api-examples/src/test/scala/external/consumer/QqExtractorFirstUseSnippet.scala"),
         Path("docs/GETTING_STARTED.md"),

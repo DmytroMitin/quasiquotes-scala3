@@ -14,10 +14,16 @@ publicCoreExamples -> core
 `core` owns compiler-free values, structural normal forms, templates,
 construction and matching algorithms, and neutral source/diagnostic metadata.
 Its compile and runtime classpaths must not contain Scala compiler artifacts.
-The shared Term model represents binder-free blocks as an ordered nonempty
-prefix plus a distinct result. Current-Dotty and Scalameta frontends both map
-that P1 shape into the same `TermShape`/`TermPattern` semantics; no source-string
-or block-only comparison model participates in matching.
+The shared Term model represents blocks as an ordered nonempty statement list
+plus a distinct result. Phase 116 deliberately generalizes the public P1
+`List[TermShape]` prefix to the truthful `List[BlockStatement]` algebra; every
+`TermShape` remains a statement, while the single admitted P2 local value is a
+non-term statement node carrying a project `BinderId`, explicit type sidecar,
+and initializer. Current-Dotty and
+Scalameta frontends both map P1 and this one P2 form into the same
+`TermShape`/`TermPattern` scope algebra; no source-string or frontend-only
+binder model participates in equality or matching. A P2 initializer is visited
+in the old scope and only the result is visited in the binder-extended scope.
 Its package-private definition model reuses the same `BinderId` scope algebra
 as Lambda1 for one or exactly two ordinary method parameters; display spelling
 never replaces semantic identity. The public compiler-free constructors create
@@ -90,11 +96,12 @@ frontend/backend cycles.
 Only `core` and compiler-matching `frontend` are existing release artifacts.
 The Scalameta and exact-backend coordinates are future candidates only and
 remain remotely skipped. Their experimental APIs are not included in the
-released 618-row `core`/`frontend` baseline. The Phase-115 source candidate is
-622 rows because the shared P1 model deliberately adds four public case-class
-rows; no released `0.2.0` artifact is changed. That inventory does not promote
-package-private implementation or create a compatibility promise beyond the
-experimental versioning policy. See the
+released 618-row `core`/`frontend` baseline. The Phase-116 source candidate
+is 634 rows. Its truthful statement supertraits and changed `Block`
+statement-list signatures produce 20 additions and four signature removals
+relative to that baseline, so the exact tool requires a new experimental 0.x
+minor. No released `0.2.0` artifact is changed, and source-level accounting is
+not a binary or TASTy compatibility promise. See the
 [Scalameta opt-in artifact topology](SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md).
 
 The [execution-environment and representation guide](EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md)

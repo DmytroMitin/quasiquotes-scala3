@@ -1,9 +1,11 @@
 package quasiquotes.matching
 
 import dotty.tools.dotc.ast.untpd
-import quasiquotes.parser.{BinderId, ConstructorNamePolicy, DottySourceSpanAdapter, InterpolatedStringSegments, Lambda1DiagnosticMessages}
+import quasiquotes.parser.{BinderId, ConstructorNamePolicy, DottySourceSpanAdapter, InterpolatedStringSegments, Lambda1DiagnosticMessages, TypeShapeInspector}
 import quasiquotes.parser.P1BlockDiagnosticMessages
+import quasiquotes.parser.P2LocalValDiagnosticMessages
 import quasiquotes.source.{GeneratedHoleIndex, SourceSpan}
+import quasiquotes.types.TypeNormalForm
 
 private[matching] final case class PatternCompileFailure(
     error: PatternError,
@@ -111,21 +113,32 @@ object PatternCompiler:
       case untpd.Block(Nil, result) =>
         compileChild(result)
       case block @ untpd.Block(statements, result) =>
-        statements.collectFirst {
-          case value: untpd.ValDef => unsupportedBlock(value, P1BlockDiagnosticMessages.LocalVal)
-          case definition: untpd.DefDef => unsupportedBlock(definition, P1BlockDiagnosticMessages.LocalDef)
-          case statement if !statement.isTerm =>
+        statements match
+          case (value: untpd.ValDef) :: Nil =>
+            compileLocalVal(value, result, semanticHoleName, scope)
+          case values if values.exists(_.isInstanceOf[untpd.ValDef]) =>
+            unsupportedBlock(block, P2LocalValDiagnosticMessages.ExactlyOne)
+          case definitions if definitions.exists(_.isInstanceOf[untpd.DefDef]) =>
+            unsupportedBlock(
+              definitions.find(_.isInstanceOf[untpd.DefDef]).get,
+              P2LocalValDiagnosticMessages.LocalDef
+            )
+          case patternDefinitions if patternDefinitions.exists(isPatternDefinition) =>
+            unsupportedBlock(
+              patternDefinitions.find(isPatternDefinition).get,
+              P2LocalValDiagnosticMessages.Pattern
+            )
+          case expressionStatements if expressionStatements.forall(_.isTerm) =>
+            for
+              compiledStatements <- sequence(expressionStatements.map(compileChild))
+              compiledResult <- compileChild(result)
+            yield TermPattern.Block(compiledStatements, compiledResult)
+          case statement :: _ =>
             unsupportedBlock(
               statement,
               P1BlockDiagnosticMessages.UnsupportedStatement(statement.getClass.getSimpleName)
             )
-        } match
-          case Some(failure) => failure
-          case None =>
-            for
-              compiledStatements <- sequence(statements.map(compileChild))
-              compiledResult <- compileChild(result)
-            yield TermPattern.Block(compiledStatements, compiledResult)
+          case Nil => compileChild(result)
       case untpd.Parens(inner) =>
         compileChild(inner).map(TermPattern.Parenthesized.apply)
       case untpd.TypedSplice(inner) =>
@@ -183,6 +196,56 @@ object PatternCompiler:
         DottySourceSpanAdapter.fromTree(tree).filter(!_.isEmpty)
       )
     )
+
+  private def compileLocalVal(
+      value: untpd.ValDef,
+      result: untpd.Tree,
+      semanticHoleName: String => Option[String],
+      scope: List[(String, BinderId)]
+  ): Either[PatternCompileFailure, TermPattern] =
+    val displayName = value.name.toString
+    if value.mods.is(dotty.tools.dotc.core.Flags.Mutable) then
+      unsupportedBlock(value, P2LocalValDiagnosticMessages.Mutable)
+    else if value.mods.is(dotty.tools.dotc.core.Flags.Lazy) then
+      unsupportedBlock(value, P2LocalValDiagnosticMessages.Lazy)
+    else if !isSimpleBinderName(displayName) then
+      unsupportedBlock(value, P2LocalValDiagnosticMessages.Pattern)
+    else if value.tpt.isEmpty then
+      unsupportedBlock(value, P2LocalValDiagnosticMessages.MissingExplicitType)
+    else
+      TypeNormalForm.fromShape(TypeShapeInspector.inspect(value.tpt)) match
+        case Left(_) => unsupportedBlock(value.tpt, P2LocalValDiagnosticMessages.UnsupportedType)
+        case Right(normalForm) =>
+          val binderId = BinderId(scope.size)
+          for
+            initializer <- compileLocatedUsing(
+              value.unforcedRhs.asInstanceOf[untpd.Tree],
+              semanticHoleName,
+              scope
+            )
+            compiledResult <- compileLocatedUsing(
+              result,
+              semanticHoleName,
+              (displayName -> binderId) :: scope
+            )
+          yield TermPattern.Block(
+            List(
+              BlockPatternStatement.LocalVal(
+                binderId,
+                displayName,
+                quasiquotes.terms.TermShapeTraversal.renderNormalForm(normalForm),
+                initializer
+              )
+            ),
+            compiledResult
+          )
+
+  private def isSimpleBinderName(name: String): Boolean =
+    name != "_" && name.matches("[A-Za-z_$][A-Za-z0-9_$]*")
+
+  private def isPatternDefinition(tree: untpd.Tree): Boolean =
+    val kind = tree.getClass.getSimpleName
+    kind.contains("PatDef") || kind.contains("Pattern") || kind.contains("Thicket")
 
   private def renderType(tree: untpd.Tree): String =
     normalizeTypeName(tree match

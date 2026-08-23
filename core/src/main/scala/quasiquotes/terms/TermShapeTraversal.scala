@@ -1,6 +1,6 @@
 package quasiquotes.terms
 
-import quasiquotes.parser.{BinderId, TermShape}
+import quasiquotes.parser.{BinderId, BlockStatement, TermShape}
 import quasiquotes.types.{TypeNormalForm, TypeTemplate}
 
 private[quasiquotes] object TermShapeTraversal:
@@ -71,9 +71,18 @@ private[quasiquotes] object TermShapeTraversal:
           canonicalizePlaceholders(thenBranch),
           canonicalizePlaceholders(elseBranch)
         )
-      case TermShape.Block(prefix, result) =>
+      case TermShape.Block(statements, result) =>
         TermShape.Block(
-          prefix.map(canonicalizePlaceholders),
+          statements.map {
+            case BlockStatement.LocalVal(binderId, displayName, declaredType, initializer) =>
+              BlockStatement.LocalVal(
+                binderId,
+                displayName,
+                declaredType,
+                canonicalizePlaceholders(initializer)
+              )
+            case term: TermShape => canonicalizePlaceholders(term)
+          },
           canonicalizePlaceholders(result)
         )
       case TermShape.Parenthesized(expression) =>
@@ -118,8 +127,11 @@ private[quasiquotes] object TermShapeTraversal:
           loop(condition)
           loop(thenBranch)
           loop(elseBranch)
-        case TermShape.Block(prefix, result) =>
-          prefix.foreach(loop)
+        case TermShape.Block(statements, result) =>
+          statements.foreach {
+            case BlockStatement.LocalVal(_, _, _, initializer) => loop(initializer)
+            case term: TermShape => loop(term)
+          }
           loop(result)
         case TermShape.Parenthesized(expression) =>
           loop(expression)
@@ -160,8 +172,13 @@ private[quasiquotes] object TermShapeTraversal:
           loop(condition)
           loop(thenBranch)
           loop(elseBranch)
-        case TermShape.Block(prefix, result) =>
-          prefix.foreach(loop)
+        case TermShape.Block(statements, result) =>
+          statements.foreach {
+            case BlockStatement.LocalVal(_, _, declaredType, initializer) =>
+              builder += declaredType
+              loop(initializer)
+            case term: TermShape => loop(term)
+          }
           loop(result)
         case TermShape.Parenthesized(expression) =>
           loop(expression)
@@ -210,8 +227,14 @@ private[quasiquotes] object TermShapeTraversal:
           loop(condition)
           loop(thenBranch)
           loop(elseBranch)
-        case TermShape.Block(prefix, result) =>
-          prefix.foreach(loop)
+        case TermShape.Block(statements, result) =>
+          statements.foreach {
+            case BlockStatement.LocalVal(_, displayName, declaredType, initializer) =>
+              builder += displayName
+              builder += declaredType
+              loop(initializer)
+            case term: TermShape => loop(term)
+          }
           loop(result)
         case TermShape.Parenthesized(expression) =>
           loop(expression)
@@ -281,8 +304,26 @@ private[quasiquotes] object TermShapeTraversal:
             loop(thenBranch, scope),
             loop(elseBranch, scope)
           )
-        case TermShape.Block(prefix, result) =>
-          TermShape.Block(prefix.map(loop(_, scope)), loop(result, scope))
+        case TermShape.Block(statements, result) =>
+          val (normalizedStatements, resultScope) = statements.foldLeft(
+            (List.empty[BlockStatement], scope)
+          ) { case ((accumulated, currentScope), statement) =>
+            statement match
+              case BlockStatement.LocalVal(binderId, _, declaredType, initializer) =>
+                val normalizedId = BinderId(currentScope.size)
+                (
+                  accumulated :+ BlockStatement.LocalVal(
+                    normalizedId,
+                    "",
+                    declaredType,
+                    loop(initializer, currentScope)
+                  ),
+                  (binderId -> normalizedId) :: currentScope
+                )
+              case term: TermShape =>
+                (accumulated :+ loop(term, currentScope), currentScope)
+          }
+          TermShape.Block(normalizedStatements, loop(result, resultScope))
         case TermShape.Parenthesized(expression) =>
           TermShape.Parenthesized(loop(expression, scope))
         case unsupported: TermShape.Unsupported => unsupported
@@ -409,9 +450,15 @@ private[quasiquotes] object TermShapeTraversal:
         validateSupportedUsingScope(condition, scope)
           .flatMap(_ => validateSupportedUsingScope(thenBranch, scope))
           .flatMap(_ => validateSupportedUsingScope(elseBranch, scope))
-      case TermShape.Block(prefix, result) =>
-        validateAll(prefix, scope)
-          .flatMap(_ => validateSupportedUsingScope(result, scope))
+      case TermShape.Block(statements, result) =>
+        statements match
+          case (local: BlockStatement.LocalVal) :: Nil =>
+            validateSupportedUsingScope(local.initializer, scope)
+              .flatMap(_ => validateSupportedUsingScope(result, local.binderId :: scope))
+          case expressionStatements if expressionStatements.forall(_.isInstanceOf[TermShape]) =>
+            validateAll(expressionStatements.map(_.asInstanceOf[TermShape]), scope)
+              .flatMap(_ => validateSupportedUsingScope(result, scope))
+          case _ => Left(TermConstructionError.UnsupportedTermShape())
       case TermShape.Parenthesized(expression) => validateSupportedUsingScope(expression, scope)
       case TermShape.Unsupported(_, _) => Left(TermConstructionError.UnsupportedTermShape())
 

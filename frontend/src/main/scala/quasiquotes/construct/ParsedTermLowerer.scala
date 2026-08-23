@@ -10,7 +10,9 @@ import quasiquotes.parser.InterpolatedStringSegments
 import quasiquotes.parser.ConstructorNamePolicy
 import quasiquotes.parser.Lambda1DiagnosticMessages
 import quasiquotes.parser.P1BlockDiagnosticMessages
-import quasiquotes.types.toTypeRepr
+import quasiquotes.parser.P2LocalValDiagnosticMessages
+import quasiquotes.parser.TypeShapeInspector
+import quasiquotes.types.{TypeReprLowerer, toTypeRepr}
 
 object ParsedTermLowerer:
   private val UnaryMethodByOperator = Map(
@@ -39,10 +41,11 @@ object ParsedTermLowerer:
     def lowerTerm(
         tree: untpd.Tree,
         boundTerms: List[(String, Term)] = Nil,
-        lambdaDepth: Int = 0
+        lambdaDepth: Int = 0,
+        binderContext: Option[(String, String)] = None
     ): Either[QuasiquoteLoweringFailure, Term] =
       def lowerChild(child: untpd.Tree): Either[QuasiquoteLoweringFailure, Term] =
-        lowerTerm(child, boundTerms, lambdaDepth)
+        lowerTerm(child, boundTerms, lambdaDepth, binderContext)
 
       tree match
         case untpd.Ident(name) =>
@@ -52,12 +55,13 @@ object ParsedTermLowerer:
             .left.map(located(_, tree))
             .flatMap {
               case Some(PlaceholderBinding(_, QuasiquoteHole.Term(term))) =>
-                if lambdaDepth > 0 && containsOwnedDefinition(term) then
+                if binderContext.nonEmpty && containsOwnedDefinition(term) then
+                  val (nodeKind, detail) = binderContext.get
                   Left(
                     located(
                       QuasiquoteError.UnsupportedTree(
-                        "Lambda1Splice",
-                        Lambda1DiagnosticMessages.OwnedDefinitionSplice
+                        nodeKind,
+                        detail
                       ),
                       tree
                     )
@@ -96,7 +100,8 @@ object ParsedTermLowerer:
                   lowerTerm(
                     body,
                     (parameter.name.toString -> previewParameter) :: boundTerms,
-                    lambdaDepth + 1
+                    lambdaDepth + 1,
+                    Some("Lambda1Splice" -> Lambda1DiagnosticMessages.OwnedDefinitionSplice)
                   ).flatMap { previewBody =>
                     val methodType = MethodType(List(parameter.name.toString))(
                       _ => List(parameterType),
@@ -111,7 +116,8 @@ object ParsedTermLowerer:
                         lowerTerm(
                           body,
                           (parameter.name.toString -> parameterTerm) :: boundTerms,
-                          lambdaDepth + 1
+                          lambdaDepth + 1,
+                          Some("Lambda1Splice" -> Lambda1DiagnosticMessages.OwnedDefinitionSplice)
                         ) match
                           case Right(lowered) => lowered
                           case Left(failure) =>
@@ -220,26 +226,41 @@ object ParsedTermLowerer:
         case untpd.Block(Nil, result) =>
           lowerChild(result)
         case block @ untpd.Block(statements, result) =>
-          statements.collectFirst {
-            case value: untpd.ValDef =>
-              located(QuasiquoteError.UnsupportedTree("Block", P1BlockDiagnosticMessages.LocalVal), value)
-            case definition: untpd.DefDef =>
-              located(QuasiquoteError.UnsupportedTree("Block", P1BlockDiagnosticMessages.LocalDef), definition)
-            case statement if !statement.isTerm =>
-              located(
-                QuasiquoteError.UnsupportedTree(
-                  "Block",
-                  P1BlockDiagnosticMessages.UnsupportedStatement(statement.getClass.getSimpleName)
-                ),
-                statement
+          statements match
+            case (value: untpd.ValDef) :: Nil =>
+              lowerLocalValBlock(
+                value,
+                result,
+                boundTerms,
+                lambdaDepth,
+                binderContext,
+                placeholderIndex,
+                lowerTerm
               )
-          } match
-            case Some(failure) => Left(failure)
-            case None =>
+            case values if values.exists(_.isInstanceOf[untpd.ValDef]) =>
+              Left(located(QuasiquoteError.UnsupportedTree("Block", P2LocalValDiagnosticMessages.ExactlyOne), block))
+            case definitions if definitions.exists(_.isInstanceOf[untpd.DefDef]) =>
+              val definition = definitions.find(_.isInstanceOf[untpd.DefDef]).get
+              Left(located(QuasiquoteError.UnsupportedTree("Block", P2LocalValDiagnosticMessages.LocalDef), definition))
+            case patternDefinitions if patternDefinitions.exists(isPatternDefinition) =>
+              val pattern = patternDefinitions.find(isPatternDefinition).get
+              Left(located(QuasiquoteError.UnsupportedTree("Block", P2LocalValDiagnosticMessages.Pattern), pattern))
+            case expressionStatements if expressionStatements.forall(_.isTerm) =>
               for
-                loweredStatements <- sequenceLocated(statements.map(lowerChild))
+                loweredStatements <- sequenceLocated(expressionStatements.map(lowerChild))
                 loweredResult <- lowerChild(result)
               yield Block(loweredStatements, loweredResult)
+            case statement :: _ =>
+              Left(
+                located(
+                  QuasiquoteError.UnsupportedTree(
+                    "Block",
+                    P1BlockDiagnosticMessages.UnsupportedStatement(statement.getClass.getSimpleName)
+                  ),
+                  statement
+                )
+              )
+            case Nil => lowerChild(result)
         case untpd.Parens(inner) =>
           lowerChild(inner)
         case untpd.TypedSplice(tree) =>
@@ -262,6 +283,63 @@ object ParsedTermLowerer:
           case _ => ()
     traverser.traverseTree(term)(Symbol.spliceOwner)
     found
+
+  private def lowerLocalValBlock(using q: Quotes)(
+      value: untpd.ValDef,
+      result: untpd.Tree,
+      boundTerms: List[(String, q.reflect.Term)],
+      lambdaDepth: Int,
+      binderContext: Option[(String, String)],
+      placeholderIndex: CategorizedPlaceholderIndex[q.reflect.Term],
+      lowerTerm: (
+          untpd.Tree,
+          List[(String, q.reflect.Term)],
+          Int,
+          Option[(String, String)]
+      ) => Either[QuasiquoteLoweringFailure, q.reflect.Term]
+  ): Either[QuasiquoteLoweringFailure, q.reflect.Term] =
+    import q.reflect.*
+
+    val displayName = value.name.toString
+    if value.mods.is(dotty.tools.dotc.core.Flags.Mutable) then
+      Left(located(QuasiquoteError.UnsupportedTree("Block", P2LocalValDiagnosticMessages.Mutable), value))
+    else if value.mods.is(dotty.tools.dotc.core.Flags.Lazy) then
+      Left(located(QuasiquoteError.UnsupportedTree("Block", P2LocalValDiagnosticMessages.Lazy), value))
+    else if !isSimpleBinderName(displayName) then
+      Left(located(QuasiquoteError.UnsupportedTree("Block", P2LocalValDiagnosticMessages.Pattern), value))
+    else if value.tpt.isEmpty then
+      Left(located(QuasiquoteError.UnsupportedTree("Block", P2LocalValDiagnosticMessages.MissingExplicitType), value))
+    else
+      for
+        declaredTypeTree <- lowerP2DeclaredType(value.tpt, placeholderIndex)
+        initializer <- lowerTerm(
+          value.unforcedRhs.asInstanceOf[untpd.Tree],
+          boundTerms,
+          lambdaDepth,
+          binderContext
+        )
+        symbol = Symbol.newVal(
+          Symbol.spliceOwner,
+          displayName,
+          declaredTypeTree.tpe,
+          Flags.EmptyFlags,
+          Symbol.noSymbol
+        )
+        definition = ValDef(symbol, Some(initializer))
+        loweredResult <- lowerTerm(
+          result,
+          (displayName -> Ref(symbol)) :: boundTerms,
+          lambdaDepth,
+          Some("P2LocalValSplice" -> P2LocalValDiagnosticMessages.OwnedDefinitionSplice)
+        )
+      yield Block(List(definition), loweredResult)
+
+  private def isSimpleBinderName(name: String): Boolean =
+    name != "_" && name.matches("[A-Za-z_$][A-Za-z0-9_$]*")
+
+  private def isPatternDefinition(tree: untpd.Tree): Boolean =
+    val kind = tree.getClass.getSimpleName
+    kind.contains("PatDef") || kind.contains("Pattern") || kind.contains("Thicket")
 
   private def lowerType(using q: Quotes)(
       tree: untpd.Tree,
@@ -299,6 +377,19 @@ object ParsedTermLowerer:
       case "String" | "scala.String" => Right(TypeTree.of[String])
       case "Boolean" | "scala.Boolean" => Right(TypeTree.of[Boolean])
       case other => Left(QuasiquoteError.UnsupportedTree("TypeTree", s"Unsupported type ascription: $other"))
+
+  private def lowerP2DeclaredType(using q: Quotes)(
+      tree: untpd.Tree,
+      placeholderIndex: CategorizedPlaceholderIndex[q.reflect.Term]
+  ): Either[QuasiquoteLoweringFailure, q.reflect.TypeTree] =
+    import q.reflect.*
+    lowerType(tree, placeholderIndex).orElse(
+      TypeReprLowerer
+        .lower(TypeShapeInspector.inspect(tree))
+        .left
+        .map(error => located(QuasiquoteError.UnsupportedTree("TypeTree", error.message), tree))
+        .map(Inferred.apply)
+    )
 
   private def selectMember(
       using q: Quotes

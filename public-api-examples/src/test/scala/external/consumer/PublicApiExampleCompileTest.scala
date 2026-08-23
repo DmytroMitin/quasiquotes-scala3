@@ -139,6 +139,24 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
       (4, 5, 6)
     )
 
+  test("documented P2 local val first use binds and matches outside quasiquotes packages"):
+    assertEquals(P2LocalValFirstUseSnippet.bind(42), 42)
+    assert(
+      P2LocalValFirstUseSnippet.alphaEquivalent {
+        val renamed: Int = 7
+        renamed
+      }
+    )
+    assertEquals(
+      P2LocalValFirstUseSnippet.captureInitializer {
+        val renamed: Int = 9
+        renamed
+      },
+      9
+    )
+    val x = 41
+    assertEquals(P2LocalValFirstUseSnippet.preserveExternal(x), 41)
+
   test("documented qq extractor first use stays in the external caller Quotes path"):
     assertEquals(extractAddition(20, 22), (20, 22))
     assert(!classifyNonAddition(42))

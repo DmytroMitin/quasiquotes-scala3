@@ -2,8 +2,18 @@ package quasiquotes.matching
 
 import quasiquotes.parser.BinderId
 
-sealed trait TermPattern derives CanEqual:
+sealed trait BlockPatternStatement derives CanEqual
+
+sealed trait TermPattern extends BlockPatternStatement derives CanEqual:
   final def render: String = TermPattern.render(this)
+
+object BlockPatternStatement:
+  private[quasiquotes] final case class LocalVal(
+      binderId: BinderId,
+      displayName: String,
+      declaredType: String,
+      initializer: TermPattern
+  ) extends BlockPatternStatement
 
 object TermPattern:
   final case class Hole(name: String) extends TermPattern
@@ -33,8 +43,8 @@ object TermPattern:
   final case class Typed(expression: TermPattern, typeName: String) extends TermPattern
   final case class Tuple(elements: List[TermPattern]) extends TermPattern
   final case class If(condition: TermPattern, thenBranch: TermPattern, elseBranch: TermPattern) extends TermPattern
-  final case class Block(prefix: List[TermPattern], result: TermPattern) extends TermPattern:
-    require(prefix.nonEmpty, "P1 block prefix must contain at least one expression")
+  final case class Block(statements: List[BlockPatternStatement], result: TermPattern) extends TermPattern:
+    require(statements.nonEmpty, "block pattern must contain at least one statement")
   final case class Parenthesized(expression: TermPattern) extends TermPattern
 
   def render(pattern: TermPattern): String =
@@ -60,9 +70,15 @@ object TermPattern:
       case Tuple(elements) => s"Tuple([${elements.map(render).mkString(", ")}])"
       case If(condition, thenBranch, elseBranch) =>
         s"If(${render(condition)}, ${render(thenBranch)}, ${render(elseBranch)})"
-      case Block(prefix, result) =>
-        s"Block([${prefix.map(render).mkString(", ")}], ${render(result)})"
+      case Block(statements, result) =>
+        s"Block([${statements.map(renderStatement).mkString(", ")}], ${render(result)})"
       case Parenthesized(expression) => s"Parens(${render(expression)})"
 
   private def quote(value: String): String =
     "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
+  private def renderStatement(statement: BlockPatternStatement): String =
+    statement match
+      case BlockPatternStatement.LocalVal(_, displayName, declaredType, initializer) =>
+        s"LocalVal($displayName: $declaredType = ${render(initializer)})"
+      case pattern: TermPattern => render(pattern)

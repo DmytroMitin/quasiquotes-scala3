@@ -3,8 +3,16 @@ package quasiquotes.matching
 import scala.quoted.Quotes
 import quasiquotes.parser.BinderId
 
-sealed trait CanonicalTerm derives CanEqual:
+sealed trait CanonicalBlockStatement derives CanEqual
+
+sealed trait CanonicalTerm extends CanonicalBlockStatement derives CanEqual:
   final def render: String = CanonicalTerm.render(this)
+
+object CanonicalBlockStatement:
+  private[quasiquotes] final case class LocalVal(
+      declaredType: String,
+      initializer: CanonicalTerm
+  ) extends CanonicalBlockStatement
 
 object CanonicalTerm:
   final case class Ident(name: String) extends CanonicalTerm
@@ -24,7 +32,7 @@ object CanonicalTerm:
   final case class Typed(expression: CanonicalTerm, typeName: String) extends CanonicalTerm
   final case class Tuple(elements: List[CanonicalTerm]) extends CanonicalTerm
   final case class If(condition: CanonicalTerm, thenBranch: CanonicalTerm, elseBranch: CanonicalTerm) extends CanonicalTerm
-  final case class Block(prefix: List[CanonicalTerm], result: CanonicalTerm) extends CanonicalTerm
+  final case class Block(statements: List[CanonicalBlockStatement], result: CanonicalTerm) extends CanonicalTerm
 
   def render(term: CanonicalTerm): String =
     term match
@@ -50,8 +58,14 @@ object CanonicalTerm:
         s"CTuple([${elements.map(render).mkString(", ")}])"
       case If(condition, thenBranch, elseBranch) =>
         s"CIf(${render(condition)}, ${render(thenBranch)}, ${render(elseBranch)})"
-      case Block(prefix, result) =>
-        s"CBlock([${prefix.map(render).mkString(", ")}], ${render(result)})"
+      case Block(statements, result) =>
+        s"CBlock([${statements.map(renderStatement).mkString(", ")}], ${render(result)})"
+
+  private def renderStatement(statement: CanonicalBlockStatement): String =
+    statement match
+      case CanonicalBlockStatement.LocalVal(declaredType, initializer) =>
+        s"CLocalVal(Type($declaredType), ${render(initializer)})"
+      case term: CanonicalTerm => render(term)
 
   private def quote(value: String): String =
     "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
@@ -114,11 +128,22 @@ object TermCanonicalizer:
           canonicalThenBranch <- canonicalizeView(thenBranch, scope)
           canonicalElseBranch <- canonicalizeView(elseBranch, scope)
         yield CanonicalTerm.If(canonicalCondition, canonicalThenBranch, canonicalElseBranch)
-      case TargetTermView.Block(prefix, result, _) =>
-        for
-          canonicalPrefix <- sequence(prefix.map(canonicalizeView(_, scope)))
-          canonicalResult <- canonicalizeView(result, scope)
-        yield CanonicalTerm.Block(canonicalPrefix, canonicalResult)
+      case TargetTermView.Block(statements, result, _) =>
+        statements match
+          case List(TargetBlockStatementView.LocalVal(binderId, _, declaredType, _, initializer, _)) =>
+            for
+              canonicalInitializer <- canonicalizeView(initializer, scope)
+              canonicalResult <- canonicalizeView(result, binderId :: scope)
+            yield CanonicalTerm.Block(
+              List(CanonicalBlockStatement.LocalVal(declaredType, canonicalInitializer)),
+              canonicalResult
+            )
+          case expressionStatements if expressionStatements.forall(_.isInstanceOf[TargetTermView[?]]) =>
+            for
+              canonicalStatements <- sequence(expressionStatements.map(statement => canonicalizeView(statement.asInstanceOf[TargetTermView[?]], scope)))
+              canonicalResult <- canonicalizeView(result, scope)
+            yield CanonicalTerm.Block(canonicalStatements, canonicalResult)
+          case _ => Left(MatchFailure.UnsupportedTargetShape("unsupported canonical block statement sequence"))
 
   private def sequence[A](values: List[Either[MatchFailure, A]]): Either[MatchFailure, List[A]] =
     values.foldRight(Right(Nil): Either[MatchFailure, List[A]]) { (next, acc) =>

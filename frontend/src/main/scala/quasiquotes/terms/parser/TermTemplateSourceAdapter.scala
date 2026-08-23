@@ -840,8 +840,12 @@ private[quasiquotes] object RawTermTemplateAdapter:
         firstUnsupported(condition)
           .orElse(firstUnsupported(thenBranch))
           .orElse(firstUnsupported(elseBranch))
-      case TermShape.Block(prefix, result) =>
-        prefix.iterator.flatMap(firstUnsupported).nextOption()
+      case TermShape.Block(statements, result) =>
+        statements.iterator.flatMap {
+          case quasiquotes.parser.BlockStatement.LocalVal(_, _, _, initializer) =>
+            firstUnsupported(initializer)
+          case term: TermShape => firstUnsupported(term)
+        }.nextOption()
           .orElse(firstUnsupported(result))
       case TermShape.Parenthesized(expression) =>
         firstUnsupported(expression)

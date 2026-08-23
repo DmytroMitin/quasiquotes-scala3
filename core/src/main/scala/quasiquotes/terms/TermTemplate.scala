@@ -1,6 +1,6 @@
 package quasiquotes.terms
 
-import quasiquotes.parser.{BinderId, TermShape}
+import quasiquotes.parser.{BinderId, BlockStatement, TermShape}
 import quasiquotes.source.GeneratedHoleIndex
 import quasiquotes.types.{TypeNormalForm, TypeTemplate}
 
@@ -10,6 +10,15 @@ private[quasiquotes] final case class TermHoleOccurrence(
 ) derives CanEqual
 
 private sealed trait SemanticTermKey derives CanEqual
+
+private sealed trait SemanticBlockStatementKey derives CanEqual
+
+private object SemanticBlockStatementKey:
+  final case class Expression(term: SemanticTermKey) extends SemanticBlockStatementKey
+  final case class LocalVal(
+      declaredType: TypeTemplate,
+      initializer: SemanticTermKey
+  ) extends SemanticBlockStatementKey
 
 private object SemanticTermKey:
   final case class Identifier(name: String) extends SemanticTermKey
@@ -52,7 +61,7 @@ private object SemanticTermKey:
       elseBranch: SemanticTermKey
   ) extends SemanticTermKey
   final case class Block(
-      prefix: Vector[SemanticTermKey],
+      statements: Vector[SemanticBlockStatementKey],
       result: SemanticTermKey
   ) extends SemanticTermKey
   final case class Parenthesized(expression: SemanticTermKey)
@@ -431,10 +440,65 @@ private[quasiquotes] final class TermTemplate private (
           completedElse.nextIdentifierOrdinal,
           completedElse.nextTypedOrdinal
         )
-      case TermShape.Block(prefix, result) =>
+      case TermShape.Block((local: BlockStatement.LocalVal) :: Nil, result) =>
+        val declaredTypeTemplate = ascriptionTypes(typedOrdinal)
+        val relevantBindings = typeBindings.view
+          .filterKeys(TypeTemplate.holeNames(declaredTypeTemplate))
+          .toMap
         for
-          completedPrefix <- completeChildren(
-            prefix,
+          declaredType <- TypeTemplate
+            .construct(declaredTypeTemplate, relevantBindings)
+            .left
+            .map(error =>
+              TermConstructionError.InvalidTypeTemplateSidecar(
+                typedOrdinal,
+                error.message
+              )
+            )
+          _ <- TypeTemplate
+            .validateConstructed(declaredType)
+            .left
+            .map(error =>
+              TermConstructionError.InvalidTypeTemplateSidecar(
+                typedOrdinal,
+                error.message
+              )
+            )
+          completedInitializer <- completeSubtree(
+            local.initializer,
+            identifierOrdinal,
+            typedOrdinal + 1,
+            termBindings,
+            typeBindings
+          )
+          completedResult <- completeSubtree(
+            result,
+            completedInitializer.nextIdentifierOrdinal,
+            completedInitializer.nextTypedOrdinal,
+            termBindings,
+            typeBindings
+          )
+        yield CompletedSubtree(
+          TermShape.Block(
+            List(
+              BlockStatement.LocalVal(
+                local.binderId,
+                local.displayName,
+                TermShapeTraversal.renderNormalForm(declaredType),
+                completedInitializer.shape
+              )
+            ),
+            completedResult.shape
+          ),
+          (declaredType +: completedInitializer.ascriptions) ++ completedResult.ascriptions,
+          completedResult.nextIdentifierOrdinal,
+          completedResult.nextTypedOrdinal
+        )
+      case TermShape.Block(statements, result) =>
+        val expressions = statements.collect { case term: TermShape => term }
+        for
+          completedStatements <- completeChildren(
+            expressions,
             identifierOrdinal,
             typedOrdinal,
             termBindings,
@@ -442,14 +506,14 @@ private[quasiquotes] final class TermTemplate private (
           )
           completedResult <- completeSubtree(
             result,
-            completedPrefix.nextIdentifierOrdinal,
-            completedPrefix.nextTypedOrdinal,
+            completedStatements.nextIdentifierOrdinal,
+            completedStatements.nextTypedOrdinal,
             termBindings,
             typeBindings
           )
         yield CompletedSubtree(
-          TermShape.Block(completedPrefix.shapes, completedResult.shape),
-          completedPrefix.ascriptions ++ completedResult.ascriptions,
+          TermShape.Block(completedStatements.shapes, completedResult.shape),
+          completedStatements.ascriptions ++ completedResult.ascriptions,
           completedResult.nextIdentifierOrdinal,
           completedResult.nextTypedOrdinal
         )
@@ -685,13 +749,13 @@ private[quasiquotes] final class TermTemplate private (
           nextIdentifier,
           nextTyped
         )
-      case TermShape.Block(prefix, result) =>
-        val (prefixKeys, afterPrefixIdentifier, afterPrefixTyped) =
-          semanticChildrenKey(prefix, identifierOrdinal, typedOrdinal, scope)
+      case TermShape.Block(statements, result) =>
+        val (statementKeys, afterStatementsIdentifier, afterStatementsTyped, resultScope) =
+          semanticBlockStatementsKey(statements, identifierOrdinal, typedOrdinal, scope)
         val (resultKey, nextIdentifier, nextTyped) =
-          semanticShapeKey(result, afterPrefixIdentifier, afterPrefixTyped, scope)
+          semanticShapeKey(result, afterStatementsIdentifier, afterStatementsTyped, resultScope)
         (
-          SemanticTermKey.Block(prefixKeys, resultKey),
+          SemanticTermKey.Block(statementKeys, resultKey),
           nextIdentifier,
           nextTyped
         )
@@ -723,6 +787,48 @@ private[quasiquotes] final class TermTemplate private (
         val (key, afterIdentifier, afterTyped) =
           semanticShapeKey(child, nextIdentifier, nextTyped, scope)
         (keys :+ key, afterIdentifier, afterTyped)
+    }
+
+  private def semanticBlockStatementsKey(
+      statements: List[BlockStatement],
+      identifierOrdinal: Int,
+      typedOrdinal: Int,
+      scope: List[BinderId]
+  ): (Vector[SemanticBlockStatementKey], Int, Int, List[BinderId]) =
+    statements.foldLeft(
+      (
+        Vector.empty[SemanticBlockStatementKey],
+        identifierOrdinal,
+        typedOrdinal,
+        scope
+      )
+    ) {
+      case ((keys, nextIdentifier, nextTyped, currentScope), local: BlockStatement.LocalVal) =>
+        val (initializerKey, afterIdentifier, afterTyped) =
+          semanticShapeKey(
+            local.initializer,
+            nextIdentifier,
+            nextTyped + 1,
+            currentScope
+          )
+        (
+          keys :+ SemanticBlockStatementKey.LocalVal(
+            ascriptionTypes(nextTyped),
+            initializerKey
+          ),
+          afterIdentifier,
+          afterTyped,
+          local.binderId :: currentScope
+        )
+      case ((keys, nextIdentifier, nextTyped, currentScope), term: TermShape) =>
+        val (key, afterIdentifier, afterTyped) =
+          semanticShapeKey(term, nextIdentifier, nextTyped, currentScope)
+        (
+          keys :+ SemanticBlockStatementKey.Expression(key),
+          afterIdentifier,
+          afterTyped,
+          currentScope
+        )
     }
 
 private[quasiquotes] object TermTemplate:

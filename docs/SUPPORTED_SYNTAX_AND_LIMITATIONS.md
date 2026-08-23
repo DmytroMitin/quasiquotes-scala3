@@ -10,8 +10,8 @@ the detailed semantic and diagnostic caveats behind that table.
 Currently exercised areas include:
 
 - identifiers, selections, applications, typed terms, binder-free P1 blocks,
-  tuples, unary operations, and standard string interpolation in bounded
-  structural forms;
+  one explicitly typed eager immutable local-val P2 block, tuples, unary
+  operations, and standard string interpolation in bounded structural forms;
 - ordinary lambdas with exactly one explicitly typed parameter, with scoped
   binder identity, alpha-aware construction/matching, and complete-body holes;
 - compiler-free public single- and exact-two-parameter method constructors,
@@ -37,8 +37,10 @@ Important limitations:
 - Lambda1 excludes inferred or multiple parameters, nested/context/pattern
   lambdas, binder-name holes, and local definitions;
 - P1 blocks admit only one or more ordered expression prefixes plus a final
-  result; local `val`/`var` (P2), local `def` (P3), imports, definitions, and
-  unrelated control-flow statement families remain excluded;
+  result; P2 admits exactly one simple explicitly typed eager immutable local
+  `val`; inferred, mutable, lazy, pattern, multiple/shadowing/recursive values,
+  local `def` (P3), imports, other definitions, and unrelated statement
+  families remain excluded;
 - compiler-internal behavior is exact-version-sensitive;
 - public definition construction is intentionally narrow;
 - public `dqr` has no recoverable source carrier, parameter-span projection, or
@@ -112,10 +114,39 @@ other unsupported families.
 
 Programmatic repeated names retain the existing structural-equality rule, and
 successful matches preserve the exact original reflected subtrees even for
-generated/source-poor targets. Local `val`/`var` and local `def` neighbors are
-rejected with block-family diagnostics. P1 introduces no binder, owner repair,
+generated/source-poor targets. Binder-bearing blocks are classified separately
+as P2/P3. P1 itself introduces no binder, owner repair,
 alpha-equivalence, or capture-avoidance semantics beyond those already owned
 by admitted child forms.
+
+## Single typed local immutable val (P2)
+
+The only binder-bearing block admitted by the public Term surface is:
+
+```scala
+{ val x: Int = initializer; resultUsing(x) }
+```
+
+The binder is a simple literal identifier and the type annotation is mandatory
+and must belong to the existing admitted Type subset. The initializer is
+inspected and lowered in the enclosing scope. A fresh project `BinderId` and a
+fresh reflected local symbol are introduced only for the final result. Binder
+display spelling is therefore irrelevant to alpha equality, while an external
+spliced tree whose printed name is also `x` retains its original symbol and is
+not captured.
+
+`qr` builds a real `ValDef` owned by the active `Symbol.spliceOwner`; result
+references use that exact local symbol. `qq` reconstructs the relationship from
+target symbols and can match `{ val x: Int = $init; x }` against an equivalent
+target using a different binder spelling. Ordinary captures return their exact
+original reflected subtrees. A splice containing owned definitions is rejected
+because this tranche does not migrate ownership.
+
+There is no inferred type, `var`, `lazy val`, pattern/destructuring binder,
+second local value, shadowing, recursion/self-reference, binder-name hole, or
+local method support. The unpublished exact untyped backend also remains
+closed to this node; it fails with its existing `Block` boundary rather than
+claiming owner-free raw-tree support.
 
 ## Bounded reflected type interpolators
 
