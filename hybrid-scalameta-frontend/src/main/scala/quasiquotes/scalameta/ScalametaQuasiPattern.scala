@@ -10,6 +10,12 @@ final class ScalametaTermPatternExtractor[T] private[scalameta] (
 ):
   def unapplySeq(value: T): Option[Seq[T]] = extract(value)
 
+/** Bounded extractor for ordered original reflected Type captures. */
+final class ScalametaTypePatternExtractor[T] private[scalameta] (
+    extract: T => Option[Seq[T]]
+):
+  def unapplySeq(value: T): Option[Seq[T]] = extract(value)
+
 /** Explicit opt-in matching syntax backed by the Scalameta-primary compiler. */
 object ScalametaQuasiPattern:
   extension (context: StringContext)
@@ -45,4 +51,26 @@ object ScalametaQuasiPattern:
                       result.bindings.get(name).map(current :+ _)
                     )
                 }
+          )
+
+    def tqq(using q: Quotes): ScalametaTypePatternExtractor[q.reflect.TypeRepr] =
+      import q.reflect.*
+
+      if context == null || context.parts == null || context.parts.isEmpty then
+        report.errorAndAbort(
+          "Invalid Scalameta tqq type-pattern template: StringContext must contain at least one part."
+        )
+
+      TypeFrontend.compile(context.parts) match
+        case Left(failure) =>
+          report.errorAndAbort(
+            s"Invalid Scalameta tqq type-pattern template: ${failure.message}"
+          )
+        case Right(compiled) =>
+          new ScalametaTypePatternExtractor[q.reflect.TypeRepr](target =>
+            TypeFrontend
+              .matchPattern(using q)(compiled, target)
+              .toOption
+              .flatten
+              .map(_.captures)
           )

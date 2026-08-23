@@ -15,3 +15,11 @@ object ScalametaQuasiquotes:
       TermFrontend.build(context.parts, arguments) match
         case Right(result) => result.term
         case Left(failure) => q.reflect.report.errorAndAbort(failure.message)
+
+    def tqr(using q: Quotes)(arguments: q.reflect.TypeRepr*): q.reflect.TypeRepr =
+      TypeFrontend.build(context.parts, arguments) match
+        case Right(result) => result.typeRepr
+        case Left(failure) =>
+          q.reflect.report.errorAndAbort(
+            s"Invalid Scalameta tqr type template: ${failure.message}"
+          )

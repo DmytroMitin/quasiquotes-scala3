@@ -103,8 +103,8 @@ construct/match boundary and its deliberate limits.
   structural projection into the existing validated IR, without `Quotes`,
   compiler implementation dependencies, staging, SemanticDB, or exact trees.
 - `hybridScalametaFrontend` is an unpublished, compiler-coupled side-by-side
-  experiment. It contains the explicit typed-Term opt-in and private Type-Q3
-  parity internals. Both parse public Scalameta ASTs, lower into existing
+  experiment. It contains explicit typed Term and Type opt-in APIs in
+  `quasiquotes.scalameta`. Both parse public Scalameta ASTs, lower into existing
   project semantics, and retain the current Dotty engine as fallback/oracle.
   Public `qr`/`qq` and `tqr`/`tqq` defaults and published dependencies do not
   change.
@@ -123,6 +123,7 @@ only admitted shapes downward; it does not make `core` depend on Scalameta.
 See the [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md),
 the [hybrid term frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md),
 the [private Type-Q3 parity result](docs/PHASE113_SCALAMETA_TYPE_Q3_SIDE_BY_SIDE_CURRENT_MATRIX_PARITY_RESULT.md),
+the [Type opt-in API and coordinate result](docs/PHASE114_SCALAMETA_TYPE_OPT_IN_API_AND_COORDINATE_CONSUMER_READINESS_RESULT.md),
 and the [experimental contextual-method peer bridge](docs/EXPERIMENTAL_CONTEXTUAL_METHOD_PEER_BRIDGE.md).
 
 ## Try the source build

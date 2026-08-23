@@ -19,7 +19,7 @@ silent import replacement is introduced.
 | Role | Future coordinate shape | Cross policy | Direct project dependencies |
 | --- | --- | --- | --- |
 | compiler-free bridge | `com.github.dmytromitin:quasiquotes-scala3-neutral-scalameta_3:<future-version>` | Scala 3 binary | `core_3`, Scalameta 4.17.3 |
-| typed Term opt-in | `com.github.dmytromitin:quasiquotes-scala3-scalameta-frontend_<exact-scala>:<future-version>` | full Scala version | matching `frontend_<exact-scala>`, `neutral-scalameta_3` |
+| typed Term and Type opt-in | `com.github.dmytromitin:quasiquotes-scala3-scalameta-frontend_<exact-scala>:<future-version>` | full Scala version | matching `frontend_<exact-scala>`, `neutral-scalameta_3` |
 | exact-version peer backend | `com.github.dmytromitin:quasiquotes-scala3-dotty-internal_<exact-scala>:<future-version>` | full Scala version | `neutral-scalameta_3`, matching `scala3-compiler_3` |
 
 The first two rows are the selected user-facing topology. The third is a
@@ -54,24 +54,26 @@ report no source span.
 The typed coordinate exposes only the explicit package
 `quasiquotes.scalameta`:
 
-- `ScalametaQuasiquotes.*` supplies the opt-in `qr` extension;
-- `ScalametaQuasiPattern.*` supplies the opt-in `qq` extractor;
+- `ScalametaQuasiquotes.*` supplies the opt-in `qr` and `tqr` extensions;
+- `ScalametaQuasiPattern.*` supplies the opt-in `qq` and `tqq` extractors;
 - `TermFrontend` supplies programmatic construction/pattern compilation and
   observable `Scalameta` versus `CurrentDottyFallback` results;
+- `TypeFrontend` supplies Quotes-aware Type construction, pattern compilation
+  and detailed matching with the same observable engine/failure boundary;
 - `ScalametaTermPatternExtractor` is the bounded ordered-capture extractor
-  returned by the opt-in `qq` host.
+  returned by the opt-in `qq` host;
+- `ScalametaTypePatternExtractor` returns ordered original `TypeRepr` captures
+  from the opt-in `tqq` host.
 
 The research lowerers, selector, dialect policy, parity inventory, and evidence
 macros remain `private[quasiquotes]`. This prevents their provisional package
 layout from becoming the intended consumer surface. The existing `core` and
 `frontend` sources and their 618-row API inventory are unchanged.
 
-The current implementation additionally places a complete-current-matrix Type-Q3 experiment in
-this same full-cross module. Its dialect policy, `scala.meta.Type` mapper,
-template/pattern frontend, selector result, and parity inventory are all
-`private[quasiquotes]`. There is deliberately no public Scalameta `tqr`/`tqq`
-host in this phase; a consumer-facing Type surface requires a separate API and
-coordinate gate.
+The complete-current-matrix Type-Q3 implementation stays in this same
+full-cross module. Its dialect policy, `scala.meta.Type` mapper, internal
+template/pattern frontend, selector result, and parity inventory remain
+`private[quasiquotes]`; only the compact public façade above is exposed.
 
 Example explicit imports inside a quoted macro implementation:
 
@@ -84,6 +86,17 @@ val constructed = qr"$supplied.apply(1)"
 import quasiquotes.scalameta.ScalametaQuasiPattern.*
 target match
   case qq"$left + $right" => (left, right)
+```
+
+```scala
+import quasiquotes.scalameta.ScalametaQuasiquotes.*
+val constructedType = tqr"Either[List[$leftType], Option[String]]"
+```
+
+```scala
+import quasiquotes.scalameta.ScalametaQuasiPattern.*
+targetType match
+  case tqq"Either[List[$left], Option[$right]]" => (left, right)
 ```
 
 Importing `quasiquotes.construct.Quasiquotes.*` and
@@ -115,6 +128,16 @@ external repositories. The neutral tests passed 3/3 and the typed tests passed
 identifiers, reflected-hole identity, selection/application, construction,
 Lambda1, one/multiple/generated capture identity, observable parse-only
 fallback, and an unchanged current-Dotty control.
+
+The Type API gate separately rehearsed synthetic `0.3.0-phase114-local` typed
+coordinates on both supported compiler lines. Each fresh Type consumer passed
+7/7 tests from a 24-JAR compile closure, covering zero/reflected `tqr`, ordered
+and whole-target `tqq` identity, programmatic construction/matching, repeated
+holes, controlled malformed/unsupported failures, engine metadata, and the
+ordinary current-Dotty control. The task-owned repository contained six local
+coordinates and 24 primary POM/binary/source/Javadoc files (72 files including
+checksums), with no checkout or controller coupling. This remains local-only
+evidence and does not make the coordinate remotely available.
 
 ## Peer backend boundary
 

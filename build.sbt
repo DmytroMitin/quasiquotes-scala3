@@ -324,7 +324,7 @@ lazy val hybridScalametaFrontend = (project in file("hybrid-scalameta-frontend")
   .settings(publicationLicenseSettings)
   .settings(
     name := "quasiquotes-scala3-scalameta-frontend",
-    description := "Experimental Scalameta-primary Term frontend with private Type parity internals",
+    description := "Experimental Scalameta-primary Term and Type opt-in frontend",
     crossVersion := CrossVersion.full,
     libraryDependencies +=
       "org.scala-lang" %% "scala3-staging" % scalaVersion.value % Test,
@@ -565,9 +565,53 @@ lazy val root = (project in file("."))
         sys.error("Missing or empty candidate package(s): " + empty.mkString(", "))
       }
 
+      def jarEntries(file: File): Set[String] = {
+        val archive = new JarFile(file)
+        try archive.entries().asScala.map(_.getName).toSet
+        finally archive.close()
+      }
+
+      val typedEntries = jarEntries((hybridScalametaFrontend / Compile / packageBin).value)
+      val requiredTypedApi = Set(
+        "quasiquotes/scalameta/TypeFrontend$.class",
+        "quasiquotes/scalameta/TypeFrontend$Failure.class",
+        "quasiquotes/scalameta/TypeFrontend$BuildResult.class",
+        "quasiquotes/scalameta/TypeFrontend$CompileResult.class",
+        "quasiquotes/scalameta/TypeFrontend$MatchResult.class",
+        "quasiquotes/scalameta/ScalametaTypePatternExtractor.class"
+      )
+      val missingTypedApi = requiredTypedApi.diff(typedEntries)
+      if (missingTypedApi.nonEmpty) {
+        sys.error(
+          "Scalameta typed artifact is missing public Type opt-in API entries: " +
+            missingTypedApi.toVector.sorted.mkString(", ")
+        )
+      }
+
+      val forbiddenTypeApiPrefixes = Vector(
+        "quasiquotes/scalameta/TypeFrontend",
+        "quasiquotes/scalameta/ScalametaTypePatternExtractor"
+      )
+      val nonTypedEntries = Seq(
+        "core" -> jarEntries((core / Compile / packageBin).value),
+        "frontend" -> jarEntries((frontend / Compile / packageBin).value),
+        "neutral" -> jarEntries((neutralScalameta / Compile / packageBin).value)
+      )
+      val leakedTypeApi = nonTypedEntries.flatMap { case (label, entries) =>
+        entries
+          .filter(entry => forbiddenTypeApiPrefixes.exists(entry.startsWith))
+          .toVector
+          .sorted
+          .map(entry => s"$label:$entry")
+      }
+      if (leakedTypeApi.nonEmpty) {
+        sys.error("Type opt-in API leaked outside the typed artifact: " + leakedTypeApi.mkString(", "))
+      }
+
       log.info(
         s"Scalameta artifact topology verified for Scala $line: neutral binary-cross, frontend/backend full-cross, " +
-          "truthful POM closure, binary/source/doc packages, Apache-2.0 metadata, and remote skip guards"
+          "public Type opt-in API confined to the typed coordinate, truthful POM closure, binary/source/doc packages, " +
+          "Apache-2.0 metadata, and remote skip guards"
       )
     }
   )

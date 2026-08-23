@@ -45,16 +45,17 @@ It parses
 with public Scalameta AST APIs, lowers directly into caller-`Quotes` reflected
 terms or the existing typed pattern IR, and retains the exact Dotty frontend as
 an explicit parser fallback and comparison oracle. The intended public surface
-is confined to `quasiquotes.scalameta`: distinct `qr`/`qq` import hosts plus a
-programmatic `TermFrontend`. The research lowerers, selector, dialect policy,
+is confined to `quasiquotes.scalameta`: shared explicit `qr`/`tqr` and
+`qq`/`tqq` import hosts plus programmatic `TermFrontend` and `TypeFrontend`
+objects. The research lowerers, selector, dialect policy,
 parity inventory, and evidence macros remain package-private. Selection is an
 ordinary immutable call/import choice; it does not use a process-global or
 environment default. The released `qr` and `qq` entrypoints still select the
-current Dotty engine. The same module now contains a private Type-Q3 path that
+current Dotty engine. The same module contains the Type-Q3 path that
 maps public `scala.meta.Type` directly into the existing `TypeShape`,
 `TypeNormalForm`, `TypeTemplate`, and `TypePattern` pipeline. It proves the
-current public `tqr`/`tqq` matrix without exposing a Scalameta Type API or
-changing their current-Dotty default. The experiment does not authorize
+current public `tqr`/`tqq` matrix and exposes it only through the separate
+Scalameta opt-in API; ordinary `tqr`/`tqq` remain current-Dotty. The experiment does not authorize
 definition migration. The future coordinate adds Scalameta 4.17.3 and its
 parser/tree closure only for opt-in consumers; it is not remotely published.
 
