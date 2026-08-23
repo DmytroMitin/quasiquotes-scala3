@@ -66,3 +66,13 @@ parser, or Dotty-internal compatibility.
 Local signed staging and coordinate-only consumption are review evidence only.
 The development snapshot does not authorize remote snapshot publication, a
 tag, or release, and does not by itself establish reproducible artifact bytes.
+
+The Phase-117 compatibility qualification uses the real Maven Central `0.2.0`
+artifacts and a collision-safe task-local build of this source tree. On the
+tested surface, existing `0.2.0` consumers remain source-, JVM-linkage-, and
+TASTy-compatible on Scala 3.3.8 and 3.8.4. The new statement-list `Block`
+surface itself did not exist in released `0.2.0`; code written against an
+unpublished Term-only block-prefix candidate must migrate to the statement
+supertype. These bounded results do not weaken the accepted new-minor policy
+or promise whole-library compatibility. See the
+[statement-ADT compatibility result](PHASE117_STATEMENT_ADT_NEW_0X_BINARY_TASTY_COMPATIBILITY_RESULT.md).

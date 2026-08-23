@@ -68,6 +68,15 @@ term expression. It is not accidental exposure and does not mutate released
 `0.2.0`; the current source tree therefore uses `0.3.0-SNAPSHOT` and still
 requires fresh binary/TASTy qualification before any release.
 
+The separate compatibility qualification completes that review. Real released `0.2.0` has no
+public `TermShape.Block` or `TermPattern.Block`, so the new statement-list
+cases are new `0.3` source surfaces rather than changed released block cases.
+Unchanged representative `0.2.0` source, precompiled JVM consumers, and
+two-stage downstream inline TASTy consumers pass with current artifacts on
+Scala 3.3.8 and 3.8.4. The result remains bounded and does not turn this
+exact-shape inventory into a whole-library compatibility guarantee. See the
+[Phase-117 result](PHASE117_STATEMENT_ADT_NEW_0X_BINARY_TASTY_COMPATIBILITY_RESULT.md).
+
 ## Current accepted shape
 
 The accepted inventory contains 618 rows: 305 from `core` and 313 from

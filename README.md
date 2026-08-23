@@ -169,6 +169,7 @@ See [Getting started](docs/GETTING_STARTED.md),
 [supported syntax and limitations](docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md),
 [compatibility](docs/COMPATIBILITY.md),
 [public API shape compatibility review](docs/API_COMPATIBILITY_REVIEW.md),
+[statement-ADT 0.3 compatibility qualification](docs/PHASE117_STATEMENT_ADT_NEW_0X_BINARY_TASTY_COMPATIBILITY_RESULT.md),
 [versioning and stability](docs/VERSIONING_AND_STABILITY.md), and the
 [release process](docs/RELEASE_PROCESS.md).
 
