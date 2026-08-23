@@ -4,6 +4,7 @@ import dotty.tools.dotc.ast.untpd
 import quasiquotes.parser.{BinderId, ConstructorNamePolicy, DottySourceSpanAdapter, InterpolatedStringSegments, Lambda1DiagnosticMessages, TypeShapeInspector}
 import quasiquotes.parser.P1BlockDiagnosticMessages
 import quasiquotes.parser.P2LocalValDiagnosticMessages
+import quasiquotes.parser.P2LocalValUntypedAdmission
 import quasiquotes.source.{GeneratedHoleIndex, SourceSpan}
 import quasiquotes.types.TypeNormalForm
 
@@ -16,25 +17,34 @@ object PatternCompiler:
   private val SupportedUnaryOperators = Set("+", "-", "!", "~")
 
   def compile(tree: untpd.Tree): Either[PatternError, TermPattern] =
-    compileLocatedUsing(tree, PatternSource.extractHoleName).left.map(_.error)
+    validateAdmission(tree).flatMap(_ => compileLocatedUsing(tree, PatternSource.extractHoleName)).left.map(_.error)
 
   /** Compatibility path for direct low-level callers that lack rewrite metadata. */
   private[matching] def compileLocated(tree: untpd.Tree): Either[PatternCompileFailure, TermPattern] =
-    compileLocatedUsing(tree, PatternSource.extractHoleName)
+    validateAdmission(tree).flatMap(_ => compileLocatedUsing(tree, PatternSource.extractHoleName))
 
   private[matching] def compileLocated(
       tree: untpd.Tree,
       generatedHoles: GeneratedHoleIndex
   ): Either[PatternCompileFailure, TermPattern] =
-    compileLocatedUsing(tree, generatedHoles.semanticNameFor)
+    validateAdmission(tree).flatMap(_ => compileLocatedUsing(tree, generatedHoles.semanticNameFor))
+
+  private def validateAdmission(tree: untpd.Tree): Either[PatternCompileFailure, Unit] =
+    P2LocalValUntypedAdmission.validate(tree).left.map { violation =>
+      PatternCompileFailure(
+        PatternError.UnsupportedPatternShape("Block", violation.message),
+        DottySourceSpanAdapter.fromTree(tree).filter(!_.isEmpty)
+      )
+    }
 
   private def compileLocatedUsing(
       tree: untpd.Tree,
       semanticHoleName: String => Option[String],
-      scope: List[(String, BinderId)] = Nil
+      scope: List[(String, BinderId)] = Nil,
+      lambdaDepth: Int = 0
   ): Either[PatternCompileFailure, TermPattern] =
     def compileChild(child: untpd.Tree): Either[PatternCompileFailure, TermPattern] =
-      compileLocatedUsing(child, semanticHoleName, scope)
+      compileLocatedUsing(child, semanticHoleName, scope, lambdaDepth)
 
     tree match
       case untpd.Ident(name) =>
@@ -46,16 +56,17 @@ object PatternCompiler:
               case Some(binderId) => Right(TermPattern.BoundReference(binderId, text))
               case None => Right(TermPattern.Identifier(text))
       case function @ untpd.Function(parameters, body) =>
-        if scope.nonEmpty then
+        if lambdaDepth > 0 then
           unsupportedLambda(function, Lambda1DiagnosticMessages.NestedLambda)
         else
           parameters match
             case (parameter: untpd.ValDef) :: Nil if !parameter.tpt.isEmpty =>
-              val binderId = BinderId(0)
+              val binderId = BinderId(scope.size)
               compileLocatedUsing(
                 body,
                 semanticHoleName,
-                (parameter.name.toString -> binderId) :: scope
+                (parameter.name.toString -> binderId) :: scope,
+                lambdaDepth + 1
               ).map(
                 TermPattern.Lambda1(
                   binderId,
@@ -79,7 +90,7 @@ object PatternCompiler:
         unsupportedConstructor(tree, "multiple constructor argument lists are not supported")
       case untpd.Apply(untpd.Select(untpd.New(typeTree), init), arguments)
           if init.toString == "<init>" =>
-        compileNew(tree, typeTree, arguments, semanticHoleName, scope)
+        compileNew(tree, typeTree, arguments, semanticHoleName, scope, lambdaDepth)
       case untpd.Apply(function, arguments) =>
         for
           compiledFunction <- compileChild(function)
@@ -115,7 +126,7 @@ object PatternCompiler:
       case block @ untpd.Block(statements, result) =>
         statements match
           case (value: untpd.ValDef) :: Nil =>
-            compileLocalVal(value, result, semanticHoleName, scope)
+            compileLocalVal(value, result, semanticHoleName, scope, lambdaDepth)
           case values if values.exists(_.isInstanceOf[untpd.ValDef]) =>
             unsupportedBlock(block, P2LocalValDiagnosticMessages.ExactlyOne)
           case definitions if definitions.exists(_.isInstanceOf[untpd.DefDef]) =>
@@ -201,7 +212,8 @@ object PatternCompiler:
       value: untpd.ValDef,
       result: untpd.Tree,
       semanticHoleName: String => Option[String],
-      scope: List[(String, BinderId)]
+      scope: List[(String, BinderId)],
+      lambdaDepth: Int
   ): Either[PatternCompileFailure, TermPattern] =
     val displayName = value.name.toString
     if value.mods.is(dotty.tools.dotc.core.Flags.Mutable) then
@@ -221,12 +233,14 @@ object PatternCompiler:
             initializer <- compileLocatedUsing(
               value.unforcedRhs.asInstanceOf[untpd.Tree],
               semanticHoleName,
-              scope
+              scope,
+              lambdaDepth
             )
             compiledResult <- compileLocatedUsing(
               result,
               semanticHoleName,
-              (displayName -> binderId) :: scope
+              (displayName -> binderId) :: scope,
+              lambdaDepth
             )
           yield TermPattern.Block(
             List(
@@ -266,7 +280,8 @@ object PatternCompiler:
       typeTree: untpd.Tree,
       arguments: List[untpd.Tree],
       semanticHoleName: String => Option[String],
-      scope: List[(String, BinderId)]
+      scope: List[(String, BinderId)],
+      lambdaDepth: Int
   ): Either[PatternCompileFailure, TermPattern] =
     if arguments.exists(_.isInstanceOf[untpd.NamedArg]) then
       unsupportedConstructor(tree, "named constructor arguments are not supported")
@@ -274,7 +289,7 @@ object PatternCompiler:
       constructorName(typeTree).flatMap(ConstructorNamePolicy.validate) match
         case Left(detail) => unsupportedConstructor(tree, detail)
         case Right(name) =>
-          sequence(arguments.map(compileLocatedUsing(_, semanticHoleName, scope)))
+          sequence(arguments.map(compileLocatedUsing(_, semanticHoleName, scope, lambdaDepth)))
             .map(TermPattern.New(name, _))
 
   private def constructorName(tree: untpd.Tree): Either[String, String] =

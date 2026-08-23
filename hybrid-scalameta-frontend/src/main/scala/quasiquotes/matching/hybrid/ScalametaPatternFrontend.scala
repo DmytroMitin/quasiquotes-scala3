@@ -10,6 +10,7 @@ import _root_.quasiquotes.parser.P2LocalValDiagnosticMessages
 import _root_.quasiquotes.terms.TermShapeTraversal
 import _root_.quasiquotes.types.TypeNormalFormSource
 import _root_.quasiquotes.hybrid.TermQ3DialectPolicy
+import _root_.quasiquotes.hybrid.P2LocalValScalametaAdmission
 import _root_.quasiquotes.source.GeneratedHoleIndex
 
 /** Scalameta syntax-to-existing-pattern-IR compiler for the bounded term slice. */
@@ -91,6 +92,8 @@ private[quasiquotes] object ScalametaPatternFrontend:
         case Lit.Boolean(value) => Right(TermPattern.Literal(value.toString))
         case other => unsupported(other, "unsupported literal")
 
+    var lambdaDepth = 0
+
     def loop(
         current: scala.meta.Term,
         scope: List[(String, BinderId)] = Nil
@@ -104,16 +107,19 @@ private[quasiquotes] object ScalametaPatternFrontend:
                 case Some(id) => Right(TermPattern.BoundReference(id, name.value))
                 case None => Right(TermPattern.Identifier(name.value))
         case function: scala.meta.Term.Function =>
-          if scope.nonEmpty then unsupported(function, Lambda1DiagnosticMessages.NestedLambda)
+          if lambdaDepth > 0 then unsupported(function, Lambda1DiagnosticMessages.NestedLambda)
           else
             function.paramClause.values match
               case parameter :: Nil if parameter.decltpe.nonEmpty && parameter.mods.isEmpty =>
-                val binderId = BinderId(0)
+                val binderId = BinderId(scope.size)
                 val parameterName = parameter.name.value
-                for
-                  parameterType <- renderType(parameter.decltpe.get)
-                  body <- loop(function.body, (parameterName -> binderId) :: scope)
-                yield TermPattern.Lambda1(binderId, parameterName, parameterType, body)
+                renderType(parameter.decltpe.get).flatMap { parameterType =>
+                  lambdaDepth += 1
+                  val compiledBody =
+                    try loop(function.body, (parameterName -> binderId) :: scope)
+                    finally lambdaDepth -= 1
+                  compiledBody.map(TermPattern.Lambda1(binderId, parameterName, parameterType, _))
+                }
               case _ :: Nil => unsupported(function, Lambda1DiagnosticMessages.ExplicitParameterType)
               case _ => unsupported(function, Lambda1DiagnosticMessages.ExactlyOneParameter)
         case value: Lit => literal(value)
@@ -225,7 +231,9 @@ private[quasiquotes] object ScalametaPatternFrontend:
               )
         case _ => unsupported(definition, P2LocalValDiagnosticMessages.Pattern)
 
-    loop(tree)
+    P2LocalValScalametaAdmission.validate(tree) match
+      case Left(violation) => unsupported(tree, violation.message)
+      case Right(_) => loop(tree)
 
   private def normalizeType(name: String): String =
     name match

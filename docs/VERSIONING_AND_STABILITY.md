@@ -21,13 +21,18 @@ removal/breaking risk. Additive overloads, givens, and extensions still require
 human review before a patch release; they are not automatically source-safe.
 See [public API shape compatibility review](API_COMPATIBILITY_REVIEW.md).
 
-The current source line is the selected `0.2.0` release candidate. It deliberately replaces the
-previous unusable `qq: Nothing` placeholder with the bounded Quotes-dependent
-term extractor. That signature replacement is not source-, binary-, or
-TASTy-compatible with the `0.1.x` line and is the reason for the minor change.
-The bounded reflected `tqr` and `tqq` type syntax is additive within this
-source line. Its extra sequence-shaped `tqr` overload is retained specifically
-to preserve the prior varargs function's supported eta-expansion shape.
+The released line is the immutable `0.2.0` artifact set. The current source
+line is the unpublished `0.3.0-SNAPSHOT` development version. Phase 116
+replaces the public P1 block-prefix shape with a truthful statement ADT so a
+local value definition is represented as a statement rather than a term. That
+public shape replacement is intentionally breaking and therefore requires a
+new early-semver minor; no released `0.2.0` artifact is modified. The earlier
+`0.2.0` line deliberately replaced the unusable `qq: Nothing` placeholder with
+the bounded Quotes-dependent term extractor relative to `0.1.x`.
+
+The bounded reflected `tqr` and `tqq` type syntax was additive within the
+released `0.2.0` line. Its extra sequence-shaped `tqr` overload is retained
+specifically to preserve the prior varargs function's supported eta-expansion shape.
 The bounded `DefinitionPattern.singleParameter` matcher is also additive within
 this source line: it introduces new names and no overloads or replacements.
 Its caller-`Quotes` reflected result remains experimental and is limited to the
@@ -59,5 +64,5 @@ tested revisions only. It is not a promise about future TASTy, reflection,
 parser, or Dotty-internal compatibility.
 
 Local signed staging and coordinate-only consumption are review evidence only.
-The retained version does not establish remote availability, authorize a tag,
-or by itself establish that artifact bytes are reproducible.
+The development snapshot does not authorize remote snapshot publication, a
+tag, or release, and does not by itself establish reproducible artifact bytes.

@@ -20,6 +20,7 @@ object TermShapeInspector:
 
   def inspect(tree: untpd.Tree): TermShape =
     var nextBinderId = 0
+    var lambdaDepth = 0
 
     def loop(
         current: untpd.Tree,
@@ -35,7 +36,7 @@ object TermShapeInspector:
             case Some(binderId) => TermShape.BoundReference(binderId, text)
             case None => TermShape.Identifier(text, isPlaceholder = false)
       case untpd.Function(parameters, body) =>
-        if scope.nonEmpty then
+        if lambdaDepth > 0 then
           TermShape.Unsupported("Lambda1", Lambda1DiagnosticMessages.NestedLambda)
         else
           parameters match
@@ -51,11 +52,15 @@ object TermShapeInspector:
                   case _ =>
                     val binderId = BinderId(nextBinderId)
                     nextBinderId += 1
+                    lambdaDepth += 1
+                    val inspectedBody =
+                      try loop(body, (parameterName -> binderId) :: scope)
+                      finally lambdaDepth -= 1
                     TermShape.Lambda1(
                       binderId,
                       parameterName,
                       normalizeTypeName(renderTypeShape(parameterTypeShape)),
-                      loop(body, (parameterName -> binderId) :: scope)
+                      inspectedBody
                     )
             case _ =>
               TermShape.Unsupported("Lambda1", Lambda1DiagnosticMessages.ExactlyOneParameter)

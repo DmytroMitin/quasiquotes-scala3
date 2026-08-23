@@ -33,6 +33,15 @@ object P2LocalValMacros:
   inline def targetRejectionEvidence: (Boolean, Boolean, Boolean, Boolean, Boolean, Boolean) =
     ${ targetRejectionEvidenceImpl }
 
+  inline def constructionScopeBoundaryEvidence: (String, String, String, String, String, String) =
+    ${ constructionScopeBoundaryEvidenceImpl }
+
+  inline def targetScopeBoundaryEvidence: (String, String, String) =
+    ${ targetScopeBoundaryEvidenceImpl }
+
+  inline def distinctNameMixedBinderEvidence: (Boolean, Boolean, Boolean, Boolean) =
+    ${ distinctNameMixedBinderEvidenceImpl }
+
   private def constructImpl(initializer: Expr[Int])(using q: Quotes): Expr[Int] =
     import q.reflect.*
     import Quasiquotes.*
@@ -182,5 +191,73 @@ object P2LocalValMacros:
         TargetTermView.fromTerm(inferred).isLeft,
         TargetTermView.fromTerm(lazyValue).isLeft,
         TargetTermView.fromTerm(pattern).isLeft
+      )
+    )
+
+  private def constructionScopeBoundaryEvidenceImpl(
+      using q: Quotes
+  ): Expr[(String, String, String, String, String, String)] =
+    def outcome(source: String): String =
+      QuasiquoteBuilder
+        .build(Seq(source), Nil)
+        .fold(_.message, _ => "accepted")
+
+    Expr(
+      (
+        outcome("{ val x: Int = 1; { val y: Int = 2; y } }"),
+        outcome("(x: Int) => { val x: Int = 1; x }"),
+        outcome("{ val x: Int = 1; (x: Int) => x }"),
+        outcome("{ val x: Int = { val y: Int = 2; y }; x }"),
+        outcome("{ val x: Int = 1; ({ val y: Int = 2; y }) }"),
+        outcome("{ val x: Int = 1; { { val y: Int = 2; y }; x } }")
+      )
+    )
+
+  private def targetScopeBoundaryEvidenceImpl(using q: Quotes): Expr[(String, String, String)] =
+    import q.reflect.*
+
+    val nested = '{
+      val x: Int = 1
+      {
+        val y: Int = 2
+        y
+      }
+    }.asTerm
+    val p2ShadowsLambda = '{ (x: Int) =>
+      val x: Int = 1
+      x
+    }.asTerm
+    val lambdaShadowsP2 = '{
+      val x: Int = 1
+      (x: Int) => x
+    }.asTerm
+
+    def outcome(term: Term): String =
+      TargetTermView.fromTerm(term).fold(_.message, _ => "accepted")
+
+    Expr((outcome(nested), outcome(p2ShadowsLambda), outcome(lambdaShadowsP2)))
+
+  private def distinctNameMixedBinderEvidenceImpl(
+      using q: Quotes
+  ): Expr[(Boolean, Boolean, Boolean, Boolean)] =
+    import q.reflect.*
+
+    val p2InsideLambda = "(outer: Int) => { val x: Int = 1; x }"
+    val lambdaInsideP2 = "{ val x: Int = 1; (inner: Int) => inner }"
+    val p2InsideLambdaTarget = '{ (outer: Int) =>
+      val x: Int = 1
+      x
+    }.asTerm
+    val lambdaInsideP2Target = '{
+      val x: Int = 1
+      (inner: Int) => inner
+    }.asTerm
+
+    Expr(
+      (
+        QuasiquoteBuilder.build(Seq(p2InsideLambda), Nil).isRight,
+        QuasiquoteBuilder.build(Seq(lambdaInsideP2), Nil).isRight,
+        TargetTermView.fromTerm(p2InsideLambdaTarget).isRight,
+        TargetTermView.fromTerm(lambdaInsideP2Target).isRight
       )
     )

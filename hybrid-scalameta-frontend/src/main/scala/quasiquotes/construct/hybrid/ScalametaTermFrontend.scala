@@ -11,6 +11,7 @@ import _root_.quasiquotes.parser.{BinderId, ConstructorNamePolicy, Lambda1Diagno
 import _root_.quasiquotes.parser.P1BlockDiagnosticMessages
 import _root_.quasiquotes.parser.P2LocalValDiagnosticMessages
 import _root_.quasiquotes.hybrid.TermQ3DialectPolicy
+import _root_.quasiquotes.hybrid.P2LocalValScalametaAdmission
 import _root_.quasiquotes.types.toTypeRepr
 import _root_.quasiquotes.types.{TypeNormalFormSource, TypeReprLowerer}
 
@@ -389,7 +390,11 @@ private[quasiquotes] object ScalametaTermFrontend:
               yield Block(List(value), loweredResult)
         case _ => unsupported(definition, P2LocalValDiagnosticMessages.Pattern)
 
-    loop(tree)
+    P2LocalValScalametaAdmission
+      .validate(tree)
+      .left
+      .map(violation => Failure.unsupported(tree, violation.message))
+      .flatMap(_ => loop(tree))
 
   private def lowerTypeHoles(using q: Quotes)(
       bindings: Vector[PlaceholderBinding[q.reflect.Term]]

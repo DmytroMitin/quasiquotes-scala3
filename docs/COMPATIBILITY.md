@@ -23,11 +23,12 @@ Artifact policy:
   output require an exact producer/consumer compiler match;
 - aggregate root and example modules: unpublished.
 
-Version `0.2.0` and group `com.github.dmytromitin` identify the selected local
-release candidate. No remote repository availability or stable release support
-is promised. The selected experimental 0.x policy requires breaking
-changes to increment the minor version and expects patch compatibility within
-one minor line; see [Versioning and stability](VERSIONING_AND_STABILITY.md).
+Version `0.2.0` and group `com.github.dmytromitin` identify the immutable
+released Maven Central coordinates. The current working tree is the
+unpublished `0.3.0-SNAPSHOT` development line. The selected experimental 0.x
+policy requires breaking changes to increment the minor version and expects
+patch compatibility within one minor line; see
+[Versioning and stability](VERSIONING_AND_STABILITY.md).
 
 The checked public API inventory and passing source/consumer lanes are review
 evidence only. They do not establish binary compatibility, cross-line frontend

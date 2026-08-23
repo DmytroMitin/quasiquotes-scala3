@@ -65,8 +65,8 @@ removed symbol groups.
 This is the deliberate `BREAKING_API_SHAPE_DELTA_REQUIRES_NEW_0X_MINOR`
 classification required by a local definition being a statement rather than a
 term expression. It is not accidental exposure and does not mutate released
-`0.2.0`; any future artifact containing this candidate requires a new
-experimental 0.x minor and fresh binary/TASTy qualification.
+`0.2.0`; the current source tree therefore uses `0.3.0-SNAPSHOT` and still
+requires fresh binary/TASTy qualification before any release.
 
 ## Current accepted shape
 
@@ -82,7 +82,9 @@ removals:
 The generated review found no public constructors, companion factories,
 helpers, removals, replacements, owner moves, or overload changes. Both rows
 delegate to the already accepted bounded programmatic matcher, so the selected
-candidate remains on the `0.2.0` source line.
+candidate remained on the then-current `0.2.0` source line. This paragraph is
+historical accounting for that earlier additive review, not the identity of
+the current Phase-116 development tree.
 
 The preceding bounded programmatic definition matcher review recorded exactly
 12 additions and no removals:

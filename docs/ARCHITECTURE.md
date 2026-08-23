@@ -24,6 +24,13 @@ Scalameta frontends both map P1 and this one P2 form into the same
 `TermShape`/`TermPattern` scope algebra; no source-string or frontend-only
 binder model participates in equality or matching. A P2 initializer is visited
 in the old scope and only the result is visited in the binder-extended scope.
+One shared package-private admission model tracks whether a P2 has already
+appeared anywhere in the tree and the active source binders needed for the
+bounded P2/Lambda1 no-shadowing rule. It uses source spelling only for that
+lexical admission check; `BinderId` remains the semantic identity used by
+construction, alpha equivalence, and matching. Current-Dotty raw trees,
+compiler-free shapes, reflected targets, and Scalameta trees all apply the same
+bounded rule before their ordinary lowering or matching work.
 Its package-private definition model reuses the same `BinderId` scope algebra
 as Lambda1 for one or exactly two ordinary method parameters; display spelling
 never replaces semantic identity. The public compiler-free constructors create

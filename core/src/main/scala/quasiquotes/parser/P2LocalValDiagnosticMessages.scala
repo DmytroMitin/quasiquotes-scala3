@@ -11,6 +11,10 @@ private[quasiquotes] object P2LocalValDiagnosticMessages:
     "P2 block does not support pattern or destructuring val binders; a simple identifier is required."
   val ExactlyOne: String =
     "P2 block requires exactly one local val statement followed by one final result."
+  val SecondOrNested: String =
+    "Phase 116 admits only one P2 local val binder per quasiquote tree; a second or nested P2 local val is unsupported."
+  val SourceBinderShadowing: String =
+    "Phase 116 does not support source-binder shadowing involving a P2 local val."
   val LocalDef: String =
     "P2 block does not support local def definitions."
   val UnsupportedType: String =

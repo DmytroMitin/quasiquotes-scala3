@@ -70,3 +70,55 @@ class P2LocalValBinderSemanticsTest extends munit.FunSuite:
     assert(ConstructedTerm.fromShape(multiple).isLeft)
     assert(ConstructedTerm.fromShape(mixed).isLeft)
   }
+
+  test("P2 admission rejects a second local binder anywhere recursively in one term tree") {
+    val inner = block(1, "y", TermShape.Literal("2"), bound(1, "y"))
+    val nestedResult = block(0, "x", TermShape.Literal("1"), inner)
+    val nestedInitializer = block(0, "x", inner, bound(0, "x"))
+    val nestedThroughP1Prefix = block(
+      0,
+      "x",
+      TermShape.Literal("1"),
+      TermShape.Block(List(inner), bound(0, "x"))
+    )
+
+    List(nestedResult, nestedInitializer, nestedThroughP1Prefix).foreach { shape =>
+      assert(ConstructedTerm.fromShape(shape).isLeft, shape.render)
+    }
+  }
+
+  test("P2 admission rejects same-name source-binder shadowing in either Lambda1 direction") {
+    val p2ShadowsLambda = TermShape.Lambda1(
+      BinderId(0),
+      "x",
+      "Int",
+      block(1, "x", TermShape.Literal("1"), bound(1, "x"))
+    )
+    val lambdaShadowsP2 = block(
+      0,
+      "x",
+      TermShape.Literal("1"),
+      TermShape.Lambda1(BinderId(1), "x", "Int", bound(1, "x"))
+    )
+
+    assert(ConstructedTerm.fromShape(p2ShadowsLambda).isLeft)
+    assert(ConstructedTerm.fromShape(lambdaShadowsP2).isLeft)
+  }
+
+  test("P2 admission retains one local binder combined with a distinct-name Lambda1 binder") {
+    val p2InsideLambda = TermShape.Lambda1(
+      BinderId(0),
+      "outer",
+      "Int",
+      block(1, "x", TermShape.Literal("1"), bound(1, "x"))
+    )
+    val lambdaInsideP2 = block(
+      0,
+      "x",
+      TermShape.Literal("1"),
+      TermShape.Lambda1(BinderId(1), "inner", "Int", bound(1, "inner"))
+    )
+
+    assert(ConstructedTerm.fromShape(p2InsideLambda).isRight)
+    assert(ConstructedTerm.fromShape(lambdaInsideP2).isRight)
+  }

@@ -139,9 +139,9 @@ sbt -batch clean test publicCoreExamples/test publicApiExamples/test \
 The build serializes tasks and uses exported test/compile JARs with flat test
 class-loader layering to keep the aggregate gate deterministic.
 
-## Selected release-candidate coordinates
+## Latest released coordinates
 
-The reviewed local candidate uses version `0.2.0`:
+The latest Maven Central release is the immutable version `0.2.0`:
 
 ```scala
 libraryDependencies +=
@@ -153,10 +153,10 @@ libraryDependencies +=
 ```
 
 `core` uses ordinary Scala 3 binary crossing. `frontend` uses full compiler
-version crossing and must match the consuming compiler line. The selected
-candidate set contains `core_3` plus frontend artifacts for Scala 3.3.8 and
-3.8.4 only. These coordinates describe local candidate evidence; no remote
-repository availability is claimed.
+version crossing and must match the consuming compiler line. The released set
+contains `core_3` plus frontend artifacts for Scala 3.3.8 and 3.8.4 only. The
+current source tree is the unpublished development version `0.3.0-SNAPSHOT`
+and is not interchangeable with these released coordinates.
 
 See [Getting started](docs/GETTING_STARTED.md),
 [execution environments and AST representations](docs/EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md),

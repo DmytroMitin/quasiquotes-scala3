@@ -99,8 +99,17 @@ failures.
 
 P2 admits exactly `{ val x: SupportedType = initializer; result }`. Diagnostics
 separate a missing explicit type, `var`, `lazy val`, a pattern/destructuring
-binder, multiple local values, local `def`, unsupported initializer/result
-children, and an owner-sensitive splice containing definitions. The
+binder, a second or nested P2 anywhere in the same tree, P2/Lambda1 same-name
+source shadowing, local `def`, unsupported initializer/result children, and an
+owner-sensitive splice containing definitions. The two scope-boundary
+diagnostics are stable and do not expose symbols or owners:
+
+```text
+Phase 116 admits only one P2 local val binder per quasiquote tree; a second or nested P2 local val is unsupported.
+Phase 116 does not support source-binder shadowing involving a P2 local val.
+```
+
+Same-text external splices are not classified as source shadowing. The
 public-default and Scalameta opt-in paths retain controlled block-family
 wording. Located parsing uses the deepest truthful source span available;
 generated target matching requires no source reconstruction. Broader P2/P3

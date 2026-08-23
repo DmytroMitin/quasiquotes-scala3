@@ -8,9 +8,10 @@ For the distinct compile-time macro, runtime `staging.withQuotes`, runtime
 `staging.run`, compiler-free `TermShape`, and compiler-backed parser modes, see
 [Execution environments and AST representations](EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md).
 
-No artifact is available from a remote resolver yet. The declarations below
-describe the selected locally staged release-candidate coordinates at version
-`0.2.0`.
+The declarations below use the latest immutable Maven Central release,
+`0.2.0`. The current source tree is the unpublished development version
+`0.3.0-SNAPSHOT`; use it only through an intentional local build or
+`publishLocal` workflow.
 
 ## Compiler-free core
 
@@ -488,8 +489,12 @@ object P2LocalValFirstUseSnippet:
 <!-- snippet:p2-local-val-first-use:end -->
 
 Inferred, mutable, lazy, pattern, multiple, recursive/shadowing, and local
-method forms are controlled rejections. External splices containing owned
-definitions are rejected rather than reowned.
+method forms are controlled rejections. The whole quasiquote tree may contain
+at most one P2 binder, and a Lambda1 and P2 binder may not shadow one another
+by source name. A distinct-name Lambda1 may coexist with the single P2 binder.
+External splices containing owned definitions are rejected rather than
+reowned, and same-text external splices retain their original symbol rather
+than becoming source-binder shadowing.
 
 ## Bounded `qq` extractor first use
 

@@ -4,7 +4,7 @@ import scala.quoted.staging.{Compiler, run, withQuotes}
 import scala.meta.dialects
 
 import quasiquotes.construct.hybrid.{HybridTermFrontend, ScalametaTermFrontend}
-import quasiquotes.matching.{TargetTermView, TermMatcher}
+import quasiquotes.matching.{BlockPatternStatement, TargetTermView, TermMatcher, TermPattern}
 import quasiquotes.matching.hybrid.{HybridPatternFrontend, ScalametaPatternFrontend}
 
 private object HybridIdentifierScope:
@@ -329,6 +329,68 @@ class HybridTermFrontendTest extends munit.FunSuite:
       assert(failure.nonEmpty, source)
       assertEquals(failure.get.category, "SCALAMETA_PATTERN_LOWERING_UNSUPPORTED")
     }
+
+  test("Scalameta construction rejects second P2 binders and P2-Lambda1 source shadowing"):
+    given Compiler = Compiler.make(getClass.getClassLoader)
+    val secondBinderDiagnostic = "Phase 116 admits only one P2 local val binder per quasiquote tree"
+    val shadowingDiagnostic = "Phase 116 does not support source-binder shadowing involving a P2 local val"
+    val cases = List(
+      "{ val x: Int = 1; { val y: Int = 2; y } }" -> secondBinderDiagnostic,
+      "(x: Int) => { val x: Int = 1; x }" -> shadowingDiagnostic,
+      "{ val x: Int = 1; (x: Int) => x }" -> shadowingDiagnostic,
+      "{ val x: Int = { val y: Int = 2; y }; x }" -> secondBinderDiagnostic,
+      "{ val x: Int = 1; ({ val y: Int = 2; y }) }" -> secondBinderDiagnostic,
+      "{ val x: Int = 1; { { val y: Int = 2; y }; x } }" -> secondBinderDiagnostic
+    )
+
+    cases.foreach { case (source, expected) =>
+      val message = withQuotes {
+        val q = summon[scala.quoted.Quotes]
+        ScalametaTermFrontend.lower(using q)(Seq(source), Nil).fold(_.detail, _ => "accepted")
+      }
+      assert(message.contains(expected), s"$source: $message")
+    }
+
+  test("Scalameta pattern compilation rejects second P2 binders and P2-Lambda1 source shadowing"):
+    val secondBinderDiagnostic = "Phase 116 admits only one P2 local val binder per quasiquote tree"
+    val shadowingDiagnostic = "Phase 116 does not support source-binder shadowing involving a P2 local val"
+    val cases = List(
+      "{ val x: Int = 1; { val y: Int = 2; y } }" -> secondBinderDiagnostic,
+      "(x: Int) => { val x: Int = 1; x }" -> shadowingDiagnostic,
+      "{ val x: Int = 1; (x: Int) => x }" -> shadowingDiagnostic
+    )
+
+    cases.foreach { case (source, expected) =>
+      val message = ScalametaPatternFrontend.compile(source).fold(_.detail, _ => "accepted")
+      assert(message.contains(expected), s"$source: $message")
+    }
+
+  test("Scalameta paths retain one P2 binder combined with a distinct-name Lambda1 binder"):
+    given Compiler = Compiler.make(getClass.getClassLoader)
+    val sources = List(
+      "(outer: Int) => { val x: Int = 1; x }",
+      "{ val x: Int = 1; (inner: Int) => inner }"
+    )
+
+    sources.foreach { source =>
+      val constructed = withQuotes {
+        val q = summon[scala.quoted.Quotes]
+        ScalametaTermFrontend.lower(using q)(Seq(source), Nil)
+      }
+      assert(constructed.isRight, s"$source: $constructed")
+      assert(ScalametaPatternFrontend.compile(source).isRight, source)
+    }
+
+    val p2ThenLambda = ScalametaPatternFrontend
+      .compile("{ val x: Int = 1; (inner: Int) => inner }")
+      .toOption
+      .get
+    p2ThenLambda match
+      case TermPattern.Block(
+            List(local: BlockPatternStatement.LocalVal),
+            TermPattern.Lambda1(lambdaId, _, _, _)
+          ) => assertNotEquals(local.binderId, lambdaId)
+      case other => fail(s"unexpected Scalameta P2/Lambda1 pattern: $other")
 
   test("pattern fallback remains callable without changing explicit QuasiPattern semantics"):
     val restricted = HybridPatternFrontend.compile("if true then $value else 0", dialects.Scala213)

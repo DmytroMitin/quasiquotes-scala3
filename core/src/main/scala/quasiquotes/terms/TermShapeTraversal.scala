@@ -1,6 +1,6 @@
 package quasiquotes.terms
 
-import quasiquotes.parser.{BinderId, BlockStatement, TermShape}
+import quasiquotes.parser.{BinderId, BlockStatement, P2LocalValAdmission, TermShape}
 import quasiquotes.types.{TypeNormalForm, TypeTemplate}
 
 private[quasiquotes] object TermShapeTraversal:
@@ -13,19 +13,25 @@ private[quasiquotes] object TermShapeTraversal:
   )
 
   def validateSupported(shape: TermShape): Either[TermConstructionError, Unit] =
-    validateSupportedUsingScope(shape, Nil)
+    validateAdmission(shape).flatMap(_ => validateSupportedUsingScope(shape, Nil))
 
   def validateSupportedInScope(
       shape: TermShape,
       binderId: BinderId
   ): Either[TermConstructionError, Unit] =
-    validateSupportedUsingScope(shape, binderId :: Nil)
+    validateAdmission(shape).flatMap(_ => validateSupportedUsingScope(shape, binderId :: Nil))
 
   def validateSupportedInScope(
       shape: TermShape,
       binderIds: Vector[BinderId]
   ): Either[TermConstructionError, Unit] =
-    validateSupportedUsingScope(shape, binderIds.toList)
+    validateAdmission(shape).flatMap(_ => validateSupportedUsingScope(shape, binderIds.toList))
+
+  private def validateAdmission(shape: TermShape): Either[TermConstructionError, Unit] =
+    P2LocalValAdmission
+      .validate(shape)
+      .left
+      .map(_ => TermConstructionError.UnsupportedTermShape())
 
   def canonicalizePlaceholders(shape: TermShape): TermShape =
     shape match

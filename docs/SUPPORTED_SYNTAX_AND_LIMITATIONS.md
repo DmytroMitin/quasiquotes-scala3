@@ -38,7 +38,9 @@ Important limitations:
   lambdas, binder-name holes, and local definitions;
 - P1 blocks admit only one or more ordered expression prefixes plus a final
   result; P2 admits exactly one simple explicitly typed eager immutable local
-  `val`; inferred, mutable, lazy, pattern, multiple/shadowing/recursive values,
+  `val`; the whole tree admits at most one P2 binder and rejects P2/Lambda1
+  same-name source shadowing; inferred, mutable, lazy, pattern,
+  multiple/recursive values,
   local `def` (P3), imports, other definitions, and unrelated statement
   families remain excluded;
 - compiler-internal behavior is exact-version-sensitive;
@@ -143,8 +145,11 @@ original reflected subtrees. A splice containing owned definitions is rejected
 because this tranche does not migrate ownership.
 
 There is no inferred type, `var`, `lazy val`, pattern/destructuring binder,
-second local value, shadowing, recursion/self-reference, binder-name hole, or
-local method support. The unpublished exact untyped backend also remains
+second or nested P2 local value anywhere in the quasiquote tree, P2/Lambda1
+same-name source shadowing, recursion/self-reference, binder-name hole, or
+local method support. A distinct-name Lambda1 may coexist with the single P2
+binder. Same-text external interpolation is not source-binder shadowing and
+retains its caller-owned symbol. The unpublished exact untyped backend also remains
 closed to this node; it fails with its existing `Block` boundary rather than
 claiming owner-free raw-tree support.
 

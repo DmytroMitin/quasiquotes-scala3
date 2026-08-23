@@ -11,6 +11,7 @@ import quasiquotes.parser.ConstructorNamePolicy
 import quasiquotes.parser.Lambda1DiagnosticMessages
 import quasiquotes.parser.P1BlockDiagnosticMessages
 import quasiquotes.parser.P2LocalValDiagnosticMessages
+import quasiquotes.parser.P2LocalValUntypedAdmission
 import quasiquotes.parser.TypeShapeInspector
 import quasiquotes.types.{TypeReprLowerer, toTypeRepr}
 
@@ -270,7 +271,16 @@ object ParsedTermLowerer:
             case Some(failure) => Left(failure)
             case None => Left(located(QuasiquoteError.UnsupportedTree(other.getClass.getSimpleName, other.toString), other))
 
-    lowerTerm(tree)
+    P2LocalValUntypedAdmission
+      .validate(tree)
+      .left
+      .map(violation =>
+        located(
+          QuasiquoteError.UnsupportedTree("Block", violation.message),
+          tree
+        )
+      )
+      .flatMap(_ => lowerTerm(tree))
 
   private def containsOwnedDefinition(using q: Quotes)(term: q.reflect.Term): Boolean =
     import q.reflect.*

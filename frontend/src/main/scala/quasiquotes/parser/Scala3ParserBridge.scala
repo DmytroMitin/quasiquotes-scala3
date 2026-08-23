@@ -34,18 +34,20 @@ object Scala3ParserBridge:
         )
       )
     else
-      val inspected = TermShapeInspector.inspect(rawTree) match
-        case _: TermShape.Lambda1 if isContextFunction(source, rawTree) =>
-          TermShape.Unsupported(
-            "Lambda1",
-            Lambda1DiagnosticMessages.ContextFunction
-          )
-        case _: TermShape.InterpolatedString if source.contains("s\"\"\"") =>
-          TermShape.Unsupported(
-            "InterpolatedStringSurface",
-            "triple-quoted interpolation is outside the bounded s tranche"
-          )
-        case other => other
+      val inspected = P2LocalValUntypedAdmission.validate(rawTree) match
+        case Left(violation) => TermShape.Unsupported("Block", violation.message)
+        case Right(_) => TermShapeInspector.inspect(rawTree) match
+          case _: TermShape.Lambda1 if isContextFunction(source, rawTree) =>
+            TermShape.Unsupported(
+              "Lambda1",
+              Lambda1DiagnosticMessages.ContextFunction
+            )
+          case _: TermShape.InterpolatedString if source.contains("s\"\"\"") =>
+            TermShape.Unsupported(
+              "InterpolatedStringSurface",
+              "triple-quoted interpolation is outside the bounded s tranche"
+            )
+          case other => other
       Right(
         ParsedExpression(
           source = source,

@@ -29,8 +29,11 @@ boolean literals; selection and application; unary infix application; tuples;
 holes; binder-free P1 blocks; one explicitly typed eager immutable local `val`
 with a simple binder; and the existing constructed-type splice. The P2
 initializer is lowered before the fresh local symbol enters scope, and only the
-final result resolves through that symbol. Inferred, mutable, lazy, pattern,
-multiple, recursive/shadowing, and local-method forms remain excluded. The matching slice covers the
+final result resolves through that symbol. One P2 binder is admitted per whole
+tree; second/nested P2 binders and P2/Lambda1 same-name source shadowing are
+controlled rejections, while distinct-name Lambda1 nesting is retained.
+Inferred, mutable, lazy, pattern, multiple, recursive, and local-method forms
+remain excluded. The matching slice covers the
 corresponding admitted literals, identifiers, selection/application, unary
 infix, tuples, `if`, supported ascription, P1 blocks, and ordinary captures.
 

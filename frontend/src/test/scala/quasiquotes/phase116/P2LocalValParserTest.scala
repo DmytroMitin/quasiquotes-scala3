@@ -1,6 +1,6 @@
 package quasiquotes.phase116
 
-import quasiquotes.parser.{BinderId, BlockStatement, TermShape, TinyTermParser}
+import quasiquotes.parser.{BinderId, BlockStatement, P2LocalValUntypedAdmission, TermShape, TinyTermParser}
 
 class P2LocalValParserTest extends munit.FunSuite:
   private def parsed(source: String): TermShape =
@@ -55,5 +55,24 @@ class P2LocalValParserTest extends munit.FunSuite:
         case TermShape.Unsupported("Block", detail) =>
           assert(detail.toLowerCase.contains(expected), clues(source, detail))
         case other => fail(s"expected controlled block rejection for $source, obtained ${other.render}")
+    }
+  }
+
+  test("raw admission rejects second P2 binders and same-name P2-Lambda1 shadowing") {
+    val cases = List(
+      "{ val x: Int = 1; { val y: Int = 2; y } }" -> "only one P2 local val binder",
+      "(x: Int) => { val x: Int = 1; x }" -> "source-binder shadowing",
+      "{ val x: Int = 1; (x: Int) => x }" -> "source-binder shadowing"
+    )
+
+    cases.foreach { case (source, expected) =>
+      val expression = TinyTermParser.parse(source).fold(error => fail(error.summary), identity)
+      val message = P2LocalValUntypedAdmission
+        .validate(expression.rawTree)
+        .fold(_.message, _ => "accepted")
+      assert(message.contains(expected), clues(source, expression.rawStructure, message))
+      expression.shape match
+        case TermShape.Unsupported("Block", detail) => assert(detail.contains(expected), detail)
+        case other => fail(s"expected controlled parser rejection for $source, obtained ${other.render}")
     }
   }

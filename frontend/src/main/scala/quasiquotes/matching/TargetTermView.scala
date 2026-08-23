@@ -3,7 +3,7 @@ package quasiquotes.matching
 import scala.quoted.Quotes
 import scala.util.matching.Regex
 
-import quasiquotes.parser.{BinderId, P2LocalValDiagnosticMessages, TermShape, TinyTermParser}
+import quasiquotes.parser.{BinderId, P2LocalValAdmission, P2LocalValDiagnosticMessages, TermShape, TinyTermParser}
 import quasiquotes.source.ReflectedPositionProvenance
 import quasiquotes.terms.TermShapeTraversal
 import quasiquotes.types.TargetTypeReprInspector
@@ -72,6 +72,7 @@ object TargetTermView:
   ): Either[MatchFailure, TargetTermView[q.reflect.Term]] =
     import q.reflect.*
     var nextBinderId = ambientScope.size
+    var lambdaDepth = 0
 
     // This extraction step removes compiler-introduced wrappers but does not perform
     // the higher-level normalization experiment introduced in Task 3.5.
@@ -101,14 +102,18 @@ object TargetTermView:
     ): Either[MatchFailure, TargetTermView[Term]] =
       term match
         case block: q.reflect.Block if Lambda.unapply(block).nonEmpty =>
-          if scope.nonEmpty then
+          if lambdaDepth > 0 then
             Left(MatchFailure.UnsupportedTargetShape("nested lambdas are outside the bounded Lambda1 tranche"))
           else
             Lambda.unapply(block) match
               case Some((parameter :: Nil, body)) =>
                 val binderId = BinderId(nextBinderId)
                 nextBinderId += 1
-                extract(body, (binderId -> parameter.symbol) :: scope).map(
+                lambdaDepth += 1
+                val extractedBody =
+                  try extract(body, (binderId -> parameter.symbol) :: scope)
+                  finally lambdaDepth -= 1
+                extractedBody.map(
                   Lambda1(
                     binderId,
                     parameter.name,
@@ -242,7 +247,54 @@ object TargetTermView:
               case None =>
                 Left(MatchFailure.UnsupportedTargetShape(P2LocalValDiagnosticMessages.UnsupportedInitializer))
 
-    extract(term, ambientScope)
+    validateP2Admission(term).flatMap(_ => extract(term, ambientScope))
+
+  private def validateP2Admission(using q: Quotes)(
+      term: q.reflect.Term
+  ): Either[MatchFailure, Unit] =
+    import q.reflect.*
+
+    val tracker = new P2LocalValAdmission.Tracker
+
+    def sequence(terms: List[Term]): Either[P2LocalValAdmission.Violation, Unit] =
+      terms.foldLeft[Either[P2LocalValAdmission.Violation, Unit]](Right(())) {
+        (result, term) => result.flatMap(_ => loop(term))
+      }
+
+    def loop(current: Term): Either[P2LocalValAdmission.Violation, Unit] =
+      current match
+        case Inlined(_, _, inner) => loop(inner)
+        case block: q.reflect.Block if Lambda.unapply(block).nonEmpty =>
+          Lambda.unapply(block) match
+            case Some((parameter :: Nil, body)) =>
+              tracker.withinLambda(parameter.name)(loop(body))
+            case Some((_, body)) => loop(body)
+            case None => Right(())
+        case q.reflect.Block((definition: ValDef) :: Nil, result) if isP2Candidate(definition) =>
+          val displayName = definition.name
+          tracker
+            .introduceLocalVal(displayName)
+            .flatMap(_ => definition.rhs.fold[Either[P2LocalValAdmission.Violation, Unit]](Right(()))(loop))
+            .flatMap(_ => tracker.withinLocalValResult(displayName)(loop(result)))
+        case q.reflect.Block(statements, result) =>
+          sequence(statements.collect { case term: Term => term }).flatMap(_ => loop(result))
+        case q.reflect.Select(qualifier, _) => loop(qualifier)
+        case q.reflect.Apply(function, arguments) => loop(function).flatMap(_ => sequence(arguments))
+        case q.reflect.TypeApply(function, _) => loop(function)
+        case q.reflect.Typed(expression, _) => loop(expression)
+        case q.reflect.If(condition, thenBranch, elseBranch) =>
+          loop(condition).flatMap(_ => loop(thenBranch)).flatMap(_ => loop(elseBranch))
+        case q.reflect.Repeated(elements, _) => sequence(elements)
+        case _ => Right(())
+
+    loop(term).left.map(violation => MatchFailure.UnsupportedTargetShape(violation.message))
+
+  private def isP2Candidate(using q: Quotes)(definition: q.reflect.ValDef): Boolean =
+    import q.reflect.*
+    !definition.symbol.flags.is(Flags.Mutable) &&
+      !definition.symbol.flags.is(Flags.Lazy) &&
+      !sourceBackedInferredType(definition) &&
+      isSimpleBinderName(definition.name)
 
   def render(view: TargetTermView[?]): String =
     view match
