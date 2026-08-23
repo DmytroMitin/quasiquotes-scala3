@@ -66,6 +66,13 @@ macros remain `private[quasiquotes]`. This prevents their provisional package
 layout from becoming the intended consumer surface. The existing `core` and
 `frontend` sources and their 618-row API inventory are unchanged.
 
+The current implementation additionally places a complete-current-matrix Type-Q3 experiment in
+this same full-cross module. Its dialect policy, `scala.meta.Type` mapper,
+template/pattern frontend, selector result, and parity inventory are all
+`private[quasiquotes]`. There is deliberately no public Scalameta `tqr`/`tqq`
+host in this phase; a consumer-facing Type surface requires a separate API and
+coordinate gate.
+
 Example explicit imports inside a quoted macro implementation:
 
 ```scala

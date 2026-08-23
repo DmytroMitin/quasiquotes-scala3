@@ -103,10 +103,11 @@ construct/match boundary and its deliberate limits.
   structural projection into the existing validated IR, without `Quotes`,
   compiler implementation dependencies, staging, SemanticDB, or exact trees.
 - `hybridScalametaFrontend` is an unpublished, compiler-coupled side-by-side
-  term experiment. It parses a bounded `qr`/`qq` syntax slice with public
-  Scalameta AST APIs, lowers through the active caller `Quotes`, and retains the
-  current Dotty engine as an explicit fallback and oracle. It does not change
-  the public `qr`/`qq` implementation or published dependency contract.
+  experiment. It contains the explicit typed-Term opt-in and private Type-Q3
+  parity internals. Both parse public Scalameta ASTs, lower into existing
+  project semantics, and retain the current Dotty engine as fallback/oracle.
+  Public `qr`/`qq` and `tqr`/`tqq` defaults and published dependencies do not
+  change.
 - `dottyInternal` contains exact-compiler internal adapters and one narrow
   experimental foreign-package peer bridge for contextual-method lowering.
   Its source is present for review and testing, but its artifact is deliberately
@@ -121,6 +122,7 @@ full Scala AST. The experimental Scalameta layer sits above it and projects
 only admitted shapes downward; it does not make `core` depend on Scalameta.
 See the [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md),
 the [hybrid term frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md),
+the [private Type-Q3 parity result](docs/PHASE113_SCALAMETA_TYPE_Q3_SIDE_BY_SIDE_CURRENT_MATRIX_PARITY_RESULT.md),
 and the [experimental contextual-method peer bridge](docs/EXPERIMENTAL_CONTEXTUAL_METHOD_PEER_BRIDGE.md).
 
 ## Try the source build

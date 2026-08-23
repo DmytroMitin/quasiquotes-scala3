@@ -50,8 +50,12 @@ programmatic `TermFrontend`. The research lowerers, selector, dialect policy,
 parity inventory, and evidence macros remain package-private. Selection is an
 ordinary immutable call/import choice; it does not use a process-global or
 environment default. The released `qr` and `qq` entrypoints still select the
-current Dotty engine, and the experiment does not authorize changes to type or
-definition frontends. The future coordinate adds Scalameta 4.17.3 and its
+current Dotty engine. The same module now contains a private Type-Q3 path that
+maps public `scala.meta.Type` directly into the existing `TypeShape`,
+`TypeNormalForm`, `TypeTemplate`, and `TypePattern` pipeline. It proves the
+current public `tqr`/`tqq` matrix without exposing a Scalameta Type API or
+changing their current-Dotty default. The experiment does not authorize
+definition migration. The future coordinate adds Scalameta 4.17.3 and its
 parser/tree closure only for opt-in consumers; it is not remotely published.
 
 `dottyInternal` owns raw untyped-tree and compiler-internal adapters for

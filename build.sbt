@@ -324,7 +324,7 @@ lazy val hybridScalametaFrontend = (project in file("hybrid-scalameta-frontend")
   .settings(publicationLicenseSettings)
   .settings(
     name := "quasiquotes-scala3-scalameta-frontend",
-    description := "Experimental explicit opt-in Scalameta-primary Term frontend",
+    description := "Experimental Scalameta-primary Term frontend with private Type parity internals",
     crossVersion := CrossVersion.full,
     libraryDependencies +=
       "org.scala-lang" %% "scala3-staging" % scalaVersion.value % Test,
