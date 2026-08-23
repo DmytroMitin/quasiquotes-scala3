@@ -45,7 +45,7 @@ class P2LocalValParserTest extends munit.FunSuite:
       "{ val x = 1; x }" -> "explicit",
       "{ var x: Int = 1; x }" -> "var",
       "{ lazy val x: Int = 1; x }" -> "lazy",
-      "{ val (x, y): (Int, Int) = (1, 2); x }" -> "pattern",
+      "{ val (x, y) = (1, 2); x }" -> "pattern",
       "{ val x: Int = 1; val y: Int = 2; y }" -> "exactly one",
       "{ def x: Int = 1; x }" -> "local def"
     )

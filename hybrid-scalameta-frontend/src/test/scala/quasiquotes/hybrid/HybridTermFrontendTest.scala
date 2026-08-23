@@ -320,7 +320,7 @@ class HybridTermFrontendTest extends munit.FunSuite:
       "{ val x = 1; x }",
       "{ var x: Int = 1; x }",
       "{ lazy val x: Int = 1; x }",
-      "{ val (x, y): (Int, Int) = (1, 2); x }",
+      "{ val (x, y) = (1, 2); x }",
       "{ val x: Int = 1; val y: Int = 2; y }",
       "{ def x: Int = 1; x }"
     )

@@ -180,7 +180,7 @@ object P2LocalValMacros:
       x
     }.asTerm
     val pattern = '{
-      val (x, y): (Int, Int) = (1, 2)
+      val (x, y) = (1, 2)
       x
     }.asTerm
     Expr(
