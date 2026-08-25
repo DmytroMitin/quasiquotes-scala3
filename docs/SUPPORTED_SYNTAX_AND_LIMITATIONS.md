@@ -17,9 +17,10 @@ Currently exercised areas include:
 - compiler-free public single- and exact-two-parameter method constructors,
   plus richer package-private definition shapes with scoped references and
   alpha-aware template/completion semantics;
-- type identifiers, selections, applications, tuples, functions, wildcards,
-  unions/intersections, annotations, refinements, and selected bounds/match
-  forms;
+- parser/shape inspection for type identifiers, selections, applications,
+  tuples, functions, wildcards, unions/intersections, annotations, refinements,
+  and selected bounds/match forms; public construction and matching remain the
+  narrower families in the syntax matrix;
 - term and type holes with collision-safe rewriting and repeated-hole checks;
 - compiler-free term/type/definition templates and completed values;
 - bounded public contextual, single-ordinary-parameter, and exact-two-parameter

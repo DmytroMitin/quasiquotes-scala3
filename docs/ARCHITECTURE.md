@@ -8,6 +8,16 @@ source frontend(s)
     -> backend-specific lowering / reflected matching
 ```
 
+The stable status contract is:
+
+```text
+SEMANTIC_MODEL = PROJECT_OWNED_COMPILER_FREE_CORE
+CURRENT_DOTTY = RELEASED_DEFAULT_REFERENCE_ORACLE
+SCALAMETA_TYPED_ROUTE = EXPLICIT_OPT_IN_UNPUBLISHED
+PARITY = REQUIRED_ON_OVERLAPPING_CLAIMED_SLICES_NOT_LOCKSTEP
+FALLBACK = SCALAMETA_PARSE_FAILURE_ONLY
+```
+
 There are multiple source-facing routes, but there are not multiple semantic
 quasiquote engines. `core` owns the compiler-free Term and Type normal forms,
 templates, patterns, binder identities, structural construction and matching
@@ -88,4 +98,6 @@ Quasiquotes or Scalameta as a core product dependency.
 
 See [execution environments and AST representations](EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md),
 [Scalameta opt-in artifact topology](SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md), and
-[why quasiquotes?](WHY_QUASIQUOTES.md).
+[why quasiquotes?](WHY_QUASIQUOTES.md). Future manual-reflection replacement
+goals are tracked separately as [north-star quasiquote examples](NORTH_STAR_QUASIQUOTE_EXAMPLES.md);
+they do not widen the current architecture or syntax boundary.

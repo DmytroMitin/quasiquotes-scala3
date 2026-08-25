@@ -156,6 +156,6 @@ subtrees.
 Dynamic identifier holes, constructor-position Type holes, and generic class
 or anonymous-subclass definition quasiquotes would make the advantage over
 manual reflection more dramatic. They are deliberately documented as
-[roadmap directions](../ROADMAP.md#north-star-source-like-generation), not as
-current support. See the [syntax matrix](SYNTAX_SUPPORT_MATRIX.md) for the
-actual admitted language.
+[north-star quasiquote checkpoints](NORTH_STAR_QUASIQUOTE_EXAMPLES.md), not as
+current support or selected final syntax. See the
+[syntax matrix](SYNTAX_SUPPORT_MATRIX.md) for the actual admitted language.

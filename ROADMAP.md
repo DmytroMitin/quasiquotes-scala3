@@ -42,24 +42,28 @@ delivery chronology.
 
 ## North-star source-like generation
 
-These are future design directions, not current syntax or implementation
-commitments:
+The durable [north-star checkpoint document](docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md)
+keeps the manual reflection baseline, conceptual future source-like shape,
+missing capabilities, and completion criterion separate for every example.
+All conceptual spellings remain non-current notation rather than selected
+syntax.
 
-- **Dynamic member/name holes.** A macro-computed member name cannot simply be
-  interpolated as an identifier into ordinary `'{ ... }`; manual reflection
-  uses `Select`, `Select.unique`, or related APIs. Investigate one bounded
-  name-hole contract before broader dynamic-name syntax.
-- **Generic subclass and class-definition generation.** When a macro has only
-  an abstract `Type[A]`, generating `new A: ...` may require class/member
-  symbols, `ClassDef`, `DefDef`, constructor `Apply(Select(New(...)))`, and a
-  `Block`. The long-term source-like goal is definition/class quasiquotes plus
-  correct typed-backend owner and symbol synthesis, not a fake current example.
-- **Dynamic type constructors.** A constructor chosen at expansion time still
-  requires `AppliedType` or kind-aware `asType` plumbing. Constructor-position
-  Type holes remain unsupported until a sound bounded design is selected.
-- **Bounds and binders.** Quoted type patterns already express many static
-  relationships. Dynamic `TypeBounds` and binder-aware construction need a
-  separate compile-checked comparison and are not the flagship `tqr` example.
+| Checkpoint | Current status | Enabling gap |
+| --- | --- | --- |
+| N1 generic subclass with override | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | classes, overrides, dynamic parent Type, constructor/body lowering, backend symbol planning |
+| N2 runtime-length dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | constructor-position Type hole and sequence Type splice |
+| N3 generated Type refinement members | `CURRENT_MANUAL_BASELINE_PROVED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | refinement/type-member model and sequence definition splice |
+| N4 anonymous implementation with calculated definitions | `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | anonymous-class bodies, broader definitions, sequence splices, owner planning |
+| N5 dynamic `new T(..args)` for an existing type | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | constructor-position Type hole, sequence Term splice, constructor/argument policy |
+
+None of N1-N5 is `CHECKPOINT_COMPLETE`.
+
+The leading immediate Term candidate remains a bounded dynamic member/name-hole
+design checkpoint: a macro-computed member name currently requires manual
+`Select`, `Select.unique`, or related APIs. The leading Type candidate remains
+stable-term selected-Type prefix identity. The broader enabling themes are
+dynamic type-position holes, sequence splices, and broader definition/class
+support; this documentation does not impose a final implementation order.
 
 Symbols are compiler semantic entities, not source syntax. No public symbol
 quasiquote family is currently planned. The neutral core remains symbol-free;

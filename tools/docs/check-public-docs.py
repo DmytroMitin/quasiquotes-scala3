@@ -73,6 +73,27 @@ API_COUNT_STATEMENT = re.compile(
     r"contains (?P<core>\d+) core and (?P<frontend>\d+) frontend "
     r"Scaladoc-visible entries\."
 )
+RELATED_PROJECT_URLS = (
+    "https://github.com/DmytroMitin/macroparadise-scala3",
+    "https://github.com/DmytroMitin/AUXify-scala3",
+)
+ARCHITECTURE_STATUS_MARKERS = (
+    "SEMANTIC_MODEL = PROJECT_OWNED_COMPILER_FREE_CORE",
+    "CURRENT_DOTTY = RELEASED_DEFAULT_REFERENCE_ORACLE",
+    "SCALAMETA_TYPED_ROUTE = EXPLICIT_OPT_IN_UNPUBLISHED",
+    "PARITY = REQUIRED_ON_OVERLAPPING_CLAIMED_SLICES_NOT_LOCKSTEP",
+    "FALLBACK = SCALAMETA_PARSE_FAILURE_ONLY",
+    "NO_PUBLIC_SYMBOL_QUASIQUOTE_FAMILY_CURRENTLY_PLANNED",
+    "TYPED_OWNED_DEFINITION_SYMBOL_SYNTHESIS = BACKEND_RESPONSIBILITY",
+    "NEUTRAL_CORE = SYMBOL_FREE",
+    "UNTYPED_PRE_TYPER_BACKEND = NO_TYPED_SYMBOL_FABRICATION",
+)
+NORTH_STAR_STATUS_MARKERS = (
+    "FUTURE_NON_CURRENT_SYNTAX",
+    "CURRENT_MANUAL_BASELINE_PROVED",
+    "DESIGN_REQUIRED",
+    "IMPLEMENTATION_REQUIRED",
+)
 
 
 def marked(text: str, start: str, end: str, path: Path) -> str:
@@ -233,6 +254,73 @@ def matrix_findings(root: Path) -> list[str]:
     return [f"syntax matrix missing required contract: {value}" for value in required if value not in matrix]
 
 
+def durable_documentation_findings(root: Path) -> list[str]:
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    architecture = (root / "docs/ARCHITECTURE.md").read_text(encoding="utf-8")
+    roadmap = (root / "ROADMAP.md").read_text(encoding="utf-8")
+    why = (root / "docs/WHY_QUASIQUOTES.md").read_text(encoding="utf-8")
+    scalameta_experiment = (
+        root / "docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md"
+    ).read_text(encoding="utf-8")
+    north_star = (root / "docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md").read_text(
+        encoding="utf-8"
+    )
+    findings = []
+    for url in RELATED_PROJECT_URLS:
+        if url not in readme:
+            findings.append(f"README missing related-project link: {url}")
+    if "(docs/ARCHITECTURE.md)" not in readme:
+        findings.append("README missing canonical architecture link")
+    for marker in ARCHITECTURE_STATUS_MARKERS:
+        if marker not in architecture:
+            findings.append(f"canonical architecture missing status marker: {marker}")
+    if "(docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md)" not in roadmap:
+        findings.append("roadmap missing north-star document link")
+    if "(NORTH_STAR_QUASIQUOTE_EXAMPLES.md)" not in why:
+        findings.append("why-quasiquotes missing north-star document link")
+    if "(ARCHITECTURE.md)" not in scalameta_experiment:
+        findings.append("Scalameta experiment missing canonical architecture link")
+    for marker in NORTH_STAR_STATUS_MARKERS:
+        if marker not in north_star:
+            findings.append(f"north-star document missing status marker: {marker}")
+    for checkpoint in range(1, 6):
+        section_match = re.search(
+            rf"(?ms)^## N{checkpoint}\b.*?(?=^## N(?:{checkpoint + 1})\b|\Z)",
+            north_star,
+        )
+        if section_match is None:
+            findings.append(f"north-star document missing checkpoint: N{checkpoint}")
+        else:
+            section = section_match.group(0)
+            for required_section in (
+                "### Manual/current baseline",
+                "### Desired source-like shape",
+                "### Required missing capabilities",
+                "### Checkpoint criterion",
+            ):
+                if required_section not in section:
+                    findings.append(
+                        f"north-star checkpoint N{checkpoint} missing section: "
+                        f"{required_section}"
+                    )
+        rows = [
+            line
+            for line in roadmap.splitlines()
+            if re.match(rf"^\|\s*N{checkpoint}\b", line)
+        ]
+        if len(rows) != 1:
+            findings.append(
+                f"roadmap must contain exactly one checkpoint row for N{checkpoint}"
+            )
+        elif (
+            "DESIGN_REQUIRED" not in rows[0]
+            or "IMPLEMENTATION_REQUIRED" not in rows[0]
+            or "CHECKPOINT_COMPLETE" in rows[0]
+        ):
+            findings.append(f"roadmap checkpoint N{checkpoint} has invalid status")
+    return findings
+
+
 def check(root: Path) -> list[str]:
     rows = api_rows(root)
     return sorted(
@@ -242,6 +330,7 @@ def check(root: Path) -> list[str]:
         + api_count_findings(root, rows)
         + source_findings(root)
         + matrix_findings(root)
+        + durable_documentation_findings(root)
     )
 
 

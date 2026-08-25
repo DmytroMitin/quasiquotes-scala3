@@ -185,6 +185,14 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     assert(WhyQuasiquotesCurrentExamples.nestedTypeConstructionAgrees)
     assert(WhyQuasiquotesCurrentExamples.nestedTypePatternAgrees)
 
+  test("north-star manual reflection baselines stay executable outside library packages"):
+    assertEquals(NorthStarManualReflectionExamples.dynamicAppliedTypeArity, 2)
+    assert(NorthStarManualReflectionExamples.refinementAliasIsString)
+    assertEquals(
+      NorthStarManualReflectionExamples.constructExistingProduct[NorthStarProduct](20, 22),
+      NorthStarProduct(20, 22)
+    )
+
   test("public dqr builds an owner-correct local identity method outside quasiquotes packages"):
     assertEquals(DqrFirstUseSnippet.identity(42), 42)
     assertEquals(DqrSelectiveImportSnippet.identity(41), 41)

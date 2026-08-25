@@ -9,6 +9,11 @@ syntax, and compatibility policy may change. The immutable `0.2.0` `core` and
 matching 3.3.8/3.8.4 `frontend` artifacts are available from Maven Central;
 the current `0.3.0-SNAPSHOT` tree is not published.
 
+The canonical [architecture](docs/ARCHITECTURE.md) has one project-owned,
+compiler-free semantic model with multiple source frontends. Current-Dotty is
+the released/default reference route; the Scalameta typed route is an explicit,
+unpublished experiment rather than a second quasiquote engine.
+
 ## Quick start
 
 `qr` constructs a Scala 3 quoted-reflection `Term` from source-like syntax
@@ -93,6 +98,16 @@ the original reflected parameter and result types.
 See the [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md) for the current
 construct/match boundary and its deliberate limits.
 
+## Related projects
+
+- [Macro-Paradise for Scala 3](https://github.com/DmytroMitin/macroparadise-scala3)
+  is an experimental Scala 3 pre-typer macro-annotation compiler plugin;
+  Quasiquotes integration is optional research, not a core product dependency.
+- [AUXify-scala3](https://github.com/DmytroMitin/AUXify-scala3) is an
+  experimental Scala 3 AUXify reimplementation using Macro-Paradise; its
+  current narrow handler path uses Scalameta source-like authoring plus the
+  Quasiquotes exact contextual-method lowering bridge.
+
 ## Modules
 
 - `core` contains compiler-free term/type/definition values, construction,
@@ -170,6 +185,7 @@ See [Getting started](docs/GETTING_STARTED.md),
 [exact constructor backend](docs/EXACT_BACKEND_CONSTRUCTOR_NEW.md),
 [supported syntax and limitations](docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md),
 [why quasiquotes?](docs/WHY_QUASIQUOTES.md),
+[north-star quasiquote examples](docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md),
 [compatibility](docs/COMPATIBILITY.md),
 [public API shape compatibility review](docs/API_COMPATIBILITY_REVIEW.md),
 [statement-ADT 0.2-to-0.3 compatibility qualification](docs/STATEMENT_ADT_0_2_TO_0_3_COMPATIBILITY.md),

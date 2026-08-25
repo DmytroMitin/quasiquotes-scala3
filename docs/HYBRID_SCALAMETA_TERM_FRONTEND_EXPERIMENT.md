@@ -5,6 +5,10 @@ frontend for typed Term and Type construction and matching. It exists beside
 the released/default current-Dotty frontend; public ordinary `qr`/`qq` and
 `tqr`/`tqq` still use current-Dotty.
 
+The [canonical architecture](ARCHITECTURE.md) owns the durable default,
+semantic-model, fallback, and parity status. This experiment document records
+route-specific mechanics and does not define a separate engine policy.
+
 ## One shared semantic model
 
 For Terms, the module parses public `scala.meta.Term` trees and projects them

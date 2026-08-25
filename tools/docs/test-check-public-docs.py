@@ -34,6 +34,9 @@ class PublicDocsCheckTest(unittest.TestCase):
 
         (root / "README.md").write_text(
             f"[matrix]({matrix_link})\n"
+            "[architecture](docs/ARCHITECTURE.md)\n"
+            "[Macro-Paradise](https://github.com/DmytroMitin/macroparadise-scala3)\n"
+            "[AUXify](https://github.com/DmytroMitin/AUXify-scala3)\n"
             "<!-- public-surface-table:start -->\n"
             "| Role | Interpolated syntax | Interpolator availability | Programmatic API | Function/API availability |\n"
             "| --- | --- | --- | --- | --- |\n"
@@ -46,6 +49,52 @@ class PublicDocsCheckTest(unittest.TestCase):
             "<!-- public-surface-table:end -->\n\n"
             "The machine-readable [0.2.0 public API baseline](docs/api-baselines/0.2.0.tsv)\n"
             f"contains {readme_core_count} core and {readme_frontend_count} frontend Scaladoc-visible entries.\n",
+            encoding="utf-8",
+        )
+        (root / "ROADMAP.md").write_text(
+            "[north-star checkpoints](docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md)\n\n"
+            "| N1 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
+            "| N2 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
+            "| N3 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
+            "| N4 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
+            "| N5 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n",
+            encoding="utf-8",
+        )
+        (docs / "ARCHITECTURE.md").write_text(
+            "# Architecture\n\n"
+            "SEMANTIC_MODEL = PROJECT_OWNED_COMPILER_FREE_CORE\n"
+            "CURRENT_DOTTY = RELEASED_DEFAULT_REFERENCE_ORACLE\n"
+            "SCALAMETA_TYPED_ROUTE = EXPLICIT_OPT_IN_UNPUBLISHED\n"
+            "PARITY = REQUIRED_ON_OVERLAPPING_CLAIMED_SLICES_NOT_LOCKSTEP\n"
+            "FALLBACK = SCALAMETA_PARSE_FAILURE_ONLY\n"
+            "NO_PUBLIC_SYMBOL_QUASIQUOTE_FAMILY_CURRENTLY_PLANNED\n"
+            "TYPED_OWNED_DEFINITION_SYMBOL_SYNTHESIS = BACKEND_RESPONSIBILITY\n"
+            "NEUTRAL_CORE = SYMBOL_FREE\n"
+            "UNTYPED_PRE_TYPER_BACKEND = NO_TYPED_SYMBOL_FABRICATION\n",
+            encoding="utf-8",
+        )
+        (docs / "WHY_QUASIQUOTES.md").write_text(
+            "[future checkpoints](NORTH_STAR_QUASIQUOTE_EXAMPLES.md)\n",
+            encoding="utf-8",
+        )
+        (docs / "HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md").write_text(
+            "The [canonical architecture](ARCHITECTURE.md) owns the shared status.\n",
+            encoding="utf-8",
+        )
+        (docs / "NORTH_STAR_QUASIQUOTE_EXAMPLES.md").write_text(
+            "# North-star quasiquote examples\n\n"
+            "FUTURE_NON_CURRENT_SYNTAX\n"
+            "CURRENT_MANUAL_BASELINE_PROVED\n"
+            "DESIGN_REQUIRED\n"
+            "IMPLEMENTATION_REQUIRED\n\n"
+            + "".join(
+                f"## N{checkpoint}\n\n"
+                "### Manual/current baseline\n\nBaseline.\n\n"
+                "### Desired source-like shape\n\nShape.\n\n"
+                "### Required missing capabilities\n\nCapabilities.\n\n"
+                "### Checkpoint criterion\n\nCriterion.\n\n"
+                for checkpoint in range(1, 6)
+            ),
             encoding="utf-8",
         )
         (docs / "SYNTAX_SUPPORT_MATRIX.md").write_text(
@@ -154,6 +203,106 @@ class PublicDocsCheckTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn("surface row mismatch", result.stderr)
+
+    def test_rejects_missing_related_project_link(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            readme = root / "README.md"
+            readme.write_text(
+                readme.read_text(encoding="utf-8").replace(
+                    "https://github.com/DmytroMitin/AUXify-scala3",
+                    "https://example.invalid/auxify",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("README missing related-project link", result.stderr)
+
+    def test_rejects_missing_canonical_architecture_status(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            architecture = root / "docs/ARCHITECTURE.md"
+            architecture.write_text(
+                architecture.read_text(encoding="utf-8").replace(
+                    "FALLBACK = SCALAMETA_PARSE_FAILURE_ONLY",
+                    "fallback policy omitted",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("canonical architecture missing status marker", result.stderr)
+
+    def test_rejects_missing_north_star_checkpoint(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            north_star = root / "docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md"
+            north_star.write_text(
+                north_star.read_text(encoding="utf-8").replace("## N4", "## omitted"),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("north-star document missing checkpoint", result.stderr)
+
+    def test_rejects_checkpoint_without_required_structure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            north_star = root / "docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md"
+            north_star.write_text(
+                north_star.read_text(encoding="utf-8").replace(
+                    "### Checkpoint criterion\n\nCriterion.",
+                    "### Criterion omitted\n\nOmitted.",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("north-star checkpoint N1 missing section", result.stderr)
+
+    def test_rejects_silently_completed_roadmap_checkpoint(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            roadmap = root / "ROADMAP.md"
+            roadmap.write_text(
+                roadmap.read_text(encoding="utf-8").replace(
+                    "| N5 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |",
+                    "| N5 | `CHECKPOINT_COMPLETE` |",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("roadmap checkpoint N5 has invalid status", result.stderr)
+
+    def test_rejects_scalameta_status_doc_without_canonical_link(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            experiment = root / "docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md"
+            experiment.write_text("standalone status narrative\n", encoding="utf-8")
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("Scalameta experiment missing canonical architecture link", result.stderr)
 
     def test_ignores_markdown_link_shapes_inside_code(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
