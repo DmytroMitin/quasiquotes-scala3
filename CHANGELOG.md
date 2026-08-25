@@ -32,8 +32,8 @@ applicable. Dates and release links are added only when a release exists.
 
 ### Changed
 
-- The retained candidate version is `0.2.0`; this does not claim remote
-  publication or released support.
+- `0.2.0` is the immutable Maven Central release. The active source tree is the
+  unpublished `0.3.0-SNAPSHOT` development line.
 - The build uses sbt 1.12.15 and sbt-pgp 2.3.1 for manual, local-only signed
   staging with fail-closed public developer metadata.
 - Experimental compatibility is documented as early-semver-style 0.x policy:
@@ -44,6 +44,6 @@ applicable. Dates and release links are added only when a release exists.
 
 ### Security
 
-- No private reporting channel is currently offered or promised, no production
-  security review or response SLA is claimed, and no released supported
-  version exists yet.
+- No private reporting channel is currently offered or promised, and no
+  production security review or response SLA is claimed for this experimental
+  research release.

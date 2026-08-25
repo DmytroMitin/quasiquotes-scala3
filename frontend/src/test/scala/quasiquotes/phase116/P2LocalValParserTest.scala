@@ -60,7 +60,7 @@ class P2LocalValParserTest extends munit.FunSuite:
 
   test("raw admission rejects second P2 binders and same-name P2-Lambda1 shadowing") {
     val cases = List(
-      "{ val x: Int = 1; { val y: Int = 2; y } }" -> "only one P2 local val binder",
+      "{ val x: Int = 1; { val y: Int = 2; y } }" -> "Only one P2 local val binder",
       "(x: Int) => { val x: Int = 1; x }" -> "source-binder shadowing",
       "{ val x: Int = 1; (x: Int) => x }" -> "source-binder shadowing"
     )

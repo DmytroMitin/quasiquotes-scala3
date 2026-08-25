@@ -69,7 +69,7 @@ PUBLIC_API = {
 
 PUBLIC_API_MODULES = {"core", "frontend"}
 API_COUNT_STATEMENT = re.compile(
-    r"The machine-readable \[public API baseline\]\(docs/PUBLIC_API_BASELINE\.tsv\)\s+"
+    r"The machine-readable \[0\.2\.0 public API baseline\]\(docs/api-baselines/0\.2\.0\.tsv\)\s+"
     r"contains (?P<core>\d+) core and (?P<frontend>\d+) frontend "
     r"Scaladoc-visible entries\."
 )
@@ -124,7 +124,7 @@ def table_findings(root: Path) -> list[str]:
 
 
 def api_rows(root: Path) -> list[dict[str, str]]:
-    baseline = root / "docs/PUBLIC_API_BASELINE.tsv"
+    baseline = root / "docs/api-baselines/0.2.0.tsv"
     with baseline.open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle, delimiter="\t"))
 

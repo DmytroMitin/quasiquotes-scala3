@@ -123,8 +123,8 @@ owner-sensitive splice containing definitions. The two scope-boundary
 diagnostics are stable and do not expose symbols or owners:
 
 ```text
-Phase 116 admits only one P2 local val binder per quasiquote tree; a second or nested P2 local val is unsupported.
-Phase 116 does not support source-binder shadowing involving a P2 local val.
+Only one P2 local val binder is admitted per quasiquote tree; a second or nested P2 local val is unsupported.
+P2 local val source-binder shadowing is unsupported.
 ```
 
 Same-text external splices are not classified as source shadowing. The

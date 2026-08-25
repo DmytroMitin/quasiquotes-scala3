@@ -64,7 +64,7 @@ class P2LocalValConstructionTest extends munit.FunSuite:
   }
 
   test("current-Dotty qr rejects second P2 binders through every admitted recursive route") {
-    val secondBinderDiagnostic = "Phase 116 admits only one P2 local val binder per quasiquote tree"
+    val secondBinderDiagnostic = "Only one P2 local val binder is admitted per quasiquote tree"
     val evidence = P2LocalValMacros.constructionScopeBoundaryEvidence
 
     List(evidence._1, evidence._4, evidence._5, evidence._6).foreach { message =>
@@ -73,7 +73,7 @@ class P2LocalValConstructionTest extends munit.FunSuite:
   }
 
   test("current-Dotty qr rejects P2 and Lambda1 same-name source shadowing in both directions") {
-    val shadowingDiagnostic = "Phase 116 does not support source-binder shadowing involving a P2 local val"
+    val shadowingDiagnostic = "P2 local val source-binder shadowing is unsupported"
     val evidence = P2LocalValMacros.constructionScopeBoundaryEvidence
 
     List(evidence._2, evidence._3).foreach { message =>
@@ -82,8 +82,8 @@ class P2LocalValConstructionTest extends munit.FunSuite:
   }
 
   test("current-Dotty qq pattern compilation rejects nested P2 and P2-Lambda1 source shadowing") {
-    val secondBinderDiagnostic = "Phase 116 admits only one P2 local val binder per quasiquote tree"
-    val shadowingDiagnostic = "Phase 116 does not support source-binder shadowing involving a P2 local val"
+    val secondBinderDiagnostic = "Only one P2 local val binder is admitted per quasiquote tree"
+    val shadowingDiagnostic = "P2 local val source-binder shadowing is unsupported"
     val cases = List(
       "{ val x: Int = 1; { val y: Int = 2; y } }" -> secondBinderDiagnostic,
       "(x: Int) => { val x: Int = 1; x }" -> shadowingDiagnostic,
@@ -97,8 +97,8 @@ class P2LocalValConstructionTest extends munit.FunSuite:
   }
 
   test("current-Dotty target inspection rejects nested P2 and P2-Lambda1 source shadowing") {
-    val secondBinderDiagnostic = "Phase 116 admits only one P2 local val binder per quasiquote tree"
-    val shadowingDiagnostic = "Phase 116 does not support source-binder shadowing involving a P2 local val"
+    val secondBinderDiagnostic = "Only one P2 local val binder is admitted per quasiquote tree"
+    val shadowingDiagnostic = "P2 local val source-binder shadowing is unsupported"
     val evidence = P2LocalValMacros.targetScopeBoundaryEvidence
 
     assert(evidence._1.contains(secondBinderDiagnostic), evidence._1)

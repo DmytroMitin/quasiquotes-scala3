@@ -177,6 +177,14 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     assert(TypeInterpolatorFirstUseSnippet.unsupportedTargetFallsThrough)
     assert(TypeInterpolatorFirstUseSnippet.ordinaryApisCoexist)
 
+  test("why-quasiquotes comparisons stay executable outside library packages"):
+    assertEquals(WhyQuasiquotesCurrentExamples.standardAdd(20, 22), 42)
+    assertEquals(WhyQuasiquotesCurrentExamples.quasiquoteAdd(20, 22), 42)
+    assertEquals(WhyQuasiquotesCurrentExamples.manualSplit(20, 22), (20, 22))
+    assertEquals(WhyQuasiquotesCurrentExamples.quasiquoteSplit(20, 22), (20, 22))
+    assert(WhyQuasiquotesCurrentExamples.nestedTypeConstructionAgrees)
+    assert(WhyQuasiquotesCurrentExamples.nestedTypePatternAgrees)
+
   test("public dqr builds an owner-correct local identity method outside quasiquotes packages"):
     assertEquals(DqrFirstUseSnippet.identity(42), 42)
     assertEquals(DqrSelectiveImportSnippet.identity(41), 41)

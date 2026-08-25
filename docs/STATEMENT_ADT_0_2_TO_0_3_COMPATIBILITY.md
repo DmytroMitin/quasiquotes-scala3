@@ -1,4 +1,4 @@
-# Statement-ADT 0.3 compatibility qualification
+# Statement ADT compatibility: 0.2.0 to 0.3 development
 
 The current source tree remains the unpublished `0.3.0-SNAPSHOT` development
 line. The compatibility baseline is the immutable Maven Central `0.2.0`
@@ -16,12 +16,11 @@ The released artifacts used by the lab were downloaded from Maven Central:
 | `com.github.dmytromitin:quasiquotes-scala3-frontend_3.3.8:0.2.0` | compiler-coupled, exact/full-crossed 3.3.8 | `8a35abb88f1a705b38e474d0d7e7d2d2c98309445587a675a8b77d1ea56c0700` | 90 |
 | `com.github.dmytromitin:quasiquotes-scala3-frontend_3.8.4:0.2.0` | compiler-coupled, exact/full-crossed 3.8.4 | `00a2b658506ed3ed44a45b9472863c91374a956041d2c8baac02b5f5d2b6ccee` | 90 |
 
-Their Central SHA-1 sidecars were verified byte-for-byte. The current tree at
-source commit `106b192f3890440190feae81b47674f6458d1a36` was published only to a
-disposable task-local Maven repository as collision-safe evidence version
-`0.3.0-phase117-106b192`. Resolver probes selected the Central cache for
-`0.2.0` and the task-local repository for that synthetic version. No identical
-version was shadowed and nothing was published remotely.
+Their Central SHA-1 sidecars were verified byte-for-byte. The development tree
+at source commit `106b192f3890440190feae81b47674f6458d1a36` was published only
+to a collision-safe disposable local Maven repository. Resolver probes
+selected Maven Central for `0.2.0` and the local repository for the development
+build. No released version was shadowed and nothing was published remotely.
 
 ## Public API and source compatibility
 
@@ -115,24 +114,19 @@ TASTY_COMPATIBILITY_3_8_4 = TASTY_COMPATIBLE_FOR_TESTED_SURFACE
 
 ## Regression and governance result
 
-The current tree passes the complete aggregate, focused Phase-116R/P1/Lambda1,
+The current tree passes the complete aggregate, focused statement/P1/Lambda1,
 Scalameta Term and Type, public example, compiler-free boundary, neutral
-boundary, module-graph, Scalameta topology, and affected packaging gates on
+boundary, module-graph, Scalameta topology, and affected packaging checks on
 Scala 3.3.8 and 3.8.4. Scala 3.9.0-RC1 remains an experimental forward probe,
 not a promoted support promise. The public API, first-use, documentation, and
-release-configuration tools remain separate gates.
+release-configuration tools remain separate checks.
 
-`docs/PUBLIC_API_BASELINE.tsv` remains the immutable latest-released 618-row
+`docs/api-baselines/0.2.0.tsv` remains the immutable released 618-row
 `0.2.0` baseline. The 634-row development inventory remains generated
 candidate evidence until an actual `0.3.0` release; a redundant checked-in
 candidate snapshot was not added.
 
-```text
-PHASE117_0_3_COMPATIBILITY_QUALIFIED_INTENTIONAL_NEW_MINOR
-DEVELOPMENT_VERSION = 0.3.0-SNAPSHOT
-RELEASED_0_2_0 = IMMUTABLE
-PUBLIC_QR_QQ_DEFAULT = CURRENT_DOTTY
-PUBLIC_TQR_TQQ_DEFAULT = CURRENT_DOTTY
-NO_NEW_LANGUAGE_SYNTAX_IN_PHASE117
-REMOTE_ARTIFACT_PUBLICATION = NOT_AUTHORIZED
-```
+The result is a bounded compatibility qualification for an intentional new
+experimental minor. Development remains `0.3.0-SNAPSHOT`; released `0.2.0`
+and its baseline remain immutable. Ordinary Term and Type quasiquotes continue
+to use current-Dotty. This report is evidence, not release authorization.

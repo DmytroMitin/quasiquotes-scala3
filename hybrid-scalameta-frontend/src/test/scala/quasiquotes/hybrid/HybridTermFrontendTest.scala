@@ -332,8 +332,8 @@ class HybridTermFrontendTest extends munit.FunSuite:
 
   test("Scalameta construction rejects second P2 binders and P2-Lambda1 source shadowing"):
     given Compiler = Compiler.make(getClass.getClassLoader)
-    val secondBinderDiagnostic = "Phase 116 admits only one P2 local val binder per quasiquote tree"
-    val shadowingDiagnostic = "Phase 116 does not support source-binder shadowing involving a P2 local val"
+    val secondBinderDiagnostic = "Only one P2 local val binder is admitted per quasiquote tree"
+    val shadowingDiagnostic = "P2 local val source-binder shadowing is unsupported"
     val cases = List(
       "{ val x: Int = 1; { val y: Int = 2; y } }" -> secondBinderDiagnostic,
       "(x: Int) => { val x: Int = 1; x }" -> shadowingDiagnostic,
@@ -352,8 +352,8 @@ class HybridTermFrontendTest extends munit.FunSuite:
     }
 
   test("Scalameta pattern compilation rejects second P2 binders and P2-Lambda1 source shadowing"):
-    val secondBinderDiagnostic = "Phase 116 admits only one P2 local val binder per quasiquote tree"
-    val shadowingDiagnostic = "Phase 116 does not support source-binder shadowing involving a P2 local val"
+    val secondBinderDiagnostic = "Only one P2 local val binder is admitted per quasiquote tree"
+    val shadowingDiagnostic = "P2 local val source-binder shadowing is unsupported"
     val cases = List(
       "{ val x: Int = 1; { val y: Int = 2; y } }" -> secondBinderDiagnostic,
       "(x: Int) => { val x: Int = 1; x }" -> shadowingDiagnostic,

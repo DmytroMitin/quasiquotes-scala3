@@ -5,8 +5,9 @@ repository separates compiler-free representations and algorithms from
 compiler-coupled parsing, reflection, and lowering.
 
 The project is a research proof of concept. Its API, coordinates, supported
-syntax, and compatibility policy may change. No artifact is currently
-available from a remote package repository.
+syntax, and compatibility policy may change. The immutable `0.2.0` `core` and
+matching 3.3.8/3.8.4 `frontend` artifacts are available from Maven Central;
+the current `0.3.0-SNAPSHOT` tree is not published.
 
 ## Quick start
 
@@ -105,7 +106,9 @@ construct/match boundary and its deliberate limits.
 - `hybridScalametaFrontend` is an unpublished, compiler-coupled side-by-side
   experiment. It contains explicit typed Term and Type opt-in APIs in
   `quasiquotes.scalameta`. Both parse public Scalameta ASTs, lower into existing
-  project semantics, and retain the current Dotty engine as fallback/oracle.
+  project semantics, and retain current-Dotty as the reference/oracle. Only a
+  Scalameta parse failure may use the current parser as fallback; semantic or
+  lowering failures remain fail-closed.
   Public `qr`/`qq` and `tqr`/`tqq` defaults and published dependencies do not
   change.
 - `dottyInternal` contains exact-compiler internal adapters and one narrow
@@ -121,9 +124,8 @@ quotation/pattern syntax and compiler-coupled construction and matching.
 full Scala AST. The experimental Scalameta layer sits above it and projects
 only admitted shapes downward; it does not make `core` depend on Scalameta.
 See the [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md),
-the [hybrid term frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md),
-the [private Type-Q3 parity result](docs/PHASE113_SCALAMETA_TYPE_Q3_SIDE_BY_SIDE_CURRENT_MATRIX_PARITY_RESULT.md),
-the [Type opt-in API and coordinate result](docs/PHASE114_SCALAMETA_TYPE_OPT_IN_API_AND_COORDINATE_CONSUMER_READINESS_RESULT.md),
+the [hybrid typed frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md),
+the [Scalameta opt-in artifact topology](docs/SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md),
 and the [experimental contextual-method peer bridge](docs/EXPERIMENTAL_CONTEXTUAL_METHOD_PEER_BRIDGE.md).
 
 ## Try the source build
@@ -163,21 +165,24 @@ See [Getting started](docs/GETTING_STARTED.md),
 [diagnostics](docs/DIAGNOSTICS.md),
 [architecture](docs/ARCHITECTURE.md),
 [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md),
-[hybrid term frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md),
+[hybrid typed frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md),
 [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md),
 [exact constructor backend](docs/EXACT_BACKEND_CONSTRUCTOR_NEW.md),
 [supported syntax and limitations](docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md),
+[why quasiquotes?](docs/WHY_QUASIQUOTES.md),
 [compatibility](docs/COMPATIBILITY.md),
 [public API shape compatibility review](docs/API_COMPATIBILITY_REVIEW.md),
-[statement-ADT 0.3 compatibility qualification](docs/PHASE117_STATEMENT_ADT_NEW_0X_BINARY_TASTY_COMPATIBILITY_RESULT.md),
+[statement-ADT 0.2-to-0.3 compatibility qualification](docs/STATEMENT_ADT_0_2_TO_0_3_COMPATIBILITY.md),
 [versioning and stability](docs/VERSIONING_AND_STABILITY.md), and the
 [release process](docs/RELEASE_PROCESS.md).
 
-The machine-readable [public API baseline](docs/PUBLIC_API_BASELINE.tsv)
+The machine-readable [0.2.0 public API baseline](docs/api-baselines/0.2.0.tsv)
 contains 305 core and 313 frontend Scaladoc-visible entries. It excludes the
 root, unpublished experimental `neutralScalameta`, unpublished
 `hybridScalametaFrontend`, unpublished `dottyInternal`, and package-private
-internals and is a diff baseline rather than a compatibility promise.
+internals. It is generated from packaged Scaladoc search metadata for
+deterministic source/API-shape diffing; it is neither human API documentation
+nor binary, TASTy, overload-resolution, or semantic compatibility proof.
 
 The structural type subset includes recursively nested `List` and `Option`
 applications plus binary `Either`, including patterns, construction, quoted
@@ -206,8 +211,8 @@ method-placement backend.
 ## License
 
 This project is licensed under the Apache License, Version 2.0. See
-[LICENSE](LICENSE). Repository visibility and remote artifact publication
-remain separate decisions; no artifact is currently available remotely.
+[LICENSE](LICENSE). Repository visibility and later artifact publication
+remain separate decisions.
 
 Support expectations are intentionally conservative; see [Support](SUPPORT.md)
 and [Security policy](SECURITY.md). No private security-reporting channel is

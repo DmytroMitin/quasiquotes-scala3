@@ -5,6 +5,10 @@ delivery chronology.
 
 ## Current
 
+- Preserve one semantic architecture: source frontends project into the
+  project-owned compiler-free model in `core`, followed by backend-specific
+  lowering or reflected matching. Keep current-Dotty as the released/default
+  reference route and Scalameta as explicit unpublished opt-in routes.
 - Keep `core` compiler-free and independently consumable.
 - Keep `frontend` compiler-version-coupled and test source parsing, matching,
   construction, diagnostics, and quoted lowering together.
@@ -33,10 +37,37 @@ delivery chronology.
   exact backend-only reverse projection without print/reparse or fabricated
   source provenance.
 - Measure whether public Scalameta parsing materially reduces grammar
-  maintenance while the current Dotty parser remains the fallback and exact
-  compiler oracle.
+  maintenance while current-Dotty remains the exact compiler oracle and only
+  Scalameta parse failure may use the current parser as fallback.
 
-## Before a public preview
+## North-star source-like generation
+
+These are future design directions, not current syntax or implementation
+commitments:
+
+- **Dynamic member/name holes.** A macro-computed member name cannot simply be
+  interpolated as an identifier into ordinary `'{ ... }`; manual reflection
+  uses `Select`, `Select.unique`, or related APIs. Investigate one bounded
+  name-hole contract before broader dynamic-name syntax.
+- **Generic subclass and class-definition generation.** When a macro has only
+  an abstract `Type[A]`, generating `new A: ...` may require class/member
+  symbols, `ClassDef`, `DefDef`, constructor `Apply(Select(New(...)))`, and a
+  `Block`. The long-term source-like goal is definition/class quasiquotes plus
+  correct typed-backend owner and symbol synthesis, not a fake current example.
+- **Dynamic type constructors.** A constructor chosen at expansion time still
+  requires `AppliedType` or kind-aware `asType` plumbing. Constructor-position
+  Type holes remain unsupported until a sound bounded design is selected.
+- **Bounds and binders.** Quoted type patterns already express many static
+  relationships. Dynamic `TypeBounds` and binder-aware construction need a
+  separate compile-checked comparison and are not the flagship `tqr` example.
+
+Symbols are compiler semantic entities, not source syntax. No public symbol
+quasiquote family is currently planned. The neutral core remains symbol-free;
+typed owned-definition symbol synthesis belongs to the typed backend, while an
+untyped pre-typer backend must not fabricate typed symbols. A future advanced
+owner/definition-plan handle needs concrete consumer evidence.
+
+## Ongoing public-project hygiene
 
 - Reconfirm the Apache-2.0 provenance/attribution audit remains current.
 - Keep security, support, contribution, and community-policy wording current
@@ -48,18 +79,18 @@ delivery chronology.
 - Reconsider whether a private security-reporting channel is warranted as the
   project and its support commitments evolve; none is currently promised.
 
-## Before remote artifact publication
+## Before a later artifact release
 
-- Reconfirm the selected `0.2.0` version and Central Portal publication path.
-- Replace synthetic rehearsal identity with explicitly approved public
-  developer and signing identity inputs.
+- Select the next version from reviewed API and compatibility evidence and
+  reconfirm the Central Portal publication path.
+- Use explicitly approved public developer and signing identity inputs.
 - Complete real-key signing, provenance, POM, source/Javadoc, and
   reproducibility checks.
 - Validate clean coordinate-only consumers on every promised Scala/JDK lane.
-- Publish only `core_3`, `frontend_3.3.8`, and `frontend_3.8.4`; keep the
+- Publish only separately approved coordinates; keep the
   forward-probe frontend, aggregate root, examples, `neutralScalameta`,
   `hybridScalametaFrontend`, and `dottyInternal` unpublished.
 
-Remote release and public visibility are separate decisions. If either remains
-unapproved, development continues through bounded language, usability,
-compatibility, and backend improvements.
+Later releases remain separate decisions. Development continues through
+bounded language, usability, compatibility, and backend improvements without
+assuming publication.

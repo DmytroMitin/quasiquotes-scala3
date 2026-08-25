@@ -26,6 +26,7 @@ class CheckSnippetsTest(unittest.TestCase):
         documented_runtime_parser: str = "val runtimeParser = 13",
         documented_p1_block: str = "val p1Block = 14",
         documented_p2_local_val: str = "val p2LocalVal = 15",
+        documented_why: str = "val why = 16",
     ) -> None:
         docs = root / "docs"
         sources = root / "public-api-examples/src/test/scala/external/consumer"
@@ -107,6 +108,11 @@ class CheckSnippetsTest(unittest.TestCase):
             "// snippet:readme-quick-start:end\n",
             encoding="utf-8",
         )
+        (sources / "WhyQuasiquotesCurrentExamples.scala").write_text(
+            "// snippet:why-quasiquotes-current:start\nval why = 16\n"
+            "// snippet:why-quasiquotes-current:end\n",
+            encoding="utf-8",
+        )
         (root / "README.md").write_text(
             "<!-- snippet:readme-quick-start:start -->\n```scala\n"
             + documented_quick_start
@@ -157,6 +163,12 @@ class CheckSnippetsTest(unittest.TestCase):
             + "\n```\n<!-- snippet:runtime-parser:end -->\n",
             encoding="utf-8",
         )
+        (docs / "WHY_QUASIQUOTES.md").write_text(
+            "<!-- snippet:why-quasiquotes-current:start -->\n```scala\n"
+            + documented_why
+            + "\n```\n<!-- snippet:why-quasiquotes-current:end -->\n",
+            encoding="utf-8",
+        )
 
     def run_checker(self, root: Path) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -175,7 +187,7 @@ class CheckSnippetsTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(
-                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, p1-block-first-use, p2-local-val-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start",
+                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, p1-block-first-use, p2-local-val-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start, why-quasiquotes-current",
                 result.stdout,
             )
 

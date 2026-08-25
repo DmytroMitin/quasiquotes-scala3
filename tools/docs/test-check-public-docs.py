@@ -44,7 +44,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             f"| Definition construction | `dqr\"def id(x: $parameterType): $resultType = x\"` | {dqr_status} | `DefinitionConstruction.*` | Public bounded compiler-free API |\n"
             "| Definition pattern matching | `case dqq\"def id(x: Int): Int = $body\"` | Public now, exact bounded shape | `DefinitionPattern.singleParameter(...)` | Public now, exact bounded shape |\n"
             "<!-- public-surface-table:end -->\n\n"
-            "The machine-readable [public API baseline](docs/PUBLIC_API_BASELINE.tsv)\n"
+            "The machine-readable [0.2.0 public API baseline](docs/api-baselines/0.2.0.tsv)\n"
             f"contains {readme_core_count} core and {readme_frontend_count} frontend Scaladoc-visible entries.\n",
             encoding="utf-8",
         )
@@ -56,7 +56,9 @@ class PublicDocsCheckTest(unittest.TestCase):
             "Any change that adds, removes, or materially alters a term, type, or definition syntax family must update this matrix.\n",
             encoding="utf-8",
         )
-        (docs / "PUBLIC_API_BASELINE.tsv").write_text(
+        baselines = docs / "api-baselines"
+        baselines.mkdir()
+        (baselines / "0.2.0.tsv").write_text(
             "module\towner\tkind\tname\tsignature\n"
             "frontend\tquasiquotes.construct.Quasiquotes\tdef\tqr\tqr signature\n"
             "frontend\tquasiquotes.construct.QuasiquoteBuilder\tdef\tbuild\tbuild signature\n"
@@ -197,7 +199,7 @@ class PublicDocsCheckTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.make_fixture(root)
-            baseline = root / "docs/PUBLIC_API_BASELINE.tsv"
+            baseline = root / "docs/api-baselines/0.2.0.tsv"
             baseline.write_text(
                 baseline.read_text(encoding="utf-8")
                 + "core\tquasiquotes.publicapi.AddedApi\tdef\tadded\tadded signature\n",
@@ -215,7 +217,7 @@ class PublicDocsCheckTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.make_fixture(root)
-            baseline = root / "docs/PUBLIC_API_BASELINE.tsv"
+            baseline = root / "docs/api-baselines/0.2.0.tsv"
             baseline.write_text(
                 baseline.read_text(encoding="utf-8")
                 + "experimental\tquasiquotes.experimental.Api\tdef\tvalue\tvalue signature\n",

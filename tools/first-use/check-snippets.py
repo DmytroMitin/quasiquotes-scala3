@@ -63,6 +63,10 @@ SNIPPETS = {
         Path("public-api-examples/src/test/scala/external/consumer/ReadmeQuickStart.scala"),
         Path("README.md"),
     ),
+    "why-quasiquotes-current": (
+        Path("public-api-examples/src/test/scala/external/consumer/WhyQuasiquotesCurrentExamples.scala"),
+        Path("docs/WHY_QUASIQUOTES.md"),
+    ),
 }
 
 

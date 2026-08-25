@@ -1,10 +1,12 @@
 # Experimental release process
 
-This is a manual-first, fail-closed process. It documents local candidate
-mechanics but does not authorize a remote release, tag, upload, or publication.
-An ordinary branch push never runs artifact publication.
+This is a manual-first, fail-closed process. The `0.2.0` set below is already
+immutable on Maven Central; the commands remain useful as reproducible
+release-shape evidence. Re-running them does not authorize overwriting or
+republishing `0.2.0`, and any later version requires a separate release
+decision. An ordinary branch push never runs artifact publication.
 
-## Selected local candidate
+## Released 0.2.0 artifact set
 
 - version: `0.2.0`;
 - `com.github.dmytromitin:quasiquotes-scala3-core_3:0.2.0`, built once with

@@ -1,69 +1,43 @@
-# Hybrid Scalameta term frontend experiment
+# Hybrid Scalameta typed frontend experiment
 
-`hybridScalametaFrontend` is an unpublished, compiler-coupled module that
-exercises a bounded alternate syntax frontend for typed term construction and
-matching. It is intentionally side by side with the current public `qr`/`qq`
-implementation; public calls still use the existing Dotty engine.
+`hybridScalametaFrontend` is an unpublished, compiler-coupled opt-in source
+frontend for typed Term and Type construction and matching. It exists beside
+the released/default current-Dotty frontend; public ordinary `qr`/`qq` and
+`tqr`/`tqq` still use current-Dotty.
 
-## Architecture
+## One shared semantic model
 
-The construction path synthesizes collision-safe term/type placeholders, parses
-the resulting source through Scalameta 4.17.3 public parser and `scala.meta.Term`
-APIs, validates the same source against the active exact compiler grammar, and
-lowers the Scalameta AST directly through the active caller `Quotes`. It never
-pretty-prints a Scalameta tree for reparsing. A term hole is replaced by the
-exact supplied `quotes.reflect.Term`; supported type holes use the existing
-project-owned constructed-type lowering.
+For Terms, the module parses public `scala.meta.Term` trees and projects them
+into the existing project-owned `TermShape`, `TermPattern`, templates, and
+matcher. For Types, it maps `scala.meta.Type` directly into the existing
+`TypeShape`, `TypeNormalForm`, `TypeTemplate`, and `TypePattern` pipeline.
+Neither route prints a Scalameta tree for normal reparsing and neither creates
+a second semantic model.
 
-The pattern path uses the existing collision-safe pattern-source protocol,
-converts the parsed Scalameta term directly to the existing project-owned
-`TermPattern`, and delegates matching to the existing `TermMatcher`. Successful
-captures are therefore the exact original reflected subtrees of the target,
-including generated targets without a usable source span.
+The supported overlapping slice is checked differentially against the
+current-Dotty reference implementation on Scala 3.3.8 and 3.8.4. Type coverage
+includes names, recursive fixed `List`/`Option`/`Either`, Tuple2/Tuple3,
+Function1/Function2, ordered reflected holes and captures, programmatic
+repeated holes, mismatches, and controlled failures. Successful captures are
+the caller's original reflected subtrees.
 
-## Bounded syntax and fallback
+Parity means equivalent semantics where both frontends advertise support. It
+does not require every future feature to be delivered in lock-step.
 
-The alternate construction slice covers identifiers; integer, string, and
-boolean literals; selection and application; unary infix application; tuples;
-`if`; supported type ascription; standard `s` interpolation; ordinary term
-holes; binder-free P1 blocks; one explicitly typed eager immutable local `val`
-with a simple binder; and the existing constructed-type splice. The P2
-initializer is lowered before the fresh local symbol enters scope, and only the
-final result resolves through that symbol. One P2 binder is admitted per whole
-tree; second/nested P2 binders and P2/Lambda1 same-name source shadowing are
-controlled rejections, while distinct-name Lambda1 nesting is retained.
-Inferred, mutable, lazy, pattern, multiple, recursive, and local-method forms
-remain excluded. The matching slice covers the
-corresponding admitted literals, identifiers, selection/application, unary
-infix, tuples, `if`, supported ascription, P1 blocks, and ordinary captures.
+## Fail-closed fallback
 
-A Scalameta parse failure may dispatch to the unchanged current engine. An
-exact-compiler grammar rejection, unsupported Scalameta AST shape, or typed
-lowering failure does not trigger fallback, because doing so could change the
-accepted language or hide a semantic failure. The current engine remains the
-exact-compiler oracle and the explicit reference implementation.
+Only `SCALAMETA_PARSE_FAILURE` may select the unchanged current parser. Exact
+compiler rejection, unsupported Scalameta mapping, splice inspection failure,
+target inspection failure, and construction/lowering failure are terminal and
+categorized. This prevents fallback from silently widening the accepted
+language or hiding a semantic failure.
 
-The selected dialect follows the active supported compiler line: Scala 3.8.4
-uses Scalameta `Scala38`; Scala 3.3.8 uses the ordinary `Scala3` dialect, which
-is the compatible upstream policy available in Scalameta 4.17.3. Regardless of
-dialect breadth, syntax rejected by the active exact compiler is rejected.
+Scala 3.8.4 selects Scalameta `Scala38`; Scala 3.3.8 uses the compatible
+standard `Scala3` dialect available in Scalameta 4.17.3. Accepted source must
+also pass the active exact compiler grammar.
 
-## Dependency and compatibility boundary
-
-The module depends on the existing `frontend` and unpublished
-`neutralScalameta` projects and uses staging only in tests. It is marked
-`publish / skip := true`. Neither `core` nor the published `frontend` depends on
-it, so the selected published POMs and the 618-row `core`/`frontend` public API
-baseline remain immutable. The Phase-115 source candidate has a reviewed
-four-row additive `core`/`frontend` delta for the shared block model; the
-Phase-116 source candidate deliberately grows the truthful shared statement
-ADT to 634 rows and therefore requires a new experimental 0.x minor. The
-Scalameta-only implementation itself leaks no additional public row.
-
-The mechanical Term parity inventory now contains 37 rows: 31 supported and 6
-explicitly nonpublic. The experiment passes its focused construction,
-matching, fallback, dialect, macro, staging, generated-target, P1 block, and
-P2 binder/owner
-checks on Scala 3.3.8 and 3.8.4. This is
-evidence for continued bounded evaluation, not authorization to retire the
-current engine or migrate the public default.
+The module is `publish / skip := true`. Its public experimental package is
+limited to explicit `quasiquotes.scalameta` import hosts and the compact
+`TermFrontend`/`TypeFrontend` programmatic boundaries. Research lowerers,
+selectors, dialect policy, and parity inventories remain package-private.
+See [Scalameta opt-in artifact topology](SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md).

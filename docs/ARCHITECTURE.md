@@ -1,6 +1,20 @@
 # Architecture
 
-The dependency direction is intentionally one-way:
+The durable language pipeline is:
+
+```text
+source frontend(s)
+    -> project-owned compiler-free semantic model in core
+    -> backend-specific lowering / reflected matching
+```
+
+There are multiple source-facing routes, but there are not multiple semantic
+quasiquote engines. `core` owns the compiler-free Term and Type normal forms,
+templates, patterns, binder identities, structural construction and matching
+rules, and neutral diagnostics. Frontends must project into those shared
+models rather than inventing frontend-local equality or binding semantics.
+
+## Modules and dependency direction
 
 ```text
 frontend ----------------> core
@@ -11,110 +25,67 @@ publicApiExamples -> frontend
 publicCoreExamples -> core
 ```
 
-`core` owns compiler-free values, structural normal forms, templates,
-construction and matching algorithms, and neutral source/diagnostic metadata.
-Its compile and runtime classpaths must not contain Scala compiler artifacts.
-The shared Term model represents blocks as an ordered nonempty statement list
-plus a distinct result. Phase 116 deliberately generalizes the public P1
-`List[TermShape]` prefix to the truthful `List[BlockStatement]` algebra; every
-`TermShape` remains a statement, while the single admitted P2 local value is a
-non-term statement node carrying a project `BinderId`, explicit type sidecar,
-and initializer. Current-Dotty and
-Scalameta frontends both map P1 and this one P2 form into the same
-`TermShape`/`TermPattern` scope algebra; no source-string or frontend-only
-binder model participates in equality or matching. A P2 initializer is visited
-in the old scope and only the result is visited in the binder-extended scope.
-One shared package-private admission model tracks whether a P2 has already
-appeared anywhere in the tree and the active source binders needed for the
-bounded P2/Lambda1 no-shadowing rule. It uses source spelling only for that
-lexical admission check; `BinderId` remains the semantic identity used by
-construction, alpha equivalence, and matching. Current-Dotty raw trees,
-compiler-free shapes, reflected targets, and Scalameta trees all apply the same
-bounded rule before their ordinary lowering or matching work.
-Its package-private definition model reuses the same `BinderId` scope algebra
-as Lambda1 for one or exactly two ordinary method parameters; display spelling
-never replaces semantic identity. The public compiler-free constructors create
-those package-private bound-reference representations and return only narrow
-projections. The current source-metadata carrier remains package-private. The
-exact definition backend lowers the one-parameter and exact-two variants
-directly to ordinary raw `DefDef` trees in source-free mode and to canonical,
-recursively positioned generated-origin trees. Both modes map project
-`BinderId` values to validated parameter declaration spellings; they do not
-manufacture compiler symbols or treat reference display text as binding. The
-exact-two path remains a dedicated bounded adapter rather than a general
-parameter-list abstraction.
+- `frontend` is the released/default exact-compiler route. It owns parsing,
+  quoted reflection, public `qr`/`qq` and `tqr`/`tqq`, and compiler-line
+  lowering. It is also the first-class reference implementation and oracle.
+- `neutralScalameta` is an unpublished compiler-free Scalameta 4.17.3 AST
+  boundary and projection layer. Scalameta trees are source syntax; they are
+  not the project's semantic model.
+- `hybridScalametaFrontend` is an unpublished opt-in typed Term/Type frontend.
+  It maps public Scalameta ASTs into the same core models and then lowers or
+  matches in the caller's `Quotes` universe.
+- `dottyInternal` contains unpublished exact-version `untpd` adapters and the
+  narrow `ContextualMethodPeerBridge`. It is not a general raw-tree API.
+- the aggregate and example projects publish no production artifacts.
 
-`frontend` owns source parsing, macros, quoted reflection, source-to-core
-adapters, and compiler-version-sensitive lowering. It uses full Scala compiler
-version coordinates because its public surface and dependency graph are tied to
-the compiler line.
+Only a Scalameta parse failure may select the current parser inside the hybrid
+route. Exact-compiler syntax rejection, unsupported mapped syntax, semantic
+mapping failure, reflected target inspection failure, and lowering failure are
+terminal. They never silently switch engines and widen the accepted language.
 
-`neutralScalameta` owns the remotely unpublished compiler-free Scalameta 4.17.3
-source-AST boundary and the bounded structural projection into existing
-validated core results. It is the selected future binary-cross neutral
-coordinate. Its compile/runtime
-classpath contains neither the Scala compiler implementation, `scala3-staging`,
-nor SemanticDB. Scalameta remains absent from `core` and `frontend`.
+The two typed frontends aim for parity on deliberately overlapping admitted
+Term and Type slices. Differential tests remain appropriate whenever both
+routes claim a feature. This is not a lock-step promise that every future
+feature must land in both routes simultaneously. Ordinary released/default
+`qr`/`qq` and `tqr`/`tqq` remain current-Dotty; the Scalameta route remains
+explicit, experimental, and remotely unpublished.
 
-`hybridScalametaFrontend` is the remotely unpublished implementation of the
-selected future full-cross `quasiquotes-scala3-scalameta-frontend` coordinate.
-It parses
-with public Scalameta AST APIs, lowers directly into caller-`Quotes` reflected
-terms or the existing typed pattern IR, and retains the exact Dotty frontend as
-an explicit parser fallback and comparison oracle. The intended public surface
-is confined to `quasiquotes.scalameta`: shared explicit `qr`/`tqr` and
-`qq`/`tqq` import hosts plus programmatic `TermFrontend` and `TypeFrontend`
-objects. The research lowerers, selector, dialect policy,
-parity inventory, and evidence macros remain package-private. Selection is an
-ordinary immutable call/import choice; it does not use a process-global or
-environment default. The released `qr` and `qq` entrypoints still select the
-current Dotty engine. The same module contains the Type-Q3 path that
-maps public `scala.meta.Type` directly into the existing `TypeShape`,
-`TypeNormalForm`, `TypeTemplate`, and `TypePattern` pipeline. It proves the
-current public `tqr`/`tqq` matrix and exposes it only through the separate
-Scalameta opt-in API; ordinary `tqr`/`tqq` remain current-Dotty. The experiment does not authorize
-definition migration. The future coordinate adds Scalameta 4.17.3 and its
-parser/tree closure only for opt-in consumers; it is not remotely published.
+## Representation and ownership boundaries
 
-`dottyInternal` owns raw untyped-tree and compiler-internal adapters for
-exact-version integration. It now uses full Scala-version crossing and is the
-selected future version-coupled backend boundary for the first peer consumer.
-The source remains part of this repository, but `publish / skip := true`
-prevents an unsupported standalone artifact promise. The public-for-JVM-access
-`ContextualMethodPeerBridge` is deliberately confined to one Scalameta
-`Defn.Def` plus virtual-source-name input and one positioned `untpd.DefDef`
-plus provenance output. It delegates to the existing neutral projection,
-validated IR, raw lowering, and generated-origin position planner. Its compiler
-types make it exact-version experimental API, not a stable raw quasiquote
-family. Other adapters, planning objects, errors, and reverse projections stay
-package-private. The backend does not print/reparse or manufacture comments,
-tokens, formatting, symbols, or owners.
+`core` has no Scala compiler or Scalameta dependency. Its block and definition
+models use project-owned binder identities; display spelling does not replace
+semantic identity. Reflected captures remain owned by the caller's `Quotes`
+universe, while exact `untpd` results remain compiler-version-coupled.
 
-Its bounded term backend includes ordinary quoted standard-`s` interpolation:
-compiler-free semantic parts and guest terms lower directly to
-`untpd.InterpolatedString` and to generated-origin trees with recursively
-validated parser-equivalent spans. The implementation does not parse in
-production, expose raw trees publicly, or desugar through `StringContext`.
+The compiler-free model is symbol-free. For future source-like definition and
+class quasiquotes, symbols and owners that are derivable from syntax belong to
+the typed backend's lowering plan. A Quotes backend may need to create a class
+symbol before member symbols and definitions; a pre-typer `untpd` backend must
+emit syntax without fabricating typed symbols.
 
-The aggregate root packages no production classes and is unpublished. The
-module-graph verification task checks source ownership and rejects hidden
-frontend/backend cycles.
+```text
+NO_PUBLIC_SYMBOL_QUASIQUOTE_FAMILY_CURRENTLY_PLANNED
+TYPED_OWNED_DEFINITION_SYMBOL_SYNTHESIS = BACKEND_RESPONSIBILITY
+NEUTRAL_CORE = SYMBOL_FREE
+UNTYPED_PRE_TYPER_BACKEND = NO_TYPED_SYMBOL_FABRICATION
+```
 
-Only `core` and compiler-matching `frontend` are existing release artifacts.
-The Scalameta and exact-backend coordinates are future candidates only and
-remain remotely skipped. Their experimental APIs are not included in the
-released 618-row `core`/`frontend` baseline. The pre-Phase-119 source candidate
-was 634 rows. Phase 119 adds a compiler-free structured resolved-name identity
-and environment to `core`, while exact `TypeRepr` witnesses remain in the
-compiler-matching `frontend`; the resulting candidate is 655 rows. The earlier
-statement changes account for four signature removals relative to the release,
-and Phase 119 contributes 21 additive rows relative to the 634-row development
-tree. The exact tool therefore still requires a new experimental 0.x minor.
-No released `0.2.0` artifact is changed, and source-level accounting is
-not a binary or TASTy compatibility promise. See the
-[Scalameta opt-in artifact topology](SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md).
+An advanced owner/definition-plan handle may eventually be justified by a
+real consumer, but symmetric `sqr`/`sqq` symbol syntax is not currently
+planned: symbols are compiler semantic entities, not source syntax.
 
-The [execution-environment and representation guide](EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md)
-maps these module boundaries to compile-time macros, runtime staging,
-compiler-free structural values, parser results, and the current term/type/
-definition representation inventory.
+## Cross-project boundary
+
+AUXify's current narrow `@apply` path uses ordinary Scalameta `q`, `t`, and
+`tparam` authoring and Quasiquotes `ContextualMethodPeerBridge` lowering to an
+exact positioned `untpd.DefDef`. That is evidence for neutral source-like
+authoring on one admitted integration path, not proof that every handler
+should use Scalameta.
+
+Macro-Paradise remains an exact compiler plugin. It owns plugin lifecycle,
+placement, companion merge, insertion, rollback, and typing, and does not take
+Quasiquotes or Scalameta as a core product dependency.
+
+See [execution environments and AST representations](EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md),
+[Scalameta opt-in artifact topology](SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md), and
+[why quasiquotes?](WHY_QUASIQUOTES.md).
