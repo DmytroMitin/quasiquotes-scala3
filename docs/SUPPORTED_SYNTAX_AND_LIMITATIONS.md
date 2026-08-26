@@ -22,6 +22,9 @@ Currently exercised areas include:
   and selected bounds/match forms; public construction and matching remain the
   narrower families in the syntax matrix;
 - term and type holes with collision-safe rewriting and repeated-hole checks;
+- construction-only `SelectedMemberName` holes in the exact name field of an
+  explicit receiver selection, restored structurally from a dedicated
+  collision-safe placeholder;
 - compiler-free term/type/definition templates and completed values;
 - bounded public contextual, single-ordinary-parameter, and exact-two-parameter
   construction contracts;
@@ -51,8 +54,18 @@ Important limitations:
   exact internal definition backends remain package-private;
 - interpolation and type support expands incrementally, so unsupported shapes
   return explicit errors rather than falling back to unchecked trees;
+- dynamic selected-member names are decoded semantic values, not source
+  spellings or symbols. The conservative factory admits plain ASCII
+  identifiers, symbolic ASCII operators, and single-space-separated safe ASCII
+  words. It rejects empty/null, `$`, backticks, controls, dots,
+  compiler-special names, Unicode, and other grammar. A wrapper is legal only
+  after an explicit receiver dot; bare, constructor, type, definition, import,
+  pattern, and dynamic infix positions fail closed. Selection uses
+  `Select.unique`; missing/inaccessible and overloaded members are rejected,
+  and existing application lowering handles any following ordinary arguments;
 - public `qq` extractor templates require at least one interpolated term slot;
   slots are distinct and ordered, with no type/sequence/backreference syntax;
+  they do not capture or accept dynamic selected-member names;
 - public `tqr` and `tqq` type templates use zero or more distinct ordinal
   whole-type slots; they do not admit constructor, higher-kinded, wildcard,
   sequence, binder-name, or mixed-category slots;

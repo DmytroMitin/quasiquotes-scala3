@@ -19,6 +19,13 @@ unpublished experiment rather than a second quasiquote engine.
 `qr` constructs a Scala 3 quoted-reflection `Term` from source-like syntax
 with structural splices.
 
+For an explicit receiver whose member name is computed during macro expansion,
+`SelectedMemberName.from(decoded)` provides a validated compiler-free name
+value that can occupy only the selection-name slot, for example
+`qr"$receiver.$selectedName($argument)"`. Ordinary `String` values are not
+name holes, and this surface does not perform lexical or symbol lookup by
+string.
+
 <!-- snippet:readme-quick-start:start -->
 ```scala
 import scala.quoted.*

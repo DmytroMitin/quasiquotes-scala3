@@ -151,9 +151,45 @@ comparison similarly replaces nested `AppliedType` decomposition with a
 source-like `tqq` pattern while preserving the exact captured `TypeRepr`
 subtrees.
 
+## Computed selected-member names
+
+Fixed member source shape still belongs in a standard quotation:
+
+```scala
+'{ $receiver.ordinary($argument) }
+```
+
+When the decoded member name is computed during macro expansion, manual
+reflection previously remained necessary:
+
+```scala
+val selected = SelectedMemberName.from(computed).toOption.get
+Select.unique(receiver.asTerm, selected.decoded).appliedTo(argument.asTerm)
+```
+
+The construction quasiquote now supports that exact bounded gap:
+
+```scala
+import quasiquotes.construct.Quasiquotes.*
+import quasiquotes.construct.SelectedMemberName
+
+val selected = SelectedMemberName.from(computed).fold(
+  failure => report.errorAndAbort(failure.message),
+  identity
+)
+qr"${receiver.asTerm}.$selected(${argument.asTerm})"
+```
+
+The external-package fixture compiles and executes the fixed quotation,
+manual `Select.unique`, ordinary dynamic call, symbolic `+`, decoded keyword,
+and safe spaced-name cases. The value inserts one validated decoded name into
+an explicit selection. It does not search lexical scope, resolve aliases or
+symbols by string, choose overloads, admit dynamic infix syntax, or add name
+capture to `qq`.
+
 ## Roadmap examples are not current syntax
 
-Dynamic identifier holes, constructor-position Type holes, and generic class
+Bare dynamic identifier holes, constructor-position Type holes, and generic class
 or anonymous-subclass definition quasiquotes would make the advantage over
 manual reflection more dramatic. They are deliberately documented as
 [north-star quasiquote checkpoints](NORTH_STAR_QUASIQUOTE_EXAMPLES.md), not as

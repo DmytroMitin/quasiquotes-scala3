@@ -38,6 +38,8 @@ private[construct] final class CategorizedPlaceholderIndex[T](
   ): Either[QuasiquoteError, Option[PlaceholderBinding[T]]] =
     lookup(name) match
       case Some(binding) if categoryOf(binding.hole) == expected => Right(Some(binding))
+      case Some(binding) if categoryOf(binding.hole) == PlaceholderCategory.SelectedMemberNameSplice =>
+        Left(QuasiquoteError.UnsupportedSelectedMemberNamePosition(position.invalidPhrase))
       case Some(binding) =>
         Left(
           QuasiquoteError.PlaceholderCategoryMismatch(
@@ -70,6 +72,8 @@ private[construct] final class CategorizedPlaceholderIndex[T](
     hole match
       case _: QuasiquoteHole.Term[?] => PlaceholderCategory.TermSplice
       case _: QuasiquoteHole.ConstructedTypeSplice => PlaceholderCategory.ConstructedTypeSplice
+      case _: QuasiquoteHole.SelectedMemberNameSplice =>
+        PlaceholderCategory.SelectedMemberNameSplice
 
   private def isUnknownCategorizedName(name: String): Boolean =
     PlaceholderSource.isCategorizedName(name) &&

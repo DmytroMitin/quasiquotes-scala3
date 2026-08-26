@@ -65,5 +65,24 @@ object QuasiquoteError:
     def message: String =
       s"Could not select '$name' from qualifier type $qualifierType: $detail"
 
+  final case class UnsupportedSelectedMemberNamePosition(context: String)
+      extends QuasiquoteError:
+    def message: String =
+      s"Selected-member name hole is not supported $context; only the name field of an explicit receiver selection is supported."
+
+  final case class MissingOrInaccessibleSelectedMember(name: String)
+      extends QuasiquoteError:
+    def message: String =
+      s"Selected member '$name' is missing or inaccessible on the explicit receiver."
+
+  final case class NonUniqueSelectedMember(name: String) extends QuasiquoteError:
+    def message: String =
+      s"Selected member '$name' is not unique on the explicit receiver."
+
+  final case class SelectedMemberLoweringFailure(name: String)
+      extends QuasiquoteError:
+    def message: String =
+      s"Selected member '$name' could not be lowered on the explicit receiver."
+
   final case class UnsupportedApplication(detail: String) extends QuasiquoteError:
     def message: String = s"Could not apply parsed function term: $detail"

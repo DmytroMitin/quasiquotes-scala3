@@ -27,6 +27,10 @@ delivery chronology.
 - Preserve Apache-2.0 POM and JAR metadata for intended `core` and `frontend`
   distributions.
 - Expand structural term and type support through narrow, test-backed slices.
+- Preserve the bounded construction-only selected-member name hole: a public
+  validated decoded-name value, one explicit receiver selection-name position,
+  unique accessible `Select.unique` lowering, unchanged fixed-name matching,
+  and Scalameta opt-in parity on the overlapping construction slice.
 - Preserve the bounded compiler-free one-ordinary-parameter definition core,
   core-only public identity-method first use, and unpublished exact backend
   without implying a general source adapter or placement policy.
@@ -58,9 +62,9 @@ syntax.
 
 None of N1-N5 is `CHECKPOINT_COMPLETE`.
 
-The leading immediate Term candidate remains a bounded dynamic member/name-hole
-design checkpoint: a macro-computed member name currently requires manual
-`Select`, `Select.unique`, or related APIs. The leading Type candidate remains
+The bounded explicit-receiver dynamic selected-member construction gap is now
+implemented; bare identifiers, overload resolution, dynamic infix syntax, and
+dynamic name matching remain outside it. The leading next candidate is
 stable-term selected-Type prefix identity. The broader enabling themes are
 dynamic type-position holes, sequence splices, and broader definition/class
 support; this documentation does not impose a final implementation order.

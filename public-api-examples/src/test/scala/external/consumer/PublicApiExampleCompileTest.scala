@@ -193,6 +193,19 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
       NorthStarProduct(20, 22)
     )
 
+  test("validated dynamic selected-member names close the manual Select.unique gap"):
+    val receiver = new SelectedMemberUserTarget
+
+    assertEquals(SelectedMemberNameFirstUseSnippet.fixed(receiver, 40), 41)
+    assertEquals(SelectedMemberNameFirstUseSnippet.manual(receiver, 40), 41)
+    assertEquals(SelectedMemberNameFirstUseSnippet.dynamic(receiver, "ordinary", 40), 41)
+    assertEquals(SelectedMemberNameFirstUseSnippet.dynamic(receiver, "+", 40), 42)
+    assertEquals(SelectedMemberNameFirstUseSnippet.dynamic(receiver, "type", 40), 43)
+    assertEquals(
+      SelectedMemberNameFirstUseSnippet.dynamic(receiver, "safe spaced name", 40),
+      44
+    )
+
   test("public dqr builds an owner-correct local identity method outside quasiquotes packages"):
     assertEquals(DqrFirstUseSnippet.identity(42), 42)
     assertEquals(DqrSelectiveImportSnippet.identity(41), 41)

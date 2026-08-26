@@ -230,8 +230,10 @@ Apache-2.0 repository.
 
 ## Portfolio priority
 
-The leading Term candidate remains the dynamic member/name-hole design
-checkpoint. The leading Type candidate remains stable-term selected-Type
-prefix identity. Dynamic type-position holes, sequence splices, and broader
+The explicit-receiver dynamic selected-member construction gap is implemented
+through a validated decoded-name value and unique selection lowering. It does
+not add bare-name lookup, overload resolution, dynamic infix syntax, or name
+matching. The leading next candidate is stable-term selected-Type prefix
+identity. Dynamic type-position holes, sequence splices, and broader
 definition/class support are enabling themes across N1-N5, but this document
 does not select a final implementation order for the whole portfolio.

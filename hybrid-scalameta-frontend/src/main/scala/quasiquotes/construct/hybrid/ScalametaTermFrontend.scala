@@ -50,6 +50,9 @@ private[quasiquotes] object ScalametaTermFrontend:
     def template(detail: String): Failure =
       Failure("TERM_TEMPLATE_FAILURE", 0, 0, detail)
 
+    def selectedMember(tree: scala.meta.Tree, category: String, detail: String): Failure =
+      Failure(category, tree.pos.start, tree.pos.end, detail)
+
   def parse(
       source: String,
       dialect: Dialect = TermQ3DialectPolicy.selected
@@ -66,11 +69,12 @@ private[quasiquotes] object ScalametaTermFrontend:
 
   def lower(using q: Quotes)(
       parts: Seq[String],
-      arguments: Seq[q.reflect.Term | QuasiTypeSplice],
+      arguments: Seq[q.reflect.Term | QuasiTypeSplice | SelectedMemberName],
       dialect: Dialect = TermQ3DialectPolicy.selected
   ): Either[Failure, q.reflect.Term] =
     val holes: Seq[QuasiquoteHole[q.reflect.Term]] = arguments.map {
       case splice: QuasiTypeSplice => QuasiquoteHole.ConstructedTypeSplice(splice.constructedType)
+      case name: SelectedMemberName => QuasiquoteHole.SelectedMemberNameSplice(name)
       case term => QuasiquoteHole.Term(term.asInstanceOf[q.reflect.Term])
     }
 
@@ -89,6 +93,10 @@ private[quasiquotes] object ScalametaTermFrontend:
             synthesized.bindings.collect {
               case PlaceholderBinding(name, QuasiquoteHole.Term(term)) => name -> term
             }.toMap,
+            synthesized.bindings.collect {
+              case PlaceholderBinding(name, QuasiquoteHole.SelectedMemberNameSplice(selected)) =>
+                name -> selected
+            }.toMap,
             typeHoles,
             synthesized.literalCategorizedNames
           )
@@ -98,6 +106,7 @@ private[quasiquotes] object ScalametaTermFrontend:
   def lowerTree(using q: Quotes)(
       tree: scala.meta.Term,
       termHoles: Map[String, q.reflect.Term],
+      selectedMemberNameHoles: Map[String, SelectedMemberName],
       typeHoles: Map[String, q.reflect.TypeRepr],
       literalCategorizedNames: Set[String] = Set.empty
   ): Either[Failure, q.reflect.Term] =
@@ -122,7 +131,15 @@ private[quasiquotes] object ScalametaTermFrontend:
 
     def lowerType(tpe: scala.meta.Type): Either[Failure, TypeTree] =
       typeName(tpe).flatMap { name =>
-        typeHoles.get(name) match
+        if selectedMemberNameHoles.contains(name) then
+          Left(
+            Failure.selectedMember(
+              tpe,
+              "UNSUPPORTED_SELECTED_MEMBER_NAME_POSITION",
+              "Selected-member name hole is supported only in an explicit selection name field."
+            )
+          )
+        else typeHoles.get(name) match
           case Some(repr) => Right(Inferred(repr))
           case None =>
             name match
@@ -161,6 +178,65 @@ private[quasiquotes] object ScalametaTermFrontend:
       catch
         case NonFatal(error) => Left(Failure.lowering(s"selection $name failed: ${error.getMessage}"))
 
+    def selectDynamicMember(
+        tree: scala.meta.Term.Select,
+        qualifier: Term,
+        name: String
+    ): Either[Failure, Term] =
+      val selected =
+        try Right(Select.unique(qualifier, name))
+        catch
+          case NonFatal(error) if isNonUniqueSelectionFailure(error) =>
+            Left(
+              Failure.selectedMember(
+                tree,
+                "SELECTED_MEMBER_NOT_UNIQUE",
+                s"Selected member '$name' is not unique on the explicit receiver."
+              )
+            )
+          case NonFatal(_) =>
+            Left(
+              Failure.selectedMember(
+                tree,
+                "SELECTED_MEMBER_MISSING_OR_INACCESSIBLE",
+                s"Selected member '$name' is missing or inaccessible on the explicit receiver."
+              )
+            )
+
+      selected.flatMap { term =>
+        if term.symbol == Symbol.noSymbol ||
+            term.symbol.flags.is(Flags.Private) ||
+            term.symbol.flags.is(Flags.Protected)
+        then
+          Left(
+            Failure.selectedMember(
+              tree,
+              "SELECTED_MEMBER_MISSING_OR_INACCESSIBLE",
+              s"Selected member '$name' is missing or inaccessible on the explicit receiver."
+            )
+          )
+        else try
+          term.tpe.widen match
+            case method: MethodType if method.paramNames.isEmpty => Right(term.appliedToNone)
+            case _ => Right(term)
+        catch
+          case NonFatal(_) =>
+            Left(
+              Failure.selectedMember(
+                tree,
+                "SELECTED_MEMBER_LOWERING_FAILURE",
+                s"Selected member '$name' could not be lowered on the explicit receiver."
+              )
+            )
+      }
+
+    def isNonUniqueSelectionFailure(error: Throwable): Boolean =
+      val detail = Option(error.getMessage).getOrElse("").toLowerCase(java.util.Locale.ROOT)
+      detail.contains("overload") ||
+        detail.contains("more than one") ||
+        detail.contains("not unique") ||
+        detail.contains("multiple alternative")
+
     def containsOwnedDefinition(term: Term): Boolean =
       var found = false
       val traverser = new TreeTraverser:
@@ -174,6 +250,14 @@ private[quasiquotes] object ScalametaTermFrontend:
 
     def constructorName(tpe: scala.meta.Type): Either[Failure, String] =
       tpe match
+        case name: scala.meta.Type.Name if selectedMemberNameHoles.contains(name.value) =>
+          Left(
+            Failure.selectedMember(
+              name,
+              "UNSUPPORTED_SELECTED_MEMBER_NAME_POSITION",
+              "Selected-member name hole is supported only in an explicit selection name field."
+            )
+          )
         case name: scala.meta.Type.Name => Right(name.value)
         case select: scala.meta.Type.Select => Right(select.syntax)
         case _ => unsupported(tpe, "constructor type arguments are not supported")
@@ -206,6 +290,14 @@ private[quasiquotes] object ScalametaTermFrontend:
             case Some(term) if lambdaDepth > 0 && containsOwnedDefinition(term) =>
               Left(Failure.lowering(Lambda1DiagnosticMessages.OwnedDefinitionSplice))
             case Some(term) => Right(term)
+            case None if selectedMemberNameHoles.contains(name.value) =>
+              Left(
+                Failure.selectedMember(
+                  name,
+                  "UNSUPPORTED_SELECTED_MEMBER_NAME_POSITION",
+                  "Selected-member name hole is supported only in an explicit selection name field."
+                )
+              )
             case None if typeHoles.contains(name.value) =>
               Left(Failure.lowering(s"type placeholder used in term position: ${name.value}"))
             case None if PlaceholderSource.isCategorizedName(name.value) && !literalCategorizedNames(name.value) =>
@@ -267,7 +359,12 @@ private[quasiquotes] object ScalametaTermFrontend:
         case Lit.String(value) => Right(Literal(StringConstant(value)))
         case Lit.Boolean(value) => Right(Literal(BooleanConstant(value)))
         case select: scala.meta.Term.Select =>
-          lowerChild(select.qual).flatMap(selectMember(_, select.name.value))
+          lowerChild(select.qual).flatMap { qualifier =>
+            selectedMemberNameHoles.get(select.name.value) match
+              case Some(selectedName) =>
+                selectDynamicMember(select, qualifier, selectedName.decoded)
+              case None => selectMember(qualifier, select.name.value)
+          }
         case unary: scala.meta.Term.ApplyUnary if UnaryMethodByOperator.contains(unary.op.value) =>
           lowerChild(unary.arg).flatMap(selectMember(_, UnaryMethodByOperator(unary.op.value)))
         case fresh: scala.meta.Term.New =>
@@ -289,13 +386,22 @@ private[quasiquotes] object ScalametaTermFrontend:
             result <- applyFunction(function, arguments)
           yield result
         case infix: scala.meta.Term.ApplyInfix if infix.argClause.values.size == 1 =>
-          for
-            left <- lowerChild(infix.lhs)
-            right <- lowerChild(infix.argClause.values.head)
-            result <-
-              try Right(Select.overloaded(left, infix.op.value, Nil, right :: Nil))
-              catch case NonFatal(error) => Left(Failure.lowering(s"infix ${infix.op.value} failed: ${error.getMessage}"))
-          yield result
+          if selectedMemberNameHoles.contains(infix.op.value) then
+            Left(
+              Failure.selectedMember(
+                infix.op,
+                "UNSUPPORTED_SELECTED_MEMBER_NAME_POSITION",
+                "Selected-member name hole is supported only in an explicit selection name field."
+              )
+            )
+          else
+            for
+              left <- lowerChild(infix.lhs)
+              right <- lowerChild(infix.argClause.values.head)
+              result <-
+                try Right(Select.overloaded(left, infix.op.value, Nil, right :: Nil))
+                catch case NonFatal(error) => Left(Failure.lowering(s"infix ${infix.op.value} failed: ${error.getMessage}"))
+            yield result
         case tuple: scala.meta.Term.Tuple =>
           sequence(tuple.args.map(lowerChild)).flatMap { elements =>
             if elements.size < 2 || elements.size > 22 then

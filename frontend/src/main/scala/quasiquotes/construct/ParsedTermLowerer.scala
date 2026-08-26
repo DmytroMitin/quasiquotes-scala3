@@ -161,7 +161,19 @@ object ParsedTermLowerer:
         case untpd.Select(qualifier, name) =>
           for
             loweredQualifier <- lowerChild(qualifier)
-            loweredSelect <- selectMember(loweredQualifier, name.toString).left.map(located(_, tree))
+            loweredSelect <- placeholderIndex
+              .resolve(
+                name.toString,
+                PlaceholderCategory.SelectedMemberNameSplice,
+                PlaceholderPosition.SelectedMemberName
+              )
+              .left.map(located(_, tree))
+              .flatMap {
+                case Some(PlaceholderBinding(_, QuasiquoteHole.SelectedMemberNameSplice(selectedName))) =>
+                  selectDynamicMember(loweredQualifier, selectedName.decoded).left.map(located(_, tree))
+                case Some(_) => Left(located(QuasiquoteError.UnknownPlaceholder(name.toString), tree))
+                case None => selectMember(loweredQualifier, name.toString).left.map(located(_, tree))
+              }
           yield loweredSelect
         case multiple @ untpd.Apply(untpd.Apply(untpd.Select(_: untpd.New, init), _), _)
             if init.toString == "<init>" =>
@@ -172,6 +184,11 @@ object ParsedTermLowerer:
             Left(located(QuasiquoteError.UnsupportedTree("ConstructorNew", "named constructor arguments are not supported"), constructor))
           else
             for
+              _ <- rejectSelectedMemberNameHole(
+                typeTree,
+                placeholderIndex,
+                "in constructor-name position"
+              )
               constructorName <- renderConstructorName(typeTree).left.map(located(_, constructor))
               _ <- ConstructorNamePolicy
                 .validate(constructorName)
@@ -187,6 +204,11 @@ object ParsedTermLowerer:
           yield applied
         case untpd.InfixOp(left, op, right) =>
           for
+            _ <- rejectSelectedMemberNameHole(
+              op,
+              placeholderIndex,
+              "in dynamic infix position"
+            )
             loweredLeft <- lowerChild(left)
             loweredRight <- lowerChild(right)
             applied <- applyInfix(loweredLeft, op.name.toString, loweredRight).left.map(located(_, tree))
@@ -420,6 +442,40 @@ object ParsedTermLowerer:
           )
         )
 
+  private def selectDynamicMember(
+      using q: Quotes
+  )(
+      qualifier: q.reflect.Term,
+      name: String
+  ): Either[QuasiquoteError, q.reflect.Term] =
+    import q.reflect.*
+
+    val selected =
+      try Right(Select.unique(qualifier, name))
+      catch
+        case NonFatal(error) if isNonUniqueSelectionFailure(error) =>
+          Left(QuasiquoteError.NonUniqueSelectedMember(name))
+        case NonFatal(_) =>
+          Left(QuasiquoteError.MissingOrInaccessibleSelectedMember(name))
+
+    selected.flatMap { term =>
+      if term.symbol == Symbol.noSymbol ||
+          term.symbol.flags.is(Flags.Private) ||
+          term.symbol.flags.is(Flags.Protected)
+      then
+        Left(QuasiquoteError.MissingOrInaccessibleSelectedMember(name))
+      else
+        try Right(normalizeTerm(term))
+        catch case NonFatal(_) => Left(QuasiquoteError.SelectedMemberLoweringFailure(name))
+    }
+
+  private def isNonUniqueSelectionFailure(error: Throwable): Boolean =
+    val detail = Option(error.getMessage).getOrElse("").toLowerCase(java.util.Locale.ROOT)
+    detail.contains("overload") ||
+      detail.contains("more than one") ||
+      detail.contains("not unique") ||
+      detail.contains("multiple alternative")
+
   private def applyFunction(
       using q: Quotes
   )(
@@ -543,6 +599,14 @@ object ParsedTermLowerer:
       QuasiquoteLoweringFailure(QuasiquoteError.UnknownPlaceholder(occurrence.name), occurrence.generatedSpan)
     }.orElse {
       placeholderIndex.findOccurrences(tree).collectFirst {
+        case PlaceholderOccurrence(
+              PlaceholderBinding(_, _: QuasiquoteHole.SelectedMemberNameSplice),
+              span
+            ) =>
+          QuasiquoteLoweringFailure(
+            QuasiquoteError.UnsupportedSelectedMemberNamePosition("in unsupported term syntax"),
+            span
+          )
         case PlaceholderOccurrence(binding @ PlaceholderBinding(_, _: QuasiquoteHole.ConstructedTypeSplice), span) =>
           val position = tree match
             case _: untpd.TypeApply => PlaceholderPosition.UnsupportedType("method type arguments")
@@ -579,9 +643,27 @@ object ParsedTermLowerer:
               PlaceholderCategory.TermSplice,
               PlaceholderPosition.ExpressionAscriptionType
             )
+          case PlaceholderCategory.SelectedMemberNameSplice =>
+            QuasiquoteError.UnsupportedSelectedMemberNamePosition("in type position")
         QuasiquoteLoweringFailure(error, occurrence.generatedSpan)
       }
     }
+
+  private def rejectSelectedMemberNameHole[T](
+      tree: untpd.Tree,
+      placeholderIndex: CategorizedPlaceholderIndex[T],
+      context: String
+  ): Either[QuasiquoteLoweringFailure, Unit] =
+    placeholderIndex.findOccurrences(tree).collectFirst {
+      case PlaceholderOccurrence(
+            PlaceholderBinding(_, _: QuasiquoteHole.SelectedMemberNameSplice),
+            span
+          ) =>
+        QuasiquoteLoweringFailure(
+          QuasiquoteError.UnsupportedSelectedMemberNamePosition(context),
+          span
+        )
+    }.toLeft(())
 
   private def located(error: QuasiquoteError, tree: untpd.Tree): QuasiquoteLoweringFailure =
     QuasiquoteLoweringFailure(error, DottySourceSpanAdapter.fromTree(tree))

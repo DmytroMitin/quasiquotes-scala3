@@ -3,7 +3,7 @@ package quasiquotes.scalameta
 import scala.meta.Dialect
 import scala.quoted.Quotes
 
-import quasiquotes.construct.QuasiTypeSplice
+import quasiquotes.construct.{QuasiTypeSplice, SelectedMemberName}
 import quasiquotes.construct.hybrid.{HybridTermFrontend, ScalametaTermFrontend}
 import quasiquotes.hybrid.TermQ3DialectPolicy
 import quasiquotes.matching.TermPattern
@@ -41,7 +41,7 @@ object TermFrontend:
 
   def build(using q: Quotes)(
       parts: Seq[String],
-      arguments: Seq[q.reflect.Term | QuasiTypeSplice],
+      arguments: Seq[q.reflect.Term | QuasiTypeSplice | SelectedMemberName],
       dialect: Dialect = TermQ3DialectPolicy.selected
   ): Either[Failure, BuildResult[q.reflect.Term]] =
     HybridTermFrontend

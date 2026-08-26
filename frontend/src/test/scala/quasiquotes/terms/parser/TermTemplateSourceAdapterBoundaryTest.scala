@@ -96,7 +96,7 @@ class TermTemplateSourceAdapterBoundaryTest extends munit.FunSuite:
     finally stream.close()
   }
 
-  test("current qr signature and builder path remain unchanged") {
+  test("current qr signature admits only the three explicit splice value categories") {
     val quasiquotes = Files.readString(
       frontendRoot.resolve(Path.of("construct", "Quasiquotes.scala")),
       StandardCharsets.UTF_8
@@ -107,7 +107,7 @@ class TermTemplateSourceAdapterBoundaryTest extends munit.FunSuite:
     )
     assert(
       quasiquotes.contains(
-        "def qr(using q: Quotes)(args: (q.reflect.Term | QuasiTypeSplice)*): q.reflect.Term"
+        "args: (q.reflect.Term | QuasiTypeSplice | SelectedMemberName)*"
       )
     )
     assert(builder.contains("PlaceholderSource.synthesizeCategorized"))

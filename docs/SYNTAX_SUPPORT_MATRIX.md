@@ -18,6 +18,7 @@ Status vocabulary:
 | Literals | `1`, `"text"`, `true` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; bounded literal kinds, no constant folding |
 | Identifiers | `value` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; structural names and explicit holes |
 | Selection | `value.size` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; no overload or semantic member equivalence |
+| Dynamic selected-member name | `qr"$receiver.$selectedName($argument)"` | Yes | No | `SelectedMemberName.from`, `qr` | `BOUNDED`; validated decoded ASCII name, explicit receiver selection only, unique accessible member only; no dynamic infix, lexical lookup, overload resolution, or name capture |
 | Application | `f(x)` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; ordinary supported argument lists |
 | Infix | `left + right` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; supported operators, structural rather than algebraic equality |
 | Unary | `-x`, `!flag` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; `+`, `-`, `!`, and `~`, with parser folding boundaries |

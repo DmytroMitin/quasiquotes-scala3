@@ -23,6 +23,12 @@ assert(failure.message == "A type application requires at least one argument.")
 Other first-use codes include `invalid-name`, `undeclared-type-parameter`, and
 `invalid-contextual-method-contract`.
 
+`SelectedMemberName.from` returns
+`Either[SelectedMemberName.ValidationFailure, SelectedMemberName]`. Its stable
+codes distinguish null/empty values, encoded-looking `$`, lexical backticks,
+controls, dotted paths, compiler-special names, Unicode, and unsupported
+grammar. Validation is compiler-free and occurs before interpolation.
+
 `DefinitionConstruction.singleParameterMethod` adds one stable code:
 `invalid-single-parameter-method-contract`. Its anchors distinguish
 `parameter-name`, `parameter-type`, `result-type`, and `body`. Representative
@@ -79,6 +85,17 @@ error-code algebra. Consumers should not parse arbitrary message text as a
 long-term compatibility mechanism. A future additive diagnostic view can be
 considered if concrete tooling needs justify one without breaking the existing
 `Either` entry points.
+
+Dynamic selected-member construction keeps invalid values separate from
+template parsing and position failures. Stable messages distinguish an
+unsupported name-hole position, a missing or inaccessible member, a non-unique
+member, and a selected-member lowering failure. These messages include only
+the validated decoded name and project-owned description; generated
+placeholder names, compiler tree/class details, and backend exception text are
+not part of the contract. The Scalameta opt-in route uses corresponding stable
+categories `UNSUPPORTED_SELECTED_MEMBER_NAME_POSITION`,
+`SELECTED_MEMBER_MISSING_OR_INACCESSIBLE`, `SELECTED_MEMBER_NOT_UNIQUE`, and
+`SELECTED_MEMBER_LOWERING_FAILURE`.
 
 The explicit canonical global selected-Type surface prefixes its controlled
 messages with stable categories:

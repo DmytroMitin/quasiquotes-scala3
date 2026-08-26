@@ -2,7 +2,7 @@ package quasiquotes.scalameta
 
 import scala.quoted.Quotes
 
-import quasiquotes.construct.QuasiTypeSplice
+import quasiquotes.construct.{QuasiTypeSplice, SelectedMemberName}
 
 /** Explicit opt-in construction syntax. The ordinary Quasiquotes host remains
   * the current-Dotty default.
@@ -10,7 +10,7 @@ import quasiquotes.construct.QuasiTypeSplice
 object ScalametaQuasiquotes:
   extension (context: StringContext)
     def qr(using q: Quotes)(
-        arguments: (q.reflect.Term | QuasiTypeSplice)*
+        arguments: (q.reflect.Term | QuasiTypeSplice | SelectedMemberName)*
     ): q.reflect.Term =
       TermFrontend.build(context.parts, arguments) match
         case Right(result) => result.term

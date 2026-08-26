@@ -36,6 +36,7 @@ final case class SourceSpan(start: Int, end: Int) derives CanEqual:
 enum InterpolationCategory derives CanEqual:
   case TermSplice
   case ConstructedTypeSplice
+  case SelectedMemberNameSplice
   case DefinitionTypeSplice
   case DefinitionBodyTermSplice
   case DefinitionBodyTypeSplice

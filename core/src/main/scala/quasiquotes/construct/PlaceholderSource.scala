@@ -12,6 +12,8 @@ private[construct] sealed trait QuasiquoteHole[+T]
 private[construct] object QuasiquoteHole:
   final case class Term[+T](term: T) extends QuasiquoteHole[T]
   final case class ConstructedTypeSplice(constructedType: ConstructedType) extends QuasiquoteHole[Nothing]
+  final case class SelectedMemberNameSplice(selectedMemberName: SelectedMemberName)
+      extends QuasiquoteHole[Nothing]
 
 private[construct] final case class PlaceholderBinding[+T](name: String, hole: QuasiquoteHole[T])
 
@@ -23,7 +25,7 @@ private[construct] final case class CategorizedPlaceholderSource[+T](
 )
 
 object PlaceholderSource:
-  private val CategorizedNamePattern = "__qq_(?:term|type)_hole_[0-9]+(?:_[0-9]+)*".r
+  private val CategorizedNamePattern = "__qq_(?:term|type|name)_hole_[0-9]+(?:_[0-9]+)*".r
 
   def synthesize[T](parts: Seq[String], holes: Seq[T]): Either[QuasiquoteError, PlaceholderSource[T]] =
     if parts.length != holes.length + 1 then
@@ -77,6 +79,7 @@ object PlaceholderSource:
         val baseName = hole match
           case _: QuasiquoteHole.Term[?] => s"__qq_term_hole_$index"
           case _: QuasiquoteHole.ConstructedTypeSplice => s"__qq_type_hole_$index"
+          case _: QuasiquoteHole.SelectedMemberNameSplice => s"__qq_name_hole_$index"
         val name = freshCategorizedName(baseName, literalSource, generatedNames)
         generatedNames += name
         val generatedStart = builder.length
@@ -88,6 +91,8 @@ object PlaceholderSource:
         val category = hole match
           case _: QuasiquoteHole.Term[?] => InterpolationCategory.TermSplice
           case _: QuasiquoteHole.ConstructedTypeSplice => InterpolationCategory.ConstructedTypeSplice
+          case _: QuasiquoteHole.SelectedMemberNameSplice =>
+            InterpolationCategory.SelectedMemberNameSplice
         segments += GeneratedSegment(
           SourceSpan(generatedStart, builder.length),
           SourceOrigin.InterpolationArgument(SourceId.TermConstructionTemplate, index, category)

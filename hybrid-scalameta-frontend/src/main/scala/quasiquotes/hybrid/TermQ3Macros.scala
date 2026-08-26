@@ -22,10 +22,10 @@ private[quasiquotes] object TermQ3Macros:
   private def constructionEvidenceImpl(using q: Quotes): Expr[List[String]] =
     import q.reflect.*
 
-    def current(parts: Seq[String], arguments: Seq[Term | QuasiTypeSplice] = Nil): Term =
+    def current(parts: Seq[String], arguments: Seq[Term | QuasiTypeSplice | SelectedMemberName] = Nil): Term =
       orDie(QuasiquoteBuilder.build(parts, arguments))
 
-    def candidate(parts: Seq[String], arguments: Seq[Term | QuasiTypeSplice] = Nil): Term =
+    def candidate(parts: Seq[String], arguments: Seq[Term | QuasiTypeSplice | SelectedMemberName] = Nil): Term =
       orDie(ScalametaTermFrontend.lower(parts, arguments))
 
     def render(term: Term): String =
@@ -168,7 +168,7 @@ private[quasiquotes] object TermQ3Macros:
     def compareBuild(
         id: String,
         parts: Seq[String],
-        arguments: Seq[Term | QuasiTypeSplice] = Nil
+        arguments: Seq[Term | QuasiTypeSplice | SelectedMemberName] = Nil
     ): String =
       val current = orDie(QuasiquoteBuilder.build(parts, arguments))
       val candidate = orDie(ScalametaTermFrontend.lower(parts, arguments))
@@ -177,7 +177,7 @@ private[quasiquotes] object TermQ3Macros:
     def compareTreeStructure(
         id: String,
         parts: Seq[String],
-        arguments: Seq[Term | QuasiTypeSplice]
+        arguments: Seq[Term | QuasiTypeSplice | SelectedMemberName]
     ): String =
       val current = orDie(QuasiquoteBuilder.build(parts, arguments))
       val candidate = orDie(ScalametaTermFrontend.lower(parts, arguments))
