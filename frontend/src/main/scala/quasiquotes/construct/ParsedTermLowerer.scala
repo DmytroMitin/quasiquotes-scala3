@@ -43,7 +43,8 @@ object ParsedTermLowerer:
         tree: untpd.Tree,
         boundTerms: List[(String, Term)] = Nil,
         lambdaDepth: Int = 0,
-        binderContext: Option[(String, String)] = None
+        binderContext: Option[(String, String)] = None,
+        applicationFunction: Boolean = false
     ): Either[QuasiquoteLoweringFailure, Term] =
       def lowerChild(child: untpd.Tree): Either[QuasiquoteLoweringFailure, Term] =
         lowerTerm(child, boundTerms, lambdaDepth, binderContext)
@@ -170,9 +171,18 @@ object ParsedTermLowerer:
               .left.map(located(_, tree))
               .flatMap {
                 case Some(PlaceholderBinding(_, QuasiquoteHole.SelectedMemberNameSplice(selectedName))) =>
-                  selectDynamicMember(loweredQualifier, selectedName.decoded).left.map(located(_, tree))
+                  selectDynamicMember(
+                    loweredQualifier,
+                    selectedName.decoded,
+                    normalizeSelection = !applicationFunction
+                  ).left.map(located(_, tree))
                 case Some(_) => Left(located(QuasiquoteError.UnknownPlaceholder(name.toString), tree))
-                case None => selectMember(loweredQualifier, name.toString).left.map(located(_, tree))
+                case None =>
+                  selectMember(
+                    loweredQualifier,
+                    name.toString,
+                    normalizeSelection = !applicationFunction
+                  ).left.map(located(_, tree))
               }
           yield loweredSelect
         case multiple @ untpd.Apply(untpd.Apply(untpd.Select(_: untpd.New, init), _), _)
@@ -198,7 +208,13 @@ object ParsedTermLowerer:
             yield lowered
         case untpd.Apply(function, arguments) =>
           for
-            loweredFunction <- lowerChild(function)
+            loweredFunction <- lowerTerm(
+              function,
+              boundTerms,
+              lambdaDepth,
+              binderContext,
+              applicationFunction = true
+            )
             loweredArguments <- sequenceLocated(arguments.map(lowerChild))
             applied <- applyFunction(loweredFunction, loweredArguments).left.map(located(_, tree))
           yield applied
@@ -258,7 +274,8 @@ object ParsedTermLowerer:
                 lambdaDepth,
                 binderContext,
                 placeholderIndex,
-                lowerTerm
+                (child, terms, depth, context) =>
+                  lowerTerm(child, terms, depth, context)
               )
             case values if values.exists(_.isInstanceOf[untpd.ValDef]) =>
               Left(located(QuasiquoteError.UnsupportedTree("Block", P2LocalValDiagnosticMessages.ExactlyOne), block))
@@ -285,9 +302,21 @@ object ParsedTermLowerer:
               )
             case Nil => lowerChild(result)
         case untpd.Parens(inner) =>
-          lowerChild(inner)
+          lowerTerm(
+            inner,
+            boundTerms,
+            lambdaDepth,
+            binderContext,
+            applicationFunction
+          )
         case untpd.TypedSplice(tree) =>
-          lowerChild(tree)
+          lowerTerm(
+            tree,
+            boundTerms,
+            lambdaDepth,
+            binderContext,
+            applicationFunction
+          )
         case other =>
           unsupportedTermPlaceholderFailure(other, placeholderIndex) match
             case Some(failure) => Left(failure)
@@ -427,11 +456,14 @@ object ParsedTermLowerer:
       using q: Quotes
   )(
       qualifier: q.reflect.Term,
-      name: String
+      name: String,
+      normalizeSelection: Boolean = true
   ): Either[QuasiquoteError, q.reflect.Term] =
     import q.reflect.*
 
-    try Right(normalizeTerm(Select.unique(qualifier, name)))
+    try
+      val selected = Select.unique(qualifier, name)
+      Right(if normalizeSelection then normalizeTerm(selected) else selected)
     catch
       case NonFatal(error) =>
         Left(
@@ -446,7 +478,8 @@ object ParsedTermLowerer:
       using q: Quotes
   )(
       qualifier: q.reflect.Term,
-      name: String
+      name: String,
+      normalizeSelection: Boolean = true
   ): Either[QuasiquoteError, q.reflect.Term] =
     import q.reflect.*
 
@@ -465,7 +498,7 @@ object ParsedTermLowerer:
       then
         Left(QuasiquoteError.MissingOrInaccessibleSelectedMember(name))
       else
-        try Right(normalizeTerm(term))
+        try Right(if normalizeSelection then normalizeTerm(term) else term)
         catch case NonFatal(_) => Left(QuasiquoteError.SelectedMemberLoweringFailure(name))
     }
 

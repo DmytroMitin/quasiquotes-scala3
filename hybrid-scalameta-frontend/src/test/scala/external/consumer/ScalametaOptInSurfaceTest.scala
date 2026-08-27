@@ -30,3 +30,9 @@ class ScalametaOptInSurfaceTest extends munit.FunSuite:
 
   test("existing current-Dotty qr and qq imports remain independently callable"):
     assertEquals(ScalametaOptInMacros.currentDefaultControl, (42, (20, 22)))
+
+  test("Scalameta selected-call overlap applies explicit nullary calls exactly once"):
+    val receiver = new ScalametaNullarySelectedCallTarget(40)
+    assertEquals(ScalametaOptInMacros.constructorCapacity(16), 16)
+    assertEquals(ScalametaOptInMacros.ordinaryNullary(receiver), 41)
+    assertEquals(ScalametaOptInMacros.dynamicNullary(receiver), 41)

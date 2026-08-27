@@ -49,8 +49,7 @@ object FrontendFirstUseSnippet:
   private def capacityImpl(value: Expr[Int])(using Quotes): Expr[Int] =
     import quotes.reflect.*
 
-    val created = qr"new java.lang.StringBuilder(${value.asTerm})"
-    '{ ${ created.asExprOf[java.lang.StringBuilder] }.capacity() }
+    qr"new java.lang.StringBuilder(${value.asTerm}).capacity()".asExprOf[Int]
 
   private def lowerInsideMacro(
       value: ConstructedType

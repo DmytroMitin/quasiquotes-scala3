@@ -169,19 +169,26 @@ private[quasiquotes] object ScalametaTermFrontend:
             case NonFatal(second) =>
               Left(Failure.lowering(s"application failed: ${first.getMessage}; ${second.getMessage}"))
 
-    def selectMember(qualifier: Term, name: String): Either[Failure, Term] =
+    def selectMember(
+        qualifier: Term,
+        name: String,
+        normalizeSelection: Boolean = true
+    ): Either[Failure, Term] =
       try
         val selected = Select.unique(qualifier, name)
-        selected.tpe.widen match
-          case method: MethodType if method.paramNames.isEmpty => Right(selected.appliedToNone)
-          case _ => Right(selected)
+        if normalizeSelection then
+          selected.tpe.widen match
+            case method: MethodType if method.paramNames.isEmpty => Right(selected.appliedToNone)
+            case _ => Right(selected)
+        else Right(selected)
       catch
         case NonFatal(error) => Left(Failure.lowering(s"selection $name failed: ${error.getMessage}"))
 
     def selectDynamicMember(
         tree: scala.meta.Term.Select,
         qualifier: Term,
-        name: String
+        name: String,
+        normalizeSelection: Boolean = true
     ): Either[Failure, Term] =
       val selected =
         try Right(Select.unique(qualifier, name))
@@ -216,9 +223,11 @@ private[quasiquotes] object ScalametaTermFrontend:
             )
           )
         else try
-          term.tpe.widen match
-            case method: MethodType if method.paramNames.isEmpty => Right(term.appliedToNone)
-            case _ => Right(term)
+          if normalizeSelection then
+            term.tpe.widen match
+              case method: MethodType if method.paramNames.isEmpty => Right(term.appliedToNone)
+              case _ => Right(term)
+          else Right(term)
         catch
           case NonFatal(_) =>
             Left(
@@ -277,7 +286,8 @@ private[quasiquotes] object ScalametaTermFrontend:
         current: scala.meta.Term,
         boundTerms: List[(String, BinderId, Term)] = Nil,
         lambdaDepth: Int = 0,
-        localValDepth: Int = 0
+        localValDepth: Int = 0,
+        applicationFunction: Boolean = false
     ): Either[Failure, Term] =
       def lowerChild(child: scala.meta.Term): Either[Failure, Term] =
         loop(child, boundTerms, lambdaDepth, localValDepth)
@@ -362,8 +372,18 @@ private[quasiquotes] object ScalametaTermFrontend:
           lowerChild(select.qual).flatMap { qualifier =>
             selectedMemberNameHoles.get(select.name.value) match
               case Some(selectedName) =>
-                selectDynamicMember(select, qualifier, selectedName.decoded)
-              case None => selectMember(qualifier, select.name.value)
+                selectDynamicMember(
+                  select,
+                  qualifier,
+                  selectedName.decoded,
+                  normalizeSelection = !applicationFunction
+                )
+              case None =>
+                selectMember(
+                  qualifier,
+                  select.name.value,
+                  normalizeSelection = !applicationFunction
+                )
           }
         case unary: scala.meta.Term.ApplyUnary if UnaryMethodByOperator.contains(unary.op.value) =>
           lowerChild(unary.arg).flatMap(selectMember(_, UnaryMethodByOperator(unary.op.value)))
@@ -381,7 +401,13 @@ private[quasiquotes] object ScalametaTermFrontend:
             yield result
         case application: scala.meta.Term.Apply =>
           for
-            function <- lowerChild(application.fun)
+            function <- loop(
+              application.fun,
+              boundTerms,
+              lambdaDepth,
+              localValDepth,
+              applicationFunction = true
+            )
             arguments <- sequence(application.args.map(lowerChild))
             result <- applyFunction(function, arguments)
           yield result

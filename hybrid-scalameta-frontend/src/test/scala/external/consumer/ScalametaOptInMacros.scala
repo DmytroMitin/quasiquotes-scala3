@@ -2,6 +2,11 @@ package external.consumer
 
 import scala.quoted.*
 
+import quasiquotes.construct.SelectedMemberName
+
+final class ScalametaNullarySelectedCallTarget(private val value: Int):
+  def nullary(): Int = value + 1
+
 object ScalametaOptInMacros:
   inline def constructed: (Int, Int) = ${ constructedImpl }
   inline def matched: (Int, Int) = ${ matchedImpl }
@@ -9,6 +14,11 @@ object ScalametaOptInMacros:
   inline def blockConstructionPreservesChildren: Boolean = ${ blockConstructionPreservesChildrenImpl }
   inline def blockCapturesAreOriginal: Boolean = ${ blockCapturesAreOriginalImpl }
   inline def currentDefaultControl: (Int, (Int, Int)) = ${ currentDefaultControlImpl }
+  inline def constructorCapacity(value: Int): Int = ${ constructorCapacityImpl('value) }
+  inline def ordinaryNullary(receiver: ScalametaNullarySelectedCallTarget): Int =
+    ${ ordinaryNullaryImpl('receiver) }
+  inline def dynamicNullary(receiver: ScalametaNullarySelectedCallTarget): Int =
+    ${ dynamicNullaryImpl('receiver) }
 
   private def constructedImpl(using q: Quotes): Expr[(Int, Int)] =
     import q.reflect.*
@@ -78,3 +88,26 @@ object ScalametaOptInMacros:
         '{ (${ left.asExprOf[Int] }, ${ right.asExprOf[Int] }) }
       case _ => '{ (-1, -1) }
     '{ ($constructed, $captures) }
+
+  private def constructorCapacityImpl(value: Expr[Int])(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    import quasiquotes.scalameta.ScalametaQuasiquotes.*
+    qr"new java.lang.StringBuilder(${value.asTerm}).capacity()".asExprOf[Int]
+
+  private def ordinaryNullaryImpl(
+      receiver: Expr[ScalametaNullarySelectedCallTarget]
+  )(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    import quasiquotes.scalameta.ScalametaQuasiquotes.*
+    qr"${receiver.asTerm}.nullary()".asExprOf[Int]
+
+  private def dynamicNullaryImpl(
+      receiver: Expr[ScalametaNullarySelectedCallTarget]
+  )(using Quotes): Expr[Int] =
+    import quotes.reflect.*
+    import quasiquotes.scalameta.ScalametaQuasiquotes.*
+    val selected = SelectedMemberName.from("nullary").fold(
+      failure => report.errorAndAbort(failure.message),
+      identity
+    )
+    qr"${receiver.asTerm}.$selected()".asExprOf[Int]

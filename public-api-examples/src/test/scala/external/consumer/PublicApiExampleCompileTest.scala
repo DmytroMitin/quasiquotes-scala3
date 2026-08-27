@@ -107,6 +107,17 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     assertEquals(FrontendFirstUseSnippet.add(2, 3), 5)
     assertEquals(FrontendFirstUseSnippet.capacity(16), 16)
 
+  test("explicit nullary selected call after a constructed receiver is applied exactly once"):
+    assertEquals(NullarySelectedCallCompositionSnippet.capacity(16), 16)
+
+  test("selected-call composition retains the fixed positive matrix"):
+    val receiver = new NullarySelectedCallTarget(40)
+    assertEquals(NullarySelectedCallCompositionSnippet.ordinaryNullary(receiver), 41)
+    assertEquals(NullarySelectedCallCompositionSnippet.ordinaryNonEmpty(receiver, 2), 42)
+    assertEquals(NullarySelectedCallCompositionSnippet.constructorOnly(16).capacity(), 16)
+    assertEquals(NullarySelectedCallCompositionSnippet.fixedSelectionWithoutApply(receiver), 42)
+    assertEquals(NullarySelectedCallCompositionSnippet.dynamicNullary(receiver), 41)
+
   test("documented Lambda1 first use stays executable outside quasiquotes packages"):
     val free = 1
     assertEquals(Lambda1FirstUseSnippet.increment(7), 8)

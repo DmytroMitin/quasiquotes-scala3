@@ -62,7 +62,9 @@ Important limitations:
   after an explicit receiver dot; bare, constructor, type, definition, import,
   pattern, and dynamic infix positions fail closed. Selection uses
   `Select.unique`; missing/inaccessible and overloaded members are rejected,
-  and existing application lowering handles any following ordinary arguments;
+  and an explicit following empty or nonempty argument list keeps the selected
+  method callable until that source `Apply` is lowered. A fixed selection with
+  no explicit argument list retains its existing value-position normalization;
 - public `qq` extractor templates require at least one interpolated term slot;
   slots are distinct and ordered, with no type/sequence/backreference syntax;
   they do not capture or accept dynamic selected-member names;
