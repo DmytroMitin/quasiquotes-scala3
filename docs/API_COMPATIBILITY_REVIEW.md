@@ -33,16 +33,17 @@ reported conservatively as removal plus addition.
 
 ## Released baseline and current development candidate
 
-The current `0.3.0-SNAPSHOT` candidate has 655 packaged rows. Compared with
-released `0.2.0`, 614 signatures are unchanged, 41 are added, four are
-removed/replaced, and no symbol group is removed. The four replacements arise
-from the truthful statement supertraits used by the new block/local-value
-model. Canonical global selected-Type identity and its explicit environment
-add 21 rows relative to the earlier 634-row development shape.
+The current `0.3.0-SNAPSHOT` candidate has 669 packaged rows. Compared with
+released `0.2.0`, 612 signatures are unchanged, 57 are added, six are
+removed/replaced, 51 symbol groups are added, and no symbol group is removed.
+The six replacements include the truthful statement-supertrait changes used
+by the block/local-value model; later development adds selected-Type identity,
+bounded definition, selected-member, and composition surfaces relative to the
+earlier development snapshots.
 
 The result remains
 `BREAKING_API_SHAPE_DELTA_REQUIRES_NEW_0X_MINOR`. It does not mutate the
-released 618-row file, and the 655-row candidate remains generated evidence
+released 618-row file, and the 669-row candidate remains generated evidence
 until an actual `0.3.0` release.
 
 The separate [0.2-to-0.3 statement-ADT compatibility report](STATEMENT_ADT_0_2_TO_0_3_COMPATIBILITY.md)

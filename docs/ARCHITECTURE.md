@@ -8,15 +8,12 @@ source frontend(s)
     -> backend-specific lowering / reflected matching
 ```
 
-The stable status contract is:
-
-```text
-SEMANTIC_MODEL = PROJECT_OWNED_COMPILER_FREE_CORE
-CURRENT_DOTTY = RELEASED_DEFAULT_REFERENCE_ORACLE
-SCALAMETA_TYPED_ROUTE = EXPLICIT_OPT_IN_UNPUBLISHED
-PARITY = REQUIRED_ON_OVERLAPPING_CLAIMED_SLICES_NOT_LOCKSTEP
-FALLBACK = SCALAMETA_PARSE_FAILURE_ONLY
-```
+The project owns one compiler-free semantic model. The current-Dotty frontend
+is the released default and the reference oracle; the typed Scalameta route is
+an explicit, unpublished opt-in. The two typed routes must agree wherever they
+both advertise support, but they do not have to acquire every feature in
+lock-step. In the hybrid route, only a Scalameta parse failure may fall back to
+the current parser.
 
 There are multiple source-facing routes, but there are not multiple semantic
 quasiquote engines. `core` owns the compiler-free Term and Type normal forms,
@@ -72,18 +69,12 @@ models use project-owned binder identities; display spelling does not replace
 semantic identity. Reflected captures remain owned by the caller's `Quotes`
 universe, while exact `untpd` results remain compiler-version-coupled.
 
-The compiler-free model is symbol-free. For future source-like definition and
-class quasiquotes, symbols and owners that are derivable from syntax belong to
-the typed backend's lowering plan. A Quotes backend may need to create a class
+The compiler-free model is symbol-free, and no public symbol-quasiquote family
+is currently planned. For future source-like definition and class
+quasiquotes, symbols and owners that are derivable from syntax belong to the
+typed backend's lowering plan. A Quotes backend may need to create a class
 symbol before member symbols and definitions; a pre-typer `untpd` backend must
 emit syntax without fabricating typed symbols.
-
-```text
-NO_PUBLIC_SYMBOL_QUASIQUOTE_FAMILY_CURRENTLY_PLANNED
-TYPED_OWNED_DEFINITION_SYMBOL_SYNTHESIS = BACKEND_RESPONSIBILITY
-NEUTRAL_CORE = SYMBOL_FREE
-UNTYPED_PRE_TYPER_BACKEND = NO_TYPED_SYMBOL_FABRICATION
-```
 
 ### Composable reflected types and statements
 
@@ -122,10 +113,10 @@ dependency or data flow, not semantic ownership:
 ordinary Quotes users ---> frontend
                       `--> hybridScalametaFrontend (explicit opt-in)
 
-AUXify handlers ---> Scalameta directly + dottyInternal
-                 ---> neutralScalameta transitively
-                 ---> exact untpd result
-                 ---> Macro-Paradise placement and lifecycle
+AUXify handlers ---> Scalameta directly + dottyInternal     [build dependency]
+                 ---> neutralScalameta transitively         [build dependency]
+                 ---> exact untpd result                    [data flow]
+                 ---> Macro-Paradise placement and lifecycle [data flow]
 
 Macro-Paradise ---> no Quasiquotes or Scalameta product dependency
 ```

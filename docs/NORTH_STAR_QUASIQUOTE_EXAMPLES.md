@@ -4,10 +4,8 @@ These checkpoints preserve high-value cases where public Scala 3 reflection is
 substantially more mechanical than the source shape a macro author wants. They
 are design targets, not current syntax or implementation commitments.
 
-```text
-FUTURE_NON_CURRENT_SYNTAX
-CONCEPTUAL_NOTATION_DOES_NOT_SELECT_FINAL_SYNTAX
-```
+All conceptual quasiquote syntax in this document is future, non-current
+notation. It illustrates semantic roles and does not select the final syntax.
 
 The current public boundary remains the [syntax support matrix](SYNTAX_SUPPORT_MATRIX.md).
 Conceptual `$T`, `..$arguments`, `..$types`, and `..$definitions` spellings

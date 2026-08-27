@@ -52,6 +52,72 @@ delivery chronology.
   maintenance while current-Dotty remains the exact compiler oracle and only
   Scalameta parse failure may use the current parser as fallback.
 
+## Composable quasiquotes
+
+The following work is planned in stages. None of the new interpolation or
+import forms in this section is supported by the current baseline unless the
+text explicitly says otherwise.
+
+### Reflected Types in Term construction
+
+1. Add caller-owned `q.reflect.TypeRepr` as its own typed-Term interpolation
+   category. The first admitted position will be the complete constructor Type,
+   conceptually `new $typeValue(arg)`.
+2. Require a value returned by `tqr` to work directly in that position.
+   `TypeTree.tpe` and `TypeRepr.of[T]` use the same transport. Convenience for
+   passing `Type[T]` or `TypeTree` directly may be considered only after the
+   `TypeRepr` contract is stable.
+3. Treat other Type positions as later slices: applied or dynamic
+   constructors, method Type applications, refinements, and sequence Type
+   splices each need their own admission and failure rules.
+
+The existing `QuasiTypeSplice(ConstructedType)` remains the compiler-free
+route. Reflected Types will not be normalized through that bounded model.
+
+### Definitions and statements
+
+1. Admit one source-owned local `def` written inside a `qr` block. That block
+   owns symbol creation, binders, owners, and later references to the method.
+2. Consider a separately constructed `DefDef` or Definition statement splice
+   only after owner validation and complete rebuild/reownership semantics are
+   explicit.
+3. Add repeated or sequence statement splices only after the single-statement
+   ownership model is proven.
+
+Direct `Symbol` splicing is not planned. In particular,
+`$definition(...)` must not become implicit shorthand for
+`Ref(definition.symbol)(...)`; a definition statement and a method reference
+are different source categories.
+
+### Typed Scalameta Definitions
+
+Typed Scalameta `dqr`/`dqq` are a future candidate after a shared typed
+Definition slice exists. They must reuse the same compiler-free Definition
+semantics and typed-backend ownership plan as the current-Dotty route. They
+are not aliases for neutral upstream Scalameta `q` definition AST authoring,
+and they are not the exact pre-typer bridge in `dottyInternal`. Parity between
+typed frontends remains required only for their overlapping advertised slices,
+not in lock-step.
+
+### Additive import façade
+
+The selected future ergonomics are additive umbrella imports:
+
+```scala
+import quasiquotes.Quasiquotes.{qr, qq, tqr, tqq, dqr, dqq}
+```
+
+and, for the typed Scalameta route:
+
+```scala
+import quasiquotes.scalameta.Quasiquotes.{qr, qq, tqr, tqq}
+```
+
+The Scalameta façade may add `dqr`/`dqq` only after that typed Definition
+surface exists. Current public package imports will remain supported; no deep
+package move or deprecation is selected. Separate domain façades remain a
+fallback, not the primary direction.
+
 ## North-star source-like generation
 
 The durable [north-star checkpoint document](docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md)

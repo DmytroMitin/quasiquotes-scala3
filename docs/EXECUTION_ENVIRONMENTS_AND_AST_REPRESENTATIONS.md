@@ -236,6 +236,38 @@ produce that same kind of value. A future `qr` constructor-Type hole is
 therefore designed to accept `TypeRepr` directly, while the compiler-free core
 uses only a generic internal payload slot and retains its compiler boundary.
 
+## Exact-version `Quotes` and Dotty-internal interoperability
+
+Scala 3 `Quotes` is implemented over Dotty's typed trees, so a technical bridge
+between public reflection and compiler internals is possible. A test-only
+feasibility probe has exercised this exact-version path on the repository's
+validated compiler lines:
+
+```text
+Expr / q.reflect.Term
+  -> underlying tpd.Tree
+  -> untpd.TypedSplice leaves
+  -> newly constructed untpd shell
+  -> new Typer().typedExpr
+  -> tpd.Tree
+  -> q.reflect.Term / Expr
+```
+
+This is experimental evidence, not a supported public bridge. Casting through
+`QuotesImpl` and `tpd.Tree`, constructing `untpd.TypedSplice`, and invoking
+`Typer` directly are compiler-internal operations coupled to the exact Scala
+version and active compiler context. There is no generally meaningful inverse
+from a typed `tpd.Tree` to its original untyped tree: typing changes and adds
+information. `TypedSplice` is instead the compiler's appropriate mechanism for
+embedding an already typed subtree as a leaf in a newly built untyped shell.
+
+The production `dottyInternal` `ConstructedTermUntypedBackend` has a narrower
+job: it lowers the compiler-free `ConstructedTerm` model. It does not expose a
+generic bridge for arbitrary typed-tree leaves. If a concrete normal-macro
+consumer eventually justifies this escape hatch, the public boundary should
+be one narrow, exact-version operation with owned validation and context rules,
+not a general raw-tree toolkit.
+
 ## Source provenance policy
 
 Typed structural matching does not require a source file. If a reflected

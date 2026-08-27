@@ -77,19 +77,19 @@ RELATED_PROJECT_URLS = (
     "https://github.com/DmytroMitin/macroparadise-scala3",
     "https://github.com/DmytroMitin/AUXify-scala3",
 )
-ARCHITECTURE_STATUS_MARKERS = (
-    "SEMANTIC_MODEL = PROJECT_OWNED_COMPILER_FREE_CORE",
-    "CURRENT_DOTTY = RELEASED_DEFAULT_REFERENCE_ORACLE",
-    "SCALAMETA_TYPED_ROUTE = EXPLICIT_OPT_IN_UNPUBLISHED",
-    "PARITY = REQUIRED_ON_OVERLAPPING_CLAIMED_SLICES_NOT_LOCKSTEP",
-    "FALLBACK = SCALAMETA_PARSE_FAILURE_ONLY",
-    "NO_PUBLIC_SYMBOL_QUASIQUOTE_FAMILY_CURRENTLY_PLANNED",
-    "TYPED_OWNED_DEFINITION_SYMBOL_SYNTHESIS = BACKEND_RESPONSIBILITY",
-    "NEUTRAL_CORE = SYMBOL_FREE",
-    "UNTYPED_PRE_TYPER_BACKEND = NO_TYPED_SYMBOL_FABRICATION",
+ARCHITECTURE_FACT_MARKERS = (
+    "The project owns one compiler-free semantic model.",
+    "current-Dotty frontend\nis the released default and the reference oracle",
+    "typed Scalameta route is\nan explicit, unpublished opt-in",
+    "must agree wherever they\nboth advertise support",
+    "only a Scalameta parse failure may fall back",
+    "no public symbol-quasiquote family\nis currently planned",
+    "typed backend's lowering plan.",
+    "The compiler-free model is symbol-free",
+    "pre-typer `untpd` backend must\nemit syntax without fabricating typed symbols",
 )
 NORTH_STAR_STATUS_MARKERS = (
-    "FUTURE_NON_CURRENT_SYNTAX",
+    "All conceptual quasiquote syntax in this document is future, non-current",
     "CURRENT_MANUAL_BASELINE_PROVED",
     "DESIGN_REQUIRED",
     "IMPLEMENTATION_REQUIRED",
@@ -271,9 +271,9 @@ def durable_documentation_findings(root: Path) -> list[str]:
             findings.append(f"README missing related-project link: {url}")
     if "(docs/ARCHITECTURE.md)" not in readme:
         findings.append("README missing canonical architecture link")
-    for marker in ARCHITECTURE_STATUS_MARKERS:
+    for marker in ARCHITECTURE_FACT_MARKERS:
         if marker not in architecture:
-            findings.append(f"canonical architecture missing status marker: {marker}")
+            findings.append(f"canonical architecture missing fact: {marker}")
     if "(docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md)" not in roadmap:
         findings.append("roadmap missing north-star document link")
     if "(NORTH_STAR_QUASIQUOTE_EXAMPLES.md)" not in why:

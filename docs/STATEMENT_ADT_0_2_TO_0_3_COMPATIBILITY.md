@@ -63,10 +63,9 @@ This is a migration for unpublished pre-statement-ADT development usage, not a
 confirmed source break in the released `0.2.0` block surface, because that
 surface did not exist.
 
-```text
-SOURCE_COMPATIBILITY = SOURCE_COMPATIBLE_FOR_TESTED_RELEASED_0_2_SURFACE
-NEW_0_3_BLOCK_PREFIX_SOURCE = STATEMENT_AWARE_MIGRATION_REQUIRED
-```
+The tested released 0.2 source surface remains source-compatible. Code written
+against the unpublished 0.3 block-prefix shape must migrate to the
+statement-aware list described above.
 
 ## JVM binary compatibility
 
@@ -86,12 +85,8 @@ recompilation after substituting the corresponding current core/frontend JARs.
 It constructed and used `TermShape`, `TermPattern`, `CanonicalTerm`, and
 `TargetTermView` leaves successfully on Scala 3.3.8 and 3.8.4.
 
-```text
-JVM_BINARY_COMPATIBILITY = JVM_BINARY_COMPATIBLE_FOR_TESTED_SURFACE
-```
-
-This is a bounded classfile and linkage result, not a whole-library binary
-compatibility guarantee.
+The tested surface is JVM-binary-compatible. This is a bounded classfile and
+linkage result, not a whole-library binary compatibility guarantee.
 
 ## Scala 3 TASTy compatibility
 
@@ -107,10 +102,7 @@ There is no old downstream TASTy that can expose the new statement or block
 types because those types are absent from `0.2.0`. Compatibility for those new
 types begins with the `0.3` line.
 
-```text
-TASTY_COMPATIBILITY_3_3_8 = TASTY_COMPATIBLE_FOR_TESTED_SURFACE
-TASTY_COMPATIBILITY_3_8_4 = TASTY_COMPATIBLE_FOR_TESTED_SURFACE
-```
+The tested surface is TASTy-compatible on both Scala 3.3.8 and Scala 3.8.4.
 
 ## Regression and governance result
 

@@ -62,15 +62,14 @@ class PublicDocsCheckTest(unittest.TestCase):
         )
         (docs / "ARCHITECTURE.md").write_text(
             "# Architecture\n\n"
-            "SEMANTIC_MODEL = PROJECT_OWNED_COMPILER_FREE_CORE\n"
-            "CURRENT_DOTTY = RELEASED_DEFAULT_REFERENCE_ORACLE\n"
-            "SCALAMETA_TYPED_ROUTE = EXPLICIT_OPT_IN_UNPUBLISHED\n"
-            "PARITY = REQUIRED_ON_OVERLAPPING_CLAIMED_SLICES_NOT_LOCKSTEP\n"
-            "FALLBACK = SCALAMETA_PARSE_FAILURE_ONLY\n"
-            "NO_PUBLIC_SYMBOL_QUASIQUOTE_FAMILY_CURRENTLY_PLANNED\n"
-            "TYPED_OWNED_DEFINITION_SYMBOL_SYNTHESIS = BACKEND_RESPONSIBILITY\n"
-            "NEUTRAL_CORE = SYMBOL_FREE\n"
-            "UNTYPED_PRE_TYPER_BACKEND = NO_TYPED_SYMBOL_FABRICATION\n",
+            "The project owns one compiler-free semantic model. The current-Dotty frontend\n"
+            "is the released default and the reference oracle; the typed Scalameta route is\n"
+            "an explicit, unpublished opt-in. The two typed routes must agree wherever they\n"
+            "both advertise support. In the hybrid route, only a Scalameta parse failure may fall back.\n\n"
+            "The compiler-free model is symbol-free, and no public symbol-quasiquote family\n"
+            "is currently planned. Symbols and owners that are derivable from syntax belong to\n"
+            "the typed backend's lowering plan. A pre-typer `untpd` backend must\n"
+            "emit syntax without fabricating typed symbols.\n",
             encoding="utf-8",
         )
         (docs / "WHY_QUASIQUOTES.md").write_text(
@@ -83,7 +82,8 @@ class PublicDocsCheckTest(unittest.TestCase):
         )
         (docs / "NORTH_STAR_QUASIQUOTE_EXAMPLES.md").write_text(
             "# North-star quasiquote examples\n\n"
-            "FUTURE_NON_CURRENT_SYNTAX\n"
+            "All conceptual quasiquote syntax in this document is future, non-current\n"
+            "notation.\n"
             "CURRENT_MANUAL_BASELINE_PROVED\n"
             "DESIGN_REQUIRED\n"
             "IMPLEMENTATION_REQUIRED\n\n"
@@ -222,14 +222,14 @@ class PublicDocsCheckTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("README missing related-project link", result.stderr)
 
-    def test_rejects_missing_canonical_architecture_status(self) -> None:
+    def test_rejects_missing_canonical_architecture_fact(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.make_fixture(root)
             architecture = root / "docs/ARCHITECTURE.md"
             architecture.write_text(
                 architecture.read_text(encoding="utf-8").replace(
-                    "FALLBACK = SCALAMETA_PARSE_FAILURE_ONLY",
+                    "only a Scalameta parse failure may fall back",
                     "fallback policy omitted",
                 ),
                 encoding="utf-8",
@@ -238,7 +238,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             result = self.run_checker(root)
 
             self.assertEqual(result.returncode, 1)
-            self.assertIn("canonical architecture missing status marker", result.stderr)
+            self.assertIn("canonical architecture missing fact", result.stderr)
 
     def test_rejects_missing_north_star_checkpoint(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
