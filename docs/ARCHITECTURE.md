@@ -27,13 +27,18 @@ models rather than inventing frontend-local equality or binding semantics.
 ## Modules and dependency direction
 
 ```text
-frontend ----------------> core
-neutralScalameta ---------> core
-dottyInternal ---> neutralScalameta ---> core
-hybridScalametaFrontend ---> frontend + neutralScalameta
-publicApiExamples -> frontend
-publicCoreExamples -> core
+frontend -------------------------> core
+neutralScalameta -----------------> core + Scalameta
+dottyInternal --------------------> neutralScalameta + exact Scala compiler
+hybridScalametaFrontend ----------> frontend + neutralScalameta
+publicApiExamples ----------------> frontend
+publicCoreExamples ---------------> core
 ```
+
+Every arrow means “depends on.” Consequently `dottyInternal` receives `core`
+and Scalameta transitively through `neutralScalameta`, while
+`hybridScalametaFrontend` has both the current typed frontend and the neutral
+Scalameta projection available. `frontend` never depends on `dottyInternal`.
 
 - `frontend` is the released/default exact-compiler route. It owns parsing,
   quoted reflection, public `qr`/`qq` and `tqr`/`tqq`, and compiler-line
@@ -80,11 +85,63 @@ NEUTRAL_CORE = SYMBOL_FREE
 UNTYPED_PRE_TYPER_BACKEND = NO_TYPED_SYMBOL_FABRICATION
 ```
 
+### Composable reflected types and statements
+
+The next typed-Term construction slice is designed around the caller's active
+`Quotes` universe. A future constructor-position hole accepts
+`q.reflect.TypeRepr` directly; `TypeTree.tpe`, `TypeRepr.of[T]`, and a `tqr`
+result therefore enter one transport without `Any`, serialization, or a
+second public carrier. The compiler-free placeholder model may distinguish a
+generic reflected-Type payload internally, but `core` must not import
+`scala.quoted`. Existing `QuasiTypeSplice` remains the compiler-free
+`ConstructedType` route and is not replaced.
+
+The first position is the complete constructor Type in `new $typeValue(arg)`.
+Ascriptions, method Type application, applied-Type constructors, definition
+Types, and variadic Type arguments remain later independent slices. Direct
+`TypeRepr` transport also makes `tqr` to `qr` stacking an explicit acceptance
+criterion for every overlapping admitted Type.
+
+Definition composition has two ownership classes. A source-owned local
+`def` written inside `qr` can allocate its symbol under the lowering owner's
+scope and is the first planned statement slice. An already typed external
+`DefDef` is not a detached syntax node: insertion needs an explicit
+owner/reownership contract and must fail closed until that contract exists.
+Splicing a `Symbol` as shorthand for `Ref(symbol)` is not planned.
+
 An advanced owner/definition-plan handle may eventually be justified by a
 real consumer, but symmetric `sqr`/`sqq` symbol syntax is not currently
 planned: symbols are compiler semantic entities, not source syntax.
 
 ## Cross-project boundary
+
+The live product builds have this consumer topology; arrows again mean build
+dependency or data flow, not semantic ownership:
+
+```text
+ordinary Quotes users ---> frontend
+                      `--> hybridScalametaFrontend (explicit opt-in)
+
+AUXify handlers ---> Scalameta directly + dottyInternal
+                 ---> neutralScalameta transitively
+                 ---> exact untpd result
+                 ---> Macro-Paradise placement and lifecycle
+
+Macro-Paradise ---> no Quasiquotes or Scalameta product dependency
+```
+
+The neutral source pipeline used by the admitted exact peer bridge is:
+
+```text
+Scalameta q/t -> scala.meta AST
+  -> neutralScalameta validated projection
+  -> core IR
+  -> exact backend
+```
+
+Plain Scalameta `q`/`t` construction and matching stops at `scala.meta` AST and
+does not require `neutralScalameta`; that module exists for bounded validated
+projection into this project's shared model.
 
 AUXify's current narrow `@apply` path uses ordinary Scalameta `q`, `t`, and
 `tparam` authoring and Quasiquotes `ContextualMethodPeerBridge` lowering to an

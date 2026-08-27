@@ -27,6 +27,14 @@ delivery chronology.
 - Preserve Apache-2.0 POM and JAR metadata for intended `core` and `frontend`
   distributions.
 - Expand structural term and type support through narrow, test-backed slices.
+- Add the next bounded reflected-Type composition slice at the complete
+  constructor Type position. Accept caller-owned `TypeRepr` directly so
+  `TypeTree.tpe`, `TypeRepr.of[T]`, and `tqr` share one transport; preserve the
+  compiler-free `QuasiTypeSplice` route and keep `scala.quoted` out of `core`.
+- After that Type gate, design source-owned local `def` statements in `qr`
+  with backend-created symbols and owners. Keep external typed `DefDef`
+  statement splices deferred until an explicit reownership contract exists;
+  do not add direct `Symbol` splicing.
 - Preserve the bounded construction-only selected-member name hole: a public
   validated decoded-name value, one explicit receiver selection-name position,
   unique accessible `Select.unique` lowering, unchanged fixed-name matching,
@@ -64,10 +72,10 @@ None of N1-N5 is `CHECKPOINT_COMPLETE`.
 
 The bounded explicit-receiver dynamic selected-member construction gap is now
 implemented; bare identifiers, overload resolution, dynamic infix syntax, and
-dynamic name matching remain outside it. The leading next candidate is
-stable-term selected-Type prefix identity. The broader enabling themes are
-dynamic type-position holes, sequence splices, and broader definition/class
-support; this documentation does not impose a final implementation order.
+dynamic name matching remain outside it. The selected next implementation
+gate is the N5 complete constructor-Type hole. Stable-term selected-Type
+prefix identity, sequence splices, broader Type positions, and broader
+definition/class support remain independent later work.
 
 Symbols are compiler semantic entities, not source syntax. No public symbol
 quasiquote family is currently planned. The neutral core remains symbol-free;

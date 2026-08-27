@@ -223,6 +223,19 @@ imports can rename Scalameta `q`/`t` to provisional `nqr`/`nqq`,
 members: forwarding the macro interpolators is rejected upstream, and copying
 their implementation is outside this experiment.
 
+Those `ndqr`/`ndqq` names are only consumer aliases for upstream untyped
+Scalameta `q` definition syntax. The typed Scalameta opt-in exports `qr`/`qq`
+and `tqr`/`tqq` only; it has no typed `dqr`/`dqq`. A future typed Definition
+frontend must reuse the project-owned Definition model and a backend ownership
+plan rather than treating a Scalameta `Defn` as an insertion-ready reflected
+definition.
+
+For reflected Type composition, `TypeRepr` is the semantic transport in one
+active `Quotes` universe. `TypeTree.tpe`, `TypeRepr.of[T]`, and `tqr` all
+produce that same kind of value. A future `qr` constructor-Type hole is
+therefore designed to accept `TypeRepr` directly, while the compiler-free core
+uses only a generic internal payload slot and retains its compiler boundary.
+
 ## Source provenance policy
 
 Typed structural matching does not require a source file. If a reflected

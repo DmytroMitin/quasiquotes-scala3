@@ -28,6 +28,13 @@ The typed coordinate exposes only `quasiquotes.scalameta`:
 - ordered extractor results that preserve original caller-owned reflected
   subtrees.
 
+There is no typed Scalameta `dqr`/`dqq` surface. If a Definition frontend is
+added later, it must project through the shared compiler-free Definition model
+and then use the selected typed-backend ownership plan. The neutral
+Scalameta-to-validated-definition projector and the exact `dottyInternal`
+pre-typer bridge remain separate routes with different output and placement
+contracts.
+
 Its Term and Type mappers, dialect policy, selectors, parity inventories, and
 evidence macros remain package-private. Ordinary imports from
 `quasiquotes.construct`, `quasiquotes.matching`, and `quasiquotes.types`

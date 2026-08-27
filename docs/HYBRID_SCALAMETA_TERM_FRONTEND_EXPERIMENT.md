@@ -45,3 +45,31 @@ limited to explicit `quasiquotes.scalameta` import hosts and the compact
 `TermFrontend`/`TypeFrontend` programmatic boundaries. Research lowerers,
 selectors, dialect policy, and parity inventories remain package-private.
 See [Scalameta opt-in artifact topology](SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md).
+
+## Minimal typed use and deliberate mixing
+
+Inside a macro implementation, the current route remains:
+
+```scala
+import quasiquotes.construct.Quasiquotes.qr
+import quasiquotes.matching.QuasiPattern.qq
+```
+
+The explicit Scalameta route is selected only by:
+
+```scala
+import quasiquotes.scalameta.ScalametaQuasiquotes.qr
+import quasiquotes.scalameta.ScalametaQuasiPattern.qq
+```
+
+For the overlapping addition slice, each pair can build and match the same
+caller-owned reflected operands. The routes also compose deliberately: a Term
+built by current `qr` can be inspected by Scalameta `qq`, and a Term built by
+Scalameta `qr` can be inspected by current `qq`. This is tested overlap, not a
+promise that arbitrary future syntax can be mixed or that one route silently
+rescues the other.
+
+The typed opt-in currently exposes only `qr`/`qq` and `tqr`/`tqq`. It does not
+expose typed Scalameta `dqr`/`dqq`; direct Scalameta definition quasiquotes in
+the neutral module are source AST authoring, not reflected Definition
+construction or placement.

@@ -94,6 +94,12 @@ that names that parameter. It returns a `DefDef` owned by the current
 block. It is not a detached tree, body-hole API, or general owner/placement
 facility.
 
+No umbrella import façade is public in this snapshot. A test-scoped design
+probe shows that an additive façade can directly export the existing six
+interpolators when used in a real macro `Quotes` universe. The current domain
+imports above remain the compatibility baseline until a separate
+implementation gate.
+
 The public `dqq` extractor and programmatic
 `DefinitionPattern.singleParameter(...)` matcher admit one fixed ordinary
 method name, one fixed ordinary parameter and fixed bounded parameter/result
@@ -133,6 +139,8 @@ construct/match boundary and its deliberate limits.
   lowering failures remain fail-closed.
   Public `qr`/`qq` and `tqr`/`tqq` defaults and published dependencies do not
   change.
+  It has no typed `dqr`/`dqq`; neutral Scalameta definition authoring and typed
+  reflected Definition placement are distinct contracts.
 - `dottyInternal` contains exact-compiler internal adapters and one narrow
   experimental foreign-package peer bridge for contextual-method lowering.
   Its source is present for review and testing, but its artifact is deliberately

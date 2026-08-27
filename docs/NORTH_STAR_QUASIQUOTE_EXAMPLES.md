@@ -233,7 +233,14 @@ Apache-2.0 repository.
 The explicit-receiver dynamic selected-member construction gap is implemented
 through a validated decoded-name value and unique selection lowering. It does
 not add bare-name lookup, overload resolution, dynamic infix syntax, or name
-matching. The leading next candidate is stable-term selected-Type prefix
-identity. Dynamic type-position holes, sequence splices, and broader
-definition/class support are enabling themes across N1-N5, but this document
-does not select a final implementation order for the whole portfolio.
+matching.
+
+The selected next bounded implementation gate is the complete constructor
+Type position in N5. Its input is a caller-owned `TypeRepr`, including a `tqr`
+result, with no `Any` or public wrapper carrier. This first slice retains one
+ordinary constructor argument list and the existing constructor-resolution
+policy; sequence arguments, dynamic applied-Type constructors, refinements,
+classes, and definitions remain separate gates. Source-owned local `def`
+statements are the planned first Definition-composition slice after the Type
+gate, while external typed-definition splicing requires a separate explicit
+reownership contract.

@@ -21,6 +21,24 @@ import scala.meta.dialects.Scala3
 val method = q"def apply[A](using inst: Show[A]): Show[A] = inst"
 ```
 
+A minimal term-only hello world needs no project façade or active `Quotes`:
+
+```scala
+import scala.meta.*
+import scala.meta.dialects.Scala3
+import scala.meta.quasiquotes.{q as nqr}
+import scala.meta.quasiquotes.{q as nqq}
+
+val left: Term = Lit.Int(20)
+val right: Term = Lit.Int(22)
+val addition: Term = nqr"$left + $right"
+val sum = addition match
+  case nqq"${Lit.Int(a)} + ${Lit.Int(b)}" => a + b
+```
+
+Here `nqr` and `nqq` are aliases chosen by the consumer for Scalameta's
+upstream `q` macro. They are not members supplied by this library.
+
 Scalameta's `q` and `t` macros already own grammar parsing, extractors, splice
 ranks, repeated splices, dialect handling, and printing. The project does not
 copy or fork those internals.

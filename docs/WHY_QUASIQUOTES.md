@@ -195,3 +195,10 @@ manual reflection more dramatic. They are deliberately documented as
 [north-star quasiquote checkpoints](NORTH_STAR_QUASIQUOTE_EXAMPLES.md), not as
 current support or selected final syntax. See the
 [syntax matrix](SYNTAX_SUPPORT_MATRIX.md) for the actual admitted language.
+
+The first planned step toward `new $T(...)` is intentionally smaller than the
+full north star: one complete constructor-Type hole receiving the caller's
+`TypeRepr`. This lets a value produced by `tqr`, `TypeTree.tpe`, or
+`TypeRepr.of[T]` flow directly into term construction. It does not yet promise
+variadic constructor arguments, arbitrary Type-position holes, or detached
+definition insertion.
