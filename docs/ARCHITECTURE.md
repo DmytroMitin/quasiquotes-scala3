@@ -78,20 +78,22 @@ emit syntax without fabricating typed symbols.
 
 ### Composable reflected types and statements
 
-The next typed-Term construction slice is designed around the caller's active
-`Quotes` universe. A future constructor-position hole accepts
+The first reflected typed-Term construction slice is implemented around the
+caller's active `Quotes` universe. A complete constructor-position hole accepts
 `q.reflect.TypeRepr` directly; `TypeTree.tpe`, `TypeRepr.of[T]`, and a `tqr`
 result therefore enter one transport without `Any`, serialization, or a
 second public carrier. The compiler-free placeholder model may distinguish a
-generic reflected-Type payload internally, but `core` must not import
+generic reflected-Type payload internally, while `core` does not import
 `scala.quoted`. Existing `QuasiTypeSplice` remains the compiler-free
 `ConstructedType` route and is not replaced.
 
-The first position is the complete constructor Type in `new $typeValue(arg)`.
+The admitted position is the complete constructor Type in
+`new $typeValue(arg)` with one ordinary argument list.
 Ascriptions, method Type application, applied-Type constructors, definition
 Types, and variadic Type arguments remain later independent slices. Direct
-`TypeRepr` transport also makes `tqr` to `qr` stacking an explicit acceptance
-criterion for every overlapping admitted Type.
+`TypeRepr` transport makes `tqr` to `qr` stacking a tested current behavior.
+The typed Scalameta route implements the same overlap and treats reflected-Type
+admission or lowering failure as terminal rather than a fallback trigger.
 
 Definition composition has two ownership classes. A source-owned local
 `def` written inside `qr` can allocate its symbol under the lowering owner's

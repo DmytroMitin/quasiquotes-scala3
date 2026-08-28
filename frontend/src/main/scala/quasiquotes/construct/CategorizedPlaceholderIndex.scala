@@ -5,8 +5,8 @@ import dotty.tools.dotc.ast.untpd
 import quasiquotes.parser.DottySourceSpanAdapter
 import quasiquotes.source.SourceSpan
 
-private[construct] final case class PlaceholderOccurrence[+T](
-    binding: PlaceholderBinding[T],
+private[construct] final case class PlaceholderOccurrence[+T, +ReflectedType](
+    binding: PlaceholderBinding[T, ReflectedType],
     generatedSpan: Option[SourceSpan]
 )
 
@@ -20,22 +20,22 @@ private[construct] final case class UntypedIdentifierOccurrence(
     generatedSpan: Option[SourceSpan]
 )
 
-private[construct] final class CategorizedPlaceholderIndex[T](
-    val bindings: Vector[PlaceholderBinding[T]],
+private[construct] final class CategorizedPlaceholderIndex[T, ReflectedType](
+    val bindings: Vector[PlaceholderBinding[T, ReflectedType]],
     literalCategorizedNames: Set[String] = Set.empty
 ):
   private val bindingsByName = bindings.map(binding => binding.name -> binding).toMap
 
   require(bindingsByName.size == bindings.size, "Categorized placeholder binding names must be unique")
 
-  def lookup(name: String): Option[PlaceholderBinding[T]] =
+  def lookup(name: String): Option[PlaceholderBinding[T, ReflectedType]] =
     bindingsByName.get(name)
 
   def resolve(
       name: String,
       expected: PlaceholderCategory,
       position: PlaceholderPosition
-  ): Either[QuasiquoteError, Option[PlaceholderBinding[T]]] =
+  ): Either[QuasiquoteError, Option[PlaceholderBinding[T, ReflectedType]]] =
     lookup(name) match
       case Some(binding) if categoryOf(binding.hole) == expected => Right(Some(binding))
       case Some(binding) if categoryOf(binding.hole) == PlaceholderCategory.SelectedMemberNameSplice =>
@@ -51,10 +51,10 @@ private[construct] final class CategorizedPlaceholderIndex[T](
       case None if isUnknownCategorizedName(name) => Left(QuasiquoteError.UnknownPlaceholder(name))
       case None => Right(None)
 
-  def findIn(tree: untpd.Tree): List[PlaceholderBinding[T]] =
+  def findIn(tree: untpd.Tree): List[PlaceholderBinding[T, ReflectedType]] =
     findOccurrences(tree).map(_.binding)
 
-  def findOccurrences(tree: untpd.Tree): List[PlaceholderOccurrence[T]] =
+  def findOccurrences(tree: untpd.Tree): List[PlaceholderOccurrence[T, ReflectedType]] =
     UntypedPlaceholderTraversal.identifierOccurrences(tree).flatMap { occurrence =>
       bindingsByName.get(occurrence.name).map(PlaceholderOccurrence(_, occurrence.generatedSpan))
     }
@@ -68,9 +68,11 @@ private[construct] final class CategorizedPlaceholderIndex[T](
         UnknownPlaceholderOccurrence(occurrence.name, occurrence.generatedSpan)
     }
 
-  def categoryOf(hole: QuasiquoteHole[T]): PlaceholderCategory =
+  def categoryOf(hole: QuasiquoteHole[T, ReflectedType]): PlaceholderCategory =
     hole match
       case _: QuasiquoteHole.Term[?] => PlaceholderCategory.TermSplice
+      case _: QuasiquoteHole.ReflectedTypeSplice[?] =>
+        PlaceholderCategory.ReflectedTypeSplice
       case _: QuasiquoteHole.ConstructedTypeSplice => PlaceholderCategory.ConstructedTypeSplice
       case _: QuasiquoteHole.SelectedMemberNameSplice =>
         PlaceholderCategory.SelectedMemberNameSplice

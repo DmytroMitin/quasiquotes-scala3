@@ -41,7 +41,7 @@ object TermFrontend:
 
   def build(using q: Quotes)(
       parts: Seq[String],
-      arguments: Seq[q.reflect.Term | QuasiTypeSplice | SelectedMemberName],
+      arguments: Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName],
       dialect: Dialect = TermQ3DialectPolicy.selected
   ): Either[Failure, BuildResult[q.reflect.Term]] =
     HybridTermFrontend

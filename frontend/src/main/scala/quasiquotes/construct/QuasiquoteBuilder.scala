@@ -1,6 +1,7 @@
 package quasiquotes.construct
 
 import scala.quoted.Quotes
+import dotty.tools.dotc.core.Types
 
 import quasiquotes.parser.{DiagnosticLocationMapper, DottySourceSpanAdapter, ParsedExpression, TermShape, TinyTermParser}
 import quasiquotes.source.{DiagnosticLocation, DiagnosticPrecision}
@@ -8,17 +9,21 @@ import quasiquotes.source.{DiagnosticLocation, DiagnosticPrecision}
 object QuasiquoteBuilder:
   def build(using q: Quotes)(
       parts: Seq[String],
-      arguments: Seq[q.reflect.Term | QuasiTypeSplice | SelectedMemberName]
+      arguments: Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName]
   ): Either[QuasiquoteError, q.reflect.Term] =
     buildLocated(parts, arguments).left.map(_.error)
 
   private[construct] def buildLocated(using q: Quotes)(
       parts: Seq[String],
-      arguments: Seq[q.reflect.Term | QuasiTypeSplice | SelectedMemberName]
+      arguments: Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName]
   ): Either[QuasiquoteBuildFailure, q.reflect.Term] =
-    val holes: Seq[QuasiquoteHole[q.reflect.Term]] = arguments.map {
+    val holes: Seq[QuasiquoteHole[q.reflect.Term, q.reflect.TypeRepr]] = arguments.map {
       case splice: QuasiTypeSplice => QuasiquoteHole.ConstructedTypeSplice(splice.constructedType)
       case name: SelectedMemberName => QuasiquoteHole.SelectedMemberNameSplice(name)
+      case reflectedType: Types.Type =>
+        QuasiquoteHole.ReflectedTypeSplice(
+          reflectedType.asInstanceOf[q.reflect.TypeRepr]
+        )
       case term => QuasiquoteHole.Term(term.asInstanceOf[q.reflect.Term])
     }
     PlaceholderSource.synthesizeCategorized(parts, holes) match

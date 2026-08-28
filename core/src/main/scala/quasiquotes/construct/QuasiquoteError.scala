@@ -25,7 +25,14 @@ object QuasiquoteError:
       position: PlaceholderPosition
   ) extends QuasiquoteError:
     def message: String =
-      s"${actual.label} `$name` is not valid ${position.invalidPhrase}."
+      val boundary = actual match
+        case PlaceholderCategory.ReflectedTypeSplice =>
+          " Only the complete type of a constructor expression is supported."
+        case PlaceholderCategory.ConstructedTypeSplice
+            if position == PlaceholderPosition.ConstructorType =>
+          " Constructed-type splices remain supported only as the complete type of an expression ascription."
+        case _ => ""
+      s"${actual.label} `$name` is not valid ${position.invalidPhrase}.$boundary"
 
   final case class UnsupportedPlaceholderPosition(
       name: String,
@@ -33,7 +40,13 @@ object QuasiquoteError:
       position: PlaceholderPosition
   ) extends QuasiquoteError:
     def message: String =
-      s"${actual.label} `$name` is not supported ${position.invalidPhrase}; only the complete type of an expression ascription is supported."
+      val admittedPosition = actual match
+        case PlaceholderCategory.ReflectedTypeSplice =>
+          "only the complete type of a constructor expression is supported"
+        case PlaceholderCategory.ConstructedTypeSplice =>
+          "only the complete type of an expression ascription is supported"
+        case _ => "this placeholder category is not supported there"
+      s"${actual.label} `$name` is not supported ${position.invalidPhrase}; $admittedPosition."
 
   final case class TypeSpliceLoweringFailure(detail: String) extends QuasiquoteError:
     def message: String = detail

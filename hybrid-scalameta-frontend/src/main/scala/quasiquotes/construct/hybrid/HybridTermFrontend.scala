@@ -19,7 +19,7 @@ private[quasiquotes] object HybridTermFrontend:
 
   def build(using q: Quotes)(
       parts: Seq[String],
-      arguments: Seq[q.reflect.Term | QuasiTypeSplice | SelectedMemberName],
+      arguments: Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName],
       dialect: Dialect = TermQ3DialectPolicy.selected
   ): Either[ScalametaTermFrontend.Failure, BuildResult[q.reflect.Term]] =
     ScalametaTermFrontend.lower(parts, arguments, dialect) match

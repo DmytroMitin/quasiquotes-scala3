@@ -5,6 +5,7 @@ import scala.util.control.NonFatal
 
 import scala.meta.*
 import scala.meta.parsers.Parsed
+import dotty.tools.dotc.core.Types
 
 import _root_.quasiquotes.construct.*
 import _root_.quasiquotes.parser.{BinderId, ConstructorNamePolicy, Lambda1DiagnosticMessages, TinyTermParser}
@@ -69,12 +70,16 @@ private[quasiquotes] object ScalametaTermFrontend:
 
   def lower(using q: Quotes)(
       parts: Seq[String],
-      arguments: Seq[q.reflect.Term | QuasiTypeSplice | SelectedMemberName],
+      arguments: Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName],
       dialect: Dialect = TermQ3DialectPolicy.selected
   ): Either[Failure, q.reflect.Term] =
-    val holes: Seq[QuasiquoteHole[q.reflect.Term]] = arguments.map {
+    val holes: Seq[QuasiquoteHole[q.reflect.Term, q.reflect.TypeRepr]] = arguments.map {
       case splice: QuasiTypeSplice => QuasiquoteHole.ConstructedTypeSplice(splice.constructedType)
       case name: SelectedMemberName => QuasiquoteHole.SelectedMemberNameSplice(name)
+      case reflectedType: Types.Type =>
+        QuasiquoteHole.ReflectedTypeSplice(
+          reflectedType.asInstanceOf[q.reflect.TypeRepr]
+        )
       case term => QuasiquoteHole.Term(term.asInstanceOf[q.reflect.Term])
     }
 
@@ -97,6 +102,10 @@ private[quasiquotes] object ScalametaTermFrontend:
               case PlaceholderBinding(name, QuasiquoteHole.SelectedMemberNameSplice(selected)) =>
                 name -> selected
             }.toMap,
+            synthesized.bindings.collect {
+              case PlaceholderBinding(name, QuasiquoteHole.ReflectedTypeSplice(reflectedType)) =>
+                name -> reflectedType
+            }.toMap,
             typeHoles,
             synthesized.literalCategorizedNames
           )
@@ -107,6 +116,7 @@ private[quasiquotes] object ScalametaTermFrontend:
       tree: scala.meta.Term,
       termHoles: Map[String, q.reflect.Term],
       selectedMemberNameHoles: Map[String, SelectedMemberName],
+      reflectedTypeHoles: Map[String, q.reflect.TypeRepr],
       typeHoles: Map[String, q.reflect.TypeRepr],
       literalCategorizedNames: Set[String] = Set.empty
   ): Either[Failure, q.reflect.Term] =
@@ -131,7 +141,13 @@ private[quasiquotes] object ScalametaTermFrontend:
 
     def lowerType(tpe: scala.meta.Type): Either[Failure, TypeTree] =
       typeName(tpe).flatMap { name =>
-        if selectedMemberNameHoles.contains(name) then
+        if reflectedTypeHoles.contains(name) then
+          Left(
+            Failure.lowering(
+              s"Reflected-Type splice `$name` is supported only as the complete type of a constructor expression."
+            )
+          )
+        else if selectedMemberNameHoles.contains(name) then
           Left(
             Failure.selectedMember(
               tpe,
@@ -271,6 +287,53 @@ private[quasiquotes] object ScalametaTermFrontend:
         case select: scala.meta.Type.Select => Right(select.syntax)
         case _ => unsupported(tpe, "constructor type arguments are not supported")
 
+    def reflectedConstructorType(
+        tpe: scala.meta.Type
+    ): Either[Failure, Option[TypeRepr]] =
+      tpe match
+        case name: scala.meta.Type.Name =>
+          reflectedTypeHoles.get(name.value) match
+            case some @ Some(_) => Right(some)
+            case None if termHoles.contains(name.value) =>
+              Left(
+                Failure.lowering(
+                  s"Term splice `${name.value}` is not valid as the complete type of a constructor expression."
+                )
+              )
+            case None if typeHoles.contains(name.value) =>
+              Left(
+                Failure.lowering(
+                  s"Constructed-type splice `${name.value}` is not supported as the complete type of a constructor expression; only the complete type of an expression ascription is supported."
+                )
+              )
+            case None => Right(None)
+        case other =>
+          val nestedReflected = constructorTypeNames(other).find(reflectedTypeHoles.contains)
+          nestedReflected match
+            case Some(name) =>
+              Left(
+                Failure.lowering(
+                  s"Reflected-Type splice `$name` is not supported inside partial or applied constructor type syntax; only the complete type of a constructor expression is supported."
+                )
+              )
+            case None => Right(None)
+
+    def constructorTypeNames(tpe: scala.meta.Type): List[String] =
+      tpe match
+        case name: scala.meta.Type.Name => name.value :: Nil
+        case select: scala.meta.Type.Select =>
+          constructorQualifierNames(select.qual) ++ (select.name.value :: Nil)
+        case applied: scala.meta.Type.Apply =>
+          constructorTypeNames(applied.tpe) ++ applied.args.flatMap(constructorTypeNames)
+        case _ => Nil
+
+    def constructorQualifierNames(term: scala.meta.Term): List[String] =
+      term match
+        case name: scala.meta.Term.Name => name.value :: Nil
+        case select: scala.meta.Term.Select =>
+          constructorQualifierNames(select.qual) ++ (select.name.value :: Nil)
+        case _ => Nil
+
     def lowerConstructor(name: String, arguments: List[Term]): Either[Failure, Term] =
       val classSymbol =
         try
@@ -281,6 +344,26 @@ private[quasiquotes] object ScalametaTermFrontend:
         try Right(Select.overloaded(New(TypeTree.ref(symbol)), "<init>", Nil, arguments))
         catch case NonFatal(error) => Left(Failure.lowering(s"constructor $name failed: ${error.getMessage}"))
       }
+
+    def lowerReflectedConstructor(
+        constructorType: TypeRepr,
+        arguments: List[Term]
+    ): Either[Failure, Term] =
+      val label =
+        try
+          val fullName = constructorType.typeSymbol.fullName
+          if fullName.nonEmpty then fullName
+          else Printer.TypeReprCode.show(constructorType)
+        catch case NonFatal(_) => "<caller-owned TypeRepr>"
+
+      try Right(Select.overloaded(New(Inferred(constructorType)), "<init>", Nil, arguments))
+      catch
+        case NonFatal(error) =>
+          Left(
+            Failure.lowering(
+              s"constructor $label failed: ${Option(error.getMessage).getOrElse(error.getClass.getSimpleName)}"
+            )
+          )
 
     def loop(
         current: scala.meta.Term,
@@ -300,6 +383,12 @@ private[quasiquotes] object ScalametaTermFrontend:
             case Some(term) if lambdaDepth > 0 && containsOwnedDefinition(term) =>
               Left(Failure.lowering(Lambda1DiagnosticMessages.OwnedDefinitionSplice))
             case Some(term) => Right(term)
+            case None if reflectedTypeHoles.contains(name.value) =>
+              Left(
+                Failure.lowering(
+                  s"Reflected-Type splice `${name.value}` is not valid in term position."
+                )
+              )
             case None if selectedMemberNameHoles.contains(name.value) =>
               Left(
                 Failure.selectedMember(
@@ -394,10 +483,17 @@ private[quasiquotes] object ScalametaTermFrontend:
             unsupported(fresh, "named constructor arguments are not supported")
           else
             for
-              name <- constructorName(fresh.init.tpe)
-              _ <- ConstructorNamePolicy.validate(name).left.map(Failure.lowering)
+              reflectedType <- reflectedConstructorType(fresh.init.tpe)
               arguments <- sequence(argumentLists.head.map(lowerChild))
-              result <- lowerConstructor(name, arguments)
+              result <- reflectedType match
+                case Some(constructorType) =>
+                  lowerReflectedConstructor(constructorType, arguments)
+                case None =>
+                  for
+                    name <- constructorName(fresh.init.tpe)
+                    _ <- ConstructorNamePolicy.validate(name).left.map(Failure.lowering)
+                    lowered <- lowerConstructor(name, arguments)
+                  yield lowered
             yield result
         case application: scala.meta.Term.Apply =>
           for
@@ -529,7 +625,7 @@ private[quasiquotes] object ScalametaTermFrontend:
       .flatMap(_ => loop(tree))
 
   private def lowerTypeHoles(using q: Quotes)(
-      bindings: Vector[PlaceholderBinding[q.reflect.Term]]
+      bindings: Vector[PlaceholderBinding[q.reflect.Term, q.reflect.TypeRepr]]
   ): Either[Failure, Map[String, q.reflect.TypeRepr]] =
     bindings.foldLeft[Either[Failure, Map[String, q.reflect.TypeRepr]]](Right(Map.empty)) {
       case (result, PlaceholderBinding(name, QuasiquoteHole.ConstructedTypeSplice(constructed))) =>

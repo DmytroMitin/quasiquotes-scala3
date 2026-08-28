@@ -7,25 +7,32 @@ import quasiquotes.types.ConstructedType
 
 final case class PlaceholderSource[+T](source: String, holes: Vector[T])
 
-private[construct] sealed trait QuasiquoteHole[+T]
+private[construct] sealed trait QuasiquoteHole[+T, +ReflectedType]
 
 private[construct] object QuasiquoteHole:
-  final case class Term[+T](term: T) extends QuasiquoteHole[T]
-  final case class ConstructedTypeSplice(constructedType: ConstructedType) extends QuasiquoteHole[Nothing]
+  final case class Term[+T](term: T) extends QuasiquoteHole[T, Nothing]
+  final case class ReflectedTypeSplice[+ReflectedType](reflectedType: ReflectedType)
+      extends QuasiquoteHole[Nothing, ReflectedType]
+  final case class ConstructedTypeSplice(constructedType: ConstructedType)
+      extends QuasiquoteHole[Nothing, Nothing]
   final case class SelectedMemberNameSplice(selectedMemberName: SelectedMemberName)
-      extends QuasiquoteHole[Nothing]
+      extends QuasiquoteHole[Nothing, Nothing]
 
-private[construct] final case class PlaceholderBinding[+T](name: String, hole: QuasiquoteHole[T])
+private[construct] final case class PlaceholderBinding[+T, +ReflectedType](
+    name: String,
+    hole: QuasiquoteHole[T, ReflectedType]
+)
 
-private[construct] final case class CategorizedPlaceholderSource[+T](
+private[construct] final case class CategorizedPlaceholderSource[+T, +ReflectedType](
     source: String,
-    bindings: Vector[PlaceholderBinding[T]],
+    bindings: Vector[PlaceholderBinding[T, ReflectedType]],
     literalCategorizedNames: Set[String],
     originMap: GeneratedSourceMap
 )
 
 object PlaceholderSource:
-  private val CategorizedNamePattern = "__qq_(?:term|type|name)_hole_[0-9]+(?:_[0-9]+)*".r
+  private val CategorizedNamePattern =
+    "__qq_(?:term|reflected_type|type|name)_hole_[0-9]+(?:_[0-9]+)*".r
 
   def synthesize[T](parts: Seq[String], holes: Seq[T]): Either[QuasiquoteError, PlaceholderSource[T]] =
     if parts.length != holes.length + 1 then
@@ -43,10 +50,10 @@ object PlaceholderSource:
       }
       Right(PlaceholderSource[T](builder.result(), holes.toVector))
 
-  private[construct] def synthesizeCategorized[T](
+  private[construct] def synthesizeCategorized[T, ReflectedType](
       parts: Seq[String],
-      holes: Seq[QuasiquoteHole[T]]
-  ): Either[QuasiquoteError, CategorizedPlaceholderSource[T]] =
+      holes: Seq[QuasiquoteHole[T, ReflectedType]]
+  ): Either[QuasiquoteError, CategorizedPlaceholderSource[T, ReflectedType]] =
     if parts.length != holes.length + 1 then
       Left(
         QuasiquoteError.HoleCountMismatch(
@@ -78,6 +85,8 @@ object PlaceholderSource:
       val bindings = holes.zipWithIndex.map { (hole, index) =>
         val baseName = hole match
           case _: QuasiquoteHole.Term[?] => s"__qq_term_hole_$index"
+          case _: QuasiquoteHole.ReflectedTypeSplice[?] =>
+            s"__qq_reflected_type_hole_$index"
           case _: QuasiquoteHole.ConstructedTypeSplice => s"__qq_type_hole_$index"
           case _: QuasiquoteHole.SelectedMemberNameSplice => s"__qq_name_hole_$index"
         val name = freshCategorizedName(baseName, literalSource, generatedNames)
@@ -90,6 +99,8 @@ object PlaceholderSource:
         builder.append(name)
         val category = hole match
           case _: QuasiquoteHole.Term[?] => InterpolationCategory.TermSplice
+          case _: QuasiquoteHole.ReflectedTypeSplice[?] =>
+            InterpolationCategory.ReflectedTypeSplice
           case _: QuasiquoteHole.ConstructedTypeSplice => InterpolationCategory.ConstructedTypeSplice
           case _: QuasiquoteHole.SelectedMemberNameSplice =>
             InterpolationCategory.SelectedMemberNameSplice

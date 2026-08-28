@@ -168,7 +168,7 @@ object QuasiquoteDiagnosticExamples:
 
   private def loweringFailure(using Quotes)(
       source: String,
-      bindings: Vector[PlaceholderBinding[quotes.reflect.Term]]
+      bindings: Vector[PlaceholderBinding[quotes.reflect.Term, Nothing]]
   ): QuasiquoteLoweringFailure =
     val parsed = TinyTermParser.parseOrThrow(source)
     ParsedTermLowerer.lowerLocated(parsed.rawTree, bindings).swap.toOption.get

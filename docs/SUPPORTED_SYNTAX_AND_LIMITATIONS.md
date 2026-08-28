@@ -69,8 +69,10 @@ Important limitations:
   slots are distinct and ordered, with no type/sequence/backreference syntax;
   they do not capture or accept dynamic selected-member names;
 - public `tqr` and `tqq` type templates use zero or more distinct ordinal
-  whole-type slots; they do not admit constructor, higher-kinded, wildcard,
-  sequence, binder-name, or mixed-category slots;
+  whole-type slots; zero-hole `tqr` also admits canonical globally selected
+  class terminals such as `java.lang.StringBuilder`. They do not admit dynamic
+  constructor, higher-kinded, wildcard, sequence, binder-name, or
+  mixed-category slots;
 - ordinary quoted standard-`s` interpolation has a bounded exact internal
   backend with canonical escaping and generated-origin spans; `raw`, `f`,
   custom interpolators, and triple-quoted `s` remain unsupported;
@@ -79,11 +81,13 @@ Important limitations:
   (arity 1), and `Either` (arity 2); the experimental explicit
   `GlobalSelectedTypeEnvironment`/`GlobalSelectedTypeFrontend` surface also
   admits their canonical selected declarations by full resolved identity;
-- canonical globally addressable selected terminals are experimental and
-  programmatic only. Arbitrary selected constructors, arbitrary labels,
+- the general canonical globally addressable selected-Type surface remains
+  experimental and programmatic. Zero-hole `tqr` now reuses its exact
+  witness-derived identity checks for a canonical selected class terminal.
+  Arbitrary selected constructors, arbitrary labels,
   alternate/import-shortened spellings, stable-term paths, local owners,
-  constructor holes, higher-kinded types, aliases, semantic name resolution,
-  subtyping, and compiler equality are not supported. Ordinary `tqr`/`tqq`
+  dynamic constructor holes, higher-kinded types, aliases, ambient semantic
+  name resolution, subtyping, and compiler equality are not supported. `tqq`
   behavior is unchanged.
 
 ## Bounded term-pattern extractor
@@ -403,14 +407,30 @@ location. Generated hole-transport identifiers are not part of public errors.
 
 ## Constructor expressions
 
-Term construction and matching support one bounded form:
+Term construction and matching support the fixed-source bounded form:
 
 ```scala
 new java.lang.StringBuilder(16)
 ```
 
-The class name must be fully qualified, plain, and non-generic, with exactly
-one ordinary argument list. Arguments may use the already-supported term
-subset. Imported/simple names, generic types, constructor holes, named or
-multiple lists, and anonymous classes are rejected. This is constructor-only
-resolution, not a general type-name resolver.
+Construction additionally admits one caller-owned `q.reflect.TypeRepr` as the
+complete constructor Type:
+
+```scala
+val stringBuilderType = tqr"java.lang.StringBuilder"
+qr"new $stringBuilderType(${capacity.asTerm}).capacity()"
+```
+
+`TypeRepr.of[T]`, `TypeTree.of[T].tpe`, and a `tqr` result share this transport.
+The reflected payload remains in the caller's active `Quotes` universe and is
+not rendered, reparsed, serialized, or normalized through `ConstructedType`.
+Direct `Type[T]` and `TypeTree` interpolation are not supported.
+
+Both fixed and reflected forms retain exactly one ordinary argument list.
+Arguments may use the already-supported term subset. A reflected Type is
+invalid in ordinary Term positions, ascriptions, method Type applications,
+partial constructor paths, applied dynamic constructor forms, refinements,
+definitions, and patterns. Fixed-source imported/simple names, generic types,
+named or multiple lists, and anonymous classes remain rejected. Matching stays
+fixed-source only. This is constructor-only admission, not a general Type-hole
+or name-resolution surface.

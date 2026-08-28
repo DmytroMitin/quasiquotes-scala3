@@ -26,7 +26,7 @@ Status vocabulary:
 | Tuples | `(a, b)` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; term arities 2–22, ordered structural equality |
 | Conditional | `if c then a else b` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; no branch simplification or control-flow equivalence |
 | Standard interpolation | `s"hello $name"` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; standard single-quoted `s` only, with layered-dollar holes |
-| Constructor | `new java.lang.StringBuilder(16)` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; fully-qualified, non-generic name and one ordinary argument list |
+| Constructor | `new java.lang.StringBuilder(16)`, `new $typeRepr(16)` | Yes | Yes for fixed source Type only | `qr`, `QuasiPattern.term` | `BOUNDED`; fixed fully-qualified non-generic name or caller-owned `TypeRepr` as the complete constructor Type, one ordinary argument list; reflected-Type matching is absent |
 | Lambda1 | `(x: Int) => x` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; exactly one explicitly typed ordinary parameter, alpha-aware |
 | Binder-free P1 block | `{ effect1(); effect2(); result }` | Yes | Yes | `qr`, `qq`, `QuasiPattern.term` | `BOUNDED`; one or more ordered expression prefixes plus a distinct final result; children must already be admitted Terms |
 | Single typed local immutable val (P2) | `{ val x: Int = init; use(x) }` | Yes | Yes | `qr`, `qq`, `QuasiPattern.term` | `BOUNDED`; exactly one eager immutable simple binder in the whole tree with an explicit admitted type; initializer is outside scope, only the final result sees the binder, and P2/Lambda1 same-name source shadowing is rejected |
@@ -58,11 +58,11 @@ forms and the Quotes-dependent interpolator/extractor overloads.
 | Tuple types | `(Int, String)`, `(Int, String, Boolean)` | Yes | Yes | `tqr`, `tqq`, structural APIs | `BOUNDED`; Tuple2 and Tuple3 |
 | Function types | `Int => String`, `(Int, String) => Boolean` | Yes | Yes | `tqr`, `tqq`, structural APIs | `BOUNDED`; Function1 and Function2 |
 | Type holes | `Either[$left, $right]` | Yes | Yes | programmatic `tqr`, `tqq` | `BOUNDED`; named whole-type positions and repeated-hole structural equality |
-| Ordered reflected type construction | `tqr"Either[$left, $right]"` | Yes | No | interpolated `tqr` | `BOUNDED`; zero or more distinct ordinal `TypeRepr` slots, fixed constructors only |
+| Ordered reflected type construction | `tqr"Either[$left, $right]"` | Yes | No | interpolated `tqr` | `BOUNDED`; zero or more distinct ordinal `TypeRepr` slots, fixed constructors, plus zero-hole canonical globally selected class terminals such as `java.lang.StringBuilder` |
 | Ordered reflected type capture extractor | `case tqq"Either[$left, $right]"` | No | Yes | interpolated `tqq` | `BOUNDED`; zero or more distinct ordinal slots, original target subtrees, mismatch falls through |
 | Canonical global selected terminals | `some.pkg.TopLevel`, `some.pkg.Owner.Nested` | Yes | Yes | explicit `GlobalSelectedTypeEnvironment` + `GlobalSelectedTypeFrontend` | `EXPERIMENTAL_BOUNDED`; typed-witness-derived canonical Package/Type/Module ownership only |
 | Canonical selected fixed constructors | `scala.collection.immutable.List[Int]`, `scala.Option[String]`, `scala.util.Either[Int, String]` | Yes | Yes | explicit environment-aware programmatic surface | `EXPERIMENTAL_BOUNDED`; exact declaration identity and existing arities/child forms only |
-| Stable-term path-dependent types, aliases, alternate spellings | `value.Type`, alias source paths, import-shortened paths | No | No | — | `NOT_YET`; requires prefix identity or sound spelling validation; ordinary `tqr`/`tqq` still reject selected syntax |
+| Stable-term path-dependent types, aliases, alternate spellings | `value.Type`, alias source paths, import-shortened paths | No | No | — | `NOT_YET`; requires prefix identity or sound spelling validation; the zero-hole canonical class-terminal `tqr` case does not admit these forms, and ordinary `tqq` remains unchanged |
 | Wildcards, refinements, match types | `List[?]`, `A { ... }`, `T match ...` | No | No | — | `NOT_YET`; outside the bounded normal form |
 
 The interpolated forms reuse the same normal-form construction and matching

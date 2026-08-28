@@ -30,6 +30,28 @@ class SourceMappingTest extends munit.FunSuite:
     )
   }
 
+  test("reflected-Type synthesis has its own collision-safe name and origin category") {
+    val reflected = PlaceholderSource.synthesizeCategorized(
+      Seq("new ", "(1)"),
+      Seq(QuasiquoteHole.ReflectedTypeSplice("caller-owned-repr"))
+    ).toOption.get
+
+    assertEquals(reflected.source, "new __qq_reflected_type_hole_0(1)")
+    assertEquals(reflected.bindings.map(_.name), Vector("__qq_reflected_type_hole_0"))
+    assertEquals(
+      reflected.originMap.originAt(
+        reflected.source.indexOf("__qq_reflected_type_hole_0")
+      ),
+      Some(
+        SourceOrigin.InterpolationArgument(
+          SourceId.TermConstructionTemplate,
+          0,
+          InterpolationCategory.ReflectedTypeSplice
+        )
+      )
+    )
+  }
+
   test("mixed synthesis maps literal parts and adjacent interpolations deterministically") {
     val parts = Seq("(", "", ": ", ")")
     val holes = Seq(

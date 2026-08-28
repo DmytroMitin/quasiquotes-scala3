@@ -123,7 +123,7 @@ object QuasiTypeSpliceExamples:
     import quotes.reflect.*
 
     val constructed = QuasiTypequotes.tqr("List[$t]", "t" -> TypeNormalForm.STypeIdent("Int")).fold(throw _, identity)
-    val holes: Seq[QuasiquoteHole[Term]] = Seq(
+    val holes: Seq[QuasiquoteHole[Term, Nothing]] = Seq(
       QuasiquoteHole.Term('{ List(1) }.asTerm),
       QuasiquoteHole.ConstructedTypeSplice(constructed)
     )

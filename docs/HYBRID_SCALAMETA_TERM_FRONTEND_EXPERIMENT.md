@@ -25,6 +25,13 @@ Function1/Function2, ordered reflected holes and captures, programmatic
 repeated holes, mismatches, and controlled failures. Successful captures are
 the caller's original reflected subtrees.
 
+Term construction also accepts a caller-owned `TypeRepr` only as the complete
+constructor Type of the bounded one-list `new` form. `TypeRepr.of[T]`,
+`TypeTree.of[T].tpe`, and a current `tqr` result share that transport. The
+reflected payload is restored structurally after Scalameta parsing; wrong
+positions and lowering failures are terminal and never select current-parser
+fallback.
+
 Parity means equivalent semantics where both frontends advertise support. It
 does not require every future feature to be delivered in lock-step.
 

@@ -110,6 +110,11 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
   test("explicit nullary selected call after a constructed receiver is applied exactly once"):
     assertEquals(NullarySelectedCallCompositionSnippet.capacity(16), 16)
 
+  test("caller-owned reflected Types occupy the complete constructor type outside the library package"):
+    assertEquals(ReflectedConstructorTypeSnippet.fromTypeRepr(17), 17)
+    assertEquals(ReflectedConstructorTypeSnippet.fromTypeTreeTpe(18), 18)
+    assertEquals(ReflectedConstructorTypeSnippet.fromTqr(19), 19)
+
   test("selected-call composition retains the fixed positive matrix"):
     val receiver = new NullarySelectedCallTarget(40)
     assertEquals(NullarySelectedCallCompositionSnippet.ordinaryNullary(receiver), 41)

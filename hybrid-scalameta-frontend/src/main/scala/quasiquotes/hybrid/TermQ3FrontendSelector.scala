@@ -34,7 +34,7 @@ private[quasiquotes] object TermQ3FrontendSelector:
   def build(using q: Quotes)(
       selection: Selection,
       parts: Seq[String],
-      arguments: Seq[q.reflect.Term | QuasiTypeSplice | SelectedMemberName],
+      arguments: Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName],
       dialect: Dialect = TermQ3DialectPolicy.selected
   ): Either[ScalametaTermFrontend.Failure, BuildResult[q.reflect.Term]] =
     selection match

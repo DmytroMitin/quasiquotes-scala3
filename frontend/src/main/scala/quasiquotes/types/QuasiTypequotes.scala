@@ -2,6 +2,9 @@ package quasiquotes.types
 
 import scala.quoted.*
 import scala.annotation.targetName
+import scala.util.control.NonFatal
+
+import quasiquotes.parser.{TinyTypeParser, TypeShape}
 
 object QuasiTypequotes:
   /** Recommended research-facing pattern convenience; this is a function, not an interpolator. */
@@ -46,16 +49,21 @@ object QuasiTypequotes:
             case Right(normalForm) => current.updated(name, normalForm)
       }
 
-      QuasiTypeConstruct.fromTemplateLocated(source, bindings) match
-        case Left(failure) =>
-          report.errorAndAbort(
-            s"Invalid tqr type template: ${failure.diagnostic.message}"
-          )
-        case Right(constructed) =>
-          constructed.toTypeRepr match
-            case Left(error) =>
-              report.errorAndAbort(s"Invalid tqr type template: ${error.message}")
-            case Right(typeRepr) => typeRepr
+      lowerCanonicalSelectedTerminal(source, expectedArity) match
+        case Some(Left(error)) =>
+          report.errorAndAbort(s"Invalid tqr type template: ${error.message}")
+        case Some(Right(typeRepr)) => typeRepr
+        case None =>
+          QuasiTypeConstruct.fromTemplateLocated(source, bindings) match
+            case Left(failure) =>
+              report.errorAndAbort(
+                s"Invalid tqr type template: ${failure.diagnostic.message}"
+              )
+            case Right(constructed) =>
+              constructed.toTypeRepr match
+                case Left(error) =>
+                  report.errorAndAbort(s"Invalid tqr type template: ${error.message}")
+                case Right(typeRepr) => typeRepr
 
     def tqq(using q: Quotes): TypePatternExtractor[q.reflect.TypeRepr] =
       import q.reflect.*
@@ -91,6 +99,44 @@ object QuasiTypequotes:
     if parts == null || parts.isEmpty then
       report.errorAndAbort(s"$prefix StringContext must contain at least one part.")
     parts
+
+  private def lowerCanonicalSelectedTerminal(using q: Quotes)(
+      source: String,
+      expectedArity: Int
+  ): Option[Either[TypeQuasiquoteError, q.reflect.TypeRepr]] =
+    if expectedArity != 0 || !isSelectedTerminal(source) then None
+    else
+      import q.reflect.*
+      Some(
+        try
+          val witness = Symbol.requiredClass(source).typeRef
+          for
+            environment <- GlobalSelectedTypeEnvironment.fromWitnesses(using q)(witness)
+            resolved <- GlobalSelectedTypeFrontend.construct(using q)(
+              source,
+              environment
+            )
+          yield resolved
+        catch
+          case NonFatal(error) =>
+            Left(
+              TypeQuasiquoteError(
+                s"Canonical selected class `$source` could not be resolved: ${Option(error.getMessage).getOrElse(error.getClass.getSimpleName)}"
+              )
+            )
+      )
+
+  private def isSelectedTerminal(source: String): Boolean =
+    def selected(shape: TypeShape): Boolean =
+      shape match
+        case TypeShape.Select(qualifier, _) =>
+          qualifier match
+            case TypeShape.Identifier(_) => true
+            case nested: TypeShape.Select => selected(nested)
+            case _ => false
+        case _ => false
+
+    TinyTypeParser.parse(source).toOption.exists(parsed => selected(parsed.shape))
 
   private def synthesize(parts: Seq[String], holeNames: Seq[String]): String =
     parts.zipWithIndex.foldLeft(new StringBuilder) {

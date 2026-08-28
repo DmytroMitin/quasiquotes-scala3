@@ -30,7 +30,9 @@ final class SelectedMemberNameHoleTest extends munit.FunSuite:
       }
       QuasiquoteBuilder.build(using q)(
         parts,
-        mapped.asInstanceOf[Seq[q.reflect.Term | QuasiTypeSplice | SelectedMemberName]]
+        mapped.asInstanceOf[
+          Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName]
+        ]
       ).left.map(_.message).map(_.show)
 
   test("constructs an explicit dynamic selection and existing ordinary application"):

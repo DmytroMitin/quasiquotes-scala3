@@ -203,6 +203,25 @@ object FrontendFirstUseSnippet:
 ```
 <!-- snippet:frontend-first-use:end -->
 
+The constructor type may also be a caller-owned reflected type. The splice is
+admitted only as the complete type immediately after `new`; it is not a term
+splice, a compiler-free `QuasiTypeSplice`, or a direct `Type[T]`/`TypeTree`
+transport:
+
+```scala
+private def reflectedCapacityImpl(value: Expr[Int])(using q: Quotes): Expr[Int] =
+  import q.reflect.*
+
+  val constructorType: q.reflect.TypeRepr = tqr"java.lang.StringBuilder"
+  qr"new $constructorType(${value.asTerm}).capacity()".asExprOf[Int]
+```
+
+`TypeRepr.of[StringBuilder]` and `TypeTree.of[StringBuilder].tpe` are equivalent
+caller-universe sources. Partial or applied constructor holes, reflected types
+in term, ascription, or method-type positions, and stale or foreign `Quotes`
+values remain outside the boundary. A non-instantiable admitted type is passed
+to the Scala compiler, which reports the ordinary constructor error.
+
 ## Reflected definition interpolation
 
 Inside an active macro `Quotes`, `dqr` constructs exactly one caller-owned

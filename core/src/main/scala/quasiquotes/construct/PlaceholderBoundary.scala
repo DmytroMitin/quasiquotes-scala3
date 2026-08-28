@@ -3,18 +3,21 @@ package quasiquotes.construct
 /** Compiler-free placeholder categories shared with the frontend index. */
 private[construct] enum PlaceholderCategory derives CanEqual:
   case TermSplice
+  case ReflectedTypeSplice
   case ConstructedTypeSplice
   case SelectedMemberNameSplice
 
   def label: String =
     this match
       case TermSplice => "Term splice"
+      case ReflectedTypeSplice => "Reflected-Type splice"
       case ConstructedTypeSplice => "Constructed-type splice"
       case SelectedMemberNameSplice => "Selected-member name splice"
 
 /** Compiler-free placeholder positions used by neutral construction errors. */
 private[construct] enum PlaceholderPosition derives CanEqual:
   case Term
+  case ConstructorType
   case ExpressionAscriptionType
   case SelectedMemberName
   case UnsupportedType(context: String)
@@ -23,6 +26,7 @@ private[construct] enum PlaceholderPosition derives CanEqual:
   def invalidPhrase: String =
     this match
       case Term => "in term position"
+      case ConstructorType => "as the complete type of a constructor expression"
       case ExpressionAscriptionType =>
         "as the complete type of an expression ascription"
       case SelectedMemberName => "as the name of an explicit receiver selection"

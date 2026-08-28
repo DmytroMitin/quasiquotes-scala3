@@ -27,11 +27,11 @@ delivery chronology.
 - Preserve Apache-2.0 POM and JAR metadata for intended `core` and `frontend`
   distributions.
 - Expand structural term and type support through narrow, test-backed slices.
-- Add the next bounded reflected-Type composition slice at the complete
-  constructor Type position. Accept caller-owned `TypeRepr` directly so
+- Preserve the bounded reflected-Type composition slice at the complete
+  constructor Type position. `qr` accepts caller-owned `TypeRepr` directly so
   `TypeTree.tpe`, `TypeRepr.of[T]`, and `tqr` share one transport; preserve the
   compiler-free `QuasiTypeSplice` route and keep `scala.quoted` out of `core`.
-- After that Type gate, design source-owned local `def` statements in `qr`
+- Design source-owned local `def` statements in `qr`
   with backend-created symbols and owners. Keep external typed `DefDef`
   statement splices deferred until an explicit reownership contract exists;
   do not add direct `Symbol` splicing.
@@ -54,17 +54,19 @@ delivery chronology.
 
 ## Composable quasiquotes
 
-The following work is planned in stages. None of the new interpolation or
-import forms in this section is supported by the current baseline unless the
-text explicitly says otherwise.
+The following work advances in stages. The complete constructor-Type slice is
+implemented; the other interpolation and import forms remain planned unless
+the text explicitly says otherwise.
 
 ### Reflected Types in Term construction
 
-1. Add caller-owned `q.reflect.TypeRepr` as its own typed-Term interpolation
-   category. The first admitted position will be the complete constructor Type,
-   conceptually `new $typeValue(arg)`.
-2. Require a value returned by `tqr` to work directly in that position.
-   `TypeTree.tpe` and `TypeRepr.of[T]` use the same transport. Convenience for
+1. Caller-owned `q.reflect.TypeRepr` is its own typed-Term interpolation
+   category. Its first admitted position is the complete constructor Type in
+   `new $typeValue(arg)` with one ordinary argument list.
+2. A value returned by `tqr` works directly in that position.
+   `TypeTree.tpe` and `TypeRepr.of[T]` use the same transport. Literal canonical
+   globally selected class terminals such as `tqr"java.lang.StringBuilder"`
+   resolve through exact typed identity. Convenience for
    passing `Type[T]` or `TypeTree` directly may be considered only after the
    `TypeRepr` contract is stable.
 3. Treat other Type positions as later slices: applied or dynamic
@@ -132,16 +134,16 @@ syntax.
 | N2 runtime-length dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | constructor-position Type hole and sequence Type splice |
 | N3 generated Type refinement members | `CURRENT_MANUAL_BASELINE_PROVED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | refinement/type-member model and sequence definition splice |
 | N4 anonymous implementation with calculated definitions | `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | anonymous-class bodies, broader definitions, sequence splices, owner planning |
-| N5 dynamic `new T(..args)` for an existing type | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | constructor-position Type hole, sequence Term splice, constructor/argument policy |
+| N5 dynamic `new T(..args)` for an existing type | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | sequence Term splice and broader constructor/argument policy |
 
 None of N1-N5 is `CHECKPOINT_COMPLETE`.
 
-The bounded explicit-receiver dynamic selected-member construction gap is now
-implemented; bare identifiers, overload resolution, dynamic infix syntax, and
-dynamic name matching remain outside it. The selected next implementation
-gate is the N5 complete constructor-Type hole. Stable-term selected-Type
-prefix identity, sequence splices, broader Type positions, and broader
-definition/class support remain independent later work.
+The bounded explicit-receiver dynamic selected-member construction gap and the
+first N5 complete constructor-Type splice are implemented. Bare identifiers,
+overload resolution, dynamic infix syntax, dynamic name matching, sequence
+splices, broader Type positions, and broader definition/class support remain
+independent later work. The next product-facing composition candidate is a
+source-owned local `def` inside `qr`; AUXify 037 remains a separate peer lane.
 
 Symbols are compiler semantic entities, not source syntax. No public symbol
 quasiquote family is currently planned. The neutral core remains symbol-free;

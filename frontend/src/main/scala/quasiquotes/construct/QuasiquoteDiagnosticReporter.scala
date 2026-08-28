@@ -1,6 +1,7 @@
 package quasiquotes.construct
 
 import scala.quoted.Quotes
+import dotty.tools.dotc.ast.tpd
 
 import quasiquotes.source.ReflectedPositionProvenance
 
@@ -25,7 +26,7 @@ private[construct] object MacroArgumentPositionResolver:
 private[construct] object MacroDiagnosticPositionResolver:
   def resolve(using q: Quotes)(
       anchor: MacroDiagnosticAnchor,
-      arguments: Seq[q.reflect.Term | QuasiTypeSplice | SelectedMemberName]
+      arguments: Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName]
   ): q.reflect.Position =
     import q.reflect.*
 
@@ -35,11 +36,12 @@ private[construct] object MacroDiagnosticPositionResolver:
         arguments.lift(index) match
           case Some(_: QuasiTypeSplice) => fallback
           case Some(_: SelectedMemberName) => fallback
-          case Some(argument) =>
+          case Some(argument: tpd.Tree) =>
             MacroArgumentPositionResolver.resolve(
               index = 0,
               arguments = Seq(argument.asInstanceOf[Term])
             )
+          case Some(_) => fallback
           case None => fallback
       case MacroDiagnosticAnchor.DefinitionInterpolationArgument(_) =>
         fallback
@@ -49,7 +51,7 @@ private[construct] object MacroDiagnosticPositionResolver:
 private[construct] object QuasiquoteDiagnosticReporter:
   def abort(using q: Quotes)(
       failure: QuasiquoteBuildFailure,
-      arguments: Seq[q.reflect.Term | QuasiTypeSplice | SelectedMemberName]
+      arguments: Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName]
   ): Nothing =
     val anchor = MacroDiagnosticAnchorSelector.select(failure.location)
     val position = MacroDiagnosticPositionResolver.resolve(anchor, arguments)

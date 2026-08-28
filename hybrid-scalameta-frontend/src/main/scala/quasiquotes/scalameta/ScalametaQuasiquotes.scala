@@ -10,7 +10,7 @@ import quasiquotes.construct.{QuasiTypeSplice, SelectedMemberName}
 object ScalametaQuasiquotes:
   extension (context: StringContext)
     def qr(using q: Quotes)(
-        arguments: (q.reflect.Term | QuasiTypeSplice | SelectedMemberName)*
+        arguments: (q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName)*
     ): q.reflect.Term =
       TermFrontend.build(context.parts, arguments) match
         case Right(result) => result.term

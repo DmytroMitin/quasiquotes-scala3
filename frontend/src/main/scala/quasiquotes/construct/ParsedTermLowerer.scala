@@ -25,14 +25,14 @@ object ParsedTermLowerer:
 
   def lower(using q: Quotes)(
       tree: untpd.Tree,
-      bindings: Vector[PlaceholderBinding[q.reflect.Term]],
+      bindings: Vector[PlaceholderBinding[q.reflect.Term, q.reflect.TypeRepr]],
       literalCategorizedNames: Set[String] = Set.empty
   ): Either[QuasiquoteError, q.reflect.Term] =
     lowerLocated(tree, bindings, literalCategorizedNames).left.map(_.error)
 
   private[construct] def lowerLocated(using q: Quotes)(
       tree: untpd.Tree,
-      bindings: Vector[PlaceholderBinding[q.reflect.Term]],
+      bindings: Vector[PlaceholderBinding[q.reflect.Term, q.reflect.TypeRepr]],
       literalCategorizedNames: Set[String] = Set.empty
   ): Either[QuasiquoteLoweringFailure, q.reflect.Term] =
     import q.reflect.*
@@ -194,17 +194,12 @@ object ParsedTermLowerer:
             Left(located(QuasiquoteError.UnsupportedTree("ConstructorNew", "named constructor arguments are not supported"), constructor))
           else
             for
-              _ <- rejectSelectedMemberNameHole(
-                typeTree,
-                placeholderIndex,
-                "in constructor-name position"
-              )
-              constructorName <- renderConstructorName(typeTree).left.map(located(_, constructor))
-              _ <- ConstructorNamePolicy
-                .validate(constructorName)
-                .left.map(detail => located(QuasiquoteError.InvalidConstructorName(constructorName, detail), typeTree))
               loweredArguments <- sequenceLocated(arguments.map(lowerChild))
-              lowered <- lowerConstructor(constructorName, loweredArguments).left.map(located(_, constructor))
+              lowered <- lowerConstructorType(
+                typeTree,
+                loweredArguments,
+                placeholderIndex
+              )
             yield lowered
         case untpd.Apply(function, arguments) =>
           for
@@ -351,7 +346,7 @@ object ParsedTermLowerer:
       boundTerms: List[(String, q.reflect.Term)],
       lambdaDepth: Int,
       binderContext: Option[(String, String)],
-      placeholderIndex: CategorizedPlaceholderIndex[q.reflect.Term],
+      placeholderIndex: CategorizedPlaceholderIndex[q.reflect.Term, q.reflect.TypeRepr],
       lowerTerm: (
           untpd.Tree,
           List[(String, q.reflect.Term)],
@@ -404,7 +399,7 @@ object ParsedTermLowerer:
 
   private def lowerType(using q: Quotes)(
       tree: untpd.Tree,
-      placeholderIndex: CategorizedPlaceholderIndex[q.reflect.Term]
+      placeholderIndex: CategorizedPlaceholderIndex[q.reflect.Term, q.reflect.TypeRepr]
   ): Either[QuasiquoteLoweringFailure, q.reflect.TypeTree] =
     import q.reflect.*
     tree match
@@ -441,7 +436,7 @@ object ParsedTermLowerer:
 
   private def lowerP2DeclaredType(using q: Quotes)(
       tree: untpd.Tree,
-      placeholderIndex: CategorizedPlaceholderIndex[q.reflect.Term]
+      placeholderIndex: CategorizedPlaceholderIndex[q.reflect.Term, q.reflect.TypeRepr]
   ): Either[QuasiquoteLoweringFailure, q.reflect.TypeTree] =
     import q.reflect.*
     lowerType(tree, placeholderIndex).orElse(
@@ -544,6 +539,71 @@ object ParsedTermLowerer:
         case NonFatal(error) => Left(QuasiquoteError.UnsupportedConstructorApplication(name, error.getMessage.nn))
     }
 
+  private def lowerConstructorType(using q: Quotes)(
+      typeTree: untpd.Tree,
+      arguments: List[q.reflect.Term],
+      placeholderIndex: CategorizedPlaceholderIndex[q.reflect.Term, q.reflect.TypeRepr]
+  ): Either[QuasiquoteLoweringFailure, q.reflect.Term] =
+    typeTree match
+      case untpd.Ident(name) =>
+        val text = name.toString
+        placeholderIndex
+          .resolve(
+            text,
+            PlaceholderCategory.ReflectedTypeSplice,
+            PlaceholderPosition.ConstructorType
+          )
+          .left.map(located(_, typeTree))
+          .flatMap {
+            case Some(PlaceholderBinding(_, QuasiquoteHole.ReflectedTypeSplice(reflectedType))) =>
+              lowerReflectedConstructor(reflectedType, arguments)
+                .left.map(located(_, typeTree))
+            case Some(_) =>
+              Left(located(QuasiquoteError.UnknownPlaceholder(text), typeTree))
+            case None =>
+              lowerNamedConstructor(typeTree, arguments)
+          }
+      case _ =>
+        unsupportedConstructorTypePlaceholderFailure(typeTree, placeholderIndex) match
+          case Some(failure) => Left(failure)
+          case None => lowerNamedConstructor(typeTree, arguments)
+
+  private def lowerNamedConstructor(using q: Quotes)(
+      typeTree: untpd.Tree,
+      arguments: List[q.reflect.Term]
+  ): Either[QuasiquoteLoweringFailure, q.reflect.Term] =
+    for
+      constructorName <- renderConstructorName(typeTree).left.map(located(_, typeTree))
+      _ <- ConstructorNamePolicy
+        .validate(constructorName)
+        .left.map(detail => located(QuasiquoteError.InvalidConstructorName(constructorName, detail), typeTree))
+      lowered <- lowerConstructor(constructorName, arguments).left.map(located(_, typeTree))
+    yield lowered
+
+  private def lowerReflectedConstructor(using q: Quotes)(
+      constructorType: q.reflect.TypeRepr,
+      arguments: List[q.reflect.Term]
+  ): Either[QuasiquoteError, q.reflect.Term] =
+    import q.reflect.*
+
+    val label =
+      try
+        val fullName = constructorType.typeSymbol.fullName
+        if fullName.nonEmpty then fullName else constructorType.show
+      catch case NonFatal(_) => "<caller-owned TypeRepr>"
+
+    try
+      val created = New(Inferred(constructorType))
+      Right(Select.overloaded(created, "<init>", Nil, arguments))
+    catch
+      case NonFatal(error) =>
+        Left(
+          QuasiquoteError.UnsupportedConstructorApplication(
+            label,
+            Option(error.getMessage).getOrElse(error.getClass.getSimpleName)
+          )
+        )
+
   private def renderConstructorName(tree: untpd.Tree): Either[QuasiquoteError, String] =
     tree match
       case untpd.Ident(name) => Right(name.toString)
@@ -624,9 +684,9 @@ object ParsedTermLowerer:
       case untpd.Select(qualifier, name) => s"${renderType(qualifier)}.${name.toString}"
       case other => other.toString
 
-  private def unsupportedTermPlaceholderFailure[T](
+  private def unsupportedTermPlaceholderFailure[T, ReflectedType](
       tree: untpd.Tree,
-      placeholderIndex: CategorizedPlaceholderIndex[T]
+      placeholderIndex: CategorizedPlaceholderIndex[T, ReflectedType]
   ): Option[QuasiquoteLoweringFailure] =
     placeholderIndex.firstUnknownOccurrence(tree).map { occurrence =>
       QuasiquoteLoweringFailure(QuasiquoteError.UnknownPlaceholder(occurrence.name), occurrence.generatedSpan)
@@ -652,18 +712,36 @@ object ParsedTermLowerer:
             ),
             span
           )
+        case PlaceholderOccurrence(binding @ PlaceholderBinding(_, _: QuasiquoteHole.ReflectedTypeSplice[?]), span) =>
+          val position = tree match
+            case _: untpd.TypeApply => PlaceholderPosition.UnsupportedType("method type arguments")
+            case _ => PlaceholderPosition.UnsupportedTerm("unsupported term syntax")
+          QuasiquoteLoweringFailure(
+            QuasiquoteError.UnsupportedPlaceholderPosition(
+              binding.name,
+              PlaceholderCategory.ReflectedTypeSplice,
+              position
+            ),
+            span
+          )
       }
     }
 
-  private def unsupportedTypePlaceholderFailure[T](
+  private def unsupportedTypePlaceholderFailure[T, ReflectedType](
       tree: untpd.Tree,
-      placeholderIndex: CategorizedPlaceholderIndex[T]
+      placeholderIndex: CategorizedPlaceholderIndex[T, ReflectedType]
   ): Option[QuasiquoteLoweringFailure] =
     placeholderIndex.firstUnknownOccurrence(tree).map { occurrence =>
       QuasiquoteLoweringFailure(QuasiquoteError.UnknownPlaceholder(occurrence.name), occurrence.generatedSpan)
     }.orElse {
       placeholderIndex.findOccurrences(tree).headOption.map { occurrence =>
         val error = placeholderIndex.categoryOf(occurrence.binding.hole) match
+          case PlaceholderCategory.ReflectedTypeSplice =>
+            QuasiquoteError.UnsupportedPlaceholderPosition(
+              occurrence.binding.name,
+              PlaceholderCategory.ReflectedTypeSplice,
+              PlaceholderPosition.UnsupportedType("non-constructor type syntax")
+            )
           case PlaceholderCategory.ConstructedTypeSplice =>
             QuasiquoteError.UnsupportedPlaceholderPosition(
               occurrence.binding.name,
@@ -682,9 +760,57 @@ object ParsedTermLowerer:
       }
     }
 
-  private def rejectSelectedMemberNameHole[T](
+  private def unsupportedConstructorTypePlaceholderFailure[T, ReflectedType](
       tree: untpd.Tree,
-      placeholderIndex: CategorizedPlaceholderIndex[T],
+      placeholderIndex: CategorizedPlaceholderIndex[T, ReflectedType]
+  ): Option[QuasiquoteLoweringFailure] =
+    val occurrences = placeholderIndex.findOccurrences(tree) ++
+      selectedTypeNameOccurrences(tree, placeholderIndex)
+
+    occurrences.headOption.map { occurrence =>
+      val binding = occurrence.binding
+      val error = placeholderIndex.categoryOf(binding.hole) match
+        case PlaceholderCategory.ReflectedTypeSplice =>
+          QuasiquoteError.UnsupportedPlaceholderPosition(
+            binding.name,
+            PlaceholderCategory.ReflectedTypeSplice,
+            PlaceholderPosition.UnsupportedType("partial or applied constructor type syntax")
+          )
+        case PlaceholderCategory.ConstructedTypeSplice =>
+          QuasiquoteError.UnsupportedPlaceholderPosition(
+            binding.name,
+            PlaceholderCategory.ConstructedTypeSplice,
+            PlaceholderPosition.ConstructorType
+          )
+        case PlaceholderCategory.TermSplice =>
+          QuasiquoteError.PlaceholderCategoryMismatch(
+            binding.name,
+            PlaceholderCategory.TermSplice,
+            PlaceholderPosition.ConstructorType
+          )
+        case PlaceholderCategory.SelectedMemberNameSplice =>
+          QuasiquoteError.UnsupportedSelectedMemberNamePosition("in constructor-name position")
+      QuasiquoteLoweringFailure(error, occurrence.generatedSpan)
+    }
+
+  private def selectedTypeNameOccurrences[T, ReflectedType](
+      tree: untpd.Tree,
+      placeholderIndex: CategorizedPlaceholderIndex[T, ReflectedType]
+  ): List[PlaceholderOccurrence[T, ReflectedType]] =
+    tree match
+      case selected @ untpd.Select(qualifier, name) =>
+        val current = placeholderIndex.lookup(name.toString).toList.map { binding =>
+          PlaceholderOccurrence(binding, DottySourceSpanAdapter.fromTree(selected))
+        }
+        selectedTypeNameOccurrences(qualifier, placeholderIndex) ++ current
+      case untpd.AppliedTypeTree(constructor, arguments) =>
+        selectedTypeNameOccurrences(constructor, placeholderIndex) ++
+          arguments.flatMap(selectedTypeNameOccurrences(_, placeholderIndex))
+      case _ => Nil
+
+  private def rejectSelectedMemberNameHole[T, ReflectedType](
+      tree: untpd.Tree,
+      placeholderIndex: CategorizedPlaceholderIndex[T, ReflectedType],
       context: String
   ): Either[QuasiquoteLoweringFailure, Unit] =
     placeholderIndex.findOccurrences(tree).collectFirst {

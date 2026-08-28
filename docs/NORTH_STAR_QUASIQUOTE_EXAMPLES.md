@@ -20,7 +20,7 @@ interpolator grammar, ownership model, and error contract.
 | N2 dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED` | fixed constructors and fixed-arity whole-Type holes only | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 | N3 generated Type refinement members | `CURRENT_MANUAL_BASELINE_PROVED` | parser/shape evidence only; no public refinement construction | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 | N4 anonymous implementation body | documented reflection/definition problem | bounded individual method surfaces only | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
-| N5 dynamic existing-type construction | `CURRENT_MANUAL_BASELINE_PROVED` | fixed fully-qualified non-generic constructor with one ordinary argument list | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
+| N5 dynamic existing-type construction | `CURRENT_MANUAL_BASELINE_PROVED` | fixed constructor plus caller-owned complete constructor `TypeRepr` with one ordinary argument list | `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 
 `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES` means only that a smaller structural
 subproblem exists today. None of N1-N5 is `CHECKPOINT_COMPLETE`.
@@ -233,12 +233,12 @@ through a validated decoded-name value and unique selection lowering. It does
 not add bare-name lookup, overload resolution, dynamic infix syntax, or name
 matching.
 
-The selected next bounded implementation gate is the complete constructor
-Type position in N5. Its input is a caller-owned `TypeRepr`, including a `tqr`
-result, with no `Any` or public wrapper carrier. This first slice retains one
-ordinary constructor argument list and the existing constructor-resolution
-policy; sequence arguments, dynamic applied-Type constructors, refinements,
-classes, and definitions remain separate gates. Source-owned local `def`
-statements are the planned first Definition-composition slice after the Type
-gate, while external typed-definition splicing requires a separate explicit
-reownership contract.
+The complete constructor Type position in N5 is implemented. Its input is a
+caller-owned `TypeRepr`, including a direct `tqr` result, with no `Any` or
+public wrapper carrier. This slice retains one ordinary constructor argument
+list and the existing exact-compiler constructor policy; N5 remains incomplete
+because sequence arguments and the broader dynamic applied-Type constructor
+family are absent. Refinements, classes, and definitions remain separate
+gates. Source-owned local `def` statements are the next product-facing
+Definition-composition candidate, while external typed-definition splicing
+requires a separate explicit reownership contract.

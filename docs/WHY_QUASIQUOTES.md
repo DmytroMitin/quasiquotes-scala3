@@ -196,9 +196,20 @@ manual reflection more dramatic. They are deliberately documented as
 current support or selected final syntax. See the
 [syntax matrix](SYNTAX_SUPPORT_MATRIX.md) for the actual admitted language.
 
-The first planned step toward `new $T(...)` is intentionally smaller than the
-full north star: one complete constructor-Type hole receiving the caller's
-`TypeRepr`. This lets a value produced by `tqr`, `TypeTree.tpe`, or
-`TypeRepr.of[T]` flow directly into term construction. It does not yet promise
-variadic constructor arguments, arbitrary Type-position holes, or detached
-definition insertion.
+The first step toward `new $T(...)` is now implemented and intentionally
+smaller than the full north star: one complete constructor-Type hole receives
+the caller's `TypeRepr` and retains one ordinary argument list. A value
+produced by `tqr`, `TypeTree.tpe`, or `TypeRepr.of[T]` flows directly into term
+construction:
+
+```scala
+val stringBuilderType: quotes.reflect.TypeRepr =
+  tqr"java.lang.StringBuilder"
+
+qr"new $stringBuilderType(${value.asTerm}).capacity()".asExprOf[Int]
+```
+
+Direct interpolation of `Type[T]` or `TypeTree` is not promised; use
+`TypeRepr.of[T]` or `.tpe`. Variadic constructor arguments, arbitrary Type
+positions, applied dynamic constructor families, and detached definition
+insertion remain outside this slice.

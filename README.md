@@ -79,6 +79,13 @@ distinct, returns ordinary mismatch through pattern fallthrough, and reports a
 malformed template during macro expansion. Use `QuasiPattern.term` or
 `termOrThrow` for explicit diagnostics and named/repeated-hole semantics.
 
+`qr` also accepts a caller-owned `quotes.reflect.TypeRepr` only as the complete
+constructor Type of its bounded one-list `new` form. `TypeRepr.of[T]`,
+`TypeTree.of[T].tpe`, and a `tqr` result use the same transport, including
+direct `tqr"java.lang.StringBuilder"` to `qr"new $typeValue(arg)"` stacking.
+Passing `Type[T]` or `TypeTree` directly, other Type positions, applied dynamic
+constructor families, and variadic arguments remain unsupported.
+
 The type names are intentionally layered overloads. Inside an active `Quotes`,
 `tqr"..."` accepts caller-owned `TypeRepr` splices and returns a caller-owned
 `TypeRepr`; `case tqq"..."` returns original target subtrees in source-slot
@@ -223,7 +230,11 @@ admission remains fixed. An experimental programmatic
 names only through an explicit `GlobalSelectedTypeEnvironment` built from
 typed witnesses. It supports selected standard `List`/`Option`/`Either` by
 full declaration identity; it does not add general name resolution, aliases,
-stable-term paths, or ambient lookup, and ordinary `tqr`/`tqq` remain unchanged.
+stable-term paths, or ambient lookup. Interpolated `tqr` additionally admits a
+zero-hole canonical globally selected class terminal such as
+`java.lang.StringBuilder`, resolved through an exact typed witness; this does
+not admit aliases, stable-term paths, or selected constructor applications,
+and `tqq` remains unchanged.
 
 The canonical first-use examples, including the complete Lambda1, bounded P1
 block and single-typed-local-val P2 `qr`/`qq`, and bounded `tqr`/`tqq` macro paths, are mirrored from compiled
