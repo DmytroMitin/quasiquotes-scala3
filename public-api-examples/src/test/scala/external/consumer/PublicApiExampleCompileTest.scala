@@ -195,6 +195,8 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
 
   test("why-quasiquotes comparisons stay executable outside library packages"):
     assertEquals(WhyQuasiquotesCurrentExamples.standardAdd(20, 22), 42)
+    assertEquals(WhyQuasiquotesCurrentExamples.publicReflectionAdd(1, 2), 3)
+    assertEquals(WhyQuasiquotesCurrentExamples.quasiquoteAdd(1, 2), 3)
     assertEquals(WhyQuasiquotesCurrentExamples.quasiquoteAdd(20, 22), 42)
     assertEquals(WhyQuasiquotesCurrentExamples.manualSplit(20, 22), (20, 22))
     assertEquals(WhyQuasiquotesCurrentExamples.quasiquoteSplit(20, 22), (20, 22))

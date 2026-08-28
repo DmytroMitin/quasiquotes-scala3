@@ -5,6 +5,17 @@ delivery chronology.
 
 ## Current
 
+- Preserve the Phase-131 representation boundary: public `Expr` and
+  `quotes.reflect.Term` APIs are distinct from exact `tpd`/`untpd` internals,
+  while Scalameta and the compiler-free core form a separate neutral axis.
+  `dottyInternal` remains an unpublished exact backend, not a generic raw-tree
+  toolkit.
+- Keep a bounded compiler-free `scala.meta.Term -> TermShape` projector as a
+  future candidate only. A test-only prototype proves a clean direct mapping
+  for literal, infix, select, apply, and one-list `new`; binder identities and
+  type sidecars still require explicit admission rules. Do not make this a
+  blocker for source-owned local `def` or AUXify 037.
+
 - Preserve one semantic architecture: source frontends project into the
   project-owned compiler-free model in `core`, followed by backend-specific
   lowering or reflected matching. Keep current-Dotty as the released/default

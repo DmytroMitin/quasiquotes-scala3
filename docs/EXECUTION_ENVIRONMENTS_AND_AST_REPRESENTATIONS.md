@@ -236,6 +236,167 @@ produce that same kind of value. A future `qr` constructor-Type hole is
 therefore designed to accept `TypeRepr` directly, while the compiler-free core
 uses only a generic internal payload slot and retains its compiler boundary.
 
+## One operation at several representation levels
+
+The same source-level addition can be assembled at several boundaries, but
+those boundaries are not interchangeable APIs. The first three forms below
+are supported public Scala/Quasiquotes use. The last three are exact-compiler
+demonstrations used by this repository's tests and unpublished backend.
+
+### Supported public APIs
+
+At the standard quoted level, an inline macro can preserve its typed operands
+directly:
+
+```scala
+def addExpr(left: Expr[Int], right: Expr[Int])(using Quotes): Expr[Int] =
+  '{ $left + $right }
+```
+
+At the public reflection level, the operands are `quotes.reflect.Term`.
+`Select.overloaded` performs the member and overload selection needed by `+`:
+
+```scala
+def addTerm(using q: Quotes)(
+    left: q.reflect.Term,
+    right: q.reflect.Term
+): q.reflect.Term =
+  import q.reflect.*
+  Select.overloaded(left, "+", Nil, List(right))
+```
+
+Quasiquotes `qr` works at this same reflected-Term level and preserves the
+caller-owned operands:
+
+```scala
+def addTerm(using q: Quotes)(
+    left: q.reflect.Term,
+    right: q.reflect.Term
+): q.reflect.Term =
+  import quasiquotes.construct.Quasiquotes.qr
+  qr"$left + $right"
+```
+
+External macro tests compile and execute the standard quotation, public
+reflection, and `qr` forms on every supported compiler line; each returns `3`
+for operands `1` and `2`.
+
+### Exact-version internal demonstrations
+
+In the current compiler implementation, `QuotesImpl` implements reflected
+trees with `tpd.Tree`. An exact-version test can therefore obtain the
+implementation value with
+`left.asTerm.asInstanceOf[tpd.Tree]`. `ExprImpl.tree` is also a `tpd.Tree`, but
+constructing `ExprImpl` manually would additionally require a correct active
+splice scope. The positive return path used here is instead:
+
+```text
+tpd.Tree -> the active q.reflect.Term implementation -> asExprOf[Int]
+```
+
+For typed construction, Scala 3.3.8, 3.8.4, and 3.9.0-RC1 expose the same
+exact internal call:
+
+```scala
+tpd.applyOverloaded(
+  left,
+  "+".toTermName,
+  List(right),
+  Nil,
+  Types.WildcardType
+)
+```
+
+The parameter order is receiver, method name, value arguments, type
+arguments, and expected type. The result is a `tpd.Tree`. Public
+`Select.overloaded` delegates to this operation on all three lines. A bare
+`tpd.Apply(tpd.Select(left, "+"), List(right))` only puts typed-looking nodes
+together; it does not perform the member lookup, alternative selection, and
+application adaptation performed by `applyOverloaded`, and can yield an
+invalid typed result such as a selected `+` that is then applied incorrectly.
+
+The separate mixed typed/untyped probe creates new untyped syntax while
+retaining typed operands as leaves:
+
+```scala
+val shell = untpd.Apply(
+  untpd.Select(untpd.TypedSplice(left), "+".toTermName),
+  List(untpd.TypedSplice(right))
+)
+val typed = new Typer().typedExpr(shell)
+```
+
+This is not a conversion or inverse map from `tpd.Tree` to `untpd.Tree`.
+`TypedSplice` marks an already typed subtree embedded in a newly created
+untyped shell, and the exact compiler typer produces a new typed result.
+
+At a pure raw-syntax boundary, valid raw leaves can be placed into the
+expected parser-like shell without claiming that it is already typed:
+
+```scala
+def addUntpdTree(
+    left: untpd.Tree,
+    right: untpd.Tree
+)(using SourceFile): untpd.Tree =
+  untpd.Apply(
+    untpd.Select(left, "+".toTermName),
+    List(right)
+  )
+```
+
+Macro-Paradise annotation expansion operates on pre-typer `untpd` syntax.
+Its plugin and handler lifecycle owns admission, placement, insertion,
+rollback, and ordinary typing around handler output. This does not make
+Quasiquotes a Macro-Paradise product dependency; the current peer integration
+is a narrow data flow through an unpublished exact-version bridge.
+
+The typed path is a ladder inside one active compiler context:
+
+```text
+standard quoted API: Expr[T]
+  |
+  v
+quotes.reflect.Term ---------------- Quasiquotes qr/qq work here
+  |
+  | exact-version implementation detail
+  v
+tpd.Tree
+  |
+  | typed leaves embedded; no inverse conversion
+  v
+untpd.TypedSplice(tpd.Tree) inside a new untpd.Tree
+  |
+  | exact compiler Typer
+  v
+tpd.Tree
+  |
+  v
+quotes.reflect.Term / Expr[T]
+```
+
+The neutral/source route is a separate axis, not an intermediate rung in that
+ladder:
+
+```text
+scala.meta AST
+  |
+  v
+neutralScalameta validated projection
+  |
+  v
+project-owned compiler-free core IR
+  |
+  v
+dottyInternal exact lowering for an admitted peer operation
+  |
+  v
+untpd.Tree
+```
+
+The current production endpoint of this second route is one contextual
+method, not a general Term bridge. See the
+[Dotty-internal exact backend](DOTTY_INTERNAL_BACKEND.md).
+
 ## Exact-version `Quotes` and Dotty-internal interoperability
 
 Scala 3 `Quotes` is implemented over Dotty's typed trees, so a technical bridge

@@ -163,7 +163,9 @@ only admitted shapes downward; it does not make `core` depend on Scalameta.
 See the [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md),
 the [hybrid typed frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md),
 the [Scalameta opt-in artifact topology](docs/SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md),
-and the [experimental contextual-method peer bridge](docs/EXPERIMENTAL_CONTEXTUAL_METHOD_PEER_BRIDGE.md).
+and the [Dotty-internal exact backend](docs/DOTTY_INTERNAL_BACKEND.md), whose
+only foreign-package surface is the focused experimental contextual-method
+peer bridge.
 
 ## Try the source build
 

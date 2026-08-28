@@ -37,6 +37,9 @@ object WhyQuasiquotesCurrentExamples:
   inline def quasiquoteAdd(left: Int, right: Int): Int =
     ${ quasiquoteAddImpl('left, 'right) }
 
+  inline def publicReflectionAdd(left: Int, right: Int): Int =
+    ${ publicReflectionAddImpl('left, 'right) }
+
   inline def manualSplit(left: Int, right: Int): (Int, Int) =
     ${ manualSplitImpl('left, 'right) }
 
@@ -61,6 +64,15 @@ object WhyQuasiquotesCurrentExamples:
   )(using Quotes): Expr[Int] =
     import quotes.reflect.*
     qr"${left.asTerm} + ${right.asTerm}".asExprOf[Int]
+
+  private def publicReflectionAddImpl(
+      left: Expr[Int],
+      right: Expr[Int]
+  )(using q: Quotes): Expr[Int] =
+    import q.reflect.*
+    Select
+      .overloaded(left.asTerm, "+", Nil, List(right.asTerm))
+      .asExprOf[Int]
 
   private def manualSplitImpl(
       left: Expr[Int],

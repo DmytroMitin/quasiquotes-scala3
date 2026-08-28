@@ -72,6 +72,32 @@ realistic supported value is:
 def apply[A](using inst: Show[A]): Show[A] = inst
 ```
 
+Unlike the pure upstream term hello world above, this example exercises the
+project's current neutral module:
+
+```scala
+import scala.meta.*
+import scala.meta.dialects.Scala3
+import quasiquotes.neutral.ScalametaContextualMethodProjection
+
+val source: Defn.Def =
+  q"def apply[A](using inst: Show[A]): Show[A] = inst"
+    .asInstanceOf[Defn.Def]
+
+val projected = ScalametaContextualMethodProjection.project(source)
+val name = projected.map(_.result.name)                 // Right("apply")
+val parameter = projected.map(_.result.contextualParameterName) // Right("inst")
+val resultType = projected.map(_.result.resultType.source)       // Right("Show[A]")
+```
+
+This exact example is compile-checked. It does not imply a general Term
+projector. In particular, no production `ScalametaTermProjection` currently
+turns `q"1 + 1"` into `TermShape`; a Phase-131 test-only prototype shows that
+literal, infix, select, apply, and one-list `new` forms can map structurally
+without `Quotes`, Dotty, printing, or reparsing. Binder identity and completed
+type sidecars still need a bounded contract before such a projector becomes a
+production API.
+
 The projector converts fields directly to `CompletedType`, `CompletedTerm`,
 and `DefinitionConstruction.contextualMethod`. Unsupported shapes return
 stable `NeutralProjectionError` categories. It performs no source rendering,
@@ -93,6 +119,9 @@ shape and deliberately returns `Position.None`.
 Reverse projection cannot truthfully reconstruct source tokens, comments,
 formatting, exact offsets, or compiler-normalized distinctions. Unsupported raw
 forms fail explicitly. Exact trees never appear in the neutral module's API.
+
+The exact module's complete ownership and exclusions are documented in the
+[Dotty-internal exact backend](DOTTY_INTERNAL_BACKEND.md).
 
 ## Dialect boundary
 
