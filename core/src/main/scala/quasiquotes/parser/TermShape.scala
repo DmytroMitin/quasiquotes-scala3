@@ -13,6 +13,16 @@ object BlockStatement:
       initializer: TermShape
   ) extends BlockStatement
 
+  private[quasiquotes] final case class LocalDef(
+      methodBinderId: BinderId,
+      methodDisplayName: String,
+      parameterBinderId: BinderId,
+      parameterDisplayName: String,
+      parameterType: TypeShape,
+      resultType: TypeShape,
+      body: TermShape
+  ) extends BlockStatement
+
 private[quasiquotes] final case class BinderId(value: Int) derives CanEqual:
   require(value >= 0, "binder identity must be non-negative")
 
@@ -83,4 +93,14 @@ object TermShape:
     statement match
       case BlockStatement.LocalVal(_, displayName, declaredType, initializer) =>
         s"LocalVal($displayName: $declaredType = ${render(initializer)})"
+      case BlockStatement.LocalDef(
+            _,
+            methodDisplayName,
+            _,
+            parameterDisplayName,
+            parameterType,
+            resultType,
+            body
+          ) =>
+        s"LocalDef($methodDisplayName($parameterDisplayName: ${parameterType.render}): ${resultType.render} = ${render(body)})"
       case term: TermShape => render(term)

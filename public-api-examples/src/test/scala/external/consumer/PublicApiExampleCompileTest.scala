@@ -173,6 +173,10 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     val x = 41
     assertEquals(P2LocalValFirstUseSnippet.preserveExternal(x), 41)
 
+  test("source-owned local def replaces manual DefDef, Ref, Apply, and Block composition"):
+    assertEquals(SourceOwnedLocalDefFirstUseSnippet.manual(42), 42)
+    assertEquals(SourceOwnedLocalDefFirstUseSnippet.sourceOwned(42), 42)
+
   test("documented qq extractor first use stays in the external caller Quotes path"):
     assertEquals(extractAddition(20, 22), (20, 22))
     assert(!classifyNonAddition(42))

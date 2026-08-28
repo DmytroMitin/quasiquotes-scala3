@@ -83,6 +83,8 @@ private[quasiquotes] object P2LocalValAdmission:
             .introduceLocalVal(local.displayName)
             .flatMap(_ => loop(local.initializer))
             .flatMap(_ => tracker.withinLocalValResult(local.displayName)(loop(result)))
+        case TermShape.Block((local: BlockStatement.LocalDef) :: Nil, result) =>
+          loop(local.body).flatMap(_ => loop(result))
         case TermShape.Block(statements, result) =>
           val expressions = statements.collect { case term: TermShape => term }
           sequence(expressions).flatMap(_ => loop(result))

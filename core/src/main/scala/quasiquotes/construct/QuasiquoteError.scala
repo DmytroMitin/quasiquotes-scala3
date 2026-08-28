@@ -27,7 +27,11 @@ object QuasiquoteError:
     def message: String =
       val boundary = actual match
         case PlaceholderCategory.ReflectedTypeSplice =>
-          " Only the complete type of a constructor expression is supported."
+          position match
+            case PlaceholderPosition.LocalDefParameterType | PlaceholderPosition.LocalDefResultType =>
+              " Only a complete source-owned local-def parameter or result Type is supported here."
+            case _ =>
+              " Only the complete type of a constructor expression is supported."
         case PlaceholderCategory.ConstructedTypeSplice
             if position == PlaceholderPosition.ConstructorType =>
           " Constructed-type splices remain supported only as the complete type of an expression ascription."
@@ -42,7 +46,11 @@ object QuasiquoteError:
     def message: String =
       val admittedPosition = actual match
         case PlaceholderCategory.ReflectedTypeSplice =>
-          "only the complete type of a constructor expression is supported"
+          position match
+            case PlaceholderPosition.LocalDefParameterType | PlaceholderPosition.LocalDefResultType =>
+              "only a complete source-owned local-def parameter or result Type is supported here"
+            case _ =>
+              "only the complete type of a constructor expression is supported"
         case PlaceholderCategory.ConstructedTypeSplice =>
           "only the complete type of an expression ascription is supported"
         case _ => "this placeholder category is not supported there"

@@ -26,7 +26,8 @@ class CheckSnippetsTest(unittest.TestCase):
         documented_runtime_parser: str = "val runtimeParser = 13",
         documented_p1_block: str = "val p1Block = 14",
         documented_p2_local_val: str = "val p2LocalVal = 15",
-        documented_why: str = "val why = 16",
+        documented_source_owned_local_def: str = "val sourceOwnedLocalDef = 16",
+        documented_why: str = "val why = 17",
     ) -> None:
         docs = root / "docs"
         sources = root / "public-api-examples/src/test/scala/external/consumer"
@@ -71,6 +72,12 @@ class CheckSnippetsTest(unittest.TestCase):
             "// snippet:p2-local-val-first-use:end\n",
             encoding="utf-8",
         )
+        (sources / "SourceOwnedLocalDefFirstUseSnippet.scala").write_text(
+            "// snippet:source-owned-local-def-first-use:start\n"
+            "val sourceOwnedLocalDef = 16\n"
+            "// snippet:source-owned-local-def-first-use:end\n",
+            encoding="utf-8",
+        )
         (sources / "QqExtractorFirstUseSnippet.scala").write_text(
             "// snippet:qq-extractor-first-use:start\nval qqExtractor = 8\n"
             "// snippet:qq-extractor-first-use:end\n",
@@ -109,7 +116,7 @@ class CheckSnippetsTest(unittest.TestCase):
             encoding="utf-8",
         )
         (sources / "WhyQuasiquotesCurrentExamples.scala").write_text(
-            "// snippet:why-quasiquotes-current:start\nval why = 16\n"
+            "// snippet:why-quasiquotes-current:start\nval why = 17\n"
             "// snippet:why-quasiquotes-current:end\n",
             encoding="utf-8",
         )
@@ -140,6 +147,9 @@ class CheckSnippetsTest(unittest.TestCase):
             "<!-- snippet:p2-local-val-first-use:start -->\n```scala\n"
             + documented_p2_local_val
             + "\n```\n<!-- snippet:p2-local-val-first-use:end -->\n"
+            "<!-- snippet:source-owned-local-def-first-use:start -->\n```scala\n"
+            + documented_source_owned_local_def
+            + "\n```\n<!-- snippet:source-owned-local-def-first-use:end -->\n"
             "<!-- snippet:qq-extractor-first-use:start -->\n```scala\n"
             + documented_qq_extractor
             + "\n```\n<!-- snippet:qq-extractor-first-use:end -->\n"
@@ -187,7 +197,7 @@ class CheckSnippetsTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(
-                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, p1-block-first-use, p2-local-val-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start, why-quasiquotes-current",
+                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, p1-block-first-use, p2-local-val-first-use, source-owned-local-def-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start, why-quasiquotes-current",
                 result.stdout,
             )
 

@@ -19,6 +19,11 @@ private object SemanticBlockStatementKey:
       declaredType: TypeTemplate,
       initializer: SemanticTermKey
   ) extends SemanticBlockStatementKey
+  final case class LocalDef(
+      parameterType: String,
+      resultType: String,
+      body: SemanticTermKey
+  ) extends SemanticBlockStatementKey
 
 private object SemanticTermKey:
   final case class Identifier(name: String) extends SemanticTermKey
@@ -819,6 +824,24 @@ private[quasiquotes] final class TermTemplate private (
           afterIdentifier,
           afterTyped,
           local.binderId :: currentScope
+        )
+      case ((keys, nextIdentifier, nextTyped, currentScope), local: BlockStatement.LocalDef) =>
+        val (bodyKey, afterIdentifier, afterTyped) =
+          semanticShapeKey(
+            local.body,
+            nextIdentifier,
+            nextTyped,
+            local.parameterBinderId :: currentScope
+          )
+        (
+          keys :+ SemanticBlockStatementKey.LocalDef(
+            local.parameterType.render,
+            local.resultType.render,
+            bodyKey
+          ),
+          afterIdentifier,
+          afterTyped,
+          local.methodBinderId :: currentScope
         )
       case ((keys, nextIdentifier, nextTyped, currentScope), term: TermShape) =>
         val (key, afterIdentifier, afterTyped) =

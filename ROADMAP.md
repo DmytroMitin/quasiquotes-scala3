@@ -39,11 +39,14 @@ delivery chronology.
   distributions.
 - Expand structural term and type support through narrow, test-backed slices.
 - Preserve the bounded reflected-Type composition slice at the complete
-  constructor Type position. `qr` accepts caller-owned `TypeRepr` directly so
+  constructor Type and source-owned local-definition parameter/result Type
+  positions. `qr` accepts caller-owned `TypeRepr` directly so
   `TypeTree.tpe`, `TypeRepr.of[T]`, and `tqr` share one transport; preserve the
   compiler-free `QuasiTypeSplice` route and keep `scala.quoted` out of `core`.
-- Design source-owned local `def` statements in `qr`
-  with backend-created symbols and owners. Keep external typed `DefDef`
+- Preserve the first source-owned local `def` statement in `qr`: one literal
+  identity-shaped method with one ordinary parameter, complete reflected Types,
+  and a binder-resolved following result, with backend-created symbols and
+  owners. Keep external typed `DefDef`
   statement splices deferred until an explicit reownership contract exists;
   do not add direct `Symbol` splicing.
 - Preserve the bounded construction-only selected-member name hole: a public
@@ -72,8 +75,9 @@ the text explicitly says otherwise.
 ### Reflected Types in Term construction
 
 1. Caller-owned `q.reflect.TypeRepr` is its own typed-Term interpolation
-   category. Its first admitted position is the complete constructor Type in
-   `new $typeValue(arg)` with one ordinary argument list.
+   category. Its admitted positions are the complete constructor Type in
+   `new $typeValue(arg)` and the complete parameter/result Types in the bounded
+   source-owned local-definition form.
 2. A value returned by `tqr` works directly in that position.
    `TypeTree.tpe` and `TypeRepr.of[T]` use the same transport. Literal canonical
    globally selected class terminals such as `tqr"java.lang.StringBuilder"`
@@ -89,8 +93,10 @@ route. Reflected Types will not be normalized through that bounded model.
 
 ### Definitions and statements
 
-1. Admit one source-owned local `def` written inside a `qr` block. That block
-   owns symbol creation, binders, owners, and later references to the method.
+1. Preserve the implemented first source-owned local `def` inside one `qr`
+   block. That block owns symbol creation, binders, owners, and the following
+   reference to the method; broader bodies and statement topology remain later
+   slices.
 2. Consider a separately constructed `DefDef` or Definition statement splice
    only after owner validation and complete rebuild/reownership semantics are
    explicit.
@@ -149,12 +155,13 @@ syntax.
 
 None of N1-N5 is `CHECKPOINT_COMPLETE`.
 
-The bounded explicit-receiver dynamic selected-member construction gap and the
-first N5 complete constructor-Type splice are implemented. Bare identifiers,
+The bounded explicit-receiver dynamic selected-member construction gap, the
+first N5 complete constructor-Type splice, and the first source-owned local
+identity-method block are implemented. Bare identifiers,
 overload resolution, dynamic infix syntax, dynamic name matching, sequence
 splices, broader Type positions, and broader definition/class support remain
-independent later work. The next product-facing composition candidate is a
-source-owned local `def` inside `qr`; AUXify 037 remains a separate peer lane.
+independent later work. AUXify 037 remains the next ready peer-oriented lane;
+external `DefDef` statement splicing is not selected merely for symmetry.
 
 Symbols are compiler semantic entities, not source syntax. No public symbol
 quasiquote family is currently planned. The neutral core remains symbol-free;

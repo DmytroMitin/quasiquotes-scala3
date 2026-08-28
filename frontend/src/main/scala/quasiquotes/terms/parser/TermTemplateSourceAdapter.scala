@@ -844,6 +844,11 @@ private[quasiquotes] object RawTermTemplateAdapter:
         statements.iterator.flatMap {
           case quasiquotes.parser.BlockStatement.LocalVal(_, _, _, initializer) =>
             firstUnsupported(initializer)
+          case quasiquotes.parser.BlockStatement.LocalDef(_, _, _, _, parameterType, resultType, body) =>
+            List(parameterType, resultType).collectFirst {
+              case unsupported: quasiquotes.parser.TypeShape.Unsupported =>
+                unsupported.detail
+            }.orElse(firstUnsupported(body))
           case term: TermShape => firstUnsupported(term)
         }.nextOption()
           .orElse(firstUnsupported(result))

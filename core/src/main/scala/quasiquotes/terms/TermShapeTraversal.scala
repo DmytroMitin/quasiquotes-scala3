@@ -87,6 +87,24 @@ private[quasiquotes] object TermShapeTraversal:
                 declaredType,
                 canonicalizePlaceholders(initializer)
               )
+            case BlockStatement.LocalDef(
+                  methodBinderId,
+                  methodDisplayName,
+                  parameterBinderId,
+                  parameterDisplayName,
+                  parameterType,
+                  resultType,
+                  body
+                ) =>
+              BlockStatement.LocalDef(
+                methodBinderId,
+                methodDisplayName,
+                parameterBinderId,
+                parameterDisplayName,
+                parameterType,
+                resultType,
+                canonicalizePlaceholders(body)
+              )
             case term: TermShape => canonicalizePlaceholders(term)
           },
           canonicalizePlaceholders(result)
@@ -136,6 +154,7 @@ private[quasiquotes] object TermShapeTraversal:
         case TermShape.Block(statements, result) =>
           statements.foreach {
             case BlockStatement.LocalVal(_, _, _, initializer) => loop(initializer)
+            case BlockStatement.LocalDef(_, _, _, _, _, _, body) => loop(body)
             case term: TermShape => loop(term)
           }
           loop(result)
@@ -183,6 +202,10 @@ private[quasiquotes] object TermShapeTraversal:
             case BlockStatement.LocalVal(_, _, declaredType, initializer) =>
               builder += declaredType
               loop(initializer)
+            case BlockStatement.LocalDef(_, _, _, _, parameterType, resultType, body) =>
+              builder += parameterType.render
+              builder += resultType.render
+              loop(body)
             case term: TermShape => loop(term)
           }
           loop(result)
@@ -239,6 +262,20 @@ private[quasiquotes] object TermShapeTraversal:
               builder += displayName
               builder += declaredType
               loop(initializer)
+            case BlockStatement.LocalDef(
+                  _,
+                  methodDisplayName,
+                  _,
+                  parameterDisplayName,
+                  parameterType,
+                  resultType,
+                  body
+                ) =>
+              builder += methodDisplayName
+              builder += parameterDisplayName
+              builder += parameterType.render
+              builder += resultType.render
+              loop(body)
             case term: TermShape => loop(term)
           }
           loop(result)
@@ -325,6 +362,29 @@ private[quasiquotes] object TermShapeTraversal:
                     loop(initializer, currentScope)
                   ),
                   (binderId -> normalizedId) :: currentScope
+                )
+              case BlockStatement.LocalDef(
+                    methodBinderId,
+                    _,
+                    parameterBinderId,
+                    _,
+                    parameterType,
+                    resultType,
+                    body
+                  ) =>
+                val normalizedMethodId = BinderId(currentScope.size)
+                val normalizedParameterId = BinderId(currentScope.size + 1)
+                (
+                  accumulated :+ BlockStatement.LocalDef(
+                    normalizedMethodId,
+                    "",
+                    normalizedParameterId,
+                    "",
+                    parameterType,
+                    resultType,
+                    loop(body, (parameterBinderId -> normalizedParameterId) :: currentScope)
+                  ),
+                  (methodBinderId -> normalizedMethodId) :: currentScope
                 )
               case term: TermShape =>
                 (accumulated :+ loop(term, currentScope), currentScope)
@@ -469,6 +529,13 @@ private[quasiquotes] object TermShapeTraversal:
           case (local: BlockStatement.LocalVal) :: Nil =>
             validateSupportedUsingScope(local.initializer, scope)
               .flatMap(_ => validateSupportedUsingScope(result, local.binderId :: scope))
+          case (local: BlockStatement.LocalDef) :: Nil =>
+            if local.methodBinderId == local.parameterBinderId ||
+                scope.contains(local.methodBinderId) || scope.contains(local.parameterBinderId)
+            then Left(TermConstructionError.UnsupportedTermShape())
+            else
+              validateSupportedUsingScope(local.body, local.parameterBinderId :: scope)
+                .flatMap(_ => validateSupportedUsingScope(result, local.methodBinderId :: scope))
           case expressionStatements if expressionStatements.forall(_.isInstanceOf[TermShape]) =>
             validateAll(expressionStatements.map(_.asInstanceOf[TermShape]), scope)
               .flatMap(_ => validateSupportedUsingScope(result, scope))

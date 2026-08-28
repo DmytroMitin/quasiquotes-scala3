@@ -189,10 +189,12 @@ object TermShapeInspector:
     statements match
       case (value: untpd.ValDef) :: Nil =>
         inspectLocalVal(value, result, scope, inspectInScope, allocateBinder)
+      case (definition: untpd.DefDef) :: Nil =>
+        inspectLocalDef(definition, result, scope, inspectInScope, allocateBinder)
+      case definitions if definitions.exists(_.isInstanceOf[untpd.DefDef]) =>
+        TermShape.Unsupported("Block", LocalDefDiagnosticMessages.ExactlyOne)
       case values if values.exists(_.isInstanceOf[untpd.ValDef]) =>
         TermShape.Unsupported("Block", P2LocalValDiagnosticMessages.ExactlyOne)
-      case definitions if definitions.exists(_.isInstanceOf[untpd.DefDef]) =>
-        TermShape.Unsupported("Block", P2LocalValDiagnosticMessages.LocalDef)
       case patternDefinitions if patternDefinitions.exists(isPatternDefinition) =>
         TermShape.Unsupported("Block", P2LocalValDiagnosticMessages.Pattern)
       case expressionStatements if expressionStatements.forall(_.isTerm) =>
@@ -206,6 +208,48 @@ object TermShapeInspector:
           P1BlockDiagnosticMessages.UnsupportedStatement(statement.getClass.getSimpleName)
         )
       case Nil => inspectInScope(result, scope)
+
+  private def inspectLocalDef(
+      definition: untpd.DefDef,
+      result: untpd.Tree,
+      scope: List[(String, BinderId)],
+      inspectInScope: (untpd.Tree, List[(String, BinderId)]) => TermShape,
+      allocateBinder: () => BinderId
+  ): TermShape =
+    val methodDisplayName = definition.name.toString
+    if definition.paramss.flatten.exists(_.isInstanceOf[untpd.TypeDef]) then
+      TermShape.Unsupported("Block", LocalDefDiagnosticMessages.TypeParameters)
+    else definition.paramss match
+      case List(List(parameter: untpd.ValDef)) =>
+        val parameterDisplayName = parameter.name.toString
+        val methodBinderId = allocateBinder()
+        val parameterBinderId = allocateBinder()
+        val parameterType = TypeShapeInspector.inspect(parameter.tpt)
+        val resultType = TypeShapeInspector.inspect(definition.tpt)
+        val body = inspectInScope(
+          definition.unforcedRhs.asInstanceOf[untpd.Tree],
+          (parameterDisplayName -> parameterBinderId) :: scope
+        )
+        val inspectedResult = inspectInScope(
+          result,
+          (methodDisplayName -> methodBinderId) :: scope
+        )
+        TermShape.Block(
+          List(
+            BlockStatement.LocalDef(
+              methodBinderId,
+              methodDisplayName,
+              parameterBinderId,
+              parameterDisplayName,
+              parameterType,
+              resultType,
+              body
+            )
+          ),
+          inspectedResult
+        )
+      case _ =>
+        TermShape.Unsupported("Block", LocalDefDiagnosticMessages.ParameterClause)
 
   private def inspectLocalVal(
       value: untpd.ValDef,
@@ -278,6 +322,10 @@ object TermShapeInspector:
       case TermShape.Block(statements, result) =>
         statements.iterator.flatMap {
           case BlockStatement.LocalVal(_, _, _, initializer) => firstUnsupported(initializer)
+          case BlockStatement.LocalDef(_, _, _, _, parameterType, resultType, body) =>
+            List(parameterType, resultType).collectFirst { case unsupported: TypeShape.Unsupported =>
+              TermShape.Unsupported("Block", unsupported.detail)
+            }.orElse(firstUnsupported(body))
           case term: TermShape => firstUnsupported(term)
         }.nextOption().orElse(firstUnsupported(result))
       case TermShape.Parenthesized(expression) => firstUnsupported(expression)

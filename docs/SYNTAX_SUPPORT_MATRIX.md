@@ -30,8 +30,9 @@ Status vocabulary:
 | Lambda1 | `(x: Int) => x` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; exactly one explicitly typed ordinary parameter, alpha-aware |
 | Binder-free P1 block | `{ effect1(); effect2(); result }` | Yes | Yes | `qr`, `qq`, `QuasiPattern.term` | `BOUNDED`; one or more ordered expression prefixes plus a distinct final result; children must already be admitted Terms |
 | Single typed local immutable val (P2) | `{ val x: Int = init; use(x) }` | Yes | Yes | `qr`, `qq`, `QuasiPattern.term` | `BOUNDED`; exactly one eager immutable simple binder in the whole tree with an explicit admitted type; initializer is outside scope, only the final result sees the binder, and P2/Lambda1 same-name source shadowing is rejected |
+| Source-owned local identity method | `{ def id(x: $parameterType): $resultType = x; id(arg) }` | Yes | No | `qr` | `BOUNDED`; construction only, exactly one literal method with one ordinary parameter, complete caller-owned `TypeRepr` parameter/result positions, parameter-reference body, and one following result; binder identity creates the following method reference |
 | Ordered term capture extractor | `case qq"$left + $right"` | No | Yes | `qq`, with `QuasiPattern.term` retained | `BOUNDED`; at least one distinct term slot, captures in source order, mismatch falls through |
-| Other local values / local definitions | `{ val x = 1; x }`, `{ var x: Int = 1; x }`, `{ def x = 1; x }` | No | No | — | `NOT_YET`; inferred, mutable, lazy, pattern, multiple/shadowing, recursive, and local-method forms remain excluded |
+| Other local values / local definitions | `{ val x = 1; x }`, `{ var x: Int = 1; x }`, recursive/multi-clause/multiple local methods | No | No | — | `NOT_YET`; inferred, mutable, lazy, pattern, multiple/shadowing, recursive, contextual, generic, multi-clause, and arbitrary-body local forms remain excluded |
 | Match / try / loops / for | `value match ...` | No | No | — | `NOT_YET`; no broad control-flow surface |
 | General term AST | arbitrary Scala expression | No | No | — | `NOT_PLANNED`; this project intentionally exposes a bounded structural subset |
 

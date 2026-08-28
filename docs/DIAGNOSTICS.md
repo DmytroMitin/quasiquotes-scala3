@@ -150,6 +150,17 @@ wording. Located parsing uses the deepest truthful source span available;
 generated target matching requires no source reconstruction. Broader P2/P3
 forms fail closed rather than falling back to P1.
 
+The construction-only source-owned local-definition slice reports stable
+`LocalDef` details for unsupported topology, modifiers/annotations, type or
+parameter clauses, missing Types, wrong placeholder categories, unsupported
+body shape, incompatible parameter/result Types, and symbol/owner lowering.
+Complete caller-owned reflected Types and the existing fixed
+`Int`/`String`/`Boolean` Types are accepted in its parameter and result Type
+positions; other fixed or partial/applied forms are controlled rejections.
+`qq` continues to reject local definitions, and the
+typed Scalameta route returns terminal `SCALAMETA_LOWERING_UNSUPPORTED` rather
+than widening through parse-failure fallback.
+
 ## `tqr` and `tqq` diagnostics
 
 The reflected type syntax has two controlled macro-expansion prefixes:

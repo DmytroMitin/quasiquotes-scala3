@@ -35,6 +35,10 @@ SNIPPETS = {
         Path("public-api-examples/src/test/scala/external/consumer/P2LocalValFirstUseSnippet.scala"),
         Path("docs/GETTING_STARTED.md"),
     ),
+    "source-owned-local-def-first-use": (
+        Path("public-api-examples/src/test/scala/external/consumer/SourceOwnedLocalDefFirstUseSnippet.scala"),
+        Path("docs/GETTING_STARTED.md"),
+    ),
     "qq-extractor-first-use": (
         Path("public-api-examples/src/test/scala/external/consumer/QqExtractorFirstUseSnippet.scala"),
         Path("docs/GETTING_STARTED.md"),

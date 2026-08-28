@@ -10,7 +10,8 @@ the detailed semantic and diagnostic caveats behind that table.
 Currently exercised areas include:
 
 - identifiers, selections, applications, typed terms, binder-free P1 blocks,
-  one explicitly typed eager immutable local-val P2 block, tuples, unary
+  one explicitly typed eager immutable local-val P2 block, one construction-only
+  source-owned local identity method, tuples, unary
   operations, and standard string interpolation in bounded structural forms;
 - ordinary lambdas with exactly one explicitly typed parameter, with scoped
   binder identity, alpha-aware construction/matching, and complete-body holes;
@@ -39,7 +40,7 @@ Important limitations:
 - no stable raw-tree public API;
 - no general owner/symbol repair or arbitrary generated-definition placement;
 - Lambda1 excludes inferred or multiple parameters, nested/context/pattern
-  lambdas, binder-name holes, and local definitions;
+  lambdas, binder-name holes, and broader local definitions;
 - P1 blocks admit only one or more ordered expression prefixes plus a final
   result; P2 admits exactly one simple explicitly typed eager immutable local
   `val`; the whole tree admits at most one P2 binder and rejects P2/Lambda1
@@ -149,7 +150,7 @@ by admitted child forms.
 
 ## Single typed local immutable val (P2)
 
-The only binder-bearing block admitted by the public Term surface is:
+The P2 local-value binder-bearing block admitted by the public Term surface is:
 
 ```scala
 { val x: Int = initializer; resultUsing(x) }
@@ -173,11 +174,37 @@ because this tranche does not migrate ownership.
 There is no inferred type, `var`, `lazy val`, pattern/destructuring binder,
 second or nested P2 local value anywhere in the quasiquote tree, P2/Lambda1
 same-name source shadowing, recursion/self-reference, binder-name hole, or
-local method support. A distinct-name Lambda1 may coexist with the single P2
+broader local method support. A distinct-name Lambda1 may coexist with the single P2
 binder. Same-text external interpolation is not source-binder shadowing and
 retains its caller-owned symbol. The unpublished exact untyped backend also remains
 closed to this node; it fails with its existing `Block` boundary rather than
 claiming owner-free raw-tree support.
+
+## Source-owned local identity method
+
+Construction through `qr` admits one block whose only statement is:
+
+```scala
+def literalName(literalParameter: $parameterType): $resultType = literalParameter
+```
+
+and whose final expression uses the existing Term grammar, including the
+canonical one-argument call to that method. The parser assigns distinct project
+`BinderId`s to the method and parameter. The current-Dotty backend creates one
+fresh method symbol under the active block owner, uses the callback-provided
+method parameter for the RHS, and resolves the following reference through the
+method binder rather than ambient compiler name lookup.
+
+Both Type positions accept caller-owned `TypeRepr` values only as complete
+Types; the existing fixed `Int`, `String`, and `Boolean` forms are also
+admitted without adding a general resolver. The declared parameter Type must
+conform to the declared result Type under Quotes reflection. Dynamic names,
+modifiers, annotations, type
+parameters, contextual/by-name/default/erased parameters, multiple clauses,
+recursion, arbitrary bodies, multiple or mixed statements, external `DefDef`
+splices, and `qq` local-definition matching fail closed. The typed Scalameta
+route does not advertise this Definition family and reports a terminal lowering
+failure rather than parser fallback.
 
 ## Bounded reflected type interpolators
 
@@ -430,7 +457,9 @@ Both fixed and reflected forms retain exactly one ordinary argument list.
 Arguments may use the already-supported term subset. A reflected Type is
 invalid in ordinary Term positions, ascriptions, method Type applications,
 partial constructor paths, applied dynamic constructor forms, refinements,
-definitions, and patterns. Fixed-source imported/simple names, generic types,
+other Definition positions, and patterns. The bounded local-definition
+parameter/result positions described above are the only Definition exception.
+Fixed-source imported/simple names, generic types,
 named or multiple lists, and anonymous classes remain rejected. Matching stays
 fixed-source only. This is constructor-only admission, not a general Type-hole
 or name-resolution surface.

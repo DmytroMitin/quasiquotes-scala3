@@ -18,6 +18,8 @@ private[construct] enum PlaceholderCategory derives CanEqual:
 private[construct] enum PlaceholderPosition derives CanEqual:
   case Term
   case ConstructorType
+  case LocalDefParameterType
+  case LocalDefResultType
   case ExpressionAscriptionType
   case SelectedMemberName
   case UnsupportedType(context: String)
@@ -27,6 +29,8 @@ private[construct] enum PlaceholderPosition derives CanEqual:
     this match
       case Term => "in term position"
       case ConstructorType => "as the complete type of a constructor expression"
+      case LocalDefParameterType => "as the complete parameter Type of a source-owned local def"
+      case LocalDefResultType => "as the complete result Type of a source-owned local def"
       case ExpressionAscriptionType =>
         "as the complete type of an expression ascription"
       case SelectedMemberName => "as the name of an explicit receiver selection"

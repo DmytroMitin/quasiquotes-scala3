@@ -53,7 +53,8 @@ module.
 
 This exact example is compiled from an external-package fixture. See
 [Getting started](docs/GETTING_STARTED.md) for the larger construction,
-matching, type, Lambda1, P1/P2 block, and compiler-free definition examples. See
+matching, type, Lambda1, P1/P2 block, source-owned local-definition, and
+compiler-free definition examples. See
 [execution environments and AST representations](docs/EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md)
 for compile-time macros, runtime staging, compiler-free values, and
 compiler-backed parsing without `Quotes`.
@@ -79,12 +80,13 @@ distinct, returns ordinary mismatch through pattern fallthrough, and reports a
 malformed template during macro expansion. Use `QuasiPattern.term` or
 `termOrThrow` for explicit diagnostics and named/repeated-hole semantics.
 
-`qr` also accepts a caller-owned `quotes.reflect.TypeRepr` only as the complete
-constructor Type of its bounded one-list `new` form. `TypeRepr.of[T]`,
+`qr` also accepts a caller-owned `quotes.reflect.TypeRepr` as the complete
+constructor Type of its bounded one-list `new` form and as each complete Type
+in the bounded source-owned local-definition form. `TypeRepr.of[T]`,
 `TypeTree.of[T].tpe`, and a `tqr` result use the same transport, including
 direct `tqr"java.lang.StringBuilder"` to `qr"new $typeValue(arg)"` stacking.
-Passing `Type[T]` or `TypeTree` directly, other Type positions, applied dynamic
-constructor families, and variadic arguments remain unsupported.
+Passing `Type[T]` or `TypeTree` directly, partial/applied dynamic Type
+positions, and variadic arguments remain unsupported.
 
 The type names are intentionally layered overloads. Inside an active `Quotes`,
 `tqr"..."` accepts caller-owned `TypeRepr` splices and returns a caller-owned
@@ -276,8 +278,11 @@ source-free and generated-origin modes.
 
 Binder-free P1 blocks are also available through ordinary `qr` construction
 and `qq`/programmatic matching. They preserve one or more ordered expression
-prefixes and a distinct final result. Local values and local definitions remain
-separate P2/P3 work and are rejected rather than partially admitted.
+prefixes and a distinct final result. P2 separately admits one typed eager
+immutable local `val`. Construction-only source-owned local-definition support
+now admits exactly one literal method with one ordinary parameter, complete
+parameter/result `TypeRepr` holes, a parameter-reference body, and one following
+result; broader statements and `qq` local-definition matching remain excluded.
 
 The unpublished exact internal definition backend also supports the bounded
 single-ordinary-parameter and exact-two-ordinary-parameter definition shapes

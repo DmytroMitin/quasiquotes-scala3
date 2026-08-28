@@ -87,20 +87,26 @@ generic reflected-Type payload internally, while `core` does not import
 `scala.quoted`. Existing `QuasiTypeSplice` remains the compiler-free
 `ConstructedType` route and is not replaced.
 
-The admitted position is the complete constructor Type in
-`new $typeValue(arg)` with one ordinary argument list.
-Ascriptions, method Type application, applied-Type constructors, definition
-Types, and variadic Type arguments remain later independent slices. Direct
-`TypeRepr` transport makes `tqr` to `qr` stacking a tested current behavior.
+The admitted positions are the complete constructor Type in
+`new $typeValue(arg)` with one ordinary argument list and the complete
+parameter/result Types of the bounded source-owned local method described
+below. Ascriptions, method Type application, applied-Type constructors, other
+definition Types, and variadic Type arguments remain independent slices.
+Direct `TypeRepr` transport makes `tqr` to `qr` stacking a tested current
+behavior.
 The typed Scalameta route implements the same overlap and treats reflected-Type
 admission or lowering failure as terminal rather than a fallback trigger.
 
 Definition composition has two ownership classes. A source-owned local
-`def` written inside `qr` can allocate its symbol under the lowering owner's
-scope and is the first planned statement slice. An already typed external
-`DefDef` is not a detached syntax node: insertion needs an explicit
-owner/reownership contract and must fail closed until that contract exists.
-Splicing a `Symbol` as shorthand for `Ref(symbol)` is not planned.
+`def` written inside `qr` is implemented for one ordinary parameter, a body
+that is exactly that parameter reference, and one following result expression.
+`core` records distinct method and parameter `BinderId`s; the typed backend
+allocates a fresh method under the lowering owner, uses the callback-owned
+parameter for the RHS, and binds the following method reference by identity.
+An already typed external `DefDef` is not a detached syntax node: insertion
+needs an explicit owner/reownership contract and must fail closed until that
+contract exists. Splicing a `Symbol` as shorthand for `Ref(symbol)` is not
+planned.
 
 An advanced owner/definition-plan handle may eventually be justified by a
 real consumer, but symmetric `sqr`/`sqq` symbol syntax is not currently

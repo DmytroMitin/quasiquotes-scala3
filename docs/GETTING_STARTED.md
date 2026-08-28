@@ -514,6 +514,54 @@ External splices containing owned definitions are rejected rather than
 reowned, and same-text external splices retain their original symbol rather
 than becoming source-binder shadowing.
 
+## Source-owned local definition first use
+
+For the first construction-only local-method slice, one `qr` block owns the
+declaration, its parameter, and the following call. This removes manual
+`DefDef`/`Ref`/`Apply`/`Block` assembly from the caller; compiler symbols still
+exist internally and are created under the active macro owner.
+
+<!-- snippet:source-owned-local-def-first-use:start -->
+```scala
+import scala.quoted.*
+
+import quasiquotes.construct.Quasiquotes.{dqr, qr}
+
+object SourceOwnedLocalDefFirstUseSnippet:
+  inline def manual(inline value: Int): Int = ${ manualImpl('value) }
+
+  inline def sourceOwned(inline value: Int): Int = ${ sourceOwnedImpl('value) }
+
+  private def manualImpl(value: Expr[Int])(using q: Quotes): Expr[Int] =
+    import q.reflect.*
+    val parameterType = TypeRepr.of[Int]
+    val resultType = TypeRepr.of[Int]
+    val definition: DefDef =
+      dqr"def boundedIdentity(value: $parameterType): $resultType = value"
+
+    Block(
+      List(definition),
+      Apply(Ref(definition.symbol), List(value.asTerm))
+    ).asExprOf[Int]
+
+  private def sourceOwnedImpl(value: Expr[Int])(using q: Quotes): Expr[Int] =
+    import q.reflect.*
+    val parameterType = TypeRepr.of[Int]
+    val resultType = TypeRepr.of[Int]
+
+    qr"""{
+      def boundedIdentity(value: $parameterType): $resultType = value
+      boundedIdentity(${value.asTerm})
+    }""".asExprOf[Int]
+```
+<!-- snippet:source-owned-local-def-first-use:end -->
+
+This is exactly one literal method name, one literal ordinary parameter name,
+complete reflected parameter and result Types, a body that references that
+parameter, and one following result expression. It does not splice an external
+`DefDef`, expose `Symbol`, support recursion or multiple statements, or add
+local-definition matching to `qq`.
+
 ## Bounded `qq` extractor first use
 
 The external-package fixture below proves the extractor in the caller's active
