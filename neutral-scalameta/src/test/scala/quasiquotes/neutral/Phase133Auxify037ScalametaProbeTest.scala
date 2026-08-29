@@ -107,4 +107,4 @@ class Phase133Auxify037ScalametaProbeTest extends munit.FunSuite:
       .left
       .toOption
       .map(_.code)
-      .getOrElse(fail("the current projector unexpectedly admitted the Phase 133 probe"))
+      .getOrElse(fail("the current projector unexpectedly admitted the bounded refinement probe"))
