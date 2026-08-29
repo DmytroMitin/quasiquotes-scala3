@@ -5,7 +5,8 @@ import dotty.tools.dotc.core.Contexts.Context
 
 import quasiquotes.neutral.{
   NeutralProjectionError,
-  ScalametaContextualMethodProjection
+  ProjectedContextualMethodRoute,
+  ScalametaContextualMethodDispatch
 }
 
 import scala.meta.Defn
@@ -43,7 +44,7 @@ object ContextualMethodPeerBridge:
       virtualSourceName: String
   )(using Context): Either[Failure, Lowered] =
     for
-      projected <- ScalametaContextualMethodProjection
+      projected <- ScalametaContextualMethodDispatch
         .project(definition)
         .left
         .map(classifyProjectionFailure)
@@ -54,24 +55,40 @@ object ContextualMethodPeerBridge:
             "the virtual source name must be present."
           )
         )
-      lowered <- PublicContextualMethodGeneratedOriginAdapter
-        .lower(projected.result, virtualSourceName)
-        .left
-        .map(classifyLoweringFailure)
-      definitionTree <- lowered.tree match
-        case value: untpd.DefDef => Right(value)
-        case other =>
-          Left(
-            Failure(
-              "INTERNAL_INVARIANT_FAILED",
-              s"the contextual-method backend returned `${other.getClass.getName}` instead of untpd.DefDef."
+      lowered <- projected match
+        case ProjectedContextualMethodRoute.Legacy(value) =>
+          PublicContextualMethodGeneratedOriginAdapter
+            .lower(value.result, virtualSourceName)
+            .left
+            .map(classifyLoweringFailure)
+            .flatMap(result =>
+              finish(result.tree, result.generatedSource, result.virtualSourceName)
             )
+        case ProjectedContextualMethodRoute.Scoped037(value) =>
+          ScopedContextualMethodGeneratedOriginAdapter
+            .lower(value.plan, virtualSourceName)
+            .left
+            .map(classifyScopedLoweringFailure)
+            .flatMap(result =>
+              finish(result.tree, result.generatedSource, result.virtualSourceName)
+            )
+    yield lowered
+
+  private def finish(
+      tree: untpd.Tree,
+      generatedSource: String,
+      virtualSourceName: String
+  ): Either[Failure, Lowered] =
+    tree match
+      case value: untpd.DefDef =>
+        Right(new Lowered(value, generatedSource, virtualSourceName))
+      case other =>
+        Left(
+          Failure(
+            "INTERNAL_INVARIANT_FAILED",
+            s"the contextual-method backend returned `${other.getClass.getName}` instead of untpd.DefDef."
           )
-    yield new Lowered(
-      definitionTree,
-      lowered.generatedSource,
-      lowered.virtualSourceName
-    )
+        )
 
   private def classifyProjectionFailure(
       error: NeutralProjectionError
@@ -100,3 +117,8 @@ object ContextualMethodPeerBridge:
         Failure("GENERATED_ORIGIN_FAILED", detail)
       case IncompletePositionMap(detail) =>
         Failure("GENERATED_ORIGIN_FAILED", detail)
+
+  private def classifyScopedLoweringFailure(
+      error: ScopedContextualMethodGeneratedOriginError
+  ): Failure =
+    Failure(error.code, error.detail)

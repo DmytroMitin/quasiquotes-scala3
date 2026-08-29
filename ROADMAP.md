@@ -34,7 +34,10 @@ delivery chronology.
   switch the public default without a separate compatibility decision.
 - Keep `dottyInternal` source visible but its artifact unpublished. Retain only
   the narrow exact-version `ContextualMethodPeerBridge` for tightly coupled
-  foreign-package peers; do not grow it into a generic raw-tree API.
+  foreign-package peers. It admits the unchanged legacy `Show[A]` contextual
+  method and the complete exact AUXify-037 two-bounded-parameter `Add.Out`
+  method through separate truthful neutral plans; do not grow it into a
+  generic raw-tree API.
 - Preserve Apache-2.0 POM and JAR metadata for intended `core` and `frontend`
   distributions.
 - Expand structural term and type support through narrow, test-backed slices.
@@ -160,8 +163,10 @@ first N5 complete constructor-Type splice, and the first source-owned local
 identity-method block are implemented. Bare identifiers,
 overload resolution, dynamic infix syntax, dynamic name matching, sequence
 splices, broader Type positions, and broader definition/class support remain
-independent later work. AUXify 037 remains the next ready peer-oriented lane;
-external `DefDef` statement splicing is not selected merely for symmetry.
+independent later work. The bounded AUXify-037 bridge and both foreign-package
+consumer proofs are complete; inputs 039, 041, 043, 045, and 046 remain
+separate peer-oriented lanes. External `DefDef` statement splicing is not
+selected merely for symmetry.
 
 Symbols are compiler semantic entities, not source syntax. No public symbol
 quasiquote family is currently planned. The neutral core remains symbol-free;

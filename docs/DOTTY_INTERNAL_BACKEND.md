@@ -9,18 +9,25 @@ version and active compiler context.
 
 `quasiquotes.definitions.dotty.ContextualMethodPeerBridge` is the only
 production object in this module intentionally exposed to a foreign package.
-It accepts one admitted Scalameta `Defn.Def` and a virtual source name. Its
-result contains a positioned `untpd.DefDef`, deterministic generated source,
-and the effective virtual source name, or a categorized failure.
+It accepts either the legacy single-unbounded-parameter contextual method or
+the exact bounded two-parameter AUXify-037 `Add.Out` contextual method, plus a
+virtual source name. Its unchanged result contains a positioned
+`untpd.DefDef`, deterministic generated source, and the effective virtual
+source name, or a categorized failure.
 
 The real consumed path is:
 
 ```text
 scala.meta.Defn.Def
-  -> ScalametaContextualMethodProjection
-  -> validated project/core DefinitionResultView
-  -> PublicContextualMethodUntypedBackend
-  -> PublicContextualMethodGeneratedOriginAdapter
+  -> package-private exact dispatch
+       -> legacy ScalametaContextualMethodProjection
+          -> validated project/core DefinitionResultView
+          -> PublicContextualMethodUntypedBackend
+          -> PublicContextualMethodGeneratedOriginAdapter
+       -> exact-037 Scalameta scoped projection
+          -> original ScopedContextualMethodPlan with BinderId identity
+          -> ScopedContextualMethodUntypedLowerer
+          -> ScopedContextualMethodGeneratedOriginAdapter
   -> ContextualMethodPeerBridge.Lowered
        -> positioned untpd.DefDef
        -> generated source
@@ -44,6 +51,8 @@ All other production owners are package-private or otherwise project-internal:
   admitted compiler-free Term/Type models to source-free raw trees.
 - `ConstructedDefinitionUntypedBackend` and
   `PublicContextualMethodUntypedBackend` construct bounded raw definitions.
+- `ScopedContextualMethodUntypedLowerer` and its generated-origin adapter own
+  only the exact AUXify-037 two-binder/refinement raw shape.
 - `ScalametaContextualMethodBackend` is an internal bounded forward/reverse
   adapter for the contextual-method shape.
 - the generated-origin adapters, result carriers, fragment planner,
