@@ -16,6 +16,13 @@ delivery chronology.
   for every other Term shape. The broader Phase-131 select/apply/one-list
   `new`/identifier helper remains test-only feasibility evidence rather than
   production support.
+- Preserve the package-private production exact backend for that same bounded
+  family. `CoreTermShapeUntypedLowerer` accepts canonical signed decimal
+  integer strings and the fixed ordinary operator set `+`, `-`, `*`, `/`, `%`,
+  `==`, `!=`, `<`, `<=`, `>`, `>=`; it recursively produces parser-equivalent
+  source-free `untpd.Number`/`untpd.InfixOp` trees and rejects every other core
+  Term family. It is not a public Scalameta-to-Dotty bridge or a generic
+  `TermShape` backend.
 
 - Preserve one semantic architecture: source frontends project into the
   project-owned compiler-free model in `core`, followed by backend-specific
@@ -186,8 +193,13 @@ After the two completed typed/public rotation slots, the selected neutral/core
 gate is implemented: `ScalametaTermProjection` maps the bounded integer/infix
 family, including `q"1 + 1"`, directly to project-owned `TermShape`. It does not
 admit binders, type sidecars, arbitrary Terms, or a public frontend switch. The
-next semantic rotation is an exact-backend gate for lowering that same bounded
-core family to source-free `untpd.Tree`; it is not implemented here.
+following exact-backend gate is also implemented: the same bounded core family
+lowers directly to source-free, span-free, symbol-free `untpd.Tree` without
+parsing or generated provenance. Direct `Typer.typedExpr` on a `NoSpan`
+`untpd.InfixOp` is not viable because Dotty's infix desugaring reads operand and
+operator spans; three-line verification therefore uses a test-only source-free
+`Apply(Select(...), ...)` typing shell after separately proving the production
+tree's parser-equivalent raw shape.
 
 Symbols are compiler semantic entities, not source syntax. The feasibility
 gate selects `S1`: no public Symbol quasiquote family. The neutral core remains

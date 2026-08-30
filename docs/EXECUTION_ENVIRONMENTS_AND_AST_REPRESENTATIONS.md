@@ -396,8 +396,11 @@ dottyInternal exact lowering for an admitted peer operation
 untpd.Tree
 ```
 
-The current production endpoint of this second route is one contextual
-method, not a general Term bridge. See the
+The current production endpoints of this second route are the bounded
+contextual-method bridge and the package-private integer/infix Term backend.
+The latter composes the production `ScalametaTermProjection` with core
+`TermShape` and direct source-free `untpd.Number`/`untpd.InfixOp` construction;
+it is not a general Term bridge. See the
 [Dotty-internal exact backend](DOTTY_INTERNAL_BACKEND.md).
 
 ## Exact-version `Quotes` and Dotty-internal interoperability
@@ -431,6 +434,21 @@ generic bridge for arbitrary typed-tree leaves. If a concrete normal-macro
 consumer eventually justifies this escape hatch, the public boundary should
 be one narrow, exact-version operation with owned validation and context rules,
 not a general raw-tree toolkit.
+
+The separate package-private `CoreTermShapeUntypedLowerer` is narrower again:
+it accepts only canonical signed decimal `TermShape.Literal` values and
+recursive `TermShape.Infix` values over a fixed ordinary-operator set. Every
+constructed node is checked for no source, no span, `NoSymbol`, and no
+`TypedSplice`. Exact parser-oracle comparison is structural and removes only
+parser-owned metadata; it does not render and reparse backend output.
+
+Across Scala 3.3.8, 3.8.4, and 3.9.0-RC1, Dotty's
+`Typer.typedInfixOp` delegates to infix desugaring that reads operand/operator
+spans. Direct `new Typer().typedExpr` on the production `NoSpan` `InfixOp`
+therefore asserts. The viability oracle uses a test-only recursive source-free
+`Apply(Select(left, operator), right)` shell immediately before typing. This
+proves the integer/operator semantics and expected `Int` values without
+changing the production raw result or fabricating source provenance.
 
 ## Source provenance policy
 

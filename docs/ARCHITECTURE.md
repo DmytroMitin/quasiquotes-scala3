@@ -37,6 +37,20 @@ and Scalameta transitively through `neutralScalameta`, while
 `hybridScalametaFrontend` has both the current typed frontend and the neutral
 Scalameta projection available. `frontend` never depends on `dottyInternal`.
 
+The first production neutral-to-exact Term route is therefore:
+
+```text
+scala.meta.Term (semantic integer / ordinary binary infix)
+  -> ScalametaTermProjection
+  -> core TermShape (same bounded family)
+  -> package-private CoreTermShapeUntypedLowerer
+  -> source-free untpd.Tree
+```
+
+No arrow in this route performs name resolution, overload resolution, typing,
+precedence parsing, or source/provenance reconstruction. Precedence is already
+encoded by recursive `TermShape.Infix` structure.
+
 - `frontend` is the released/default exact-compiler route. It owns parsing,
   quoted reflection, public `qr`/`qq` and `tqr`/`tqq`, and compiler-line
   lowering. It is also the first-class reference implementation and oracle.
@@ -49,7 +63,9 @@ Scalameta projection available. `frontend` never depends on `dottyInternal`.
   It maps public Scalameta ASTs into the same core models and then lowers or
   matches in the caller's `Quotes` universe.
 - `dottyInternal` contains unpublished exact-version `untpd` adapters and the
-  narrow `ContextualMethodPeerBridge`. It is not a general raw-tree API.
+  narrow `ContextualMethodPeerBridge`. Its package-private
+  `CoreTermShapeUntypedLowerer` also consumes exactly the neutral integer/infix
+  family and emits source-free raw syntax. It is not a general raw-tree API.
 - the aggregate and example projects publish no production artifacts.
 
 Only a Scalameta parse failure may select the current parser inside the hybrid

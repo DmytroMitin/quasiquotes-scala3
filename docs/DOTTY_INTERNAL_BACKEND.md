@@ -50,6 +50,10 @@ The second operation is documented separately on the
 
 All other production owners are package-private or otherwise project-internal:
 
+- `CoreTermShapeUntypedLowerer` lowers only canonical signed decimal literals
+  and recursive ordinary infix nodes from core `TermShape` to source-free
+  `untpd.Number`/`untpd.InfixOp` syntax. It validates a fixed operator set and
+  audits no source, no span, `NoSymbol`, and no `TypedSplice` recursively.
 - `ConstructedTermUntypedBackend` and `CompletedTypeUntypedLowerer` lower the
   admitted compiler-free Term/Type models to source-free raw trees.
 - `ConstructedDefinitionUntypedBackend` and
@@ -81,6 +85,16 @@ Tests demonstrate two capabilities that are not production APIs:
   lines;
 - `untpd.TypedSplice` can embed typed leaves in a newly constructed untyped
   shell, after which `Typer.typedExpr` produces a typed result.
+- the production neutral projector composes with
+  `CoreTermShapeUntypedLowerer` for `1 + 1`, `1 + 2 * 3`, and `-1 + 2`, and the
+  resulting source-free raw structure agrees with an independent parser oracle
+  on Scala 3.3.8, 3.8.4, and 3.9.0-RC1.
+
+Direct `Typer.typedExpr` on a span-free `untpd.InfixOp` is not supported by the
+tested compiler lines: Dotty's infix desugaring reads the left/operator spans.
+The exact viability probe therefore uses a test-only source-free recursive
+`Apply(Select(...), ...)` shell before typing and proves `Int` type/value
+evidence. Production still returns the parser-equivalent span-free `InfixOp`.
 
 These probes do not authorize manual `ExprImpl` construction, a general
 `tpd.Tree -> untpd.Tree` inverse, or a stable bridge between arbitrary compiler
@@ -88,14 +102,15 @@ contexts.
 
 ## Deliberate exclusions
 
-There is currently no production public bridge from arbitrary
-`scala.meta.Term` to `untpd.Tree`, no public neutral projector from arbitrary
-`scala.meta.Term` to a core Term representation, no generic raw-tree family,
-no placement service, and no stable published coordinate for this module.
+There is no production public bridge from arbitrary `scala.meta.Term` to
+`untpd.Tree`, no public neutral projector from arbitrary `scala.meta.Term`, no
+generic raw-tree family, no placement service, and no stable published
+coordinate for this module. The package-private production composition admits
+only recursive semantic integers and ordinary binary infix Terms through core
+`TermShape`.
 Typed Scalameta Term traversal instead belongs to the separate unpublished
 `hybridScalametaFrontend` and returns caller-owned `q.reflect.Term`.
 
-Future work may add a compiler-free bounded `scala.meta.Term -> TermShape`
-projector if a concrete reusable consumer appears. A one-operation exact peer
-bridge could then compose that neutral projection with internal exact lowering.
-Neither existing definition-specific bridge widens that boundary.
+Identifier, select, apply, `new`, unary, tuple, block, binder, type-sidecar, and
+other Term families remain explicit later slices. Neither existing
+definition-specific bridge widens that boundary.
