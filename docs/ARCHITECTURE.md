@@ -129,7 +129,7 @@ AUXify handlers ---> Scalameta directly + dottyInternal     [build dependency]
 Macro-Paradise ---> no Quasiquotes or Scalameta product dependency
 ```
 
-The neutral source pipeline used by the admitted exact peer bridge is:
+The neutral source pipeline used by the admitted exact peer bridges is:
 
 ```text
 Scalameta q/t -> scala.meta AST
@@ -147,6 +147,11 @@ AUXify's current narrow `@apply` path uses ordinary Scalameta `q`, `t`, and
 exact positioned `untpd.DefDef`. That is evidence for neutral source-like
 authoring on one admitted integration path, not proof that every handler
 should use Scalameta.
+
+The bounded `@self` member path uses a typed Scalameta `Decl.Type` and
+`SelfAbstractTypeMemberPeerBridge` to obtain one positioned `untpd.TypeDef`.
+The prepared self alias remains peer-owned external syntax: Quasiquotes
+validates its repeated uses but does not allocate a binder or create the alias.
 
 Macro-Paradise remains an exact compiler plugin. It owns plugin lifecycle,
 placement, companion merge, insertion, rollback, and typing, and does not take

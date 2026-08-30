@@ -33,11 +33,11 @@ delivery chronology.
   reflected-hole/capture identity, and compiler-line dialect selection; do not
   switch the public default without a separate compatibility decision.
 - Keep `dottyInternal` source visible but its artifact unpublished. Retain only
-  the narrow exact-version `ContextualMethodPeerBridge` for tightly coupled
-  foreign-package peers. It admits the unchanged legacy `Show[A]` contextual
-  method and the complete exact AUXify-037 two-bounded-parameter `Add.Out`
-  method through separate truthful neutral plans; do not grow it into a
-  generic raw-tree API.
+  definition-specific exact-version bridges for tightly coupled foreign-package
+  peers. `ContextualMethodPeerBridge` admits the unchanged legacy `Show[A]`
+  method and complete AUXify-037 `Add.Out` method.
+  `SelfAbstractTypeMemberPeerBridge` admits only the coherent AUXify-046
+  bounded abstract member; neither is a generic raw-tree API.
 - Preserve Apache-2.0 POM and JAR metadata for intended `core` and `frontend`
   distributions.
 - Expand structural term and type support through narrow, test-backed slices.
@@ -163,10 +163,10 @@ first N5 complete constructor-Type splice, and the first source-owned local
 identity-method block are implemented. Bare identifiers,
 overload resolution, dynamic infix syntax, dynamic name matching, sequence
 splices, broader Type positions, and broader definition/class support remain
-independent later work. The bounded AUXify-037 bridge and both foreign-package
-consumer proofs are complete; inputs 039, 041, 043, 045, and 046 remain
-separate peer-oriented lanes. External `DefDef` statement splicing is not
-selected merely for symmetry.
+independent later work. The bounded AUXify-037 and AUXify-046 bridges and their
+foreign-package consumer proofs are complete. Inputs 039, 041, 043, and 045
+remain separate peer-oriented lanes; 046 did not implement or widen them.
+External `DefDef` statement splicing is not selected merely for symmetry.
 
 Symbols are compiler semantic entities, not source syntax. No public symbol
 quasiquote family is currently planned. The neutral core remains symbol-free;

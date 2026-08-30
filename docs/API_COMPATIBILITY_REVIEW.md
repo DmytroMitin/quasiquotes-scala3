@@ -33,18 +33,30 @@ reported conservatively as removal plus addition.
 
 ## Released baseline and current development candidate
 
-The current `0.3.0-SNAPSHOT` candidate has 669 packaged rows. Compared with
-released `0.2.0`, 612 signatures are unchanged, 57 are added, six are
-removed/replaced, 51 symbol groups are added, and no symbol group is removed.
-The six replacements include the truthful statement-supertrait changes used
+The current `0.3.0-SNAPSHOT` candidate has 670 packaged rows. Compared with
+released `0.2.0`, 611 signatures are unchanged, 59 are added, seven are
+removed/replaced, 52 symbol groups are added, and no symbol group is removed.
+The seven replacements include the truthful statement-supertrait changes used
 by the block/local-value model; later development adds selected-Type identity,
 bounded definition, selected-member, and composition surfaces relative to the
 earlier development snapshots.
 
 The result remains
 `BREAKING_API_SHAPE_DELTA_REQUIRES_NEW_0X_MINOR`. It does not mutate the
-released 618-row file, and the 669-row candidate remains generated evidence
+released 618-row file, and the 670-row candidate remains generated evidence
 until an actual `0.3.0` release.
+
+The standard inventory deliberately excludes the unpublished, full-crossed
+`dottyInternal` artifact, so it cannot describe that module's foreign-package
+bridge surface. An explicit Scala-3.8.4 JVM artifact comparison against launch
+commit `3ae93af527778ad1127f43ec7ffd2e325bae0008` records the new
+`SelfAbstractTypeMemberPeerBridge` as an additive-only exact-version delta:
+five class files and 40 public JVM members, or 45 normalized class/member rows.
+There are no removed or replaced JVM rows in that bridge-specific comparison.
+Those rows include Scala compiler-generated forwarders and case-class members;
+the intended source contract remains the `lower` operation, categorized
+`Failure`, and the three read-only `Lowered` fields. This is an experimental
+compiler-internal API addition, not a stable-coordinate compatibility promise.
 
 The separate [0.2-to-0.3 statement-ADT compatibility report](STATEMENT_ADT_0_2_TO_0_3_COMPATIBILITY.md)
 proves bounded source, JVM-linkage, and TASTy consumer behavior. That evidence

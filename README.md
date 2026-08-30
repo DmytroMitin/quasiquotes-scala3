@@ -127,8 +127,8 @@ construct/match boundary and its deliberate limits.
   Quasiquotes integration is optional research, not a core product dependency.
 - [AUXify-scala3](https://github.com/DmytroMitin/AUXify-scala3) is an
   experimental Scala 3 AUXify reimplementation using Macro-Paradise; its
-  current narrow handler path uses Scalameta source-like authoring plus the
-  Quasiquotes exact contextual-method lowering bridge.
+  narrow handler paths use Scalameta source-like authoring plus
+  definition-specific Quasiquotes exact lowering bridges.
 
 ## Modules
 
@@ -150,8 +150,9 @@ construct/match boundary and its deliberate limits.
   change.
   It has no typed `dqr`/`dqq`; neutral Scalameta definition authoring and typed
   reflected Definition placement are distinct contracts.
-- `dottyInternal` contains exact-compiler internal adapters and one narrow
-  experimental foreign-package peer bridge for contextual-method lowering.
+- `dottyInternal` contains exact-compiler internal adapters and two narrow
+  experimental foreign-package peer bridges: contextual-method lowering and
+  the bounded AUXify self abstract-Type-member operation.
   Its source is present for review and testing, but its artifact is deliberately
   unpublished and consumers must match the exact Scala compiler version.
 - `public-core-examples` and `public-api-examples` compile consumer code from
@@ -165,9 +166,10 @@ only admitted shapes downward; it does not make `core` depend on Scalameta.
 See the [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md),
 the [hybrid typed frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md),
 the [Scalameta opt-in artifact topology](docs/SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md),
-and the [Dotty-internal exact backend](docs/DOTTY_INTERNAL_BACKEND.md), whose
-only foreign-package surface is the focused experimental contextual-method
-peer bridge.
+and the [Dotty-internal exact backend](docs/DOTTY_INTERNAL_BACKEND.md). Its
+foreign-package surfaces are the focused
+[contextual-method bridge](docs/EXPERIMENTAL_CONTEXTUAL_METHOD_PEER_BRIDGE.md)
+and [self abstract-Type-member bridge](docs/SELF_ABSTRACT_TYPE_MEMBER_PEER_BRIDGE.md).
 
 ## Try the source build
 

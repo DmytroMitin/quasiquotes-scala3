@@ -7,13 +7,14 @@ version and active compiler context.
 
 ## Current public-for-JVM-access surface
 
-`quasiquotes.definitions.dotty.ContextualMethodPeerBridge` is the only
-production object in this module intentionally exposed to a foreign package.
-It accepts either the legacy single-unbounded-parameter contextual method or
-the exact bounded two-parameter AUXify-037 `Add.Out` contextual method, plus a
-virtual source name. Its unchanged result contains a positioned
-`untpd.DefDef`, deterministic generated source, and the effective virtual
-source name, or a categorized failure.
+Two definition-specific production objects in this module are intentionally
+exposed to foreign packages. `ContextualMethodPeerBridge` accepts either the
+legacy single-unbounded-parameter contextual method or the exact bounded
+two-parameter AUXify-037 `Add.Out` method. The separate
+`SelfAbstractTypeMemberPeerBridge` accepts only the bounded AUXify-046 abstract
+member family. Both require a virtual source name and return a categorized
+failure or a positioned tree with deterministic generated source and the
+effective virtual source name.
 
 The real consumed path is:
 
@@ -42,6 +43,8 @@ dependency.
 
 The focused API and failure contract remain documented on the
 [experimental contextual-method peer bridge page](EXPERIMENTAL_CONTEXTUAL_METHOD_PEER_BRIDGE.md).
+The second operation is documented separately on the
+[self abstract-Type-member bridge page](SELF_ABSTRACT_TYPE_MEMBER_PEER_BRIDGE.md).
 
 ## Internal module inventory
 
@@ -53,6 +56,8 @@ All other production owners are package-private or otherwise project-internal:
   `PublicContextualMethodUntypedBackend` construct bounded raw definitions.
 - `ScopedContextualMethodUntypedLowerer` and its generated-origin adapter own
   only the exact AUXify-037 two-binder/refinement raw shape.
+- `SelfAbstractTypeMemberUntypedLowerer` and its generated-origin adapter own
+  only the exact AUXify-046 nine-node `untpd.TypeDef` shape.
 - `ScalametaContextualMethodBackend` is an internal bounded forward/reverse
   adapter for the contextual-method shape.
 - the generated-origin adapters, result carriers, fragment planner,
@@ -93,5 +98,4 @@ Typed Scalameta Term traversal instead belongs to the separate unpublished
 Future work may add a compiler-free bounded `scala.meta.Term -> TermShape`
 projector if a concrete reusable consumer appears. A one-operation exact peer
 bridge could then compose that neutral projection with internal exact lowering.
-Neither is required for the next source-owned local-`def` product gate or the
-independent AUXify 037 Type/Definition gate.
+Neither existing definition-specific bridge widens that boundary.

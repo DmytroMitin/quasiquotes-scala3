@@ -2,14 +2,14 @@ package quasiquotes.definitions.dotty
 
 import dotty.tools.dotc.ast.untpd
 import dotty.tools.dotc.core.Contexts.{Context, ContextBase}
-import dotty.tools.dotc.core.Names.{termName, typeName}
 import dotty.tools.dotc.core.Symbols.NoSymbol
 import dotty.tools.dotc.parsing.Parsers.Parser
 import dotty.tools.dotc.reporting.StoreReporter
-import dotty.tools.dotc.util.{NoSource, SourceFile}
-import dotty.tools.dotc.util.Spans.Span
+import dotty.tools.dotc.util.SourceFile
 
-class Phase136Auxify046UntypedProbeTest extends munit.FunSuite:
+import quasiquotes.definitions.*
+
+class SelfAbstractTypeMemberUntypedLowererTest extends munit.FunSuite:
   private val Canonical =
     "type Self >: self.type <: Nat { type Self = self.Self }"
   private val Renamed =
@@ -48,7 +48,7 @@ class Phase136Auxify046UntypedProbeTest extends munit.FunSuite:
         (Renamed, "Element", "owner$2", "Domain")
       ).foreach { case (source, member, selfAlias, upperBase) =>
         val parsedStructure = parseOne(source)(structure)
-        val constructed = constructEquivalent(member, selfAlias, upperBase)
+        val constructed = lowerRaw(member, selfAlias, upperBase)
 
         assertExactShape(constructed, member, selfAlias, upperBase)
         assertEquals(structure(constructed), parsedStructure)
@@ -68,11 +68,16 @@ class Phase136Auxify046UntypedProbeTest extends munit.FunSuite:
     withContext {
       List(("Self", "self", "Nat"), ("Element", "owner$2", "Domain")).foreach {
         case (member, selfAlias, upperBase) =>
-          val raw = constructEquivalent(member, selfAlias, upperBase)
-          val generated =
-            s"type $member >: $selfAlias.type <: $upperBase { type $member = $selfAlias.$member }"
-          val source = SourceFile.virtual("Phase136Auxify046Generated.scala", generated)
-          val positioned = positionEquivalent(raw, member, selfAlias, upperBase, source)
+          val plan = validPlan(member, selfAlias, upperBase)
+          val raw = lowerRaw(member, selfAlias, upperBase)
+          val lowered = SelfAbstractTypeMemberGeneratedOriginAdapter
+            .lower(plan, "Phase137Auxify046Generated.scala")
+            .fold(error => fail(error.message), identity)
+          val generated = lowered.generatedSource
+          val source = lowered.sourceFile
+          val positioned = lowered.tree match
+            case value: untpd.TypeDef => value
+            case other => fail(s"expected TypeDef, found ${other.getClass.getSimpleName}")
 
           assertExactShape(positioned, member, selfAlias, upperBase)
           assertEquals(structure(positioned), structure(raw))
@@ -113,7 +118,7 @@ class Phase136Auxify046UntypedProbeTest extends munit.FunSuite:
     val reporter = new StoreReporter(null)
     given Context = outerContext.fresh.setReporter(reporter)
     val parsed =
-      new Parser(SourceFile.virtual("Phase136Auxify046Probe.scala", source)).parse()
+      new Parser(SourceFile.virtual("SelfAbstractTypeMemberOracle.scala", source)).parse()
     assertEquals(reporter.pendingMessages.toList, Nil)
     val definition = parsed match
       case packageDef: untpd.PackageDef =>
@@ -124,101 +129,32 @@ class Phase136Auxify046UntypedProbeTest extends munit.FunSuite:
       case other => fail(s"expected PackageDef, found ${other.getClass.getSimpleName}")
     run(definition)
 
-  private def constructEquivalent(
+  private def lowerRaw(
       member: String,
       selfAlias: String,
       upperBase: String
   )(using Context): untpd.TypeDef =
-    given SourceFile = NoSource
-    val lower =
-      untpd.SingletonTypeTree(untpd.Ident(termName(selfAlias)))
-    val selected =
-      untpd.Select(untpd.Ident(termName(selfAlias)), typeName(member))
-    val refinementMember = untpd.TypeDef(typeName(member), selected)
-    val upper =
-      untpd.RefinedTypeTree(
-        untpd.Ident(typeName(upperBase)),
-        refinementMember :: Nil
-      )
-    untpd.TypeDef(typeName(member), untpd.TypeBoundsTree(lower, upper))
+    SelfAbstractTypeMemberUntypedLowerer
+      .lower(validPlan(member, selfAlias, upperBase))
+      .fold(error => fail(error.message), identity)
 
-  private def positionEquivalent(
-      raw: untpd.TypeDef,
+  private def validPlan(
       member: String,
       selfAlias: String,
-      upperBase: String,
-      source: SourceFile
-  )(using Context): untpd.TypeDef =
-    val rendered = source.content.mkString
-    val outerPoint = "type ".length
-    val lowerStart = rendered.indexOf(selfAlias, outerPoint + member.length)
-    val lowerEnd = lowerStart + selfAlias.length + ".type".length
-    val baseStart = rendered.indexOf(upperBase, lowerEnd)
-    val baseEnd = baseStart + upperBase.length
-    val aliasStart = rendered.indexOf("type ", baseEnd)
-    val aliasPoint = aliasStart + "type ".length
-    val selectedStart = rendered.indexOf(selfAlias, aliasPoint + member.length)
-    val selectedPoint = selectedStart + selfAlias.length + 1
-    val selectedEnd = selectedPoint + member.length
-
-    raw.rhs match
-      case untpd.TypeBoundsTree(
-            lower: untpd.SingletonTypeTree,
-            upper: untpd.RefinedTypeTree,
-            alias
-          ) if alias.isEmpty =>
-        val positionedLower = lower.ref match
-          case identifier: untpd.Ident =>
-            untpd
-              .SingletonTypeTree(
-                identifier
-                  .cloneIn(source)
-                  .withSpan(Span(lowerStart, lowerStart + selfAlias.length, lowerStart))
-              )
-              .cloneIn(source)
-              .withSpan(Span(lowerStart, lowerEnd, lowerStart))
-          case other => fail(s"expected singleton identifier, found $other")
-        val positionedUpper = upper match
-          case untpd.RefinedTypeTree(base: untpd.Ident, List(alias: untpd.TypeDef)) =>
-            val positionedBase =
-              base.cloneIn(source).withSpan(Span(baseStart, baseEnd, baseStart))
-            val positionedAlias = alias.rhs match
-              case selected: untpd.Select =>
-                val positionedPrefix = selected.qualifier match
-                  case prefix: untpd.Ident =>
-                    prefix
-                      .cloneIn(source)
-                      .withSpan(
-                        Span(selectedStart, selectedStart + selfAlias.length, selectedStart)
-                      )
-                  case other => fail(s"expected selected identifier, found $other")
-                val positionedSelected =
-                  untpd
-                    .Select(positionedPrefix, selected.name)
-                    .cloneIn(source)
-                    .withSpan(Span(selectedStart, selectedEnd, selectedPoint))
-                untpd
-                  .TypeDef(alias.name, positionedSelected)
-                  .withMods(alias.mods)
-                  .cloneIn(source)
-                  .withSpan(Span(aliasStart, selectedEnd, aliasPoint))
-              case other => fail(s"expected selected alias RHS, found $other")
-            untpd
-              .RefinedTypeTree(positionedBase, positionedAlias :: Nil)
-              .cloneIn(source)
-              .withSpan(Span(baseStart, rendered.length, baseStart))
-          case other => fail(s"expected refined upper bound, found $other")
-        val positionedBounds =
-          untpd
-            .TypeBoundsTree(positionedLower, positionedUpper)
-            .cloneIn(source)
-            .withSpan(Span(lowerStart, rendered.length, lowerStart))
-        untpd
-          .TypeDef(raw.name, positionedBounds)
-          .withMods(raw.mods)
-          .cloneIn(source)
-          .withSpan(Span(0, rendered.length, outerPoint))
-      case other => fail(s"expected raw TypeBoundsTree, found $other")
+      upperBase: String
+  ): SelfAbstractTypeMemberPlan =
+    val observed = ObservedSelfAbstractTypeMember(
+      member,
+      selfAlias,
+      upperBase,
+      member,
+      selfAlias,
+      member
+    )
+    val expected = SelfAbstractTypeMemberExpectation(member, selfAlias, upperBase)
+    SelfAbstractTypeMemberPlan
+      .create(observed, expected)
+      .fold(error => fail(error.message), identity)
 
   private def assertExactShape(
       definition: untpd.TypeDef,

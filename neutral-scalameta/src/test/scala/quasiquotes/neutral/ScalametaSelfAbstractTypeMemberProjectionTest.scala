@@ -1,14 +1,12 @@
 package quasiquotes.neutral
 
-import quasiquotes.definitions.DefinitionName
-
 import scala.annotation.nowarn
 import scala.meta.*
 import scala.meta.dialects.Scala3
 import scala.meta.parsers.Parsed
 
 @nowarn("cat=deprecation")
-class Phase136Auxify046ScalametaProbeTest extends munit.FunSuite:
+class ScalametaSelfAbstractTypeMemberProjectionTest extends munit.FunSuite:
   private final case class ExpectedNames(
       member: String,
       selfAlias: String,
@@ -52,9 +50,21 @@ class Phase136Auxify046ScalametaProbeTest extends munit.FunSuite:
       "type Element >: owner$2.type <: Domain { type Element = owner$2.Element }"
     )
 
+    val projected = project(
+      declaration,
+      ExpectedNames("Element", "owner$2", "Domain")
+    ).fold(error => fail(error.message), identity)
+
+    assertEquals(projected.plan.memberName, "Element")
+    assertEquals(projected.plan.selfAlias.source, "owner$2")
+    assertEquals(projected.plan.lowerBound.alias, projected.plan.selfAlias)
+    assertEquals(projected.plan.upperBound.baseName, "Domain")
+    assertEquals(projected.plan.upperBound.aliasName, "Element")
+    assertEquals(projected.plan.upperBound.rhs.alias, projected.plan.selfAlias)
+    assertEquals(projected.plan.upperBound.rhs.memberName, "Element")
     assertEquals(
-      classify(declaration, ExpectedNames("Element", "owner$2", "Domain")),
-      Right(())
+      projected.sourceSpan,
+      Some(NeutralSourceSpan(declaration.pos.start, declaration.pos.end))
     )
   }
 
@@ -138,6 +148,62 @@ class Phase136Auxify046ScalametaProbeTest extends munit.FunSuite:
     assert(parsed.isInstanceOf[Parsed.Error], clues(parsed))
   }
 
+  test("rejects expectation declaration auxiliary-bound and upper-base edges") {
+    val canonical = parseDeclaration(
+      "type Self >: self.type <: Nat { type Self = self.Self }"
+    )
+    assertProjectedRejected(
+      canonical,
+      ExpectedNames("bad-name", "self", "Nat"),
+      "NEUTRAL_SELF_MEMBER_EXPECTED_MEMBER_INVALID"
+    )
+    assertProjectedRejected(
+      canonical,
+      ExpectedNames("Self", "self", "bad-name"),
+      "NEUTRAL_SELF_MEMBER_EXPECTED_UPPER_BASE_INVALID"
+    )
+    assertProjectedRejected(
+      canonical,
+      ExpectedNames("Other", "self", "Nat"),
+      "NEUTRAL_SELF_MEMBER_OUTER_NAME_MISMATCH"
+    )
+    assertRejected(
+      "type Self >: self.type",
+      ExpectedNames("Self", "self", "Nat"),
+      "NEUTRAL_SELF_MEMBER_UPPER_BOUND_MISSING"
+    )
+    assertRejected(
+      "type Self >: self.type <: Nat[String] { type Self = self.Self }",
+      ExpectedNames("Self", "self", "Nat"),
+      "NEUTRAL_SELF_MEMBER_UPPER_BASE_UNSUPPORTED"
+    )
+
+    val withContextBound = canonical.copy(
+      bounds = canonical.bounds.copy(context = List(Type.Name("Evidence")))
+    )
+    assertProjectedRejected(
+      withContextBound,
+      ExpectedNames("Self", "self", "Nat"),
+      "NEUTRAL_SELF_MEMBER_CONTEXT_VIEW_BOUNDS_UNSUPPORTED"
+    )
+
+    val Type.Refine(Some(base), List(alias: Defn.Type)) =
+      canonical.bounds.hi.get: @unchecked
+    val boundedAlias = alias.copy(
+      bounds = alias.bounds.copy(lo = Some(Type.Name("Nothing")))
+    )
+    val withAliasBounds = canonical.copy(
+      bounds = canonical.bounds.copy(
+        hi = Some(Type.Refine(Some(base), List(boundedAlias)))
+      )
+    )
+    assertProjectedRejected(
+      withAliasBounds,
+      ExpectedNames("Self", "self", "Nat"),
+      "NEUTRAL_SELF_MEMBER_REFINEMENT_ALIAS_BOUNDS_UNSUPPORTED"
+    )
+  }
+
   private def parseDeclaration(source: String): Decl.Type =
     Scala3(source).parse[Stat].get match
       case declaration: Decl.Type => declaration
@@ -148,116 +214,24 @@ class Phase136Auxify046ScalametaProbeTest extends munit.FunSuite:
       expected: ExpectedNames,
       expectedCode: String
   ): Unit =
-    val result = classify(parseDeclaration(source), expected)
-    assertEquals(result.left.toOption, Some(expectedCode), clues(result))
+    val result = project(parseDeclaration(source), expected)
+    assertEquals(result.left.toOption.map(_.code), Some(expectedCode), clues(result))
 
-  private def classify(
+  private def assertProjectedRejected(
+      declaration: Decl.Type,
+      expected: ExpectedNames,
+      expectedCode: String
+  ): Unit =
+    val result = project(declaration, expected)
+    assertEquals(result.left.toOption.map(_.code), Some(expectedCode), clues(result))
+
+  private def project(
       declaration: Decl.Type,
       expected: ExpectedNames
-  ): Either[String, Unit] =
-    for
-      _ <- require(
-        legal(expected.member),
-        "NEUTRAL_SELF_MEMBER_EXPECTED_MEMBER_INVALID"
-      )
-      _ <- require(
-        legalStableTerm(expected.selfAlias),
-        "NEUTRAL_SELF_MEMBER_EXPECTED_SELF_ALIAS_INVALID"
-      )
-      _ <- require(
-        legal(expected.upperBase),
-        "NEUTRAL_SELF_MEMBER_EXPECTED_UPPER_BASE_INVALID"
-      )
-      _ <- require(
-        declaration.mods.isEmpty,
-        "NEUTRAL_SELF_MEMBER_MODIFIERS_UNSUPPORTED"
-      )
-      _ <- require(
-        declaration.tparamClause.values.isEmpty,
-        "NEUTRAL_SELF_MEMBER_TYPE_PARAMETERS_UNSUPPORTED"
-      )
-      _ <- require(
-        legal(declaration.name.value) && declaration.name.value == expected.member,
-        "NEUTRAL_SELF_MEMBER_OUTER_NAME_MISMATCH"
-      )
-      lower <- declaration.bounds.lo.toRight(
-        "NEUTRAL_SELF_MEMBER_LOWER_BOUND_MISSING"
-      )
-      lowerAlias <- lower match
-        case Type.Singleton(name: Term.Name) => Right(name.value)
-        case _ => Left("NEUTRAL_SELF_MEMBER_LOWER_BOUND_NOT_SINGLETON")
-      _ <- require(
-        legalStableTerm(lowerAlias) && lowerAlias == expected.selfAlias,
-        "NEUTRAL_SELF_MEMBER_LOWER_ALIAS_MISMATCH"
-      )
-      upper <- declaration.bounds.hi.toRight(
-        "NEUTRAL_SELF_MEMBER_UPPER_BOUND_MISSING"
-      )
-      refined <- upper match
-        case value: Type.Refine => Right(value)
-        case _ => Left("NEUTRAL_SELF_MEMBER_UPPER_REFINEMENT_MISSING")
-      base <- refined.tpe match
-        case Some(name: Type.Name) => Right(name.value)
-        case _ => Left("NEUTRAL_SELF_MEMBER_UPPER_BASE_UNSUPPORTED")
-      _ <- require(
-        legal(base) && base == expected.upperBase,
-        "NEUTRAL_SELF_MEMBER_UPPER_BASE_MISMATCH"
-      )
-      member <- refined.stats match
-        case value :: Nil => Right(value)
-        case _ => Left("NEUTRAL_SELF_MEMBER_REFINEMENT_COUNT_UNSUPPORTED")
-      alias <- member match
-        case value: Defn.Type => Right(value)
-        case _ => Left("NEUTRAL_SELF_MEMBER_REFINEMENT_MEMBER_UNSUPPORTED")
-      _ <- require(
-        alias.mods.isEmpty && alias.tparamClause.values.isEmpty,
-        "NEUTRAL_SELF_MEMBER_REFINEMENT_MEMBER_UNSUPPORTED"
-      )
-      _ <- require(
-        alias.bounds.lo.isEmpty &&
-          alias.bounds.hi.isEmpty &&
-          alias.bounds.context.isEmpty &&
-          alias.bounds.view.isEmpty,
-        "NEUTRAL_SELF_MEMBER_REFINEMENT_ALIAS_BOUNDS_UNSUPPORTED"
-      )
-      _ <- require(
-        alias.name.value == declaration.name.value,
-        "NEUTRAL_SELF_MEMBER_REFINEMENT_NAME_MISMATCH"
-      )
-      selected <- alias.body match
-        case value: Type.Select => Right(value)
-        case _ => Left("NEUTRAL_SELF_MEMBER_REFINEMENT_RHS_UNSUPPORTED")
-      prefix <- selected.qual match
-        case value: Term.Name => Right(value.value)
-        case _ => Left("NEUTRAL_SELF_MEMBER_REFINEMENT_RHS_UNSUPPORTED")
-      _ <- require(
-        prefix == lowerAlias && prefix == expected.selfAlias,
-        "NEUTRAL_SELF_MEMBER_SELECTED_PREFIX_MISMATCH"
-      )
-      _ <- require(
-        selected.name.value == alias.name.value && selected.name.value == expected.member,
-        "NEUTRAL_SELF_MEMBER_SELECTED_MEMBER_MISMATCH"
-      )
-    yield ()
-
-  private def legal(value: String): Boolean =
-    value != null && DefinitionName.fromSource(value).isRight
-
-  private def legalStableTerm(value: String): Boolean =
-    value != null && (
-      DefinitionName.fromSource(value).isRight ||
-        isPeerCollisionAlias(value)
+  ): Either[NeutralProjectionError, ProjectedSelfAbstractTypeMember] =
+    ScalametaSelfAbstractTypeMemberProjection.project(
+      declaration,
+      expected.member,
+      expected.selfAlias,
+      expected.upperBase
     )
-
-  private def isPeerCollisionAlias(value: String): Boolean =
-    val separator = value.lastIndexOf('$')
-    if separator <= 0 || separator == value.length - 1 then false
-    else
-      val base = value.substring(0, separator)
-      val suffix = value.substring(separator + 1)
-      DefinitionName.plain(base).isRight &&
-        suffix.forall(_.isDigit) &&
-        suffix.head != '0'
-
-  private def require(condition: Boolean, code: String): Either[String, Unit] =
-    Either.cond(condition, (), code)

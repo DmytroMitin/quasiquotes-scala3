@@ -1,9 +1,11 @@
 # Experimental contextual-method peer bridge
 
-This is the focused API page for the only foreign-package production surface
+This is the focused API page for the contextual-method foreign-package surface
 inside the broader [Dotty-internal exact backend](DOTTY_INTERNAL_BACKEND.md).
+The separate bounded TypeDef operation has its own
+[self abstract-Type-member bridge page](SELF_ABSTRACT_TYPE_MEMBER_PEER_BRIDGE.md).
 
-`quasiquotes.definitions.dotty.ContextualMethodPeerBridge` is the single
+`quasiquotes.definitions.dotty.ContextualMethodPeerBridge` is a
 public-for-JVM-access entry point in the remotely unpublished `dottyInternal`
 artifact. It exists for tightly coupled peer integrations such as a
 Macro-Paradise-loaded AUXify handler that cannot truthfully claim a
