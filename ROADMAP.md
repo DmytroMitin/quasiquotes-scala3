@@ -186,7 +186,7 @@ syntax.
 | N2 runtime-length dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | constructor-position Type hole and sequence Type splice |
 | N3 generated Type refinement members | `CURRENT_MANUAL_BASELINE_PROVED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | refinement/type-member model and sequence definition splice |
 | N4 anonymous implementation with calculated definitions | `CURRENT_MANUAL_BASELINE_PROVED`, `BOUNDED_INTERNAL_PLAN_IMPLEMENTED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | anonymous-class syntax, broader definitions, sequence splices, and composition over the bounded class-owner plan |
-| N5 dynamic `new T(..args)` for an existing type | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | sequence Term splice and broader constructor/argument policy |
+| N5 dynamic `new T(..args)` for an existing type | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `BOUNDED_SEQUENCE_TERM_SPLICE_DESIGN_SELECTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | bounded sequence Term construction and broader constructor/argument policy |
 
 None of N1-N5 is `CHECKPOINT_COMPLETE`.
 
@@ -195,7 +195,10 @@ first N5 complete constructor-Type splice, and the first source-owned local
 identity-method block are implemented. Bare identifiers,
 overload resolution, dynamic infix syntax, dynamic name matching, sequence
 splices, broader Type positions, and broader definition/class support remain
-independent later work. The bounded AUXify-037 and AUXify-046 bridges and their
+independent later work. The [typed sequence Term splice design](docs/TYPED_SEQUENCE_TERM_SPLICE_DESIGN.md)
+selects `..$args` plus a dedicated caller-universe carrier for one future
+Apply/one-list-New construction gate; it does not ship that surface. The
+bounded AUXify-037 and AUXify-046 bridges and their
 foreign-package consumer proofs are complete. Inputs 039, 041, 043, and 045
 remain separate peer-oriented lanes; 046 did not implement or widen them.
 External `DefDef` statement splicing is not selected merely for symmetry.

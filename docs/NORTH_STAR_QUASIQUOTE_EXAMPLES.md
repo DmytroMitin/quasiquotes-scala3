@@ -214,12 +214,14 @@ class or call `Symbol.newClass`.
 qr"new $T(..$arguments)"
 ```
 
-The notation is conceptual and does not select constructor-resolution or
-coercion policy.
+The [typed sequence Term splice design](TYPED_SEQUENCE_TERM_SPLICE_DESIGN.md)
+selects this rank spelling together with a dedicated caller-universe sequence
+carrier for a future bounded construction gate. It remains unavailable in
+production and does not widen constructor-resolution or coercion policy.
 
 ### Required missing capabilities
 
-- a dynamic Type splice in constructor/type position;
+- the complete dynamic Type splice in constructor position is implemented;
 - a sequence or variadic Term argument splice;
 - constructor resolution and selection rules;
 - argument typing and coercion policy;
@@ -253,7 +255,10 @@ caller-owned `TypeRepr`, including a direct `tqr` result, with no `Any` or
 public wrapper carrier. This slice retains one ordinary constructor argument
 list and the existing exact-compiler constructor policy; N5 remains incomplete
 because sequence arguments and the broader dynamic applied-Type constructor
-family are absent. Refinements, classes, and definitions remain separate
-gates. Source-owned local `def` statements are the next product-facing
-Definition-composition candidate, while external typed-definition splicing
-requires a separate explicit reownership contract.
+family are absent. Three-line test-only evidence now proves that the selected
+`..$arguments` host spelling is stable and that fixed-arity Apply/New assembly
+can preserve empty/order/identity/ownership. Production sequence construction
+and matching are still separate future gates. Refinements, classes, and
+definitions remain separate gates. Source-owned local `def` statements are the
+next product-facing Definition-composition candidate, while external
+typed-definition splicing requires a separate explicit reownership contract.

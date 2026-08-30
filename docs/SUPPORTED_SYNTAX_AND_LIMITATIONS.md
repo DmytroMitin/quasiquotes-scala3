@@ -55,6 +55,11 @@ Important limitations:
   exact internal definition backends remain package-private;
 - interpolation and type support expands incrementally, so unsupported shapes
   return explicit errors rather than falling back to unchecked trees;
+- runtime-length Term sequences are not yet accepted by `qr`. The
+  [compile-checked design](TYPED_SEQUENCE_TERM_SPLICE_DESIGN.md) selects an
+  explicit `..$args` rank marker plus a dedicated caller-universe carrier for
+  a later construction gate; sequence matching and every other splice rank
+  remain separate;
 - dynamic selected-member names are decoded semantic values, not source
   spellings or symbols. The conservative factory admits plain ASCII
   identifiers, symbolic ASCII operators, and single-space-separated safe ASCII
