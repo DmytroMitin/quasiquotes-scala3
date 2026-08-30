@@ -9,13 +9,17 @@ import dotty.tools.dotc.{Compiler, Driver}
 import dotty.tools.dotc.ast.untpd
 import dotty.tools.dotc.core.Contexts.{Context, ContextBase}
 import dotty.tools.dotc.core.Flags
-import dotty.tools.dotc.core.Names.{termName, typeName}
 import dotty.tools.dotc.core.Phases.Phase
 import dotty.tools.dotc.core.Symbols.NoSymbol
 import dotty.tools.dotc.parsing.Parser
 import dotty.tools.dotc.parsing.Parsers
 import dotty.tools.dotc.reporting.StoreReporter
-import dotty.tools.dotc.util.{NoSource, SourceFile}
+import dotty.tools.dotc.util.SourceFile
+
+import quasiquotes.definitions.DelegatedForwardingMethodPlan
+import quasiquotes.definitions.DelegatedForwardingMethodPlan.*
+import quasiquotes.definitions.ScopedType.*
+import quasiquotes.parser.BinderId
 
 /** Test-only exact-compiler probe. It is not a production lowering path. */
 class Phase143Auxify043UntypedProbeTest extends munit.FunSuite:
@@ -24,7 +28,7 @@ class Phase143Auxify043UntypedProbeTest extends munit.FunSuite:
 
   test("source-free direct DefDef construction matches the parser raw oracle") {
     withContext {
-      val direct = TestOnly043UntypedBuilder.build(
+      val direct = lower(
         "show",
         "A",
         "a",
@@ -49,7 +53,7 @@ class Phase143Auxify043UntypedProbeTest extends munit.FunSuite:
     withContext {
       val source =
         "def render[Element](value: Element)(using evidence: Display[Element]): Text = evidence.render(value)"
-      val direct = TestOnly043UntypedBuilder.build(
+      val direct = lower(
         "render",
         "Element",
         "value",
@@ -126,7 +130,7 @@ class Phase143Auxify043UntypedProbeTest extends munit.FunSuite:
     override def isCheckable: Boolean = false
 
     protected def run(using Context): Unit =
-      val generated = TestOnly043UntypedBuilder.build(
+      val generated = lower(
         "show",
         "A",
         "a",
@@ -161,6 +165,43 @@ class Phase143Auxify043UntypedProbeTest extends munit.FunSuite:
   private def withContext[A](run: Context ?=> A): A =
     val base = new ContextBase
     run(using base.initialCtx)
+
+  private def lower(
+      methodName: String,
+      typeParameterName: String,
+      ordinaryName: String,
+      contextualName: String,
+      constructorName: String,
+      resultTypeName: String
+  )(using Context): untpd.DefDef =
+    val semantic = DelegatedForwardingMethodPlan
+      .create(
+        methodName,
+        TypeParameter(BinderId(0), typeParameterName),
+        OrdinaryParameter(
+          BinderId(1),
+          ordinaryName,
+          TypeParameterReference(BinderId(0), typeParameterName)
+        ),
+        ContextualParameter(
+          BinderId(2),
+          contextualName,
+          Applied(
+            SourceName(constructorName),
+            Vector(TypeParameterReference(BinderId(0), typeParameterName))
+          )
+        ),
+        SourceName(resultTypeName),
+        ForwardingBody(
+          ContextualReference(BinderId(2)),
+          methodName,
+          OrdinaryReference(BinderId(1))
+        )
+      )
+      .fold(problem => fail(problem.message), identity)
+    DelegatedForwardingMethodUntypedLowerer
+      .lower(semantic)
+      .fold(problem => fail(problem.message), identity)
 
   private def parseOne(source: String)(using outerContext: Context): untpd.DefDef =
     val reporter = new StoreReporter(null)
@@ -294,51 +335,3 @@ class Phase143Auxify043UntypedProbeTest extends munit.FunSuite:
           .sorted(java.util.Comparator.reverseOrder())
           .forEach(Files.deleteIfExists(_))
       finally stream.close()
-
-private object TestOnly043UntypedBuilder:
-  def build(
-      methodName: String,
-      typeParameterName: String,
-      ordinaryName: String,
-      contextualName: String,
-      constructorName: String,
-      resultTypeName: String
-  )(using Context): untpd.DefDef =
-    given SourceFile = NoSource
-    val typeParameter = untpd
-      .TypeDef(
-        typeName(typeParameterName),
-        untpd.TypeBoundsTree(untpd.EmptyTree, untpd.EmptyTree)
-      )
-      .withMods(untpd.Modifiers(Flags.Param))
-    val ordinary = untpd
-      .ValDef(
-        termName(ordinaryName),
-        untpd.Ident(typeName(typeParameterName)),
-        untpd.EmptyTree
-      )
-      .withMods(untpd.Modifiers(Flags.Param))
-    val contextual = untpd
-      .ValDef(
-        termName(contextualName),
-        untpd.AppliedTypeTree(
-          untpd.Ident(typeName(constructorName)),
-          untpd.Ident(typeName(typeParameterName)) :: Nil
-        ),
-        untpd.EmptyTree
-      )
-      .withMods(untpd.Modifiers(Flags.Param | Flags.Given))
-    untpd
-      .DefDef(
-        termName(methodName),
-        List(typeParameter :: Nil, ordinary :: Nil, contextual :: Nil),
-        untpd.Ident(typeName(resultTypeName)),
-        untpd.Apply(
-          untpd.Select(
-            untpd.Ident(termName(contextualName)),
-            termName(methodName)
-          ),
-          untpd.Ident(termName(ordinaryName)) :: Nil
-        )
-      )
-      .withMods(untpd.Modifiers(Flags.Method))

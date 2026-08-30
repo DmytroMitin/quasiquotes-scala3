@@ -3,8 +3,8 @@ package quasiquotes.definitions
 import quasiquotes.definitions.ScopedType.*
 import quasiquotes.parser.BinderId
 
-/** Test-only semantic carrier probe for the exact AUXify-043 topology. */
-private[quasiquotes] object Phase143DelegatedForwardingModel:
+/** Compiler-free semantic plan for the exact AUXify-043 forwarder. */
+private[quasiquotes] object DelegatedForwardingMethodPlan:
   final case class TypeParameter(
       binderId: BinderId,
       displayName: String

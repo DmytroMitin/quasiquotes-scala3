@@ -181,6 +181,12 @@ existing validated definition IR. Exact lowering and reverse raw-tree
 projection remain in `dottyInternal`. See the
 [neutral Scalameta experiment](NEUTRAL_SCALAMETA_EXPERIMENT.md).
 
+The separate package-private `ScalametaDelegatedForwardingMethodProjection`
+admits the exact AUXify-043 forwarding definition into a compiler-free plan
+with one type binder and two role-specific term binders. Its exact-version
+backend constructs and positions one `untpd.DefDef`; it does not expose a
+general Scalameta-definition conversion.
+
 ## Current representation inventory
 
 ### Terms
@@ -397,7 +403,8 @@ untpd.Tree
 ```
 
 The current production endpoints of this second route are the bounded
-contextual-method bridge and the package-private integer/infix Term backend.
+contextual-method, self abstract-Type-member, and delegated-forwarding-method
+bridges plus the package-private integer/infix Term backend.
 The latter composes the production `ScalametaTermProjection` with core
 `TermShape` and direct source-free `untpd.Number`/`untpd.InfixOp` construction;
 it is not a general Term bridge. See the

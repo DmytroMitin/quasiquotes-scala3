@@ -65,7 +65,8 @@ encoded by recursive `TermShape.Infix` structure.
   the caller's `Quotes` universe; it does not route through the narrower
   neutral `TermShape` projector.
 - `dottyInternal` contains unpublished exact-version `untpd` adapters and the
-  narrow `ContextualMethodPeerBridge`. Its package-private
+  narrow `ContextualMethodPeerBridge`, `SelfAbstractTypeMemberPeerBridge`, and
+  `DelegatedForwardingMethodPeerBridge`. Its package-private
   `CoreTermShapeUntypedLowerer` also consumes exactly the neutral integer/infix
   family and emits source-free raw syntax. It is not a general raw-tree API.
 - the aggregate and example projects publish no production artifacts.
@@ -193,6 +194,13 @@ The bounded `@self` member path uses a typed Scalameta `Decl.Type` and
 `SelfAbstractTypeMemberPeerBridge` to obtain one positioned `untpd.TypeDef`.
 The prepared self alias remains peer-owned external syntax: Quasiquotes
 validates its repeated uses but does not allocate a binder or create the alias.
+
+The bounded delegated-forwarder path accepts one already-authored Scalameta
+`Defn.Def`, validates three distinct declaration roles and their references,
+and uses `DelegatedForwardingMethodPeerBridge` to obtain a positioned
+`untpd.DefDef`. AUXify still owns method derivation, and Macro-Paradise still
+owns source inspection, companion lifecycle, placement, conflict policy, and
+rollback. This operation is not a general method or Term bridge.
 
 Macro-Paradise remains an exact compiler plugin. It owns plugin lifecycle,
 placement, companion merge, insertion, rollback, and typing, and does not take

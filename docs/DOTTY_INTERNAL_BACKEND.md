@@ -7,12 +7,15 @@ version and active compiler context.
 
 ## Current public-for-JVM-access surface
 
-Two definition-specific production objects in this module are intentionally
+Three definition-specific production objects in this module are intentionally
 exposed to foreign packages. `ContextualMethodPeerBridge` accepts either the
 legacy single-unbounded-parameter contextual method or the exact bounded
 two-parameter AUXify-037 `Add.Out` method. The separate
 `SelfAbstractTypeMemberPeerBridge` accepts only the bounded AUXify-046 abstract
-member family. Both require a virtual source name and return a categorized
+member family. `DelegatedForwardingMethodPeerBridge` accepts only the exact
+AUXify-043 one-type-parameter, ordinary-parameter, final-using-parameter
+forwarder whose body calls the contextual instance with the ordinary argument.
+All three require a virtual source name and return a categorized
 failure or a positioned tree with deterministic generated source and the
 effective virtual source name.
 
@@ -45,6 +48,8 @@ The focused API and failure contract remain documented on the
 [experimental contextual-method peer bridge page](EXPERIMENTAL_CONTEXTUAL_METHOD_PEER_BRIDGE.md).
 The second operation is documented separately on the
 [self abstract-Type-member bridge page](SELF_ABSTRACT_TYPE_MEMBER_PEER_BRIDGE.md).
+The 043 operation is documented on the
+[delegated forwarding-method bridge page](DELEGATED_FORWARDING_METHOD_PEER_BRIDGE.md).
 
 ## Internal module inventory
 
@@ -62,6 +67,9 @@ All other production owners are package-private or otherwise project-internal:
   only the exact AUXify-037 two-binder/refinement raw shape.
 - `SelfAbstractTypeMemberUntypedLowerer` and its generated-origin adapter own
   only the exact AUXify-046 nine-node `untpd.TypeDef` shape.
+- `DelegatedForwardingMethodUntypedLowerer` and its generated-origin adapter
+  own only the exact AUXify-043 14-node `untpd.DefDef` shape and its complete
+  generated-source position layout.
 - `ScalametaContextualMethodBackend` is an internal bounded forward/reverse
   adapter for the contextual-method shape.
 - the generated-origin adapters, result carriers, fragment planner,
@@ -112,5 +120,5 @@ Typed Scalameta Term traversal instead belongs to the separate unpublished
 `hybridScalametaFrontend` and returns caller-owned `q.reflect.Term`.
 
 Identifier, select, apply, `new`, unary, tuple, block, binder, type-sidecar, and
-other Term families remain explicit later slices. Neither existing
-definition-specific bridge widens that boundary.
+other Term families remain explicit later slices. None of the
+definition-specific bridges widen that boundary.

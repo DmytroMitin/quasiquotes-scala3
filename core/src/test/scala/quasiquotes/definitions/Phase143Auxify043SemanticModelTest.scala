@@ -1,6 +1,6 @@
 package quasiquotes.definitions
 
-import quasiquotes.definitions.Phase143DelegatedForwardingModel.*
+import quasiquotes.definitions.DelegatedForwardingMethodPlan.*
 import quasiquotes.definitions.ScopedType.*
 import quasiquotes.parser.BinderId
 
@@ -43,10 +43,36 @@ class Phase143Auxify043SemanticModelTest extends munit.FunSuite:
     }
   }
 
+  test("carrier reports role-specific illegal source names") {
+    val rows = List(
+      invalidPlan(methodName = "bad-name", bodySelectedName = "bad-name") ->
+        "METHOD_NAME_INVALID",
+      invalidPlan(typeParameterName = "bad-name") ->
+        "TYPE_PARAMETER_NAME_INVALID",
+      invalidPlan(ordinaryName = "bad-name") ->
+        "ORDINARY_PARAMETER_NAME_INVALID",
+      invalidPlan(contextualName = "bad-name") ->
+        "CONTEXTUAL_PARAMETER_NAME_INVALID",
+      invalidPlan(contextualConstructorName = "bad-name") ->
+        "CONTEXTUAL_TYPE_CONSTRUCTOR_INVALID",
+      invalidPlan(resultType = SourceName("bad-name")) ->
+        "RESULT_TYPE_NAME_INVALID"
+    )
+
+    rows.foreach { case (result, expectedCode) =>
+      assertEquals(result.left.toOption.map(_.code), Some(expectedCode), clues(result))
+    }
+  }
+
   private def validPlan(): Plan =
     invalidPlan().fold(error => fail(error.message), identity)
 
   private def invalidPlan(
+      methodName: String = "show",
+      typeParameterName: String = "A",
+      ordinaryName: String = "a",
+      contextualName: String = "inst",
+      contextualConstructorName: String = "Show",
       ordinaryBinder: BinderId = BinderId(1),
       ordinaryTypeBinder: BinderId = BinderId(0),
       contextualTypeBinder: BinderId = BinderId(0),
@@ -56,19 +82,19 @@ class Phase143Auxify043SemanticModelTest extends munit.FunSuite:
       resultType: ScopedType = SourceName("String")
   ): Either[ModelError, Plan] =
     create(
-      methodDisplayName = "show",
-      typeParameter = TypeParameter(BinderId(0), "A"),
+      methodDisplayName = methodName,
+      typeParameter = TypeParameter(BinderId(0), typeParameterName),
       ordinaryParameter = OrdinaryParameter(
         ordinaryBinder,
-        "a",
-        TypeParameterReference(ordinaryTypeBinder, "A")
+        ordinaryName,
+        TypeParameterReference(ordinaryTypeBinder, typeParameterName)
       ),
       contextualParameter = ContextualParameter(
         BinderId(2),
-        "inst",
+        contextualName,
         Applied(
-          SourceName("Show"),
-          Vector(TypeParameterReference(contextualTypeBinder, "A"))
+          SourceName(contextualConstructorName),
+          Vector(TypeParameterReference(contextualTypeBinder, typeParameterName))
         )
       ),
       resultType = resultType,
