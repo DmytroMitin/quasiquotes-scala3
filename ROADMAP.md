@@ -52,6 +52,14 @@ delivery chronology.
   owners. Keep external typed `DefDef`
   statement splices deferred until an explicit reownership contract exists;
   do not add direct `Symbol` splicing.
+- Preserve the typed class feasibility result: public reflection on
+  Scala 3.3.8, 3.8.4, and 3.9.0-RC1 can synthesize a local parameterless class,
+  one non-overloaded override, primary-constructor invocation, and unchanged
+  literal/local caller-Term capture without raw Symbol interpolation. Keep the
+  result test-only and select `S1`—no public Symbol quasiquote family. The next
+  typed/public gate is the bounded internal generated-class plan described in
+  [typed class, symbol, and owner feasibility](docs/TYPED_CLASS_SYMBOL_OWNER_FEASIBILITY.md),
+  not public class syntax.
 - Preserve the bounded construction-only selected-member name hole: a public
   validated decoded-name value, one explicit receiver selection-name position,
   unique accessible `Select.unique` lowering, unchanged fixed-name matching,
@@ -150,10 +158,10 @@ syntax.
 
 | Checkpoint | Current status | Enabling gap |
 | --- | --- | --- |
-| N1 generic subclass with override | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | classes, overrides, dynamic parent Type, constructor/body lowering, backend symbol planning |
+| N1 generic subclass with override | `CURRENT_MANUAL_BASELINE_PROVED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | class/override semantic carrier and bounded backend plan; then syntax and body composition |
 | N2 runtime-length dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | constructor-position Type hole and sequence Type splice |
 | N3 generated Type refinement members | `CURRENT_MANUAL_BASELINE_PROVED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | refinement/type-member model and sequence definition splice |
-| N4 anonymous implementation with calculated definitions | `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | anonymous-class bodies, broader definitions, sequence splices, owner planning |
+| N4 anonymous implementation with calculated definitions | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | anonymous-class bodies, broader definitions, sequence splices, and composition over the common class-owner plan |
 | N5 dynamic `new T(..args)` for an existing type | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | sequence Term splice and broader constructor/argument policy |
 
 None of N1-N5 is `CHECKPOINT_COMPLETE`.
@@ -168,11 +176,14 @@ foreign-package consumer proofs are complete. Inputs 039, 041, 043, and 045
 remain separate peer-oriented lanes; 046 did not implement or widen them.
 External `DefDef` statement splicing is not selected merely for symmetry.
 
-Symbols are compiler semantic entities, not source syntax. No public symbol
-quasiquote family is currently planned. The neutral core remains symbol-free;
+Symbols are compiler semantic entities, not source syntax. The feasibility
+gate selects `S1`: no public Symbol quasiquote family. The neutral core remains
+symbol-free;
 typed owned-definition symbol synthesis belongs to the typed backend, while an
 untyped pre-typer backend must not fabricate typed symbols. A future advanced
-owner/definition-plan handle needs concrete consumer evidence.
+owner/definition-plan handle needs concrete consumer evidence. Construction
+does not decide whether later Symbol matching/extraction needs a separate
+semantic design.
 
 ## Ongoing public-project hygiene
 

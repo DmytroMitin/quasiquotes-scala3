@@ -16,10 +16,10 @@ interpolator grammar, ownership model, and error contract.
 
 | Checkpoint | Manual baseline | Current quasiquote coverage | Remaining status |
 | --- | --- | --- | --- |
-| N1 generic subclass with override | documented public-reflection machinery; compact cross-line fixture deferred | narrow method-definition pieces only | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
+| N1 generic subclass with override | `CURRENT_MANUAL_BASELINE_PROVED` by a compact public-reflection fixture on all three compiler lines | narrow method-definition pieces only | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 | N2 dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED` | fixed constructors and fixed-arity whole-Type holes only | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 | N3 generated Type refinement members | `CURRENT_MANUAL_BASELINE_PROVED` | parser/shape evidence only; no public refinement construction | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
-| N4 anonymous implementation body | documented reflection/definition problem | bounded individual method surfaces only | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
+| N4 anonymous implementation body | `CURRENT_MANUAL_BASELINE_PROVED` for the synthetic-class/override/constructor owner plan | bounded individual method surfaces only | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 | N5 dynamic existing-type construction | `CURRENT_MANUAL_BASELINE_PROVED` | fixed constructor plus caller-owned complete constructor `TypeRepr` with one ordinary argument list | `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 
 `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES` means only that a smaller structural
@@ -36,9 +36,12 @@ because an abstract `A: Type` exists. Public reflection planning includes
 `Apply(Select(New(...), primaryConstructor), ...)`, a containing `Block`, and
 correct class/member/parameter owner and binder wiring.
 
-This is the most compiler-sensitive baseline in the portfolio. It is retained
-as reviewed API-level machinery rather than forced into a disproportionately
-large cross-version fixture in this documentation phase.
+The compact test-only fixture described in
+[typed class, symbol, and owner feasibility](TYPED_CLASS_SYMBOL_OWNER_FEASIBILITY.md)
+now compile-checks and runs this owner plan on Scala 3.3.8, 3.8.4, and
+3.9.0-RC1. It also proves unchanged literal/local caller-Term capture and
+selects `S1`, with no raw Symbol interpolation. It remains a manual backend
+oracle rather than supported class quasiquote syntax.
 
 ### Desired source-like shape
 
@@ -154,6 +157,12 @@ A type-class materializer or derivation may need an anonymous implementation
 whose body contains a runtime-length collection of generated type aliases
 and/or methods. Reflection must assemble the anonymous class, constructor, and
 owned definitions, including any symbols required by a typed backend.
+
+The cross-line fixture confirms that ordinary anonymous source still contains
+a synthetic `ClassDef`, override symbol/`DefDef`, superclass-constructor call,
+and synthetic-class primary-constructor application. The named-local and
+anonymous cases can therefore share one backend symbol/owner plan. This proves
+the manual owner baseline only; it does not provide calculated body sequences.
 
 ### Desired source-like shape
 
