@@ -173,8 +173,11 @@ source construction and extractor matching. It requires neither an active
 compiler implementation and SemanticDB.
 
 Scalameta trees are source syntax, not typed reflection or exact Dotty trees.
-The bounded `ScalametaContextualMethodProjection` can admit one contextual
-method into the existing validated core IR. Exact lowering and reverse raw-tree
+`ScalametaTermProjection` admits exactly semantic integer literals and ordinary
+one-RHS binary infix nodes into the existing core `TermShape`, preserving a
+truthful root span when present and failing closed otherwise. The separate
+`ScalametaContextualMethodProjection` admits one contextual method into the
+existing validated definition IR. Exact lowering and reverse raw-tree
 projection remain in `dottyInternal`. See the
 [neutral Scalameta experiment](NEUTRAL_SCALAMETA_EXPERIMENT.md).
 
@@ -188,7 +191,7 @@ projection remain in `dottyInternal`. See the
 | `TermPattern` / `MatchResult` | Public neutral structural matching data in `core`. |
 | `TermTemplate` / `ConstructedTerm` | Package-internal validated construction IR in `core`; deliberately not public. |
 | `CompletedTerm` | Public bounded definition-body payload; not the general term AST. |
-| `scala.meta.Term` | Experimental unpublished source-syntax term in `neutralScalameta`; direct Scalameta construction and matching. |
+| `scala.meta.Term` | Experimental unpublished source-syntax term in `neutralScalameta`; direct construction/matching, with production projection to `TermShape` limited to semantic integers and ordinary binary infix nodes. |
 | `Expr[T]` / `quotes.reflect.Term` | Caller-`Quotes` staged and reflected values used by `qr`/`qq`; compiler-coupled and universe-dependent. |
 | `dotty.tools.dotc.ast.untpd.Tree` | Exact compiler-internal value used by parsing and the unpublished exact backend; not a published AST contract. |
 

@@ -21,7 +21,40 @@ import scala.meta.dialects.Scala3
 val method = q"def apply[A](using inst: Show[A]): Show[A] = inst"
 ```
 
-A minimal term-only hello world needs no project façade or active `Quotes`:
+A production term-only hello world now uses the project's bounded projector
+without an active `Quotes`:
+
+```scala
+import scala.meta.*
+import scala.meta.dialects.Scala3
+import quasiquotes.neutral.ScalametaTermProjection
+
+val source: Term = q"1 + 1"
+val shape = ScalametaTermProjection.project(source).map(_.shape)
+```
+
+The result is:
+
+```scala
+Right(
+  quasiquotes.parser.TermShape.Infix(
+    quasiquotes.parser.TermShape.Literal("1"),
+    "+",
+    quasiquotes.parser.TermShape.Literal("1")
+  )
+)
+```
+
+Production support is exactly the recursive family formed from Scalameta
+`Lit.Int` semantic values and ordinary binary `Term.ApplyInfix` nodes with no
+type arguments and exactly one non-contextual RHS argument. A positioned root
+retains its exact Scalameta offsets; a constructed `Position.None` root remains
+valid with no span. Identifier, select, apply, `new`, unary, tuple, `if`, block,
+typed, interpolation, binder, lambda, and placeholder shapes return a stable
+`NeutralProjectionError`. They never become `TermShape.Unsupported`.
+
+Pure upstream Scalameta construction and matching remains useful context and
+also needs no project façade or active `Quotes`:
 
 ```scala
 import scala.meta.*
@@ -90,13 +123,12 @@ val parameter = projected.map(_.result.contextualParameterName) // Right("inst")
 val resultType = projected.map(_.result.resultType.source)       // Right("Show[A]")
 ```
 
-This exact example is compile-checked. It does not imply a general Term
-projector. In particular, no production `ScalametaTermProjection` currently
-turns `q"1 + 1"` into `TermShape`; a Phase-131 test-only prototype shows that
-literal, infix, select, apply, and one-list `new` forms can map structurally
-without `Quotes`, Dotty, printing, or reparsing. Binder identity and completed
-type sidecars still need a bounded contract before such a projector becomes a
-production API.
+This exact example is compile-checked and remains a separate definition
+projection. The production term projector above is deliberately narrower than
+the Phase-131 test-only prototype, which also demonstrates identifier, select,
+apply, and one-list `new` feasibility. Those forms remain future explicit
+slices; the prototype is not the production contract. Binder identity and
+completed type sidecars still need their own bounded contracts.
 
 The projector converts fields directly to `CompletedType`, `CompletedTerm`,
 and `DefinitionConstruction.contextualMethod`. Unsupported shapes return

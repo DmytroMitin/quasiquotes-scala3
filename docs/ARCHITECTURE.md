@@ -42,7 +42,9 @@ Scalameta projection available. `frontend` never depends on `dottyInternal`.
   lowering. It is also the first-class reference implementation and oracle.
 - `neutralScalameta` is an unpublished compiler-free Scalameta 4.17.3 AST
   boundary and projection layer. Scalameta trees are source syntax; they are
-  not the project's semantic model.
+  not the project's semantic model. Its production Term projection is exactly
+  semantic integer literals plus recursive ordinary binary infix nodes into
+  core `TermShape`; every other Term shape fails closed.
 - `hybridScalametaFrontend` is an unpublished opt-in typed Term/Type frontend.
   It maps public Scalameta ASTs into the same core models and then lowers or
   matches in the caller's `Quotes` universe.
@@ -141,6 +143,18 @@ Scalameta q/t -> scala.meta AST
 Plain Scalameta `q`/`t` construction and matching stops at `scala.meta` AST and
 does not require `neutralScalameta`; that module exists for bounded validated
 projection into this project's shared model.
+
+The first reusable Term route is now:
+
+```text
+scala.meta Lit.Int / ordinary binary ApplyInfix
+  -> ScalametaTermProjection
+  -> core TermShape
+```
+
+It preserves only a truthful root source span and performs no rendering,
+reparse, typing, symbol lookup, or fallback. Identifier, select, apply, `new`,
+and the other Phase-131 prototype forms remain outside production support.
 
 AUXify's current narrow `@apply` path uses ordinary Scalameta `q`, `t`, and
 `tparam` authoring and Quasiquotes `ContextualMethodPeerBridge` lowering to an

@@ -10,11 +10,12 @@ delivery chronology.
   while Scalameta and the compiler-free core form a separate neutral axis.
   `dottyInternal` remains an unpublished exact backend, not a generic raw-tree
   toolkit.
-- Keep a bounded compiler-free `scala.meta.Term -> TermShape` projector as a
-  future candidate only. A test-only prototype proves a clean direct mapping
-  for literal, infix, select, apply, and one-list `new`; binder identities and
-  type sidecars still require explicit admission rules. Do not make this a
-  blocker for source-owned local `def` or AUXify 037.
+- Preserve the production compiler-free `scala.meta.Term -> TermShape`
+  projector for exactly recursive semantic `Lit.Int` values and ordinary
+  one-RHS binary infix nodes. It retains truthful root offsets and fails closed
+  for every other Term shape. The broader Phase-131 select/apply/one-list
+  `new`/identifier helper remains test-only feasibility evidence rather than
+  production support.
 
 - Preserve one semantic architecture: source frontends project into the
   project-owned compiler-free model in `core`, followed by backend-specific
@@ -181,11 +182,12 @@ independent later work. The bounded AUXify-037 and AUXify-046 bridges and their
 foreign-package consumer proofs are complete. Inputs 039, 041, 043, and 045
 remain separate peer-oriented lanes; 046 did not implement or widen them.
 External `DefDef` statement splicing is not selected merely for symmetry.
-After the two completed typed/public rotation slots, the next selected track is
-neutral/core. The default first gate is the bounded compiler-free
-`scala.meta.Term` to project-owned `TermShape`/Term-IR route beginning with the
-literal `q"1 + 1"` shape; that selection does not pre-admit binders, type
-sidecars, arbitrary Terms, or a public frontend switch.
+After the two completed typed/public rotation slots, the selected neutral/core
+gate is implemented: `ScalametaTermProjection` maps the bounded integer/infix
+family, including `q"1 + 1"`, directly to project-owned `TermShape`. It does not
+admit binders, type sidecars, arbitrary Terms, or a public frontend switch. The
+next semantic rotation is an exact-backend gate for lowering that same bounded
+core family to source-free `untpd.Tree`; it is not implemented here.
 
 Symbols are compiler semantic entities, not source syntax. The feasibility
 gate selects `S1`: no public Symbol quasiquote family. The neutral core remains
