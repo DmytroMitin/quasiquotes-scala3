@@ -60,8 +60,10 @@ encoded by recursive `TermShape.Infix` structure.
   semantic integer literals plus recursive ordinary binary infix nodes into
   core `TermShape`; every other Term shape fails closed.
 - `hybridScalametaFrontend` is an unpublished opt-in typed Term/Type frontend.
-  It maps public Scalameta ASTs into the same core models and then lowers or
-  matches in the caller's `Quotes` universe.
+  It reuses project-owned templates, patterns, matching, and Type models where
+  applicable. Term construction currently lowers Scalameta ASTs directly in
+  the caller's `Quotes` universe; it does not route through the narrower
+  neutral `TermShape` projector.
 - `dottyInternal` contains unpublished exact-version `untpd` adapters and the
   narrow `ContextualMethodPeerBridge`. Its package-private
   `CoreTermShapeUntypedLowerer` also consumes exactly the neutral integer/infix
@@ -79,6 +81,15 @@ routes claim a feature. This is not a lock-step promise that every future
 feature must land in both routes simultaneously. Ordinary released/default
 `qr`/`qq` and `tqr`/`tqq` remain current-Dotty; the Scalameta route remains
 explicit, experimental, and remotely unpublished.
+
+For the no-hole semantic integer/infix overlap, shared differential behavior
+is the consolidation boundary. The neutral projector is a compiler-free
+source-AST validator with a narrower topology and source-span contract; the
+typed route owns active-`Quotes` lowering, reflected holes, member selection,
+typed failures, and parse-only fallback. No suitable project-owned
+`TermShape -> q.reflect.Term` lowerer currently exists, and adding one solely
+to remove two small AST cases would introduce a third contract rather than
+remove semantic duplication.
 
 ## Representation and ownership boundaries
 

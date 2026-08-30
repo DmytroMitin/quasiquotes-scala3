@@ -11,9 +11,10 @@ route-specific mechanics and does not define a separate engine policy.
 
 ## One shared semantic model
 
-For Terms, the module parses public `scala.meta.Term` trees and projects them
-into the existing project-owned `TermShape`, `TermPattern`, templates, and
-matcher. For Types, it maps `scala.meta.Type` directly into the existing
+For Term construction, the module parses public `scala.meta.Term` trees and
+lowers them directly into caller-owned reflected Terms in the active `Quotes`
+universe. Term matching projects into the existing project-owned
+`TermPattern` and matcher. For Types, it maps `scala.meta.Type` directly into the existing
 `TypeShape`, `TypeNormalForm`, `TypeTemplate`, and `TypePattern` pipeline.
 Neither route prints a Scalameta tree for normal reparsing and neither creates
 a second semantic model.
@@ -34,6 +35,28 @@ fallback.
 
 Parity means equivalent semantics where both frontends advertise support. It
 does not require every future feature to be delivered in lock-step.
+
+## Integer/infix overlap with the neutral projector
+
+The fixed no-hole family of semantic integer literals and ordinary binary
+infix expressions is checked across current `qr`, opt-in Scalameta `qr`, the
+programmatic `TermFrontend`, the compiler-free `ScalametaTermProjection`, and
+the current parser shape. Arithmetic and comparison results agree in type and
+runtime value, recursive precedence shapes agree, and the admitted typed route
+uses `Engine.Scalameta` with no primary failure on Scala 3.3.8, 3.8.4, and
+3.9.0-RC1.
+
+That common evidence is a differential contract, not a shared lowering
+implementation. The neutral projector deliberately accepts only no-hole
+`Lit.Int` and ordinary one-RHS `ApplyInfix` trees and returns a compiler-free
+`TermShape` plus truthful source span. The typed route is active-`Quotes`
+lowering with reflected holes, compiler member selection, typed failures, and
+parse-only fallback policy. It also currently accepts some Scalameta infix AST
+topologies that the neutral projector rejects. Routing the typed overlap
+through the neutral projector would therefore change admission, diagnostics,
+fallback, and caller-owned identity contracts without an existing suitable
+`TermShape -> q.reflect.Term` backend. The direct typed lowering remains, with
+shared parity tests as the consolidation boundary.
 
 ## Fail-closed fallback
 

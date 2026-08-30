@@ -5,6 +5,16 @@ delivery chronology.
 
 ## Current
 
+- Preserve the Phase-142 typed integer/infix overlap decision: current-Dotty
+  `qr`/`qq`, opt-in typed Scalameta `qr`/`qq`, programmatic `TermFrontend`, the
+  neutral projector, and the current parser agree on the fixed no-hole
+  arithmetic/comparison family across Scala 3.3.8, 3.8.4, and 3.9.0-RC1.
+  Keep direct typed Scalameta AST-to-reflection lowering and share the
+  differential parity contract; do not route it through the narrower neutral
+  projector or add a core-to-typed lowerer merely for symmetry. The next
+  rotated semantic track is peer work, with AUXify input 043 selected for a
+  separate bounded forwarding-method bridge design from fresh prerequisite
+  evidence.
 - Preserve the Phase-131 representation boundary: public `Expr` and
   `quotes.reflect.Term` APIs are distinct from exact `tpd`/`untpd` internals,
   while Scalameta and the compiler-free core form a separate neutral axis.
