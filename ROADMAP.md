@@ -52,14 +52,20 @@ delivery chronology.
   owners. Keep external typed `DefDef`
   statement splices deferred until an explicit reownership contract exists;
   do not add direct `Symbol` splicing.
-- Preserve the typed class feasibility result: public reflection on
+- Preserve the typed class implementation result: public reflection on
   Scala 3.3.8, 3.8.4, and 3.9.0-RC1 can synthesize a local parameterless class,
   one non-overloaded override, primary-constructor invocation, and unchanged
-  literal/local caller-Term capture without raw Symbol interpolation. Keep the
-  result test-only and select `S1`—no public Symbol quasiquote family. The next
-  typed/public gate is the bounded internal generated-class plan described in
+  literal/local caller-Term and invocation-argument capture without raw Symbol
+  interpolation. The package-private `frontend` plan and public-reflection
+  lowerer now implement that exact bounded route, including dynamic legal
+  class/method/parameter names, generated binder identity, overload exclusion,
+  detached-owner rejection, and owned-definition capture rejection. Preserve
+  `S1`—no public Symbol quasiquote family—and add no public class syntax. N1 and
+  N4 remain incomplete, external owned definitions still need a rebuild/
+  reownership contract, and the next rotated gate belongs to neutral/core work
+  rather than another typed/public slice. See
   [typed class, symbol, and owner feasibility](docs/TYPED_CLASS_SYMBOL_OWNER_FEASIBILITY.md),
-  not public class syntax.
+  which now records both the oracle and the internal implementation boundary.
 - Preserve the bounded construction-only selected-member name hole: a public
   validated decoded-name value, one explicit receiver selection-name position,
   unique accessible `Select.unique` lowering, unchanged fixed-name matching,
@@ -158,10 +164,10 @@ syntax.
 
 | Checkpoint | Current status | Enabling gap |
 | --- | --- | --- |
-| N1 generic subclass with override | `CURRENT_MANUAL_BASELINE_PROVED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | class/override semantic carrier and bounded backend plan; then syntax and body composition |
+| N1 generic subclass with override | `CURRENT_MANUAL_BASELINE_PROVED`, `BOUNDED_INTERNAL_PLAN_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | supported class syntax and broader body composition beyond the one-override internal route |
 | N2 runtime-length dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | constructor-position Type hole and sequence Type splice |
 | N3 generated Type refinement members | `CURRENT_MANUAL_BASELINE_PROVED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | refinement/type-member model and sequence definition splice |
-| N4 anonymous implementation with calculated definitions | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | anonymous-class bodies, broader definitions, sequence splices, and composition over the common class-owner plan |
+| N4 anonymous implementation with calculated definitions | `CURRENT_MANUAL_BASELINE_PROVED`, `BOUNDED_INTERNAL_PLAN_IMPLEMENTED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | anonymous-class syntax, broader definitions, sequence splices, and composition over the bounded class-owner plan |
 | N5 dynamic `new T(..args)` for an existing type | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | sequence Term splice and broader constructor/argument policy |
 
 None of N1-N5 is `CHECKPOINT_COMPLETE`.
@@ -175,6 +181,11 @@ independent later work. The bounded AUXify-037 and AUXify-046 bridges and their
 foreign-package consumer proofs are complete. Inputs 039, 041, 043, and 045
 remain separate peer-oriented lanes; 046 did not implement or widen them.
 External `DefDef` statement splicing is not selected merely for symmetry.
+After the two completed typed/public rotation slots, the next selected track is
+neutral/core. The default first gate is the bounded compiler-free
+`scala.meta.Term` to project-owned `TermShape`/Term-IR route beginning with the
+literal `q"1 + 1"` shape; that selection does not pre-admit binders, type
+sidecars, arbitrary Terms, or a public frontend switch.
 
 Symbols are compiler semantic entities, not source syntax. The feasibility
 gate selects `S1`: no public Symbol quasiquote family. The neutral core remains

@@ -1,9 +1,9 @@
 # Typed class, symbol, and owner feasibility
 
-This page records a test-only public-reflection feasibility baseline for the
-N1 generated-subclass and N4 anonymous-implementation north stars. It does not
-add class quasiquote syntax, anonymous-class support, a Symbol quasiquote, a
-general class builder, or a public API.
+This page records the public-reflection oracle and the bounded package-private
+implementation for the N1 generated-subclass and N4 anonymous-implementation
+north stars. It does not add class quasiquote syntax, anonymous-class support,
+a Symbol quasiquote, a general class builder, or a public API.
 
 The dedicated `frontend` fixture compiles and runs on Scala 3.3.8, 3.8.4, and
 3.9.0-RC1. It creates a fresh local class below the active splice owner,
@@ -50,6 +50,27 @@ No exact `dotty.tools.dotc` operation is required for this baseline. Compiler
 implementation details remain an oracle for public API behavior, not a reason
 to move the route into `dottyInternal`.
 
+## Bounded internal implementation
+
+The `frontend` now contains package-private `GeneratedClassPlan`,
+`OverrideMethodPlan`, and `GeneratedMethodBodyPlan` carriers plus a
+package-private public-reflection lowerer. The semantic plan records source-like
+roles only: active-splice class placement, one caller-provided complete parent
+Type, one generated-class-owned override, one generated parameter binder, the
+captured-Term-plus-parameter body, and the parameterless primary constructor.
+It stores no reflected `Symbol`, no `Any` carrier, no rendered Type, and no raw
+compiler tree.
+
+Caller-owned `TypeRepr` and `Term` values remain path-dependent inputs at the
+active `Quotes` lowering boundary. The lowerer creates a deterministic fresh
+class name from the validated display prefix, creates the method under the
+class, obtains the exact parameter `Ref` from the `DefDef` callback, constructs
+the class and constructor invocation, and calls the override with the unchanged
+caller argument. Tests prove the class/method/constructor owners,
+`Flags.Override`, exactly one `allOverriddenSymbols` target, callback binder
+identity, parent Type identity, caller capture identity, invocation-argument
+identity, and runtime result on all three compiler lines.
+
 ## Captures and ownership
 
 The generated override uses the caller-owned reflected `Term` unchanged. Both
@@ -63,8 +84,12 @@ capture, not a definition whose symbol should be moved into the generated
 method. By contrast, a generated method symbol created below the splice owner
 is detached from the generated class and is rejected before `ClassDef`
 assembly. Future externally supplied `DefDef`, `ValDef`, or `ClassDef` trees
-still need an explicit rebuild/reownership contract. This probe does not
-authorize generic owner repair or arbitrary `Tree.changeOwner` use.
+still need an explicit rebuild/reownership contract. The internal lowerer
+rejects a captured Term containing any of those owned definition kinds while
+admitting unchanged literal and caller-local references. This result does not
+authorize generic owner repair or arbitrary `Tree.changeOwner` use. Foreign or
+stale `Quotes` payloads are excluded by the lowerer's path-dependent input
+types; it does not cast around that static boundary.
 
 ## Anonymous implementation comparison
 
@@ -99,7 +124,7 @@ Constructor parameters and nontrivial parent constructors are later,
 separately admitted shapes; the newer constructor-aware overloads do not erase
 the Scala 3.3.8 compatibility constraint.
 
-## Symbol decision and next gate
+## Symbol decision and rotation
 
 The construction decision is **S1 — no public Symbol quasiquote family**.
 Routine class, method, parameter, and constructor symbols are derivable from
@@ -108,15 +133,14 @@ the supported source-like plan and reflected Types/Terms. A raw caller-supplied
 operation. Symbol matching or extraction may later need a different semantic
 design, but this construction result does not decide or authorize it.
 
-The one next typed/public gate is:
+The bounded internal generated-class gate is implemented. N1 and N4 remain
+incomplete because there is still no supported class/anonymous syntax, broader
+class-body model, or sequence Definition splice. Constructor parameters,
+parent-constructor arguments, external definition trees, overloads, matching,
+and generic owner repair remain outside the admitted contract.
 
-> implement a bounded internal `frontend` generated-class plan and public-
-> reflection lowerer for one local parameterless class, one caller-supplied
-> parent `TypeRepr`, one non-overloaded single-parameter override, and one
-> unchanged literal-or-local caller `Term` capture, without adding public
-> class/Symbol quasiquote syntax.
-
-That gate should turn the test oracle into a narrow project-owned backend
-contract. Anonymous bodies, constructor parameters, parent-constructor
-arguments, sequence Definition splices, external definition trees, overloads,
-matching, and generic owner repair remain outside it.
+This completes typed/public rotation slot 2. The next gate rotates to the
+neutral/core track. Its default bounded starting point is a compiler-free
+`scala.meta.Term` to project-owned `TermShape`/Term-IR projection for the
+literal `q"1 + 1"` shape, without inferring broader Term coverage, binder/type
+sidecars, a public route, or another typed-only sequence.

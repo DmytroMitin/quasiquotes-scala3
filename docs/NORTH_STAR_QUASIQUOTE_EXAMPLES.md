@@ -16,10 +16,10 @@ interpolator grammar, ownership model, and error contract.
 
 | Checkpoint | Manual baseline | Current quasiquote coverage | Remaining status |
 | --- | --- | --- | --- |
-| N1 generic subclass with override | `CURRENT_MANUAL_BASELINE_PROVED` by a compact public-reflection fixture on all three compiler lines | narrow method-definition pieces only | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
+| N1 generic subclass with override | `CURRENT_MANUAL_BASELINE_PROVED` by a compact public-reflection fixture on all three compiler lines | bounded package-private generated-class plan and public-reflection lowerer for one override; no public class syntax | `BOUNDED_INTERNAL_PLAN_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 | N2 dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED` | fixed constructors and fixed-arity whole-Type holes only | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 | N3 generated Type refinement members | `CURRENT_MANUAL_BASELINE_PROVED` | parser/shape evidence only; no public refinement construction | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
-| N4 anonymous implementation body | `CURRENT_MANUAL_BASELINE_PROVED` for the synthetic-class/override/constructor owner plan | bounded individual method surfaces only | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
+| N4 anonymous implementation body | `CURRENT_MANUAL_BASELINE_PROVED` for the synthetic-class/override/constructor owner plan | the same bounded internal class-owner plan plus individual method surfaces; no anonymous-body syntax or sequence | `BOUNDED_INTERNAL_PLAN_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 | N5 dynamic existing-type construction | `CURRENT_MANUAL_BASELINE_PROVED` | fixed constructor plus caller-owned complete constructor `TypeRepr` with one ordinary argument list | `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 
 `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES` means only that a smaller structural
@@ -41,7 +41,12 @@ The compact test-only fixture described in
 now compile-checks and runs this owner plan on Scala 3.3.8, 3.8.4, and
 3.9.0-RC1. It also proves unchanged literal/local caller-Term capture and
 selects `S1`, with no raw Symbol interpolation. It remains a manual backend
-oracle rather than supported class quasiquote syntax.
+oracle rather than supported class quasiquote syntax. A package-private
+`frontend` carrier and public-reflection lowerer now implement its bounded
+one-class/one-override route. They retain caller `TypeRepr`/`Term` identity at
+the lowering boundary, derive generated symbols and the callback parameter,
+reject overload selection and detached owners, and do not add grammar or a
+public API.
 
 ### Desired source-like shape
 
@@ -52,12 +57,11 @@ routine `Symbol.newClass` and `Symbol.newMethod` wiring.
 
 ### Required missing capabilities
 
-- class and anonymous-class definition support;
-- method override definitions;
-- a dynamic parent Type position;
-- constructor/new lowering;
+- supported class and anonymous-class syntax;
+- public composition over the implemented one-override internal plan;
 - class body and broader Definition support;
-- staged backend symbol and owner planning.
+- sequence definitions and the required ownership policy;
+- a rebuild/reownership contract for external owned definitions.
 
 This is class synthesis, not the existing-type constructor application in N5.
 
@@ -162,7 +166,9 @@ The cross-line fixture confirms that ordinary anonymous source still contains
 a synthetic `ClassDef`, override symbol/`DefDef`, superclass-constructor call,
 and synthetic-class primary-constructor application. The named-local and
 anonymous cases can therefore share one backend symbol/owner plan. This proves
-the manual owner baseline only; it does not provide calculated body sequences.
+the manual owner baseline, and the package-private one-override lowerer now
+implements that shared bounded plan. It still does not provide anonymous-class
+syntax or calculated body sequences.
 
 ### Desired source-like shape
 
