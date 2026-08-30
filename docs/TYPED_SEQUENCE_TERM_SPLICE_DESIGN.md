@@ -1,10 +1,10 @@
 # Typed sequence Term splice design
 
-This document records a compile-checked design decision. Sequence Term
-splicing is **not** a current public feature: the production `qr` surface still
-accepts only one reflected Term per ordinary Term interpolation slot.
+This document records the implemented bounded construction contract. The
+production current-Dotty `qr` surface accepts one repeated caller-owned Term
+sequence in an ordinary Apply or supported one-list New argument list.
 
-## Selected future source and host contract
+## Selected source and host contract
 
 The preferred source spelling is the explicit Scala-2-style rank marker:
 
@@ -13,17 +13,16 @@ qr"f(..$args)"
 qr"new $constructorType(..$args)"
 ```
 
-The host argument should be a dedicated public sequence-Term carrier whose
-type parameter is the caller's active `q.reflect.Term` path. A conceptual
-minimal shape is:
+The host argument is a dedicated public sequence-Term carrier whose type
+parameter is the caller's active `q.reflect.Term` path. Its exact public shape
+is:
 
 ```text
 TermSequenceSplice[+Term]
 TermSequenceSplices.termSplice(terms: Seq[Term])
 ```
 
-This is an API sketch, not a shipped declaration. The source rank marker and
-the carrier are both required. The marker makes repeated source topology
+The source rank marker and the carrier are both required. The marker makes repeated source topology
 visible; the carrier prevents every `Seq` from becoming an interpolation
 argument and gives wrong-position diagnostics a distinct category.
 
@@ -45,15 +44,15 @@ three lines:
   rank from the quasiquote source;
 - `${args*}` is not a legal custom-interpolator argument expression.
 
-The Scala 3 guest parser does not parse `f(..placeholder)`. The future
-interpolator must therefore classify a sequence carrier, require the adjacent
+The Scala 3 guest parser does not parse `f(..placeholder)`. The production
+interpolator therefore classifies a sequence carrier, requires the adjacent
 `..` marker, and consume that marker while generating one ordinary identifier
 placeholder **before** the existing single parse. It must not parse once to
 discover rank and again after rewriting.
 
-## First construction gate
+## Implemented construction gate
 
-The selected first gate covers both:
+The implemented gate covers both:
 
 - an ordinary `Apply` argument list; and
 - the existing one-list `New` form, including the already supported complete
@@ -84,7 +83,7 @@ targets. The sequence includes a literal, a caller-local reference, a Term
 returned by an earlier `qr`, and a block expression containing a source-owned
 local definition.
 
-The design therefore applies the existing single-Term rule element by element:
+The implementation applies the existing single-Term rule element by element:
 Terms remain in the same caller `Quotes` universe, no print/reparse or neutral
 `TermShape` projection occurs, and no generic `changeOwner` is introduced. A
 whole valid expression subtree containing owned definitions is not itself a
@@ -97,7 +96,7 @@ Completed semantic `TermShape.Apply.arguments` and `TermShape.New.arguments`
 must remain ordinary ordered Term vectors. A sequence hole is not a Term and
 must never survive in a completed semantic tree.
 
-For the direct reflected `qr` path, the smallest implementation is a distinct
+For the direct reflected `qr` path, the implementation uses a distinct
 placeholder category plus argument-list-aware expansion in the frontend:
 
 ```text
@@ -115,7 +114,7 @@ hole. Adding a non-tree splice node to final `TermShape` is not acceptable.
 
 ## Matching and other ranks
 
-Sequence capture in `qq` is a separate next gate. Target inspection already
+Sequence capture in `qq` remains a separate gate. Target inspection already
 preserves ordered Apply/New children, but the current `unapplySeq` surface
 returns one `q.reflect.Term` per source capture slot. A repeated capture needs
 an explicit capture-result contract and pattern-list matching rules, including

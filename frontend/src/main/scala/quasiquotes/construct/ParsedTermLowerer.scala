@@ -42,6 +42,14 @@ object ParsedTermLowerer:
 
     val placeholderIndex = new CategorizedPlaceholderIndex(bindings, literalCategorizedNames)
 
+    def isSequenceBinding(
+        binding: PlaceholderBinding[q.reflect.Term, q.reflect.TypeRepr]
+    ): Boolean =
+      placeholderIndex.categoryOf(binding.hole) == PlaceholderCategory.TermSequenceSplice
+
+    def containsSequenceHole(tree: untpd.Tree): Boolean =
+      placeholderIndex.findOccurrences(tree).exists(occurrence => isSequenceBinding(occurrence.binding))
+
     def lowerTerm(
         tree: untpd.Tree,
         boundTerms: List[(String, Term)] = Nil,
@@ -60,6 +68,53 @@ object ParsedTermLowerer:
           boundBinderTerms = boundBinderTerms,
           sourceBinderIds = sourceBinderIds
         )
+
+      def lowerArgumentList(
+          arguments: List[untpd.Tree]
+      ): Either[QuasiquoteLoweringFailure, List[Term]] =
+        val directSequenceBindings = arguments.flatMap {
+          case untpd.Ident(name) =>
+            placeholderIndex.lookup(name.toString).filter(isSequenceBinding)
+          case _ => None
+        }
+
+        if directSequenceBindings.size > 1 then
+          Left(
+            located(
+              QuasiquoteError.MultipleSequenceTermSplices(directSequenceBindings.size),
+              tree
+            )
+          )
+        else
+          arguments.foldLeft[Either[QuasiquoteLoweringFailure, List[Term]]](Right(Nil)) {
+            case (acc, identifier @ untpd.Ident(name)) =>
+              placeholderIndex.lookup(name.toString) match
+                case Some(PlaceholderBinding(_, QuasiquoteHole.TermSequence(terms))) =>
+                  acc.map(_ ::: terms.toList)
+                case _ =>
+                  for
+                    lowered <- acc
+                    argument <- lowerChild(identifier)
+                  yield lowered :+ argument
+            case (acc, argument) =>
+              placeholderIndex.findOccurrences(argument).find(occurrence => isSequenceBinding(occurrence.binding)) match
+                case Some(occurrence) =>
+                  Left(
+                    QuasiquoteLoweringFailure(
+                      QuasiquoteError.UnsupportedPlaceholderPosition(
+                        occurrence.binding.name,
+                        PlaceholderCategory.TermSequenceSplice,
+                        PlaceholderPosition.UnsupportedTerm("nested argument syntax")
+                      ),
+                      occurrence.generatedSpan
+                    )
+                  )
+                case None =>
+                  for
+                    lowered <- acc
+                    loweredArgument <- lowerChild(argument)
+                  yield lowered :+ loweredArgument
+          }
 
       tree match
         case untpd.Ident(name) =>
@@ -205,13 +260,21 @@ object ParsedTermLowerer:
         case multiple @ untpd.Apply(untpd.Apply(untpd.Select(_: untpd.New, init), _), _)
             if init.toString == "<init>" =>
           Left(located(QuasiquoteError.UnsupportedTree("ConstructorNew", "multiple constructor argument lists are not supported"), multiple))
+        case application @ untpd.Apply(function: untpd.Apply, _)
+            if containsSequenceHole(application) =>
+          Left(
+            located(
+              QuasiquoteError.AdditionalArgumentListSequenceTermSplice,
+              function
+            )
+          )
         case constructor @ untpd.Apply(untpd.Select(untpd.New(typeTree), init), arguments)
             if init.toString == "<init>" =>
           if arguments.exists(_.isInstanceOf[untpd.NamedArg]) then
             Left(located(QuasiquoteError.UnsupportedTree("ConstructorNew", "named constructor arguments are not supported"), constructor))
           else
             for
-              loweredArguments <- sequenceLocated(arguments.map(lowerChild))
+              loweredArguments <- lowerArgumentList(arguments)
               lowered <- lowerConstructorType(
                 typeTree,
                 loweredArguments,
@@ -220,6 +283,7 @@ object ParsedTermLowerer:
             yield lowered
         case untpd.Apply(function, arguments) =>
           for
+            loweredArguments <- lowerArgumentList(arguments)
             loweredFunction <- lowerTerm(
               function,
               boundTerms,
@@ -229,7 +293,6 @@ object ParsedTermLowerer:
               boundBinderTerms = boundBinderTerms,
               sourceBinderIds = sourceBinderIds
             )
-            loweredArguments <- sequenceLocated(arguments.map(lowerChild))
             applied <- applyFunction(loweredFunction, loweredArguments).left.map(located(_, tree))
           yield applied
         case untpd.InfixOp(left, op, right) =>
@@ -966,6 +1029,15 @@ object ParsedTermLowerer:
             ),
             span
           )
+        case PlaceholderOccurrence(binding @ PlaceholderBinding(_, _: QuasiquoteHole.TermSequence[?]), span) =>
+          QuasiquoteLoweringFailure(
+            QuasiquoteError.UnsupportedPlaceholderPosition(
+              binding.name,
+              PlaceholderCategory.TermSequenceSplice,
+              PlaceholderPosition.UnsupportedTerm("unsupported term syntax")
+            ),
+            span
+          )
         case PlaceholderOccurrence(binding @ PlaceholderBinding(_, _: QuasiquoteHole.ReflectedTypeSplice[?]), span) =>
           val position = tree match
             case _: untpd.TypeApply => PlaceholderPosition.UnsupportedType("method type arguments")
@@ -1008,6 +1080,12 @@ object ParsedTermLowerer:
               PlaceholderCategory.TermSplice,
               PlaceholderPosition.ExpressionAscriptionType
             )
+          case PlaceholderCategory.TermSequenceSplice =>
+            QuasiquoteError.UnsupportedPlaceholderPosition(
+              occurrence.binding.name,
+              PlaceholderCategory.TermSequenceSplice,
+              PlaceholderPosition.UnsupportedType("type syntax")
+            )
           case PlaceholderCategory.SelectedMemberNameSplice =>
             QuasiquoteError.UnsupportedSelectedMemberNamePosition("in type position")
         QuasiquoteLoweringFailure(error, occurrence.generatedSpan)
@@ -1040,6 +1118,12 @@ object ParsedTermLowerer:
           QuasiquoteError.PlaceholderCategoryMismatch(
             binding.name,
             PlaceholderCategory.TermSplice,
+            PlaceholderPosition.ConstructorType
+          )
+        case PlaceholderCategory.TermSequenceSplice =>
+          QuasiquoteError.UnsupportedPlaceholderPosition(
+            binding.name,
+            PlaceholderCategory.TermSequenceSplice,
             PlaceholderPosition.ConstructorType
           )
         case PlaceholderCategory.SelectedMemberNameSplice =>

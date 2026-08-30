@@ -26,7 +26,8 @@ private[construct] object MacroArgumentPositionResolver:
 private[construct] object MacroDiagnosticPositionResolver:
   def resolve(using q: Quotes)(
       anchor: MacroDiagnosticAnchor,
-      arguments: Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName]
+      arguments: Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName |
+        TermSequenceSplice[q.reflect.Term]]
   ): q.reflect.Position =
     import q.reflect.*
 
@@ -36,6 +37,7 @@ private[construct] object MacroDiagnosticPositionResolver:
         arguments.lift(index) match
           case Some(_: QuasiTypeSplice) => fallback
           case Some(_: SelectedMemberName) => fallback
+          case Some(_: TermSequenceSplice[?]) => fallback
           case Some(argument: tpd.Tree) =>
             MacroArgumentPositionResolver.resolve(
               index = 0,
@@ -51,7 +53,8 @@ private[construct] object MacroDiagnosticPositionResolver:
 private[construct] object QuasiquoteDiagnosticReporter:
   def abort(using q: Quotes)(
       failure: QuasiquoteBuildFailure,
-      arguments: Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName]
+      arguments: Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName |
+        TermSequenceSplice[q.reflect.Term]]
   ): Nothing =
     val anchor = MacroDiagnosticAnchorSelector.select(failure.location)
     val position = MacroDiagnosticPositionResolver.resolve(anchor, arguments)

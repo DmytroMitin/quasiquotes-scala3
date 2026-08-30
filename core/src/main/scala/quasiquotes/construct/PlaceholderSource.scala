@@ -11,6 +11,7 @@ private[construct] sealed trait QuasiquoteHole[+T, +ReflectedType]
 
 private[construct] object QuasiquoteHole:
   final case class Term[+T](term: T) extends QuasiquoteHole[T, Nothing]
+  final case class TermSequence[+T](terms: Vector[T]) extends QuasiquoteHole[T, Nothing]
   final case class ReflectedTypeSplice[+ReflectedType](reflectedType: ReflectedType)
       extends QuasiquoteHole[Nothing, ReflectedType]
   final case class ConstructedTypeSplice(constructedType: ConstructedType)
@@ -32,7 +33,7 @@ private[construct] final case class CategorizedPlaceholderSource[+T, +ReflectedT
 
 object PlaceholderSource:
   private val CategorizedNamePattern =
-    "__qq_(?:term|reflected_type|type|name)_hole_[0-9]+(?:_[0-9]+)*".r
+    "__qq_(?:term|terms|reflected_type|type|name)_hole_[0-9]+(?:_[0-9]+)*".r
 
   def synthesize[T](parts: Seq[String], holes: Seq[T]): Either[QuasiquoteError, PlaceholderSource[T]] =
     if parts.length != holes.length + 1 then
@@ -62,9 +63,50 @@ object PlaceholderSource:
         )
       )
     else
+      val adjustedParts = parts.toVector
+      val rankMarkerOffsets = unquotedDoubleDotOffsets(adjustedParts).toSet
+      val consumedParts = holes.zipWithIndex.foldLeft[Either[QuasiquoteError, Vector[String]]](Right(adjustedParts)) {
+        case (result, (hole, index)) =>
+          result.flatMap { currentParts =>
+            val preceding = currentParts(index)
+            val hasRankMarker =
+              preceding.length >= 2 &&
+                rankMarkerOffsets.contains(index -> (preceding.length - 2))
+            hole match
+              case _: QuasiquoteHole.TermSequence[?] if hasRankMarker =>
+                Right(currentParts.updated(index, preceding.dropRight(2)))
+              case _: QuasiquoteHole.TermSequence[?] =>
+                Left(QuasiquoteError.MissingSequenceTermRankMarker(index))
+              case _ if hasRankMarker =>
+                Left(
+                  QuasiquoteError.SequenceTermRankMarkerCategoryMismatch(
+                    index,
+                    categoryOf(hole)
+                  )
+                )
+              case _ => Right(currentParts)
+          }
+      }
+
+      consumedParts.flatMap { effectiveParts =>
+        val consumedMarkers = holes.zipWithIndex.collect {
+          case (_: QuasiquoteHole.TermSequence[?], index) =>
+            index -> (parts(index).length - 2)
+        }.toSet
+        rankMarkerOffsets.diff(consumedMarkers).toVector.sortBy(identity).headOption match
+          case Some((partIndex, _)) =>
+            Left(QuasiquoteError.OrphanSequenceTermRankMarker(partIndex))
+          case None => synthesizeValidatedCategorized(effectiveParts, parts, holes)
+      }
+
+  private def synthesizeValidatedCategorized[T, ReflectedType](
+      effectiveParts: Vector[String],
+      originalParts: Seq[String],
+      holes: Seq[QuasiquoteHole[T, ReflectedType]]
+  ): Either[QuasiquoteError, CategorizedPlaceholderSource[T, ReflectedType]] =
       val builder = new StringBuilder
       val segments = mutable.ArrayBuffer.empty[GeneratedSegment]
-      val literalSource = parts.mkString
+      val literalSource = originalParts.mkString
       val literalCategorizedNames = CategorizedNamePattern.findAllIn(literalSource).toSet
       var generatedNames = Set.empty[String]
 
@@ -81,10 +123,11 @@ object PlaceholderSource:
             )
           )
 
-      appendLiteral(parts.head, 0)
+      appendLiteral(effectiveParts.head, 0)
       val bindings = holes.zipWithIndex.map { (hole, index) =>
         val baseName = hole match
           case _: QuasiquoteHole.Term[?] => s"__qq_term_hole_$index"
+          case _: QuasiquoteHole.TermSequence[?] => s"__qq_terms_hole_$index"
           case _: QuasiquoteHole.ReflectedTypeSplice[?] =>
             s"__qq_reflected_type_hole_$index"
           case _: QuasiquoteHole.ConstructedTypeSplice => s"__qq_type_hole_$index"
@@ -99,6 +142,7 @@ object PlaceholderSource:
         builder.append(name)
         val category = hole match
           case _: QuasiquoteHole.Term[?] => InterpolationCategory.TermSplice
+          case _: QuasiquoteHole.TermSequence[?] => InterpolationCategory.TermSplice
           case _: QuasiquoteHole.ReflectedTypeSplice[?] =>
             InterpolationCategory.ReflectedTypeSplice
           case _: QuasiquoteHole.ConstructedTypeSplice => InterpolationCategory.ConstructedTypeSplice
@@ -108,7 +152,7 @@ object PlaceholderSource:
           SourceSpan(generatedStart, builder.length),
           SourceOrigin.InterpolationArgument(SourceId.TermConstructionTemplate, index, category)
         )
-        appendLiteral(parts(index + 1), index + 1)
+        appendLiteral(effectiveParts(index + 1), index + 1)
         PlaceholderBinding(name, hole)
       }
       val generatedSource = builder.result()
@@ -120,6 +164,65 @@ object PlaceholderSource:
           GeneratedSourceMap(generatedSource, SourceId.VirtualExpressionParserInput, segments.toVector)
         )
       )
+
+  private def categoryOf[T, ReflectedType](
+      hole: QuasiquoteHole[T, ReflectedType]
+  ): PlaceholderCategory =
+    hole match
+      case _: QuasiquoteHole.Term[?] => PlaceholderCategory.TermSplice
+      case _: QuasiquoteHole.TermSequence[?] => PlaceholderCategory.TermSequenceSplice
+      case _: QuasiquoteHole.ReflectedTypeSplice[?] => PlaceholderCategory.ReflectedTypeSplice
+      case _: QuasiquoteHole.ConstructedTypeSplice => PlaceholderCategory.ConstructedTypeSplice
+      case _: QuasiquoteHole.SelectedMemberNameSplice => PlaceholderCategory.SelectedMemberNameSplice
+
+  private def unquotedDoubleDotOffsets(parts: Vector[String]): Vector[(Int, Int)] =
+    val offsets = mutable.ArrayBuffer.empty[(Int, Int)]
+    var quote: Option[Char] = None
+    var escaped = false
+    var lineComment = false
+    var blockCommentDepth = 0
+
+    parts.zipWithIndex.foreach { (part, partIndex) =>
+      var index = 0
+      while index < part.length do
+        val current = part.charAt(index)
+        val next = Option.when(index + 1 < part.length)(part.charAt(index + 1))
+
+        if lineComment then
+          if current == '\n' || current == '\r' then lineComment = false
+          index += 1
+        else if blockCommentDepth > 0 then
+          if current == '/' && next.contains('*') then
+            blockCommentDepth += 1
+            index += 2
+          else if current == '*' && next.contains('/') then
+            blockCommentDepth -= 1
+            index += 2
+          else index += 1
+        else
+          quote match
+            case Some(delimiter) =>
+              if escaped then escaped = false
+              else if current == '\\' && delimiter != '`' then escaped = true
+              else if current == delimiter then quote = None
+              index += 1
+            case None =>
+              if current == '/' && next.contains('/') then
+                lineComment = true
+                index += 2
+              else if current == '/' && next.contains('*') then
+                blockCommentDepth = 1
+                index += 2
+              else if current == '"' || current == '\'' || current == '`' then
+                quote = Some(current)
+                index += 1
+              else if current == '.' && next.contains('.') then
+                offsets += partIndex -> index
+                index += 2
+              else index += 1
+    }
+
+    offsets.toVector
 
   private[construct] def isCategorizedName(name: String): Boolean =
     CategorizedNamePattern.matches(name)

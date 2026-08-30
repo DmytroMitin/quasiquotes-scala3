@@ -15,9 +15,14 @@ object QuasiquoteBuilder:
 
   private[construct] def buildLocated(using q: Quotes)(
       parts: Seq[String],
-      arguments: Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName]
+      arguments: Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName |
+        TermSequenceSplice[q.reflect.Term]]
   ): Either[QuasiquoteBuildFailure, q.reflect.Term] =
     val holes: Seq[QuasiquoteHole[q.reflect.Term, q.reflect.TypeRepr]] = arguments.map {
+      case sequence: TermSequenceSplice[?] =>
+        QuasiquoteHole.TermSequence(
+          sequence.terms.asInstanceOf[Vector[q.reflect.Term]]
+        )
       case splice: QuasiTypeSplice => QuasiquoteHole.ConstructedTypeSplice(splice.constructedType)
       case name: SelectedMemberName => QuasiquoteHole.SelectedMemberNameSplice(name)
       case reflectedType: Types.Type =>

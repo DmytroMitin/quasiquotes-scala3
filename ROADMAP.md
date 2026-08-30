@@ -64,6 +64,12 @@ delivery chronology.
   positions. `qr` accepts caller-owned `TypeRepr` directly so
   `TypeTree.tpe`, `TypeRepr.of[T]`, and `tqr` share one transport; preserve the
   compiler-free `QuasiTypeSplice` route and keep `scala.quoted` out of `core`.
+- Preserve the bounded public sequence-Term construction slice: callers use
+  `TermSequenceSplices.termSplice(Seq[q.reflect.Term])` with the explicit
+  `..$args` marker in one ordinary Apply or supported one-list New argument
+  list. Keep one repeated hole per list, exact order and original Term objects,
+  and no matching, other ranks, additional clauses, vararg-star semantics,
+  neutral projection, reparse, or generic owner repair.
 - Preserve the first source-owned local `def` statement in `qr`: one literal
   identity-shaped method with one ordinary parameter, complete reflected Types,
   and a binder-resolved following result, with backend-created symbols and
@@ -186,18 +192,19 @@ syntax.
 | N2 runtime-length dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | constructor-position Type hole and sequence Type splice |
 | N3 generated Type refinement members | `CURRENT_MANUAL_BASELINE_PROVED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | refinement/type-member model and sequence definition splice |
 | N4 anonymous implementation with calculated definitions | `CURRENT_MANUAL_BASELINE_PROVED`, `BOUNDED_INTERNAL_PLAN_IMPLEMENTED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | anonymous-class syntax, broader definitions, sequence splices, and composition over the bounded class-owner plan |
-| N5 dynamic `new T(..args)` for an existing type | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `BOUNDED_SEQUENCE_TERM_SPLICE_DESIGN_SELECTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | bounded sequence Term construction and broader constructor/argument policy |
+| N5 dynamic `new T(..args)` for an existing type | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `BOUNDED_SEQUENCE_TERM_CONSTRUCTION_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | broader constructor/argument-clause and coercion policy |
 
 None of N1-N5 is `CHECKPOINT_COMPLETE`.
 
 The bounded explicit-receiver dynamic selected-member construction gap, the
-first N5 complete constructor-Type splice, and the first source-owned local
+first N5 complete constructor-Type and bounded sequence-Term splices, and the first source-owned local
 identity-method block are implemented. Bare identifiers,
 overload resolution, dynamic infix syntax, dynamic name matching, sequence
-splices, broader Type positions, and broader definition/class support remain
-independent later work. The [typed sequence Term splice design](docs/TYPED_SEQUENCE_TERM_SPLICE_DESIGN.md)
-selects `..$args` plus a dedicated caller-universe carrier for one future
-Apply/one-list-New construction gate; it does not ship that surface. The
+matching and other sequence ranks, broader Type positions, and broader
+definition/class support remain independent later work. The
+[typed sequence Term splice contract](docs/TYPED_SEQUENCE_TERM_SPLICE_DESIGN.md)
+ships `..$args` plus a dedicated caller-universe carrier for one bounded
+Apply/one-list-New construction gate. The
 bounded AUXify-037 and AUXify-046 bridges and their
 foreign-package consumer proofs are complete. Inputs 039, 041, 043, and 045
 remain separate peer-oriented lanes; 046 did not implement or widen them.

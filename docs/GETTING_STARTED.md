@@ -222,6 +222,32 @@ in term, ascription, or method-type positions, and stale or foreign `Quotes`
 values remain outside the boundary. A non-instantiable admitted type is passed
 to the Scala compiler, which reports the ordinary constructor error.
 
+## Sequence Term arguments
+
+Inside the same active macro `Quotes`, an explicit carrier plus the `..` rank
+marker expands an ordered runtime-length Term sequence in one ordinary Apply
+or supported one-list New argument list:
+
+```scala
+import quasiquotes.construct.Quasiquotes.qr
+import quasiquotes.construct.TermSequenceSplices.termSplice
+
+private def build(using q: Quotes)(
+    constructorType: q.reflect.TypeRepr,
+    first: q.reflect.Term,
+    second: q.reflect.Term
+): q.reflect.Term =
+  val arguments = termSplice(Seq(first, second))
+  qr"new $constructorType(..$arguments)"
+```
+
+Empty, one-element, multi-element, and fixed prefix/suffix argument sequences
+are supported. The carrier alone is not rank inference: omitting `..`, placing
+`..` before a single Term or another splice category, using two repeated holes
+in one list, or placing a sequence outside the admitted lists fails
+deterministically. `qq` sequence capture and every non-Term sequence rank are
+not implemented.
+
 ## Reflected definition interpolation
 
 Inside an active macro `Quotes`, `dqr` constructs exactly one caller-owned

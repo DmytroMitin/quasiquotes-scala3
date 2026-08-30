@@ -20,7 +20,7 @@ interpolator grammar, ownership model, and error contract.
 | N2 dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED` | fixed constructors and fixed-arity whole-Type holes only | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 | N3 generated Type refinement members | `CURRENT_MANUAL_BASELINE_PROVED` | parser/shape evidence only; no public refinement construction | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 | N4 anonymous implementation body | `CURRENT_MANUAL_BASELINE_PROVED` for the synthetic-class/override/constructor owner plan | the same bounded internal class-owner plan plus individual method surfaces; no anonymous-body syntax or sequence | `BOUNDED_INTERNAL_PLAN_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
-| N5 dynamic existing-type construction | `CURRENT_MANUAL_BASELINE_PROVED` | fixed constructor plus caller-owned complete constructor `TypeRepr` with one ordinary argument list | `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
+| N5 dynamic existing-type construction | `CURRENT_MANUAL_BASELINE_PROVED` | caller-owned complete constructor `TypeRepr` plus one bounded runtime-length Term sequence in one ordinary argument list | `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `BOUNDED_SEQUENCE_TERM_CONSTRUCTION_IMPLEMENTED`, `BROADER_POLICY_REQUIRED` |
 
 `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES` means only that a smaller structural
 subproblem exists today. None of N1-N5 is `CHECKPOINT_COMPLETE`.
@@ -214,15 +214,16 @@ class or call `Symbol.newClass`.
 qr"new $T(..$arguments)"
 ```
 
-The [typed sequence Term splice design](TYPED_SEQUENCE_TERM_SPLICE_DESIGN.md)
-selects this rank spelling together with a dedicated caller-universe sequence
-carrier for a future bounded construction gate. It remains unavailable in
-production and does not widen constructor-resolution or coercion policy.
+The [typed sequence Term splice contract](TYPED_SEQUENCE_TERM_SPLICE_DESIGN.md)
+implements this rank spelling with the dedicated caller-universe
+`TermSequenceSplice[Term]` carrier for the bounded one-list construction gate.
+It does not widen constructor-resolution or coercion policy.
 
 ### Required missing capabilities
 
 - the complete dynamic Type splice in constructor position is implemented;
-- a sequence or variadic Term argument splice;
+- broader constructor and argument-clause topology beyond the implemented
+  single repeated Term hole in one ordinary list;
 - constructor resolution and selection rules;
 - argument typing and coercion policy;
 - fail-closed behavior for unsupported or ambiguous constructors.
@@ -250,15 +251,14 @@ through a validated decoded-name value and unique selection lowering. It does
 not add bare-name lookup, overload resolution, dynamic infix syntax, or name
 matching.
 
-The complete constructor Type position in N5 is implemented. Its input is a
-caller-owned `TypeRepr`, including a direct `tqr` result, with no `Any` or
-public wrapper carrier. This slice retains one ordinary constructor argument
-list and the existing exact-compiler constructor policy; N5 remains incomplete
-because sequence arguments and the broader dynamic applied-Type constructor
-family are absent. Three-line test-only evidence now proves that the selected
-`..$arguments` host spelling is stable and that fixed-arity Apply/New assembly
-can preserve empty/order/identity/ownership. Production sequence construction
-and matching are still separate future gates. Refinements, classes, and
-definitions remain separate gates. Source-owned local `def` statements are the
+The complete constructor Type position and the bounded sequence-Term argument
+slice in N5 are implemented. The Type input is a caller-owned `TypeRepr`,
+including a direct `tqr` result; the argument input is an explicit
+`TermSequenceSplice[q.reflect.Term]`. One ordinary constructor list admits
+empty/one/many sequences and fixed surrounding Terms while preserving order
+and original caller Term objects. N5 remains incomplete because broader
+dynamic applied-Type constructors, argument-clause topology, coercion policy,
+and sequence matching remain absent. Refinements, classes, and definitions
+remain separate gates. Source-owned local `def` statements are the
 next product-facing Definition-composition candidate, while external
 typed-definition splicing requires a separate explicit reownership contract.

@@ -96,7 +96,7 @@ class TermTemplateSourceAdapterBoundaryTest extends munit.FunSuite:
     finally stream.close()
   }
 
-  test("current qr signature admits only the four explicit splice value categories") {
+  test("current qr signature admits only the five explicit splice value categories") {
     val quasiquotes = Files.readString(
       frontendRoot.resolve(Path.of("construct", "Quasiquotes.scala")),
       StandardCharsets.UTF_8
@@ -107,9 +107,10 @@ class TermTemplateSourceAdapterBoundaryTest extends munit.FunSuite:
     )
     assert(
       quasiquotes.contains(
-        "args: (q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName)*"
+        "args: (q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName |"
       )
     )
+    assert(quasiquotes.contains("TermSequenceSplice[q.reflect.Term])"))
     assert(builder.contains("PlaceholderSource.synthesizeCategorized"))
     assert(builder.contains("ParsedTermLowerer"))
     assert(!builder.contains("TermTemplateSourceAdapter"))

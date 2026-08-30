@@ -115,6 +115,16 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     assertEquals(ReflectedConstructorTypeSnippet.fromTypeTreeTpe(18), 18)
     assertEquals(ReflectedConstructorTypeSnippet.fromTqr(19), 19)
 
+  test("public sequence-Term carrier expands Apply and reflected-constructor arguments outside the library package"):
+    assertEquals(
+      SequenceTermSpliceFirstUseSnippet.applyArguments(20, 22),
+      List(-1, 20, 22, 99)
+    )
+    assertEquals(
+      SequenceTermSpliceFirstUseSnippet.constructorArguments(20, 22),
+      List(-1, 20, 22, 99)
+    )
+
   test("selected-call composition retains the fixed positive matrix"):
     val receiver = new NullarySelectedCallTarget(40)
     assertEquals(NullarySelectedCallCompositionSnippet.ordinaryNullary(receiver), 41)

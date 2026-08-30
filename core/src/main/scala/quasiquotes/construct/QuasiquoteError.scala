@@ -13,6 +13,29 @@ object QuasiquoteError:
     def message: String =
       s"Hole count mismatch: expected $expected interpolated holes but received $actual"
 
+  private[construct] final case class MissingSequenceTermRankMarker(argumentIndex: Int) extends QuasiquoteError:
+    def message: String =
+      s"Sequence-Term splice argument $argumentIndex requires an immediately adjacent `..` rank marker."
+
+  private[construct] final case class SequenceTermRankMarkerCategoryMismatch(
+      argumentIndex: Int,
+      actual: PlaceholderCategory
+  ) extends QuasiquoteError:
+    def message: String =
+      s"The `..` rank marker before argument $argumentIndex requires a Sequence-Term splice carrier, not a ${actual.label}."
+
+  private[construct] final case class OrphanSequenceTermRankMarker(literalPartIndex: Int) extends QuasiquoteError:
+    def message: String =
+      s"Orphan or ambiguous `..` rank marker in literal part $literalPartIndex."
+
+  private[construct] final case class MultipleSequenceTermSplices(count: Int) extends QuasiquoteError:
+    def message: String =
+      s"Only one Sequence-Term splice is supported per argument list; found $count."
+
+  private[construct] case object AdditionalArgumentListSequenceTermSplice extends QuasiquoteError:
+    def message: String =
+      "Sequence-Term splices are not supported in additional argument-list topology."
+
   final case class MissingPlaceholder(index: Int) extends QuasiquoteError:
     def message: String = s"Missing term hole for placeholder __hole$index"
 
@@ -45,6 +68,8 @@ object QuasiquoteError:
   ) extends QuasiquoteError:
     def message: String =
       val admittedPosition = actual match
+        case PlaceholderCategory.TermSequenceSplice =>
+          "only a direct Apply or one-list New argument is supported"
         case PlaceholderCategory.ReflectedTypeSplice =>
           position match
             case PlaceholderPosition.LocalDefParameterType | PlaceholderPosition.LocalDefResultType =>

@@ -86,7 +86,15 @@ in the bounded source-owned local-definition form. `TypeRepr.of[T]`,
 `TypeTree.of[T].tpe`, and a `tqr` result use the same transport, including
 direct `tqr"java.lang.StringBuilder"` to `qr"new $typeValue(arg)"` stacking.
 Passing `Type[T]` or `TypeTree` directly, partial/applied dynamic Type
-positions, and variadic arguments remain unsupported.
+positions, and broader constructor topology remain unsupported.
+
+For runtime-length Term arguments, wrap an immutable sequence from the active
+caller `Quotes` with `TermSequenceSplices.termSplice` and retain the explicit
+rank marker in source: `qr"f(..$args)"` or
+`qr"new $constructorType(..$args)"`. This construction-only surface admits
+one repeated hole in one ordinary Apply or supported one-list New argument
+list. It preserves order and original Term subtrees; sequence matching, other
+splice ranks, additional clauses, and target vararg-star semantics are absent.
 
 The type names are intentionally layered overloads. Inside an active `Quotes`,
 `tqr"..."` accepts caller-owned `TypeRepr` splices and returns a caller-owned

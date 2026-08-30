@@ -38,6 +38,14 @@ private[construct] final class CategorizedPlaceholderIndex[T, ReflectedType](
   ): Either[QuasiquoteError, Option[PlaceholderBinding[T, ReflectedType]]] =
     lookup(name) match
       case Some(binding) if categoryOf(binding.hole) == expected => Right(Some(binding))
+      case Some(binding) if categoryOf(binding.hole) == PlaceholderCategory.TermSequenceSplice =>
+        Left(
+          QuasiquoteError.UnsupportedPlaceholderPosition(
+            name,
+            PlaceholderCategory.TermSequenceSplice,
+            position
+          )
+        )
       case Some(binding) if categoryOf(binding.hole) == PlaceholderCategory.SelectedMemberNameSplice =>
         Left(QuasiquoteError.UnsupportedSelectedMemberNamePosition(position.invalidPhrase))
       case Some(binding) =>
@@ -71,6 +79,7 @@ private[construct] final class CategorizedPlaceholderIndex[T, ReflectedType](
   def categoryOf(hole: QuasiquoteHole[T, ReflectedType]): PlaceholderCategory =
     hole match
       case _: QuasiquoteHole.Term[?] => PlaceholderCategory.TermSplice
+      case _: QuasiquoteHole.TermSequence[?] => PlaceholderCategory.TermSequenceSplice
       case _: QuasiquoteHole.ReflectedTypeSplice[?] =>
         PlaceholderCategory.ReflectedTypeSplice
       case _: QuasiquoteHole.ConstructedTypeSplice => PlaceholderCategory.ConstructedTypeSplice

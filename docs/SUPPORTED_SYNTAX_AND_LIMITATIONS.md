@@ -23,6 +23,9 @@ Currently exercised areas include:
   and selected bounds/match forms; public construction and matching remain the
   narrower families in the syntax matrix;
 - term and type holes with collision-safe rewriting and repeated-hole checks;
+- construction-only runtime-length caller-owned Term sequences through
+  `TermSequenceSplices.termSplice(Seq[Term])` and an adjacent `..$args` marker
+  in one ordinary Apply or supported one-list New argument list;
 - construction-only `SelectedMemberName` holes in the exact name field of an
   explicit receiver selection, restored structurally from a dedicated
   collision-safe placeholder;
@@ -55,11 +58,11 @@ Important limitations:
   exact internal definition backends remain package-private;
 - interpolation and type support expands incrementally, so unsupported shapes
   return explicit errors rather than falling back to unchecked trees;
-- runtime-length Term sequences are not yet accepted by `qr`. The
-  [compile-checked design](TYPED_SEQUENCE_TERM_SPLICE_DESIGN.md) selects an
-  explicit `..$args` rank marker plus a dedicated caller-universe carrier for
-  a later construction gate; sequence matching and every other splice rank
-  remain separate;
+- runtime-length Term construction is deliberately bounded: exactly one
+  `..$args` carrier per admitted argument list, no additional/named/contextual
+  argument-list topology, and no target vararg-star semantics. Sequence
+  matching and every Type, Definition, member, statement, or argument-list
+  rank remain separate;
 - dynamic selected-member names are decoded semantic values, not source
   spellings or symbols. The conservative factory admits plain ASCII
   identifiers, symbolic ASCII operators, and single-space-separated safe ASCII

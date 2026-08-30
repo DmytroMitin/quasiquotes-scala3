@@ -20,6 +20,7 @@ Status vocabulary:
 | Selection | `value.size` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; fixed selection without an explicit argument list retains value-position normalization; no overload or semantic member equivalence |
 | Dynamic selected-member name | `qr"$receiver.$selectedName()"`, `qr"$receiver.$selectedName($argument)"` | Yes | No | `SelectedMemberName.from`, `qr` | `BOUNDED`; validated decoded ASCII name, explicit receiver selection only, unique accessible member only; explicit empty and nonempty calls are supported; no dynamic infix, lexical lookup, overload resolution, or name capture |
 | Application | `f(x)`, `builder.capacity()` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; ordinary supported argument lists, including an explicit empty application over a selected nullary method |
+| Sequence-Term arguments | `qr"f(fixed, ..$args)"`, `qr"new $typeRepr(..$args)"` | Yes | No | `TermSequenceSplices.termSplice`, `qr` | `BOUNDED`; one dedicated caller-universe carrier per ordinary Apply or supported one-list New argument list; empty/one/many and fixed prefix/suffix supported; no matching capture, additional clauses, other ranks, or vararg-star semantics |
 | Infix | `left + right` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; supported operators, structural rather than algebraic equality |
 | Unary | `-x`, `!flag` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; `+`, `-`, `!`, and `~`, with parser folding boundaries |
 | Ascription | `value: Int` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; supported type family and construction-only type splices |
@@ -44,7 +45,7 @@ The ordinary family rows describe the recoverable programmatic matcher
 independent ergonomic extractor dimension: it reuses that matcher for a
 template with at least one interpolated term slot, assigns slots distinct
 ordinal identities, and returns caller-owned `quotes.reflect.Term` captures.
-It does not add type slots, sequence splices, backreferences, definition
+It does not add type slots, sequence capture, backreferences, definition
 patterns, or general Scala quasiquote coverage.
 
 ## Types

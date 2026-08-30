@@ -13,7 +13,8 @@ object PlainExportFacadeProbe:
 object FacadeProbe:
   extension (sc: StringContext)
     def qr(using q: Quotes)(
-        args: (q.reflect.Term | q.reflect.TypeRepr | construct.QuasiTypeSplice | construct.SelectedMemberName)*
+        args: (q.reflect.Term | q.reflect.TypeRepr | construct.QuasiTypeSplice | construct.SelectedMemberName |
+          construct.TermSequenceSplice[q.reflect.Term])*
     ): q.reflect.Term =
       construct.Quasiquotes.qr(sc)(using q)(args*)
 
@@ -34,7 +35,9 @@ package domains:
   object Terms:
     extension (sc: StringContext)
       def qr(using q: Quotes)(
-          args: (q.reflect.Term | q.reflect.TypeRepr | quasiquotes.construct.QuasiTypeSplice | quasiquotes.construct.SelectedMemberName)*
+          args: (q.reflect.Term | q.reflect.TypeRepr | quasiquotes.construct.QuasiTypeSplice |
+            quasiquotes.construct.SelectedMemberName |
+            quasiquotes.construct.TermSequenceSplice[q.reflect.Term])*
       ): q.reflect.Term =
         quasiquotes.construct.Quasiquotes.qr(sc)(using q)(args*)
 
