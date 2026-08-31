@@ -136,6 +136,179 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
     }
   }
 
+  private val invalidSourceNames = Vector(
+    "_",
+    "if",
+    "bad.name",
+    "$hole",
+    "<init>",
+    "café"
+  )
+
+  invalidSourceNames.foreach { name =>
+    test(s"rejects an invalid exact-backend Identifier name: $name") {
+      withContext {
+        assertEquals(
+          CoreTermShapeUntypedLowerer.lower(
+            TermShape.Identifier(name, isPlaceholder = false)
+          ),
+          Left(InvalidIdentifierName(name))
+        )
+      }
+    }
+
+    test(s"rejects an invalid exact-backend selected-member name: $name") {
+      withContext {
+        assertEquals(
+          CoreTermShapeUntypedLowerer.lower(
+            TermShape.Select(
+              TermShape.Identifier("obj", isPlaceholder = false),
+              name
+            )
+          ),
+          Left(InvalidSelectedName(name))
+        )
+      }
+    }
+  }
+
+  test("rejects null exact-backend Identifier and selected-member names") {
+    withContext {
+      assertEquals(
+        CoreTermShapeUntypedLowerer.lower(
+          TermShape.Identifier(null, isPlaceholder = false)
+        ),
+        Left(InvalidIdentifierName(null))
+      )
+      assertEquals(
+        CoreTermShapeUntypedLowerer.lower(
+          TermShape.Select(
+            TermShape.Identifier("obj", isPlaceholder = false),
+            null
+          )
+        ),
+        Left(InvalidSelectedName(null))
+      )
+    }
+  }
+
+  test("rejects placeholder-marked Identifiers before raw construction") {
+    withContext {
+      val placeholders = List("value", "$hole", null)
+      placeholders.foreach { name =>
+        assertEquals(
+          CoreTermShapeUntypedLowerer.lower(
+            TermShape.Identifier(name, isPlaceholder = true)
+          ),
+          Left(PlaceholderIdentifier(name))
+        )
+      }
+    }
+  }
+
+  test("admits valid exact-backend ASCII source names") {
+    withContext {
+      List("value", "_private", "A1").foreach { name =>
+        assertEquals(
+          TermShapeInspector.rawStructure(
+            lowerOrFail(TermShape.Identifier(name, isPlaceholder = false))
+          ),
+          s"Ident($name)"
+        )
+      }
+    }
+  }
+
+  test("rejects a direct nested Apply in function position as multiple application lists") {
+    withContext {
+      assertEquals(
+        CoreTermShapeUntypedLowerer.lower(
+          TermShape.Apply(
+            TermShape.Apply(
+              TermShape.Identifier("f", isPlaceholder = false),
+              TermShape.Literal("1") :: Nil
+            ),
+            TermShape.Literal("2") :: Nil
+          )
+        ),
+        Left(MultipleApplicationLists)
+      )
+    }
+  }
+
+  test("allows Apply in argument and qualifier positions without adding another direct list") {
+    val fixtures = Vector(
+      "f(g(1), 2)" ->
+        TermShape.Apply(
+          TermShape.Identifier("f", isPlaceholder = false),
+          List(
+            TermShape.Apply(
+              TermShape.Identifier("g", isPlaceholder = false),
+              TermShape.Literal("1") :: Nil
+            ),
+            TermShape.Literal("2")
+          )
+        ),
+      "f(1).g" ->
+        TermShape.Select(
+          TermShape.Apply(
+            TermShape.Identifier("f", isPlaceholder = false),
+            TermShape.Literal("1") :: Nil
+          ),
+          "g"
+        ),
+      "f(1).g(2)" ->
+        TermShape.Apply(
+          TermShape.Select(
+            TermShape.Apply(
+              TermShape.Identifier("f", isPlaceholder = false),
+              TermShape.Literal("1") :: Nil
+            ),
+            "g"
+          ),
+          TermShape.Literal("2") :: Nil
+        )
+    )
+
+    withContext {
+      fixtures.foreach { (source, shape) =>
+        assertEquals(
+          TermShapeInspector.rawStructure(lowerOrFail(shape)),
+          TinyTermParser.parseOrThrow(source).rawStructure,
+          clues(source)
+        )
+      }
+    }
+  }
+
+  test("rejects a missing ordinary Apply argument list") {
+    withContext {
+      assertEquals(
+        CoreTermShapeUntypedLowerer.lower(
+          TermShape.Apply(
+            TermShape.Identifier("f", isPlaceholder = false),
+            null
+          )
+        ),
+        Left(MissingApplyArguments)
+      )
+    }
+  }
+
+  test("fails closed when a recursively lowered call child is unsupported") {
+    withContext {
+      assertEquals(
+        CoreTermShapeUntypedLowerer.lower(
+          TermShape.Apply(
+            TermShape.Identifier("f", isPlaceholder = false),
+            TermShape.New("Value", Nil) :: Nil
+          )
+        ),
+        Left(UnsupportedTermShape("New"))
+      )
+    }
+  }
+
   test("matches independent parser raw structure after ignoring parser metadata") {
     val fixtures = Vector(
       "1" -> TermShape.Literal("1"),
@@ -161,6 +334,45 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
           TermShape.Literal("1"),
           "-",
           TermShape.Literal("2")
+        ),
+      "obj" -> TermShape.Identifier("obj", isPlaceholder = false),
+      "obj.f" ->
+        TermShape.Select(
+          TermShape.Identifier("obj", isPlaceholder = false),
+          "f"
+        ),
+      "f()" ->
+        TermShape.Apply(TermShape.Identifier("f", isPlaceholder = false), Nil),
+      "f(1)" ->
+        TermShape.Apply(
+          TermShape.Identifier("f", isPlaceholder = false),
+          TermShape.Literal("1") :: Nil
+        ),
+      "obj.f(1 + 2, 3)" ->
+        TermShape.Apply(
+          TermShape.Select(
+            TermShape.Identifier("obj", isPlaceholder = false),
+            "f"
+          ),
+          List(
+            TermShape.Infix(
+              TermShape.Literal("1"),
+              "+",
+              TermShape.Literal("2")
+            ),
+            TermShape.Literal("3")
+          )
+        ),
+      "f(g(1), 2)" ->
+        TermShape.Apply(
+          TermShape.Identifier("f", isPlaceholder = false),
+          List(
+            TermShape.Apply(
+              TermShape.Identifier("g", isPlaceholder = false),
+              TermShape.Literal("1") :: Nil
+            ),
+            TermShape.Literal("2")
+          )
         )
     )
 
@@ -178,16 +390,27 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
     }
   }
 
-  test("constructs only source-free span-free symbol-free raw nodes without TypedSplice") {
+  test("constructs only recursively source-free span-free symbol-free raw nodes without TypedSplice") {
     withContext {
       val raw = lowerOrFail(
-        TermShape.Infix(
-          TermShape.Literal("-1"),
-          "+",
-          TermShape.Infix(
-            TermShape.Literal("2"),
-            "*",
-            TermShape.Literal("3")
+        TermShape.Apply(
+          TermShape.Select(
+            TermShape.Apply(
+              TermShape.Identifier("f", isPlaceholder = false),
+              TermShape.Literal("1") :: Nil
+            ),
+            "g"
+          ),
+          List(
+            TermShape.Infix(
+              TermShape.Literal("-1"),
+              "+",
+              TermShape.Literal("2")
+            ),
+            TermShape.Apply(
+              TermShape.Identifier("h", isPlaceholder = false),
+              TermShape.Literal("3") :: Nil
+            )
           )
         )
       )
@@ -201,16 +424,12 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
     }
   }
 
-  test("fails closed for every non-integer-infix core TermShape family") {
+  test("fails closed for every core TermShape family outside the bounded call backend") {
     val binder = BinderId(0)
     val literal = TermShape.Literal("1")
     val unsupported = Vector(
-      TermShape.Identifier("value", isPlaceholder = false) -> "Identifier",
-      TermShape.Identifier("$hole", isPlaceholder = true) -> "Identifier",
       TermShape.BoundReference(binder, "value") -> "BoundReference",
       TermShape.Lambda1(binder, "value", "Int", literal) -> "Lambda1",
-      TermShape.Select(literal, "value") -> "Select",
-      TermShape.Apply(literal, Nil) -> "Apply",
       TermShape.New("Value", Nil) -> "New",
       TermShape.Unary("-", literal) -> "Unary",
       TermShape.InterpolatedString("s", List("", ""), List(literal)) ->
@@ -250,7 +469,17 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
       q"1 + 2 * 3" ->
         "InfixOp(Number(1,Whole(10)),Ident(+),InfixOp(Number(2,Whole(10)),Ident(*),Number(3,Whole(10))))",
       q"-1 + 2" ->
-        "InfixOp(Number(-1,Whole(10)),Ident(+),Number(2,Whole(10)))"
+        "InfixOp(Number(-1,Whole(10)),Ident(+),Number(2,Whole(10)))",
+      q"obj" -> "Ident(obj)",
+      q"obj.f" -> "Select(Ident(obj), f)",
+      q"f()" -> "Apply(Ident(f), [])",
+      q"f(1)" -> "Apply(Ident(f), [Number(1,Whole(10))])",
+      q"obj.f(1 + 2, 3)" ->
+        "Apply(Select(Ident(obj), f), [InfixOp(Number(1,Whole(10)),Ident(+),Number(2,Whole(10))), Number(3,Whole(10))])",
+      q"obj.inner.f(1 + 2 * 3)" ->
+        "Apply(Select(Select(Ident(obj), inner), f), [InfixOp(Number(1,Whole(10)),Ident(+),InfixOp(Number(2,Whole(10)),Ident(*),Number(3,Whole(10))))])",
+      q"f(g(1), 2)" ->
+        "Apply(Ident(f), [Apply(Ident(g), [Number(1,Whole(10))]), Number(2,Whole(10))])"
     )
 
     withContext {
@@ -259,28 +488,6 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
         val raw = lowerOrFail(projected.shape)
 
         assertEquals(TermShapeInspector.rawStructure(raw), expected)
-      }
-    }
-  }
-
-  test("rejects newly admitted neutral Identifier, Select, and Apply shapes at the unchanged exact boundary") {
-    val fixtures = List(
-      q"value" -> "Identifier",
-      q"obj.value" -> "Select",
-      q"obj.value(1)" -> "Apply"
-    )
-
-    withContext {
-      fixtures.foreach { (source, expectedNodeKind) =>
-        val projected = ScalametaTermProjection.project(source).fold(
-          error => fail(error.message),
-          identity
-        )
-        assertEquals(
-          CoreTermShapeUntypedLowerer.lower(projected.shape),
-          Left(UnsupportedTermShape(expectedNodeKind)),
-          clues(source.syntax)
-        )
       }
     }
   }
@@ -298,6 +505,9 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
 
   private def allTrees(tree: untpd.Tree): List[untpd.Tree] =
     tree match
+      case untpd.Select(qualifier, _) => tree :: allTrees(qualifier)
+      case untpd.Apply(function, arguments) =>
+        tree :: allTrees(function) ::: arguments.flatMap(allTrees)
       case untpd.InfixOp(left, operator, right) =>
         tree :: allTrees(left) ::: allTrees(operator) ::: allTrees(right)
       case _ => tree :: Nil

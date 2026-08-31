@@ -6,3 +6,11 @@ class CoreTermShapeUntypedLowererTyperProbeTest extends munit.FunSuite:
     assertEquals(CoreTermShapeUntypedLowererTyperProbe.nestedPrecedence, 7)
     assertEquals(CoreTermShapeUntypedLowererTyperProbe.negativePlusTwo, 1)
   }
+
+  test("ordinary Typer accepts source-free Identifier Select and one-list Apply over declared fixtures") {
+    assert(CoreTermShapeUntypedLowererTyperProbe.identifierViable)
+    assert(CoreTermShapeUntypedLowererTyperProbe.selectViable)
+    assert(CoreTermShapeUntypedLowererTyperProbe.emptyApplyViable)
+    assert(CoreTermShapeUntypedLowererTyperProbe.oneArgumentApplyViable)
+    assert(CoreTermShapeUntypedLowererTyperProbe.multiArgumentApplyViable)
+  }

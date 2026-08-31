@@ -25,6 +25,63 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
     ">",
     ">="
   )
+  private val PlainSourceName = "[A-Za-z_][A-Za-z0-9_]*".r
+  private val Scala3Keywords = Set(
+    "abstract",
+    "as",
+    "case",
+    "catch",
+    "class",
+    "def",
+    "derives",
+    "do",
+    "else",
+    "end",
+    "enum",
+    "export",
+    "extends",
+    "extension",
+    "false",
+    "final",
+    "finally",
+    "for",
+    "forSome",
+    "given",
+    "if",
+    "implicit",
+    "import",
+    "infix",
+    "inline",
+    "lazy",
+    "macro",
+    "match",
+    "new",
+    "null",
+    "object",
+    "opaque",
+    "open",
+    "override",
+    "package",
+    "private",
+    "protected",
+    "return",
+    "sealed",
+    "super",
+    "then",
+    "this",
+    "throw",
+    "trait",
+    "transparent",
+    "true",
+    "try",
+    "type",
+    "using",
+    "val",
+    "var",
+    "while",
+    "with",
+    "yield"
+  )
 
   def lower(
       shape: TermShape
@@ -57,8 +114,53 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
             untpd.Ident(termName(operator)),
             rawRight
           )
+      case Some(TermShape.Identifier(name, isPlaceholder)) =>
+        if isPlaceholder then Left(PlaceholderIdentifier(name))
+        else
+          validateSourceName(name, InvalidIdentifierName.apply)
+            .map(validName => untpd.Ident(termName(validName)))
+      case Some(TermShape.Select(qualifier, name)) =>
+        for
+          validName <- validateSourceName(name, InvalidSelectedName.apply)
+          rawQualifier <- lowerAdmitted(qualifier)
+        yield untpd.Select(rawQualifier, termName(validName))
+      case Some(TermShape.Apply(_: TermShape.Apply, _)) =>
+        Left(MultipleApplicationLists)
+      case Some(TermShape.Apply(function, arguments)) =>
+        Option(arguments) match
+          case None => Left(MissingApplyArguments)
+          case Some(argumentList) =>
+            for
+              rawFunction <- lowerAdmitted(function)
+              rawArguments <- traverse(argumentList)(lowerAdmitted)
+            yield untpd.Apply(rawFunction, rawArguments)
       case Some(other) =>
         Left(UnsupportedTermShape(nodeKind(other)))
+
+  private def validateSourceName(
+      name: String,
+      invalid: String => CoreTermShapeUntypedLowererError
+  ): Either[CoreTermShapeUntypedLowererError, String] =
+    Either.cond(
+      Option(name).exists(value =>
+        value != "_" && PlainSourceName.matches(value) && !Scala3Keywords(value)
+      ),
+      name,
+      invalid(name)
+    )
+
+  private def traverse[A, B](
+      values: List[A]
+  )(lowerValue: A => Either[CoreTermShapeUntypedLowererError, B])
+      : Either[CoreTermShapeUntypedLowererError, List[B]] =
+    values.foldRight(
+      Right(Nil): Either[CoreTermShapeUntypedLowererError, List[B]]
+    ) { (value, rest) =>
+      for
+        head <- lowerValue(value)
+        tail <- rest
+      yield head :: tail
+    }
 
   private def nodeKind(shape: TermShape): String =
     shape match
@@ -93,6 +195,12 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
       Left(SourceFreeInvariantViolation(nodeKind, "the tree contains TypedSplice."))
     else
       tree match
+        case untpd.Select(qualifier, _) => verifySourceFree(qualifier)
+        case untpd.Apply(function, arguments) =>
+          for
+            _ <- verifySourceFree(function)
+            _ <- traverse(arguments)(verifySourceFree)
+          yield ()
         case untpd.InfixOp(left, operator, right) =>
           for
             _ <- verifySourceFree(left)

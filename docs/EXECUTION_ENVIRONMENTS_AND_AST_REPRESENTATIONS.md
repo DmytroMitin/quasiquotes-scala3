@@ -445,11 +445,14 @@ be one narrow, exact-version operation with owned validation and context rules,
 not a general raw-tree toolkit.
 
 The separate package-private `CoreTermShapeUntypedLowerer` is narrower again:
-it accepts only canonical signed decimal `TermShape.Literal` values and
-recursive `TermShape.Infix` values over a fixed ordinary-operator set. Every
-constructed node is checked for no source, no span, `NoSymbol`, and no
-`TypedSplice`. Exact parser-oracle comparison is structural and removes only
-parser-owned metadata; it does not render and reparse backend output.
+it accepts canonical signed decimal `TermShape.Literal` values, recursive
+`TermShape.Infix` values over a fixed ordinary-operator set, direct
+Identifiers, recursive Selects, and exactly one ordinary positional Apply
+list. A direct Apply in function position is rejected as multiple lists, while
+Apply remains admitted in ordinary argument and qualifier positions. Every
+constructed node is recursively checked for no source, no span, `NoSymbol`,
+and no `TypedSplice`. Exact parser-oracle comparison is structural and removes
+only parser-owned metadata; it does not render and reparse backend output.
 
 Across Scala 3.3.8, 3.8.4, and 3.9.0-RC1, Dotty's
 `Typer.typedInfixOp` delegates to infix desugaring that reads operand/operator
@@ -458,6 +461,9 @@ therefore asserts. The viability oracle uses a test-only recursive source-free
 `Apply(Select(left, operator), right)` shell immediately before typing. This
 proves the integer/operator semantics and expected `Int` values without
 changing the production raw result or fabricating source provenance.
+Source-free Identifier/Select/Apply trees do not need that infix-only shell:
+ordinary Typer consumes them over declared fixture names with empty, one, and
+multiple arguments on all three tested compiler lines.
 
 ## Source provenance policy
 

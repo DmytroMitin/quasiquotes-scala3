@@ -28,11 +28,14 @@ delivery chronology.
   one-list `new` helper remains test-only feasibility evidence.
 - Preserve the package-private production exact backend for that same bounded
   family. `CoreTermShapeUntypedLowerer` accepts canonical signed decimal
-  integer strings and the fixed ordinary operator set `+`, `-`, `*`, `/`, `%`,
-  `==`, `!=`, `<`, `<=`, `>`, `>=`; it recursively produces parser-equivalent
-  source-free `untpd.Number`/`untpd.InfixOp` trees and rejects every other core
-  Term family. It is not a public Scalameta-to-Dotty bridge or a generic
-  `TermShape` backend.
+  integer strings, the fixed ordinary operator set `+`, `-`, `*`, `/`, `%`,
+  `==`, `!=`, `<`, `<=`, `>`, `>=`, direct identifiers, recursive selections,
+  and exactly one ordinary positional Apply list. It validates direct names,
+  recursively produces parser-equivalent source-free raw trees, and rejects
+  placeholders, a direct Apply in function position, and every other core Term
+  family. It is not a public Scalameta-to-Dotty bridge or a generic `TermShape`
+  backend. Exact structural rewriting of existing raw trees remains a separate
+  U experiment and is not absorbed by this N-to-D route.
 
 - Preserve one semantic architecture: source frontends project into the
   project-owned compiler-free model in `core`, followed by backend-specific

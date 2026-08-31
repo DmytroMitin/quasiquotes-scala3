@@ -163,14 +163,14 @@ start/end offsets as `NeutralSourceSpan`. Explicitly constructed trees with
 ## Exact backend boundary
 
 The unpublished `dottyInternal` module depends on `neutralScalameta` and owns
-the exact bridges. For the production Term route, only the projected
-integer/infix `TermShape` subset is consumed by package-private
-`CoreTermShapeUntypedLowerer`, which directly constructs the corresponding
-source-free `untpd.Number` and `untpd.InfixOp` nodes. Canonical signed decimal
-text and a fixed ordinary operator set are validated before names or raw nodes
-are created. Newly projected Identifier, Select, and Apply shapes reach that
-exact boundary and fail with its existing unsupported-shape result; no exact
-lowerer was added for them.
+the exact bridges. For the production Term route, the projected
+integer/infix/Identifier/Select/one-list Apply `TermShape` family is consumed
+by package-private `CoreTermShapeUntypedLowerer`, which directly constructs
+the corresponding source-free raw nodes. Canonical signed decimal text, the
+fixed ordinary operator set, and direct ASCII non-keyword names are validated
+before raw names or nodes are created. A direct nested Apply in function
+position is rejected as multiple lists; Apply remains recursively valid in
+ordinary argument and qualifier positions.
 
 The separate definition route reuses the existing validated-IR and
 generated-origin adapters to produce a positioned `untpd.DefDef`. Reverse
@@ -182,6 +182,9 @@ formatting, exact offsets, or compiler-normalized distinctions. Unsupported raw
 forms fail explicitly. Exact trees never appear in the neutral module's API.
 The Term route likewise does not carry Phase-140 Scalameta offsets through the
 core value, fabricate source, or publish a `scala.meta.Term -> untpd.Tree` API.
+It constructs new D syntax from project-owned semantics; it does not absorb the
+separate U experiment for identity-preserving structural rewrites over existing
+raw trees.
 
 The exact module's complete ownership and exclusions are documented in the
 [Dotty-internal exact backend](DOTTY_INTERNAL_BACKEND.md).

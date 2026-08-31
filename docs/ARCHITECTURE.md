@@ -43,8 +43,6 @@ The production neutral Term route and its narrower exact continuation are:
 scala.meta.Term (integer / infix / identifier / select / one-list Apply)
   -> ScalametaTermProjection
   -> core TermShape
-      |-> Identifier / Select / Apply stop at the core boundary
-      `-> integer / infix only
   -> package-private CoreTermShapeUntypedLowerer
   -> source-free untpd.Tree
 ```
@@ -70,8 +68,12 @@ encoded by recursive `TermShape.Infix` structure.
 - `dottyInternal` contains unpublished exact-version `untpd` adapters and the
   narrow `ContextualMethodPeerBridge`, `SelfAbstractTypeMemberPeerBridge`, and
   `DelegatedForwardingMethodPeerBridge`. Its package-private
-  `CoreTermShapeUntypedLowerer` also consumes exactly the neutral integer/infix
-  family and emits source-free raw syntax. It is not a general raw-tree API.
+  `CoreTermShapeUntypedLowerer` consumes exactly the neutral
+  integer/infix/Identifier/Select/one-list Apply family and emits source-free
+  raw syntax. A direct Apply in function position is rejected as multiple
+  lists, while Apply remains valid in argument and qualifier positions. It is
+  not a general raw-tree API and does not perform U-style identity-preserving
+  rewriting of existing raw trees.
 - the aggregate and example projects publish no production artifacts.
 
 Only a Scalameta parse failure may select the current parser inside the hybrid

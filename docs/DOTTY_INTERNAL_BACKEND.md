@@ -55,10 +55,13 @@ The 043 operation is documented on the
 
 All other production owners are package-private or otherwise project-internal:
 
-- `CoreTermShapeUntypedLowerer` lowers only canonical signed decimal literals
-  and recursive ordinary infix nodes from core `TermShape` to source-free
-  `untpd.Number`/`untpd.InfixOp` syntax. It validates a fixed operator set and
-  audits no source, no span, `NoSymbol`, and no `TypedSplice` recursively.
+- `CoreTermShapeUntypedLowerer` lowers canonical signed decimal literals,
+  recursive ordinary infix nodes, direct identifiers, recursive selections,
+  and exactly one ordinary positional Apply list from core `TermShape` to
+  source-free raw syntax. It validates the fixed operator and ASCII
+  non-keyword name sets, rejects placeholders and a direct Apply in function
+  position, and audits no source, no span, `NoSymbol`, and no `TypedSplice`
+  recursively.
 - `ConstructedTermUntypedBackend` and `CompletedTypeUntypedLowerer` lower the
   admitted compiler-free Term/Type models to source-free raw trees.
 - `ConstructedDefinitionUntypedBackend` and
@@ -86,7 +89,7 @@ rendering, structural planning, positioning, and validation.
 
 ## Test-only exact-compiler evidence
 
-Tests demonstrate two capabilities that are not production APIs:
+Tests demonstrate bounded capabilities that are not production APIs:
 
 - current `q.reflect.Term` values are implemented by `tpd.Tree`, and
   `tpd.applyOverloaded` can construct the typed addition on the exact compiler
@@ -94,9 +97,13 @@ Tests demonstrate two capabilities that are not production APIs:
 - `untpd.TypedSplice` can embed typed leaves in a newly constructed untyped
   shell, after which `Typer.typedExpr` produces a typed result.
 - the production neutral projector composes with
-  `CoreTermShapeUntypedLowerer` for `1 + 1`, `1 + 2 * 3`, and `-1 + 2`, and the
-  resulting source-free raw structure agrees with an independent parser oracle
-  on Scala 3.3.8, 3.8.4, and 3.9.0-RC1.
+  `CoreTermShapeUntypedLowerer` for the bounded
+  integer/infix/Identifier/Select/one-list Apply family, and the resulting
+  source-free raw structure agrees with an independent parser oracle on Scala
+  3.3.8, 3.8.4, and 3.9.0-RC1.
+- ordinary Typer accepts the source-free Identifier/Select/Apply results over
+  declared fixture names, including empty, one-argument, and multi-argument
+  calls, without manufactured positions.
 
 Direct `Typer.typedExpr` on a span-free `untpd.InfixOp` is not supported by the
 tested compiler lines: Dotty's infix desugaring reads the left/operator spans.
@@ -114,14 +121,15 @@ There is no production public bridge from arbitrary `scala.meta.Term` to
 `untpd.Tree`, no public neutral projector from arbitrary `scala.meta.Term`, no
 generic raw-tree family, no placement service, and no stable published
 coordinate for this module. The package-private production composition admits
-only recursive semantic integers and ordinary binary infix Terms through core
+only recursive semantic integers, ordinary binary infix Terms, direct
+identifiers, selections, and one-list ordinary applications through core
 `TermShape`.
 Typed Scalameta Term traversal instead belongs to the separate unpublished
 `hybridScalametaFrontend` and returns caller-owned `q.reflect.Term`.
 
-The compiler-free neutral projector independently admits bounded Identifier,
-Select, and one-list Apply shapes, but this exact backend rejects all three at
-its existing unsupported-shape boundary. Exact Identifier/Select/Apply
-lowering, `new`, unary, tuple, block, binder, Type-sidecar, and other raw Term
-families remain explicit later slices. None of the definition-specific bridges
-widen that boundary.
+The exact backend's Identifier/Select/Apply support is bounded to new
+source-free D construction from project-owned `TermShape`. It does not preserve
+input raw-tree identity, implement U matching/reconstruction, or introduce a
+cross-surface capability layer. `new`, unary, tuple, block, binder,
+Type-sidecar, and other raw Term families remain explicit later slices. None
+of the definition-specific bridges widen that boundary.
