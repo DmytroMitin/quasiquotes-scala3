@@ -68,7 +68,7 @@ final class Phase142IntegerInfixParityTest extends munit.FunSuite:
     assertEquals(evidence.scalametaPatternEngine, "Scalameta")
     assert(evidence.scalametaPatternPrimaryFailureEmpty)
 
-  test("fallback and neutral-overlap boundaries remain explicit and fail closed"):
+  test("fallback and neutral-overlap boundaries remain explicit"):
     given Compiler = Compiler.make(getClass.getClassLoader)
     val evidence = withQuotes:
       val q = summon[scala.quoted.Quotes]
@@ -122,7 +122,7 @@ final class Phase142IntegerInfixParityTest extends munit.FunSuite:
         hybridTree(contextualInfix).isRight,
         ScalametaTermProjection.project(multipleRhs).left.map(_.code),
         hybridTree(multipleRhs).left.map(_.category),
-        ScalametaTermProjection.project(parsedHoleTopology).left.map(_.code),
+        ScalametaTermProjection.project(parsedHoleTopology).map(_.shape.render),
         hybridHole.map(term => term.tpe.widen =:= TypeRepr.of[Int])
       )
 
@@ -136,5 +136,5 @@ final class Phase142IntegerInfixParityTest extends munit.FunSuite:
     assert(evidence._8)
     assertEquals(evidence._9, Left("NEUTRAL_INFIX_ARGUMENT_CLAUSE_UNSUPPORTED"))
     assertEquals(evidence._10, Left("SCALAMETA_LOWERING_UNSUPPORTED"))
-    assertEquals(evidence._11, Left("NEUTRAL_TERM_UNSUPPORTED"))
+    assertEquals(evidence._11, Right("Infix(Ident(termHole), +, Literal(2))"))
     assertEquals(evidence._12, Right(true))

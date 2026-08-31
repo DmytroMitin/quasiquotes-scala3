@@ -173,9 +173,10 @@ source construction and extractor matching. It requires neither an active
 compiler implementation and SemanticDB.
 
 Scalameta trees are source syntax, not typed reflection or exact Dotty trees.
-`ScalametaTermProjection` admits exactly semantic integer literals and ordinary
-one-RHS binary infix nodes into the existing core `TermShape`, preserving a
-truthful root span when present and failing closed otherwise. The separate
+`ScalametaTermProjection` admits semantic integer literals, ordinary one-RHS
+binary infix nodes, direct identifiers, direct selections, and one ordinary
+positional Apply argument list into the existing core `TermShape`, preserving
+one truthful root span when present and failing closed otherwise. The separate
 `ScalametaContextualMethodProjection` admits one contextual method into the
 existing validated definition IR. Exact lowering and reverse raw-tree
 projection remain in `dottyInternal`. See the
@@ -197,7 +198,7 @@ general Scalameta-definition conversion.
 | `TermPattern` / `MatchResult` | Public neutral structural matching data in `core`. |
 | `TermTemplate` / `ConstructedTerm` | Package-internal validated construction IR in `core`; deliberately not public. |
 | `CompletedTerm` | Public bounded definition-body payload; not the general term AST. |
-| `scala.meta.Term` | Experimental unpublished source-syntax term in `neutralScalameta`; direct construction/matching, with production projection to `TermShape` limited to semantic integers and ordinary binary infix nodes. |
+| `scala.meta.Term` | Experimental unpublished source-syntax term in `neutralScalameta`; direct construction/matching, with production projection to `TermShape` for semantic integers, ordinary binary infix, direct identifier/select, and one-list ordinary Apply nodes. |
 | `Expr[T]` / `quotes.reflect.Term` | Caller-`Quotes` staged and reflected values used by `qr`/`qq`; compiler-coupled and universe-dependent. |
 | `dotty.tools.dotc.ast.untpd.Tree` | Exact compiler-internal value used by parsing and the unpublished exact backend; not a published AST contract. |
 
@@ -405,9 +406,10 @@ untpd.Tree
 The current production endpoints of this second route are the bounded
 contextual-method, self abstract-Type-member, and delegated-forwarding-method
 bridges plus the package-private integer/infix Term backend.
-The latter composes the production `ScalametaTermProjection` with core
+The latter composes only the projector's integer/infix subset with core
 `TermShape` and direct source-free `untpd.Number`/`untpd.InfixOp` construction;
-it is not a general Term bridge. See the
+the newly projected Identifier/Select/Apply shapes stop at its unsupported-
+shape boundary. It is not a general Term bridge. See the
 [Dotty-internal exact backend](DOTTY_INTERNAL_BACKEND.md).
 
 ## Exact-version `Quotes` and Dotty-internal interoperability

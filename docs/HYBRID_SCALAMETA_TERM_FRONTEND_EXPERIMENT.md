@@ -47,14 +47,16 @@ uses `Engine.Scalameta` with no primary failure on Scala 3.3.8, 3.8.4, and
 3.9.0-RC1.
 
 That common evidence is a differential contract, not a shared lowering
-implementation. The neutral projector deliberately accepts only no-hole
-`Lit.Int` and ordinary one-RHS `ApplyInfix` trees and returns a compiler-free
-`TermShape` plus truthful source span. The typed route is active-`Quotes`
-lowering with reflected holes, compiler member selection, typed failures, and
-parse-only fallback policy. It also currently accepts some Scalameta infix AST
-topologies that the neutral projector rejects. Routing the typed overlap
-through the neutral projector would therefore change admission, diagnostics,
-fallback, and caller-owned identity contracts without an existing suitable
+implementation. The neutral projector returns a compiler-free `TermShape` plus
+one truthful root span. Its original no-hole `Lit.Int`/ordinary one-RHS
+`ApplyInfix` overlap now composes with direct Identifier, Select, and one-list
+Apply syntax, but it still performs no typed lowering or reflected identity
+transport. The typed route is active-`Quotes` lowering with reflected holes,
+compiler member selection, typed failures, and parse-only fallback policy. It
+also currently accepts some Scalameta infix AST topologies that the neutral
+projector rejects. Routing the typed overlap or the new neutral call family
+through the projector would therefore change admission, diagnostics, fallback,
+and caller-owned identity contracts without an existing suitable
 `TermShape -> q.reflect.Term` backend. The direct typed lowering remains, with
 shared parity tests as the consolidation boundary.
 

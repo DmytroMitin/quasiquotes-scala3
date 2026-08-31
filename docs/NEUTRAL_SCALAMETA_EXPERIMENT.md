@@ -29,7 +29,7 @@ import scala.meta.*
 import scala.meta.dialects.Scala3
 import quasiquotes.neutral.ScalametaTermProjection
 
-val source: Term = q"1 + 1"
+val source: Term = q"obj.f(1 + 2, 3)"
 val shape = ScalametaTermProjection.project(source).map(_.shape)
 ```
 
@@ -37,21 +37,41 @@ The result is:
 
 ```scala
 Right(
-  quasiquotes.parser.TermShape.Infix(
-    quasiquotes.parser.TermShape.Literal("1"),
-    "+",
-    quasiquotes.parser.TermShape.Literal("1")
+  quasiquotes.parser.TermShape.Apply(
+    quasiquotes.parser.TermShape.Select(
+      quasiquotes.parser.TermShape.Identifier("obj", false),
+      "f"
+    ),
+    List(
+      quasiquotes.parser.TermShape.Infix(
+        quasiquotes.parser.TermShape.Literal("1"),
+        "+",
+        quasiquotes.parser.TermShape.Literal("2")
+      ),
+      quasiquotes.parser.TermShape.Literal("3")
+    )
   )
 )
 ```
 
 Production support is exactly the recursive family formed from Scalameta
-`Lit.Int` semantic values and ordinary binary `Term.ApplyInfix` nodes with no
-type arguments and exactly one non-contextual RHS argument. A positioned root
-retains its exact Scalameta offsets; a constructed `Position.None` root remains
-valid with no span. Identifier, select, apply, `new`, unary, tuple, `if`, block,
-typed, interpolation, binder, lambda, and placeholder shapes return a stable
-`NeutralProjectionError`. They never become `TermShape.Unsupported`.
+`Lit.Int` semantic values, ordinary binary `Term.ApplyInfix` nodes with no Type
+arguments and exactly one non-contextual RHS argument, conservative direct
+source identifiers, direct selections, and one ordinary positional
+`Term.Apply` argument list. Apply permits zero, one, or multiple arguments.
+Nested Apply lists, Type application, contextual clauses, named/star
+arguments, `new`, unary, tuple, `if`, block, ascription, interpolation, binder,
+lambda, and placeholder shapes return a stable `NeutralProjectionError`.
+They never become `TermShape.Unsupported`.
+
+The name policy is syntactic only: direct and selected names use non-keyword
+ASCII spellings matching `[A-Za-z_][A-Za-z0-9_]*`, excluding `_`. No compiler,
+symbol, package/classpath, accessibility, uniqueness, overload, or future
+typechecking claim follows from admission. A positioned root retains its exact
+Scalameta offsets; a constructed `Position.None` root remains valid with no
+span. Recursive children are semantic copies. The result preserves neither
+Scalameta child identity nor raw Dotty subtree identity and carries no raw
+sidecar or opaque exact island.
 
 Pure upstream Scalameta construction and matching remains useful context and
 also needs no project façade or active `Quotes`:
@@ -124,11 +144,11 @@ val resultType = projected.map(_.result.resultType.source)       // Right("Show[
 ```
 
 This exact example is compile-checked and remains a separate definition
-projection. The production term projector above is deliberately narrower than
-the Phase-131 test-only prototype, which also demonstrates identifier, select,
-apply, and one-list `new` feasibility. Those forms remain future explicit
-slices; the prototype is not the production contract. Binder identity and
-completed type sidecars still need their own bounded contracts.
+projection. The production term projector now promotes the Phase-131
+identifier, select, and one-list Apply evidence with stricter name, clause,
+argument, failure, and span contracts. The prototype's one-list `new` remains
+test-only feasibility evidence rather than production support. Binder identity
+and completed Type sidecars still need their own bounded contracts.
 
 The projector converts fields directly to `CompletedType`, `CompletedTerm`,
 and `DefinitionConstruction.contextualMethod`. Unsupported shapes return
@@ -143,12 +163,14 @@ start/end offsets as `NeutralSourceSpan`. Explicitly constructed trees with
 ## Exact backend boundary
 
 The unpublished `dottyInternal` module depends on `neutralScalameta` and owns
-the exact bridges. For the production Term route, the projected integer/infix
-`TermShape` is consumed by package-private `CoreTermShapeUntypedLowerer`, which
-directly constructs the corresponding source-free `untpd.Number` and
-`untpd.InfixOp` nodes. Canonical signed decimal text and a fixed ordinary
-operator set are validated before names or raw nodes are created; every other
-Term family fails closed.
+the exact bridges. For the production Term route, only the projected
+integer/infix `TermShape` subset is consumed by package-private
+`CoreTermShapeUntypedLowerer`, which directly constructs the corresponding
+source-free `untpd.Number` and `untpd.InfixOp` nodes. Canonical signed decimal
+text and a fixed ordinary operator set are validated before names or raw nodes
+are created. Newly projected Identifier, Select, and Apply shapes reach that
+exact boundary and fail with its existing unsupported-shape result; no exact
+lowerer was added for them.
 
 The separate definition route reuses the existing validated-IR and
 generated-origin adapters to produce a positioned `untpd.DefDef`. Reverse

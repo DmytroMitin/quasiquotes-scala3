@@ -37,12 +37,14 @@ and Scalameta transitively through `neutralScalameta`, while
 `hybridScalametaFrontend` has both the current typed frontend and the neutral
 Scalameta projection available. `frontend` never depends on `dottyInternal`.
 
-The first production neutral-to-exact Term route is therefore:
+The production neutral Term route and its narrower exact continuation are:
 
 ```text
-scala.meta.Term (semantic integer / ordinary binary infix)
+scala.meta.Term (integer / infix / identifier / select / one-list Apply)
   -> ScalametaTermProjection
-  -> core TermShape (same bounded family)
+  -> core TermShape
+      |-> Identifier / Select / Apply stop at the core boundary
+      `-> integer / infix only
   -> package-private CoreTermShapeUntypedLowerer
   -> source-free untpd.Tree
 ```
@@ -56,9 +58,10 @@ encoded by recursive `TermShape.Infix` structure.
   lowering. It is also the first-class reference implementation and oracle.
 - `neutralScalameta` is an unpublished compiler-free Scalameta 4.17.3 AST
   boundary and projection layer. Scalameta trees are source syntax; they are
-  not the project's semantic model. Its production Term projection is exactly
-  semantic integer literals plus recursive ordinary binary infix nodes into
-  core `TermShape`; every other Term shape fails closed.
+  not the project's semantic model. Its production Term projection admits
+  semantic integer literals, recursive ordinary binary infix nodes, direct
+  identifiers, direct selections, and exactly one ordinary positional Apply
+  argument list into core `TermShape`; every other Term shape fails closed.
 - `hybridScalametaFrontend` is an unpublished opt-in typed Term/Type frontend.
   It reuses project-owned templates, patterns, matching, and Type models where
   applicable. Term construction currently lowers Scalameta ASTs directly in
@@ -172,17 +175,24 @@ Plain Scalameta `q`/`t` construction and matching stops at `scala.meta` AST and
 does not require `neutralScalameta`; that module exists for bounded validated
 projection into this project's shared model.
 
-The first reusable Term route is now:
+The reusable neutral Term route is now:
 
 ```text
-scala.meta Lit.Int / ordinary binary ApplyInfix
+scala.meta Lit.Int / ordinary binary ApplyInfix / Term.Name / Term.Select
+  / one ordinary Term.Apply argument list
   -> ScalametaTermProjection
   -> core TermShape
 ```
 
 It preserves only a truthful root source span and performs no rendering,
-reparse, typing, symbol lookup, or fallback. Identifier, select, apply, `new`,
-and the other Phase-131 prototype forms remain outside production support.
+reparse, typing, symbol lookup, overload resolution, or fallback. The recursive
+result is a semantic copy; it does not preserve Scalameta child identity or raw
+Dotty subtree identity and adds no opaque raw sidecar. Nested Apply lists, Type
+application, contextual clauses, named/star arguments, `new`, and the other
+Phase-131 prototype forms remain outside production support. The exact backend
+continues to reject the new Identifier, Select, and Apply core shapes rather
+than widening in lock-step. The typed Scalameta frontend remains direct and is
+not refactored through this projector.
 
 AUXify's current narrow `@apply` path uses ordinary Scalameta `q`, `t`, and
 `tparam` authoring and Quasiquotes `ContextualMethodPeerBridge` lowering to an

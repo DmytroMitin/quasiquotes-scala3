@@ -11,21 +11,21 @@ delivery chronology.
   arithmetic/comparison family across Scala 3.3.8, 3.8.4, and 3.9.0-RC1.
   Keep direct typed Scalameta AST-to-reflection lowering and share the
   differential parity contract; do not route it through the narrower neutral
-  projector or add a core-to-typed lowerer merely for symmetry. The next
-  rotated semantic track is peer work, with AUXify input 043 selected for a
-  separate bounded forwarding-method bridge design from fresh prerequisite
-  evidence.
+  projector or add a core-to-typed lowerer merely for symmetry.
 - Preserve the Phase-131 representation boundary: public `Expr` and
   `quotes.reflect.Term` APIs are distinct from exact `tpd`/`untpd` internals,
   while Scalameta and the compiler-free core form a separate neutral axis.
   `dottyInternal` remains an unpublished exact backend, not a generic raw-tree
   toolkit.
 - Preserve the production compiler-free `scala.meta.Term -> TermShape`
-  projector for exactly recursive semantic `Lit.Int` values and ordinary
-  one-RHS binary infix nodes. It retains truthful root offsets and fails closed
-  for every other Term shape. The broader Phase-131 select/apply/one-list
-  `new`/identifier helper remains test-only feasibility evidence rather than
-  production support.
+  projector for recursive semantic `Lit.Int`, ordinary one-RHS binary infix,
+  direct identifier, direct selection, and one ordinary positional `Apply`
+  argument-list nodes. Zero, one, and multiple arguments compose recursively;
+  nested application lists, Type application, contextual clauses, named/star
+  arguments, and every other Term shape fail closed. The projector retains one
+  truthful root span, makes semantic copies rather than preserving raw-tree
+  identity, and performs no name or overload resolution. The Phase-131
+  one-list `new` helper remains test-only feasibility evidence.
 - Preserve the package-private production exact backend for that same bounded
   family. `CoreTermShapeUntypedLowerer` accepts canonical signed decimal
   integer strings and the fixed ordinary operator set `+`, `-`, `*`, `/`, `%`,
@@ -210,14 +210,16 @@ foreign-package consumer proofs are complete. Inputs 039, 041, 043, and 045
 remain separate peer-oriented lanes; 046 did not implement or widen them.
 External `DefDef` statement splicing is not selected merely for symmetry.
 After the two completed typed/public rotation slots, the selected neutral/core
-gate is implemented: `ScalametaTermProjection` maps the bounded integer/infix
-family, including `q"1 + 1"`, directly to project-owned `TermShape`. It does not
-admit binders, type sidecars, arbitrary Terms, or a public frontend switch. The
-following exact-backend gate is also implemented: the same bounded core family
-lowers directly to source-free, span-free, symbol-free `untpd.Tree` without
-parsing or generated provenance. Direct `Typer.typedExpr` on a `NoSpan`
-`untpd.InfixOp` is not viable because Dotty's infix desugaring reads operand and
-operator spans; three-line verification therefore uses a test-only source-free
+gate expands `ScalametaTermProjection` from the original integer/infix family
+to direct identifiers, selections, and one ordinary positional Apply list.
+For example, `q"obj.f(1 + 2, 3)"` maps directly to recursive project-owned
+`TermShape` without binders, Type sidecars, compiler lookup, or a public
+frontend switch. The exact backend intentionally remains narrower: only the
+integer/infix core family lowers to source-free, span-free, symbol-free
+`untpd.Tree`; Identifier, Select, and Apply fail at its existing unsupported-
+shape boundary. Direct `Typer.typedExpr` on a `NoSpan` `untpd.InfixOp` is not
+viable because Dotty's infix desugaring reads operand and operator spans;
+three-line verification therefore uses a test-only source-free
 `Apply(Select(...), ...)` typing shell after separately proving the production
 tree's parser-equivalent raw shape.
 

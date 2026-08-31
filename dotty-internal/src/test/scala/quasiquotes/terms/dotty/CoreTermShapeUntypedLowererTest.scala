@@ -263,16 +263,25 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
     }
   }
 
-  test("keeps neutral rejection before exact lowering and rejects hostile core input at its own boundary") {
-    assert(ScalametaTermProjection.project(q"value").isLeft)
+  test("rejects newly admitted neutral Identifier, Select, and Apply shapes at the unchanged exact boundary") {
+    val fixtures = List(
+      q"value" -> "Identifier",
+      q"obj.value" -> "Select",
+      q"obj.value(1)" -> "Apply"
+    )
 
     withContext {
-      assertEquals(
-        CoreTermShapeUntypedLowerer.lower(
-          TermShape.Identifier("value", isPlaceholder = false)
-        ),
-        Left(UnsupportedTermShape("Identifier"))
-      )
+      fixtures.foreach { (source, expectedNodeKind) =>
+        val projected = ScalametaTermProjection.project(source).fold(
+          error => fail(error.message),
+          identity
+        )
+        assertEquals(
+          CoreTermShapeUntypedLowerer.lower(projected.shape),
+          Left(UnsupportedTermShape(expectedNodeKind)),
+          clues(source.syntax)
+        )
+      }
     }
   }
 

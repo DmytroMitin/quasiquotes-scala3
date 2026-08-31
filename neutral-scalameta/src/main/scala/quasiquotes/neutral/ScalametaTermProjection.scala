@@ -4,11 +4,66 @@ import quasiquotes.parser.TermShape
 
 import scala.meta.*
 
-/**
- * Compiler-free projection for integer literals and ordinary binary infix
- * terms only.
- */
+/** Compiler-free projection for the bounded ordinary source-Term family. */
 object ScalametaTermProjection:
+  private val PlainSourceName = "[A-Za-z_][A-Za-z0-9_]*".r
+  private val Scala3Keywords = Set(
+    "abstract",
+    "as",
+    "case",
+    "catch",
+    "class",
+    "def",
+    "derives",
+    "do",
+    "else",
+    "end",
+    "enum",
+    "export",
+    "extends",
+    "extension",
+    "false",
+    "final",
+    "finally",
+    "for",
+    "forSome",
+    "given",
+    "if",
+    "implicit",
+    "import",
+    "infix",
+    "inline",
+    "lazy",
+    "macro",
+    "match",
+    "new",
+    "null",
+    "object",
+    "opaque",
+    "open",
+    "override",
+    "package",
+    "private",
+    "protected",
+    "return",
+    "sealed",
+    "super",
+    "then",
+    "this",
+    "throw",
+    "trait",
+    "transparent",
+    "true",
+    "try",
+    "type",
+    "using",
+    "val",
+    "var",
+    "while",
+    "with",
+    "yield"
+  )
+
   def project(
       term: Term
   ): Either[NeutralProjectionError, ProjectedTermShape] =
@@ -25,8 +80,25 @@ object ScalametaTermProjection:
       term: Term
   ): Either[NeutralProjectionError, TermShape] =
     term match
+      case name: Term.Name =>
+        validateSourceName(
+          name.value,
+          "NEUTRAL_IDENTIFIER_NAME_UNSUPPORTED",
+          "direct identifiers"
+        ).map(TermShape.Identifier(_, isPlaceholder = false))
       case Lit.Int(value) =>
         Right(TermShape.Literal(value.toString))
+      case select: Term.Select =>
+        for
+          qualifier <- projectShape(select.qual)
+          selectedName <- validateSourceName(
+            select.name.value,
+            "NEUTRAL_SELECTION_NAME_UNSUPPORTED",
+            "selected names"
+          )
+        yield TermShape.Select(qualifier, selectedName)
+      case application: Term.Apply =>
+        projectApply(application)
       case infix: Term.ApplyInfix =>
         for
           _ <- require(
@@ -53,6 +125,74 @@ object ScalametaTermProjection:
             s"unsupported Scalameta term node: ${other.productPrefix}."
           )
         )
+
+  private def projectApply(
+      application: Term.Apply
+  ): Either[NeutralProjectionError, TermShape] =
+    for
+      _ <- require(
+        application.argClause.mod.isEmpty,
+        "NEUTRAL_APPLY_ARGUMENT_CLAUSE_UNSUPPORTED",
+        "ordinary Apply terms require one non-contextual argument clause."
+      )
+      _ <- application.fun match
+        case _: Term.Apply =>
+          Left(
+            error(
+              "NEUTRAL_APPLY_MULTIPLE_LISTS_UNSUPPORTED",
+              "nested Apply function topology would advertise multiple argument lists."
+            )
+          )
+        case _: Term.ApplyType =>
+          Left(
+            error(
+              "NEUTRAL_APPLY_FUNCTION_UNSUPPORTED",
+              "ordinary Apply terms must not contain a Type application."
+            )
+          )
+        case _ => Right(())
+      function <- projectShape(application.fun)
+      arguments <- traverse(application.argClause.values)(projectApplyArgument)
+    yield TermShape.Apply(function, arguments)
+
+  private def projectApplyArgument(
+      argument: Term
+  ): Either[NeutralProjectionError, TermShape] =
+    argument match
+      case _: Term.Assign | _: Term.Repeated =>
+        Left(
+          error(
+            "NEUTRAL_APPLY_ARGUMENT_UNSUPPORTED",
+            s"ordinary Apply arguments must be positional Terms, found ${argument.productPrefix}."
+          )
+        )
+      case other => projectShape(other)
+
+  private def validateSourceName(
+      name: String,
+      code: String,
+      role: String
+  ): Either[NeutralProjectionError, String] =
+    Either.cond(
+      Option(name).exists(value =>
+        value != "_" && PlainSourceName.matches(value) && !Scala3Keywords(value)
+      ),
+      name,
+      error(
+        code,
+        s"$role require a non-keyword ASCII name matching [A-Za-z_][A-Za-z0-9_]*, excluding _."
+      )
+    )
+
+  private def traverse[A, B](
+      values: List[A]
+  )(projectValue: A => Either[NeutralProjectionError, B]): Either[NeutralProjectionError, List[B]] =
+    values.foldRight(Right(Nil): Either[NeutralProjectionError, List[B]]) { (value, rest) =>
+      for
+        head <- projectValue(value)
+        tail <- rest
+      yield head :: tail
+    }
 
   private def truthfulSpan(tree: Tree): Option[NeutralSourceSpan] =
     tree.pos match

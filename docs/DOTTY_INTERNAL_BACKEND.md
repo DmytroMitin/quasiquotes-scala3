@@ -119,6 +119,9 @@ only recursive semantic integers and ordinary binary infix Terms through core
 Typed Scalameta Term traversal instead belongs to the separate unpublished
 `hybridScalametaFrontend` and returns caller-owned `q.reflect.Term`.
 
-Identifier, select, apply, `new`, unary, tuple, block, binder, type-sidecar, and
-other Term families remain explicit later slices. None of the
-definition-specific bridges widen that boundary.
+The compiler-free neutral projector independently admits bounded Identifier,
+Select, and one-list Apply shapes, but this exact backend rejects all three at
+its existing unsupported-shape boundary. Exact Identifier/Select/Apply
+lowering, `new`, unary, tuple, block, binder, Type-sidecar, and other raw Term
+families remain explicit later slices. None of the definition-specific bridges
+widen that boundary.
