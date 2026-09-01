@@ -158,9 +158,10 @@ construct/match boundary and its deliberate limits.
   change.
   It has no typed `dqr`/`dqq`; neutral Scalameta definition authoring and typed
   reflected Definition placement are distinct contracts.
-- `dottyInternal` contains exact-compiler internal adapters and two narrow
-  experimental foreign-package peer bridges: contextual-method lowering and
-  the bounded AUXify self abstract-Type-member operation.
+- `dottyInternal` contains exact-compiler internal adapters and four narrow
+  experimental foreign-package peer bridges: contextual-method lowering,
+  bounded AUXify self abstract-Type-member lowering, delegated forwarding, and
+  the bounded AUXify-039 Type alias.
   Its source is present for review and testing, but its artifact is deliberately
   unpublished and consumers must match the exact Scala compiler version.
 - `public-core-examples` and `public-api-examples` compile consumer code from

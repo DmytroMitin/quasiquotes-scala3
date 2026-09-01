@@ -7,7 +7,7 @@ version and active compiler context.
 
 ## Current public-for-JVM-access surface
 
-Three definition-specific production objects in this module are intentionally
+Four definition-specific production objects in this module are intentionally
 exposed to foreign packages. `ContextualMethodPeerBridge` accepts either the
 legacy single-unbounded-parameter contextual method or the exact bounded
 two-parameter AUXify-037 `Add.Out` method. The separate
@@ -15,7 +15,9 @@ two-parameter AUXify-037 `Add.Out` method. The separate
 member family. `DelegatedForwardingMethodPeerBridge` accepts only the exact
 AUXify-043 one-type-parameter, ordinary-parameter, final-using-parameter
 forwarder whose body calls the contextual instance with the ordinary argument.
-All three require a virtual source name and return a categorized
+`AuxTypeAliasPeerBridge` accepts only the exact AUXify-039 three-parameter,
+two-target-reference, one-refinement-alias family. All four require a virtual
+source name and return a categorized
 failure or a positioned tree with deterministic generated source and the
 effective virtual source name.
 
@@ -50,6 +52,8 @@ The second operation is documented separately on the
 [self abstract-Type-member bridge page](SELF_ABSTRACT_TYPE_MEMBER_PEER_BRIDGE.md).
 The 043 operation is documented on the
 [delegated forwarding-method bridge page](DELEGATED_FORWARDING_METHOD_PEER_BRIDGE.md).
+The 039 operation is documented on the
+[AUXify-039 Type-alias bridge page](AUXIFY039_TYPE_ALIAS_PEER_BRIDGE.md).
 
 ## Internal module inventory
 
@@ -73,6 +77,10 @@ All other production owners are package-private or otherwise project-internal:
 - `DelegatedForwardingMethodUntypedLowerer` and its generated-origin adapter
   own only the exact AUXify-043 14-node `untpd.DefDef` shape and its complete
   generated-source position layout.
+- `AuxTypeAliasUntypedLowerer` and its generated-origin adapter own only the
+  exact AUXify-039 18-node `untpd.TypeDef` shape. The private
+  `AuxTypeAliasPlanUntypedInputAdapter` copies N001 BinderIds and spellings into
+  U001 input without allocating or inferring identities.
 - `ScalametaContextualMethodBackend` is an internal bounded forward/reverse
   adapter for the contextual-method shape.
 - the generated-origin adapters, result carriers, fragment planner,

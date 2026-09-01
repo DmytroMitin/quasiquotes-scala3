@@ -67,7 +67,8 @@ encoded by recursive `TermShape.Infix` structure.
   neutral `TermShape` projector.
 - `dottyInternal` contains unpublished exact-version `untpd` adapters and the
   narrow `ContextualMethodPeerBridge`, `SelfAbstractTypeMemberPeerBridge`, and
-  `DelegatedForwardingMethodPeerBridge`. Its package-private
+  `DelegatedForwardingMethodPeerBridge`, plus the bounded
+  `AuxTypeAliasPeerBridge`. Its package-private
   `CoreTermShapeUntypedLowerer` consumes exactly the neutral
   integer/infix/Identifier/Select/one-list Apply family and emits source-free
   raw syntax. A direct Apply in function position is rejected as multiple
@@ -214,6 +215,16 @@ and uses `DelegatedForwardingMethodPeerBridge` to obtain a positioned
 `untpd.DefDef`. AUXify still owns method derivation, and Macro-Paradise still
 owns source inspection, companion lifecycle, placement, conflict policy, and
 rollback. This operation is not a general method or Term bridge.
+
+The bounded AUXify-039 alias path accepts one already-authored Scalameta
+`Defn.Type` plus explicit alias, three parameter, three bound, target, and
+refinement-member expectations. `ScalametaAuxTypeAliasProjection` produces the
+three-binder `AuxTypeAliasPlan`; one private identity-preserving adapter copies
+those binder identities into the accepted U001 input, and
+`AuxTypeAliasPeerBridge` returns a positioned 18-node `untpd.TypeDef`. AUXify
+owns fresh-name derivation and authoring. Macro-Paradise retains all lifecycle,
+admission, companion, placement, conflict, rollback, and typing policy. See the
+[AUXify-039 bridge contract](AUXIFY039_TYPE_ALIAS_PEER_BRIDGE.md).
 
 Macro-Paradise remains an exact compiler plugin. It owns plugin lifecycle,
 placement, companion merge, insertion, rollback, and typing, and does not take
