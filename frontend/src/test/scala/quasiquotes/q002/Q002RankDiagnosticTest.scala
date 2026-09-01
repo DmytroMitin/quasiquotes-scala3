@@ -51,14 +51,6 @@ class Q002RankDiagnosticTest extends munit.FunSuite:
           case _ => ()
       """
     )
-    val constructor = messages(
-      """import scala.quoted.*
-        import quasiquotes.matching.QuasiPattern.*
-        def attempt(using q: Quotes)(term: q.reflect.Term) = term match
-          case qq"new java.lang.StringBuilder(..$arguments)" => ()
-          case _ => ()
-      """
-    )
     val tuple = messages(
       """import scala.quoted.*
         import quasiquotes.matching.QuasiPattern.*
@@ -87,14 +79,10 @@ class Q002RankDiagnosticTest extends munit.FunSuite:
     assert(multiple.exists(_.contains("only one rank-2 sequence-Term capture")))
     assert(rankThree.exists(_.contains("unsupported rank-3 `...` capture marker")))
     assert(orphan.exists(_.contains("orphan or malformed `..` rank marker")))
-    assert(root.exists(_.contains("direct ordinary Apply argument")))
-    assert(
-      constructor.exists(_.contains("direct ordinary Apply argument")),
-      constructor.mkString(" | ")
-    )
-    assert(tuple.exists(_.contains("direct ordinary Apply argument")), tuple.mkString(" | "))
-    assert(typed.exists(_.contains("direct ordinary Apply argument")), typed.mkString(" | "))
-    assert(block.exists(_.contains("direct ordinary Apply argument")), block.mkString(" | "))
+    assert(root.exists(_.contains("direct ordinary Apply or fixed one-list New argument")))
+    assert(tuple.exists(_.contains("direct ordinary Apply or fixed one-list New argument")), tuple.mkString(" | "))
+    assert(typed.exists(_.contains("direct ordinary Apply or fixed one-list New argument")), typed.mkString(" | "))
+    assert(block.exists(_.contains("direct ordinary Apply or fixed one-list New argument")), block.mkString(" | "))
 
   test("split-dot and Type/Definition rank spellings fail with stable family diagnostics"):
     val splitDots = messages(
@@ -159,7 +147,7 @@ class Q002RankDiagnosticTest extends munit.FunSuite:
       sequenceIndex = 0
     )
     assert(
-      result.left.exists(_.contains("direct ordinary Apply argument")),
+      result.left.exists(_.contains("direct ordinary Apply or fixed one-list New argument")),
       result.toString
     )
 

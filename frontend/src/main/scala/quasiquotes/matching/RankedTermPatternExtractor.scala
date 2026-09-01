@@ -9,6 +9,11 @@ final class RankedTermPatternExtractor[T, Captures <: Tuple](
 ):
   def unapply(value: T): Option[Captures] = extract(value)
 
+private[matching] final class RankedSingleSequenceTermPatternExtractor[T](
+    extract: T => Option[Seq[T]]
+):
+  def unapply(value: T): Option[Seq[T]] = extract(value)
+
 private[matching] sealed trait RankedCaptureKind
 private[matching] sealed trait ScalarTermCapture extends RankedCaptureKind
 private[matching] sealed trait SequenceTermCapture extends RankedCaptureKind
@@ -27,6 +32,13 @@ private[matching] final case class RankedTermMatch[T](
   def sequence(index: Int): Seq[T] = sequenceBindings(holeNames(index))
 
 private[matching] object RankedTermPatternExtractorFactory:
+  transparent inline def singleSequenceExtractor(
+      context: StringContext,
+      sequenceIndex: Int
+  )(using q: Quotes): RankedSingleSequenceTermPatternExtractor[q.reflect.Term] =
+    val ranked = extractor[SequenceTermCapture *: EmptyTuple](context, sequenceIndex)
+    new RankedSingleSequenceTermPatternExtractor(term => ranked.unapply(term).map(_.head))
+
   transparent inline def extractor[Kinds <: Tuple](
       context: StringContext,
       sequenceIndex: Int

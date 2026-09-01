@@ -237,12 +237,26 @@ object TermMatcher:
             case other => Left(shapeMismatch(pattern, other))
         case TermPattern.New(constructor, arguments) =>
           target match
-            case TargetTermView.New(targetConstructor, targetArguments, _)
-                if targetConstructor == constructor && targetArguments.length == arguments.length =>
-              arguments.zip(targetArguments).foldLeft(Right(bindings): Either[MatchFailure, Bindings]) {
-                case (acc, (patternArgument, targetArgument)) =>
-                  acc.flatMap(loop(patternArgument, targetArgument, _, patternScope, targetScope))
+            case targetNew @ TargetTermView.New(targetConstructor, targetArguments, _)
+                if targetConstructor == constructor =>
+              val sequenceIndex = sequenceHoleName.flatMap { name =>
+                arguments.zipWithIndex.collectFirst {
+                  case (TermPattern.Hole(`name`), index) => index
+                }
               }
+              val admittedLength = sequenceIndex match
+                case None => targetArguments.length == arguments.length
+                case Some(_) => targetArguments.length >= arguments.length - 1
+              if !admittedLength then Left(shapeMismatch(pattern, targetNew))
+              else
+                matchImmediateChildren(
+                  arguments,
+                  targetArguments,
+                  bindings,
+                  patternScope,
+                  targetScope,
+                  shapeMismatch(pattern, targetNew)
+                )
             case other => Left(shapeMismatch(pattern, other))
         case TermPattern.Infix(left, operator, right) =>
           target match

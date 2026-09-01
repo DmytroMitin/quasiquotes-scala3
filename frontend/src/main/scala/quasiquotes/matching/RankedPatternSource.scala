@@ -120,7 +120,13 @@ private[quasiquotes] object RankedPatternSource:
               admittedOccurrences += 1
             case argument => visit(argument)
           }
-        case TermPattern.New(_, arguments) => arguments.foreach(visit)
+        case TermPattern.New(_, arguments) =>
+          arguments.foreach {
+            case TermPattern.Hole(name) if name == sequenceName =>
+              totalOccurrences += 1
+              admittedOccurrences += 1
+            case argument => visit(argument)
+          }
         case TermPattern.Infix(left, _, right) => visit(left); visit(right)
         case TermPattern.Unary(_, operand) => visit(operand)
         case TermPattern.InterpolatedString(_, _, arguments) => arguments.foreach(visit)
@@ -141,11 +147,11 @@ private[quasiquotes] object RankedPatternSource:
     if totalOccurrences == 1 && admittedOccurrences == 1 then Right(())
     else if totalOccurrences == 0 then
       Left(
-        "the rank-2 sequence-Term capture was not consumed as a direct ordinary Apply argument"
+        "the rank-2 sequence-Term capture was not consumed as a direct ordinary Apply or fixed one-list New argument"
       )
     else
       Left(
-        "rank-2 sequence-Term capture is supported only once as a direct ordinary Apply argument"
+        "rank-2 sequence-Term capture is supported only once as a direct ordinary Apply or fixed one-list New argument"
       )
 
   private def unquotedDotRuns(parts: Vector[String]): Vector[(Int, Int, Int)] =

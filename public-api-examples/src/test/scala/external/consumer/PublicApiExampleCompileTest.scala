@@ -125,6 +125,9 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
       List(-1, 20, 22, 99)
     )
 
+  test("public ranked qq captures fixed constructor arguments outside the library package"):
+    assertEquals(Q003RankedNewQqFirstUseSnippet.captureThree, List(1, 2, 3))
+
   test("selected-call composition retains the fixed positive matrix"):
     val receiver = new NullarySelectedCallTarget(40)
     assertEquals(NullarySelectedCallCompositionSnippet.ordinaryNullary(receiver), 41)

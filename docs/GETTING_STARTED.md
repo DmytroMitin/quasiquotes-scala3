@@ -248,7 +248,7 @@ in one list, or placing a sequence outside the admitted lists fails
 deterministically.
 
 Typed matching separately admits exactly one sequence-Term capture as a direct
-ordinary application argument:
+ordinary application or fixed one-list constructor argument:
 
 ```scala
 term match
@@ -256,10 +256,15 @@ term match
     val _: q.reflect.Term = function
     val _: q.reflect.Term = head
     val _: Seq[q.reflect.Term] = tail
+
+  case qq"new java.lang.RuntimeException(..$arguments)" =>
+    val _: Seq[q.reflect.Term] = arguments
 ```
 
 The capture may have fixed/scalar arguments on either side and matches an empty,
-one-element, or longer middle sequence in source order. Constructor/New, tuple,
+one-element, or longer middle sequence in source order. Constructor matching is
+limited to the existing fixed fully qualified, non-generic, single ordinary
+argument-list family. Dynamic/type-applied/multi-clause constructors, tuple,
 interpolated-string, block, Type, and Definition sequence capture, multiple
 sequence captures, rank 3, and generalized rank syntax remain unsupported and
 fail closed.

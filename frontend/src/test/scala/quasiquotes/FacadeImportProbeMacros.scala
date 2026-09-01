@@ -5,6 +5,9 @@ import scala.quoted.*
 private object FacadeRankedTarget:
   def three(first: Int, second: Int, third: Int): Int = first + second + third
 
+private final class FacadeRankedConstructor():
+  def this(first: Int, second: Int, third: Int) = this()
+
 object FacadeImportProbeMacros:
   inline def umbrellaWorks: Boolean = ${ umbrellaWorksImpl }
 
@@ -13,6 +16,8 @@ object FacadeImportProbeMacros:
   inline def plainExportsWork: Boolean = ${ plainExportsWorkImpl }
 
   inline def rankedFacadeWorks: Boolean = ${ rankedFacadeWorksImpl }
+
+  inline def rankedNewFacadeWorks: Boolean = ${ rankedNewFacadeWorksImpl }
 
   private def umbrellaWorksImpl(using q: Quotes): Expr[Boolean] =
     import q.reflect.*
@@ -79,6 +84,16 @@ object FacadeImportProbeMacros:
     '{ FacadeRankedTarget.three(1, 2, 3) }.asTerm match
       case qq"$function(..$arguments)" =>
         val _: q.reflect.Term = function
+        val _: Seq[q.reflect.Term] = arguments
+        Expr(arguments.size == 3)
+      case _ => Expr(false)
+
+  private def rankedNewFacadeWorksImpl(using q: Quotes): Expr[Boolean] =
+    import q.reflect.*
+    import FacadeProbe.*
+
+    '{ new FacadeRankedConstructor(1, 2, 3) }.asTerm match
+      case qq"new quasiquotes.FacadeRankedConstructor(..$arguments)" =>
         val _: Seq[q.reflect.Term] = arguments
         Expr(arguments.size == 3)
       case _ => Expr(false)

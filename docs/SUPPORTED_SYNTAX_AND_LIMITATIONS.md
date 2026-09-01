@@ -61,8 +61,10 @@ Important limitations:
 - runtime-length Term construction is deliberately bounded: exactly one
   `..$args` carrier per admitted argument list, no additional/named/contextual
   argument-list topology, and no target vararg-star semantics. Sequence
-  matching is a separate `qq` path and admits exactly one direct ordinary
-  `Apply.arguments` capture as `Seq[q.reflect.Term]`; New, tuple,
+  matching is a separate `qq` path and admits exactly one direct sequence
+  capture as `Seq[q.reflect.Term]` in either ordinary `Apply.arguments` or the
+  sole ordinary argument list of a fixed, fully qualified, non-generic `New`.
+  Dynamic/type-applied/multi-clause/named/anonymous-body New, tuple,
   interpolated-string, block, Type, Definition, member, statement, multiple,
   and rank-3 matching remain unsupported;
 - dynamic selected-member names are decoded semantic values, not source
@@ -78,10 +80,12 @@ Important limitations:
   no explicit argument list retains its existing value-position normalization;
 - public `qq` extractor templates require at least one interpolated term slot;
   scalar slots are distinct, ordered `q.reflect.Term` values. Exactly one
-  `..$slot` may be a direct ordinary application argument and binds an ordered
-  `Seq[q.reflect.Term]`; multiple sequence slots, other structural positions,
-  rank 3, type/definition ranks, and scalar/sequence role reuse fail closed.
-  Templates do not capture or accept dynamic selected-member names;
+  `..$slot` may be a direct ordinary application argument or an argument of an
+  existing fixed fully qualified, non-generic, one-list constructor pattern and
+  binds an ordered `Seq[q.reflect.Term]`; multiple sequence slots, other
+  structural positions, dynamic/type-applied/multi-clause constructors, rank 3,
+  type/definition ranks, and scalar/sequence role reuse fail closed. Templates
+  do not capture or accept dynamic selected-member names;
 - public `tqr` and `tqq` type templates use zero or more distinct ordinal
   whole-type slots; zero-hole `tqr` also admits canonical globally selected
   class terminals such as `java.lang.StringBuilder`. They do not admit dynamic
@@ -124,9 +128,11 @@ would otherwise suggest equality. Existing explicit
 `QuasiPattern.term("$x + $x")` repeated-hole equality is unchanged.
 
 This surface admits term captures only and requires at least one slot. Scalar
-slots bind `q.reflect.Term`; one direct ordinary `Apply.arguments` slot may use
-`..$arguments` and binds `Seq[q.reflect.Term]`. It has no type or mixed-category
-holes, multiple/generalized sequence ranks, binder-name holes, backreferences,
+slots bind `q.reflect.Term`; one direct sequence slot may use `..$arguments`
+and binds `Seq[q.reflect.Term]` in either ordinary `Apply.arguments` or the sole
+ordinary argument list of a fixed, fully qualified, non-generic `New`. It has
+no type or mixed-category holes, dynamic/type-applied/multi-clause New ranks,
+multiple/generalized sequence ranks, binder-name holes, backreferences,
 definitions, or type-pattern syntax. Ordinary structural mismatch returns
 `None` through pattern fallthrough. A malformed or unsupported template reports
 `Invalid qq term-pattern template: ...` during macro expansion; use
