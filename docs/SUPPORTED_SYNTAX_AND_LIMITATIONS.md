@@ -61,8 +61,10 @@ Important limitations:
 - runtime-length Term construction is deliberately bounded: exactly one
   `..$args` carrier per admitted argument list, no additional/named/contextual
   argument-list topology, and no target vararg-star semantics. Sequence
-  matching and every Type, Definition, member, statement, or argument-list
-  rank remain separate;
+  matching is a separate `qq` path and admits exactly one direct ordinary
+  `Apply.arguments` capture as `Seq[q.reflect.Term]`; New, tuple,
+  interpolated-string, block, Type, Definition, member, statement, multiple,
+  and rank-3 matching remain unsupported;
 - dynamic selected-member names are decoded semantic values, not source
   spellings or symbols. The conservative factory admits plain ASCII
   identifiers, symbolic ASCII operators, and single-space-separated safe ASCII
@@ -75,8 +77,11 @@ Important limitations:
   method callable until that source `Apply` is lowered. A fixed selection with
   no explicit argument list retains its existing value-position normalization;
 - public `qq` extractor templates require at least one interpolated term slot;
-  slots are distinct and ordered, with no type/sequence/backreference syntax;
-  they do not capture or accept dynamic selected-member names;
+  scalar slots are distinct, ordered `q.reflect.Term` values. Exactly one
+  `..$slot` may be a direct ordinary application argument and binds an ordered
+  `Seq[q.reflect.Term]`; multiple sequence slots, other structural positions,
+  rank 3, type/definition ranks, and scalar/sequence role reuse fail closed.
+  Templates do not capture or accept dynamic selected-member names;
 - public `tqr` and `tqq` type templates use zero or more distinct ordinal
   whole-type slots; zero-hole `tqr` also admits canonical globally selected
   class terminals such as `java.lang.StringBuilder`. They do not admit dynamic
@@ -118,12 +123,14 @@ semantic hole names. Every slot is distinct, even if source binder spellings
 would otherwise suggest equality. Existing explicit
 `QuasiPattern.term("$x + $x")` repeated-hole equality is unchanged.
 
-This first surface admits term captures only and requires at least one slot. It
-has no type or mixed-category holes, sequence/splice holes, binder-name holes,
-backreferences, definitions, or type-pattern syntax. Ordinary structural
-mismatch returns `None` through pattern fallthrough. A malformed or unsupported
-template reports `Invalid qq term-pattern template: ...` during macro
-expansion; use `termLocated` when a recoverable structured diagnostic is needed.
+This surface admits term captures only and requires at least one slot. Scalar
+slots bind `q.reflect.Term`; one direct ordinary `Apply.arguments` slot may use
+`..$arguments` and binds `Seq[q.reflect.Term]`. It has no type or mixed-category
+holes, multiple/generalized sequence ranks, binder-name holes, backreferences,
+definitions, or type-pattern syntax. Ordinary structural mismatch returns
+`None` through pattern fallthrough. A malformed or unsupported template reports
+`Invalid qq term-pattern template: ...` during macro expansion; use
+`termLocated` when a recoverable structured diagnostic is needed.
 
 Captured terms retain the caller's active `q.reflect.Term` path and original
 compiler ownership. They are not detached portable trees and the extractor

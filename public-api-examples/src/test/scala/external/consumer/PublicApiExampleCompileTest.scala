@@ -429,3 +429,6 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
 
   private def extractWithSameTextLiteral(qqCapture0: Int, value: Int): Int =
     QqExtractorFirstUseSnippet.literalAndCapture(qqCapture0 + value)
+
+  test("external first use preserves ranked qq scalar and sequence binder types"):
+    assertEquals(Q002RankedQqFirstUseSnippet.captureThree, List(1, 2, 3))

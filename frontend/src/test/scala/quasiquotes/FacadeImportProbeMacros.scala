@@ -2,12 +2,17 @@ package quasiquotes
 
 import scala.quoted.*
 
+private object FacadeRankedTarget:
+  def three(first: Int, second: Int, third: Int): Int = first + second + third
+
 object FacadeImportProbeMacros:
   inline def umbrellaWorks: Boolean = ${ umbrellaWorksImpl }
 
   inline def selectiveAndLegacyWork: Boolean = ${ selectiveAndLegacyWorkImpl }
 
   inline def plainExportsWork: Boolean = ${ plainExportsWorkImpl }
+
+  inline def rankedFacadeWorks: Boolean = ${ rankedFacadeWorksImpl }
 
   private def umbrellaWorksImpl(using q: Quotes): Expr[Boolean] =
     import q.reflect.*
@@ -66,3 +71,14 @@ object FacadeImportProbeMacros:
       case _ => false
 
     Expr(termMatched && typeMatched && definitionMatched)
+
+  private def rankedFacadeWorksImpl(using q: Quotes): Expr[Boolean] =
+    import q.reflect.*
+    import FacadeProbe.*
+
+    '{ FacadeRankedTarget.three(1, 2, 3) }.asTerm match
+      case qq"$function(..$arguments)" =>
+        val _: q.reflect.Term = function
+        val _: Seq[q.reflect.Term] = arguments
+        Expr(arguments.size == 3)
+      case _ => Expr(false)

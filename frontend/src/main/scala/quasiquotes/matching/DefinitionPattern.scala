@@ -122,6 +122,9 @@ object DefinitionPattern:
         abort("StringContext must contain exactly two literal parts.")
       if parts.exists(_ == null) then
         abort("StringContext literal parts must not be null.")
+      RankedPatternSource
+        .unsupportedFamilyRankDiagnostic(parts, "Definition")
+        .foreach(abort)
       if parts.size != 2 then
         abort(s"Expected exactly one body capture slot, but found ${parts.size - 1}.")
 

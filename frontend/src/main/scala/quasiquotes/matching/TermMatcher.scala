@@ -4,6 +4,11 @@ import scala.quoted.Quotes
 import quasiquotes.parser.BinderId
 
 object TermMatcher:
+  private[matching] final case class RankedResult[T](
+      scalarBindings: Map[String, T],
+      sequenceBindings: Map[String, Seq[T]]
+  )
+
   def matchTermRaw(using q: Quotes)(
       pattern: TermPattern,
       target: q.reflect.Term
@@ -16,11 +21,27 @@ object TermMatcher:
   ): Either[MatchFailure, MatchResult[q.reflect.Term]] =
     matchViews(pattern, target, normalized = true)
 
+  private[matching] def matchTermRanked(using q: Quotes)(
+      pattern: TermPattern,
+      sequenceHoleName: String,
+      target: q.reflect.Term
+  ): Either[MatchFailure, RankedResult[q.reflect.Term]] =
+    matchViewsRanked(pattern, target, normalized = true, Some(sequenceHoleName))
+
   private def matchViews(using q: Quotes)(
       pattern: TermPattern,
       target: q.reflect.Term,
       normalized: Boolean
   ): Either[MatchFailure, MatchResult[q.reflect.Term]] =
+    matchViewsRanked(pattern, target, normalized, None)
+      .map(result => MatchResult[q.reflect.Term](result.scalarBindings))
+
+  private def matchViewsRanked(using q: Quotes)(
+      pattern: TermPattern,
+      target: q.reflect.Term,
+      normalized: Boolean,
+      sequenceHoleName: Option[String]
+  ): Either[MatchFailure, RankedResult[q.reflect.Term]] =
     import q.reflect.*
     val preparedPattern =
       if normalized then MatchNormalizer.normalizePattern(pattern)
@@ -29,6 +50,11 @@ object TermMatcher:
     final case class Captured(
         term: Term,
         ambientScope: List[(BinderId, Symbol)]
+    )
+
+    final case class Bindings(
+        scalars: Map[String, Captured],
+        sequences: Map[String, Vector[Term]]
     )
 
     def scopedEquivalent(
@@ -126,14 +152,19 @@ object TermMatcher:
     def loop(
         pattern: TermPattern,
         target: TargetTermView[Term],
-        bindings: Map[String, Captured],
+        bindings: Bindings,
         patternScope: List[BinderId],
         targetScope: List[(BinderId, Symbol)]
-    ): Either[MatchFailure, Map[String, Captured]] =
+    ): Either[MatchFailure, Bindings] =
       pattern match
         case TermPattern.Hole(name) =>
-          bindings.get(name) match
-            case None => Right(bindings.updated(name, Captured(target.original, targetScope)))
+          bindings.scalars.get(name) match
+            case None =>
+              Right(
+                bindings.copy(
+                  scalars = bindings.scalars.updated(name, Captured(target.original, targetScope))
+                )
+              )
             case Some(previous) =>
               val current = Captured(target.original, targetScope)
               normalizedEquality(previous, current).flatMap { equal =>
@@ -181,20 +212,34 @@ object TermMatcher:
             case other => Left(shapeMismatch(pattern, other))
         case TermPattern.Apply(function, arguments) =>
           target match
-            case TargetTermView.Apply(targetFunction, targetArguments, _) if targetArguments.length == arguments.length =>
-              for
-                functionBindings <- loop(function, targetFunction, bindings, patternScope, targetScope)
-                argumentBindings <- arguments.zip(targetArguments).foldLeft(Right(functionBindings): Either[MatchFailure, Map[String, Captured]]) {
-                  case (acc, (patternArgument, targetArgument)) =>
-                    acc.flatMap(loop(patternArgument, targetArgument, _, patternScope, targetScope))
+            case targetApply @ TargetTermView.Apply(targetFunction, targetArguments, _) =>
+              val sequenceIndex = sequenceHoleName.flatMap { name =>
+                arguments.zipWithIndex.collectFirst {
+                  case (TermPattern.Hole(`name`), index) => index
                 }
-              yield argumentBindings
+              }
+              val admittedLength = sequenceIndex match
+                case None => targetArguments.length == arguments.length
+                case Some(_) => targetArguments.length >= arguments.length - 1
+              if !admittedLength then Left(shapeMismatch(pattern, targetApply))
+              else
+                for
+                  functionBindings <- loop(function, targetFunction, bindings, patternScope, targetScope)
+                  argumentBindings <- matchImmediateChildren(
+                    arguments,
+                    targetArguments,
+                    functionBindings,
+                    patternScope,
+                    targetScope,
+                    shapeMismatch(pattern, targetApply)
+                  )
+                yield argumentBindings
             case other => Left(shapeMismatch(pattern, other))
         case TermPattern.New(constructor, arguments) =>
           target match
             case TargetTermView.New(targetConstructor, targetArguments, _)
                 if targetConstructor == constructor && targetArguments.length == arguments.length =>
-              arguments.zip(targetArguments).foldLeft(Right(bindings): Either[MatchFailure, Map[String, Captured]]) {
+              arguments.zip(targetArguments).foldLeft(Right(bindings): Either[MatchFailure, Bindings]) {
                 case (acc, (patternArgument, targetArgument)) =>
                   acc.flatMap(loop(patternArgument, targetArgument, _, patternScope, targetScope))
               }
@@ -216,7 +261,7 @@ object TermMatcher:
           target match
             case TargetTermView.InterpolatedString(targetPrefix, targetParts, targetArguments, _)
                 if targetPrefix == prefix && targetParts == parts && targetArguments.length == arguments.length =>
-              arguments.zip(targetArguments).foldLeft(Right(bindings): Either[MatchFailure, Map[String, Captured]]) {
+              arguments.zip(targetArguments).foldLeft(Right(bindings): Either[MatchFailure, Bindings]) {
                 case (acc, (patternArgument, targetArgument)) =>
                   acc.flatMap(loop(patternArgument, targetArgument, _, patternScope, targetScope))
               }
@@ -229,7 +274,7 @@ object TermMatcher:
         case TermPattern.Tuple(elements) =>
           target match
             case TargetTermView.Tuple(targetElements, _) if targetElements.length == elements.length =>
-              elements.zip(targetElements).foldLeft(Right(bindings): Either[MatchFailure, Map[String, Captured]]) {
+              elements.zip(targetElements).foldLeft(Right(bindings): Either[MatchFailure, Bindings]) {
                 case (acc, (patternElement, targetElement)) =>
                   acc.flatMap(loop(patternElement, targetElement, _, patternScope, targetScope))
               }
@@ -272,7 +317,7 @@ object TermMatcher:
                     targetPrefix.forall(_.isInstanceOf[TargetTermView[?]]) =>
                   for
                     prefixBindings <- prefix.zip(targetPrefix).foldLeft(
-                      Right(bindings): Either[MatchFailure, Map[String, Captured]]
+                      Right(bindings): Either[MatchFailure, Bindings]
                     ) { case (acc, (patternChild, targetChild)) =>
                       acc.flatMap(
                         loop(
@@ -292,11 +337,58 @@ object TermMatcher:
           if normalized then loop(inner, target, bindings, patternScope, targetScope)
           else Left(shapeMismatch(pattern, target))
 
+    def matchImmediateChildren(
+        arguments: List[TermPattern],
+        targets: List[TargetTermView[Term]],
+        bindings: Bindings,
+        patternScope: List[BinderId],
+        targetScope: List[(BinderId, Symbol)],
+        mismatch: MatchFailure
+    ): Either[MatchFailure, Bindings] =
+      val sequenceSlot = sequenceHoleName.flatMap { name =>
+        arguments.zipWithIndex.collectFirst {
+          case (TermPattern.Hole(`name`), index) => name -> index
+        }
+      }
+      sequenceSlot match
+        case None =>
+          arguments.zip(targets).foldLeft(Right(bindings): Either[MatchFailure, Bindings]) {
+            case (acc, (patternArgument, targetArgument)) =>
+              acc.flatMap(loop(patternArgument, targetArgument, _, patternScope, targetScope))
+          }
+        case Some((sequenceName, index)) =>
+          val prefix = arguments.take(index)
+          val suffix = arguments.drop(index + 1)
+          if targets.size < prefix.size + suffix.size then
+            Left(mismatch)
+          else
+            val prefixTargets = targets.take(prefix.size)
+            val suffixTargets = targets.takeRight(suffix.size)
+            val middle = targets.slice(prefix.size, targets.size - suffix.size).map(_.original).toVector
+            for
+              prefixBindings <- prefix.zip(prefixTargets).foldLeft(
+                Right(bindings): Either[MatchFailure, Bindings]
+              ) { case (acc, (patternArgument, targetArgument)) =>
+                acc.flatMap(loop(patternArgument, targetArgument, _, patternScope, targetScope))
+              }
+              withSequence = prefixBindings.copy(
+                sequences = prefixBindings.sequences.updated(sequenceName, middle)
+              )
+              suffixBindings <- suffix.zip(suffixTargets).foldLeft(
+                Right(withSequence): Either[MatchFailure, Bindings]
+              ) { case (acc, (patternArgument, targetArgument)) =>
+                acc.flatMap(loop(patternArgument, targetArgument, _, patternScope, targetScope))
+              }
+            yield suffixBindings
+
     for
       rawView <- TargetTermView.fromTerm(target)
       preparedTarget = if normalized then MatchNormalizer.normalizeTarget(rawView) else rawView
-      bindings <- loop(preparedPattern, preparedTarget, Map.empty, Nil, Nil)
-    yield MatchResult[q.reflect.Term](bindings.view.mapValues(_.term).toMap)
+      bindings <- loop(preparedPattern, preparedTarget, Bindings(Map.empty, Map.empty), Nil, Nil)
+    yield RankedResult[q.reflect.Term](
+      bindings.scalars.view.mapValues(_.term).toMap,
+      bindings.sequences
+    )
 
   private def shapeMismatch(pattern: TermPattern, target: TargetTermView[?]): MatchFailure =
     MatchFailure.ShapeMismatch(pattern.render, target.render)

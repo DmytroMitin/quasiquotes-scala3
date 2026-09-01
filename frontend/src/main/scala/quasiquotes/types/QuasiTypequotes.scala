@@ -5,6 +5,7 @@ import scala.annotation.targetName
 import scala.util.control.NonFatal
 
 import quasiquotes.parser.{TinyTypeParser, TypeShape}
+import quasiquotes.matching.RankedPatternSource
 
 object QuasiTypequotes:
   /** Recommended research-facing pattern convenience; this is a function, not an interpolator. */
@@ -69,6 +70,9 @@ object QuasiTypequotes:
       import q.reflect.*
 
       val parts = checkedParts(sc, "Invalid tqq type-pattern template:")
+      RankedPatternSource
+        .unsupportedFamilyRankDiagnostic(parts, "Type")
+        .foreach(detail => report.errorAndAbort(s"Invalid tqq type-pattern template: $detail"))
       val holeNames = Vector.tabulate(parts.size - 1)(index => s"tqqSlot$index")
       val source = synthesize(parts, holeNames)
 

@@ -245,8 +245,24 @@ Empty, one-element, multi-element, and fixed prefix/suffix argument sequences
 are supported. The carrier alone is not rank inference: omitting `..`, placing
 `..` before a single Term or another splice category, using two repeated holes
 in one list, or placing a sequence outside the admitted lists fails
-deterministically. `qq` sequence capture and every non-Term sequence rank are
-not implemented.
+deterministically.
+
+Typed matching separately admits exactly one sequence-Term capture as a direct
+ordinary application argument:
+
+```scala
+term match
+  case qq"$function($head, ..$tail)" =>
+    val _: q.reflect.Term = function
+    val _: q.reflect.Term = head
+    val _: Seq[q.reflect.Term] = tail
+```
+
+The capture may have fixed/scalar arguments on either side and matches an empty,
+one-element, or longer middle sequence in source order. Constructor/New, tuple,
+interpolated-string, block, Type, and Definition sequence capture, multiple
+sequence captures, rank 3, and generalized rank syntax remain unsupported and
+fail closed.
 
 ## Reflected definition interpolation
 

@@ -9,3 +9,6 @@ final class FacadeImportProbeTest extends munit.FunSuite:
 
   test("plain exports preserve all interpolation families in a macro Quotes universe"):
     assert(FacadeImportProbeMacros.plainExportsWork)
+
+  test("a forwarding facade preserves transparent ranked qq extraction"):
+    assert(FacadeImportProbeMacros.rankedFacadeWorks)

@@ -1,6 +1,7 @@
 package quasiquotes.matching
 
 import scala.quoted.Quotes
+import scala.annotation.targetName
 
 import quasiquotes.parser.{DiagnosticLocationMapper, DottySourceSpanAdapter, TermShape, TinyTermParser}
 import quasiquotes.source.{DiagnosticLocation, DiagnosticPrecision, LocatedDiagnostic}
@@ -89,8 +90,9 @@ object QuasiPattern:
   def termOrThrow(pattern: String): QuasiPattern =
     term(pattern).fold(error => throw new IllegalArgumentException(error.message), identity)
 
-  extension (sc: StringContext)
-    def qq(using q: Quotes): TermPatternExtractor[q.reflect.Term] =
+  private[matching] def scalarExtractor(
+      sc: StringContext
+  )(using q: Quotes): TermPatternExtractor[q.reflect.Term] =
       import q.reflect.*
 
       val holeCount = sc.parts.size - 1
@@ -122,3 +124,16 @@ object QuasiPattern:
                     captures.flatMap(current => result.bindings.get(name).map(current :+ _))
                 }
           )
+
+  /** JVM-linkage bridge for scalar callers compiled against the pre-Q002
+    * extension method. New source calls use the transparent inline selector.
+    */
+  @targetName("qq")
+  private[matching] def qqLegacy(
+      sc: StringContext
+  )(using q: Quotes): TermPatternExtractor[q.reflect.Term] =
+    scalarExtractor(sc)
+
+  extension (inline sc: StringContext)
+    transparent inline def qq(using q: Quotes) =
+      ${ QuasiPatternMacro.extractor('sc, 'q) }

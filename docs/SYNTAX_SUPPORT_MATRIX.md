@@ -20,7 +20,7 @@ Status vocabulary:
 | Selection | `value.size` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; fixed selection without an explicit argument list retains value-position normalization; no overload or semantic member equivalence |
 | Dynamic selected-member name | `qr"$receiver.$selectedName()"`, `qr"$receiver.$selectedName($argument)"` | Yes | No | `SelectedMemberName.from`, `qr` | `BOUNDED`; validated decoded ASCII name, explicit receiver selection only, unique accessible member only; explicit empty and nonempty calls are supported; no dynamic infix, lexical lookup, overload resolution, or name capture |
 | Application | `f(x)`, `builder.capacity()` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; ordinary supported argument lists, including an explicit empty application over a selected nullary method |
-| Sequence-Term arguments | `qr"f(fixed, ..$args)"`, `qr"new $typeRepr(..$args)"` | Yes | No | `TermSequenceSplices.termSplice`, `qr` | `BOUNDED`; one dedicated caller-universe carrier per ordinary Apply or supported one-list New argument list; empty/one/many and fixed prefix/suffix supported; no matching capture, additional clauses, other ranks, or vararg-star semantics |
+| Sequence-Term arguments | `qr"f(fixed, ..$args)"`, `qr"new $typeRepr(..$args)"`, `case qq"f($head, ..$tail)"` | Yes | Yes | `TermSequenceSplices.termSplice`, `qr`, `qq` | `BOUNDED`; construction uses one dedicated caller-universe carrier per ordinary Apply or supported one-list New argument list; matching admits exactly one direct ordinary Apply-argument capture as `Seq[q.reflect.Term]`; empty/one/many and fixed prefix/suffix supported; no ranked New/tuple/interpolation/block/Type/Definition matching, additional clauses, rank 3, or vararg-star semantics |
 | Infix | `left + right` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; supported operators, structural rather than algebraic equality |
 | Unary | `-x`, `!flag` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; `+`, `-`, `!`, and `~`, with parser folding boundaries |
 | Ascription | `value: Int` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; supported type family and construction-only type splices |
@@ -32,7 +32,7 @@ Status vocabulary:
 | Binder-free P1 block | `{ effect1(); effect2(); result }` | Yes | Yes | `qr`, `qq`, `QuasiPattern.term` | `BOUNDED`; one or more ordered expression prefixes plus a distinct final result; children must already be admitted Terms |
 | Single typed local immutable val (P2) | `{ val x: Int = init; use(x) }` | Yes | Yes | `qr`, `qq`, `QuasiPattern.term` | `BOUNDED`; exactly one eager immutable simple binder in the whole tree with an explicit admitted type; initializer is outside scope, only the final result sees the binder, and P2/Lambda1 same-name source shadowing is rejected |
 | Source-owned local identity method | `{ def id(x: $parameterType): $resultType = x; id(arg) }` | Yes | No | `qr` | `BOUNDED`; construction only, exactly one literal method with one ordinary parameter, complete caller-owned `TypeRepr` parameter/result positions, parameter-reference body, and one following result; binder identity creates the following method reference |
-| Ordered term capture extractor | `case qq"$left + $right"` | No | Yes | `qq`, with `QuasiPattern.term` retained | `BOUNDED`; at least one distinct term slot, captures in source order, mismatch falls through |
+| Ordered term capture extractor | `case qq"$left + $right"`, `case qq"$function(..$arguments)"` | No | Yes | `qq`, with `QuasiPattern.term` retained | `BOUNDED`; scalar slots bind `q.reflect.Term`; exactly one admitted direct Apply-argument rank-2 slot binds `Seq[q.reflect.Term]`; captures remain in source order and mismatch falls through |
 | Other local values / local definitions | `{ val x = 1; x }`, `{ var x: Int = 1; x }`, recursive/multi-clause/multiple local methods | No | No | — | `NOT_YET`; inferred, mutable, lazy, pattern, multiple/shadowing, recursive, contextual, generic, multi-clause, and arbitrary-body local forms remain excluded |
 | Match / try / loops / for | `value match ...` | No | No | — | `NOT_YET`; no broad control-flow surface |
 | General term AST | arbitrary Scala expression | No | No | — | `NOT_PLANNED`; this project intentionally exposes a bounded structural subset |
@@ -45,8 +45,11 @@ The ordinary family rows describe the recoverable programmatic matcher
 independent ergonomic extractor dimension: it reuses that matcher for a
 template with at least one interpolated term slot, assigns slots distinct
 ordinal identities, and returns caller-owned `quotes.reflect.Term` captures.
-It does not add type slots, sequence capture, backreferences, definition
-patterns, or general Scala quasiquote coverage.
+It also admits exactly one rank-2 Term sequence capture directly in ordinary
+`Apply.arguments`, returning `Seq[quotes.reflect.Term]` in the corresponding
+tuple position. It does not add type slots, multiple/generalized ranks,
+backreferences, definition patterns, ranked constructor/tuple/interpolation/
+block matching, or general Scala quasiquote coverage.
 
 ## Types
 
