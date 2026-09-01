@@ -103,6 +103,8 @@ object ScalametaTermProjection:
         )
       case function: Term.Function =>
         projectLambda1(function, activeBinder)
+      case block: Term.Block =>
+        projectBlock(block, activeBinder)
       case Lit.Int(value) =>
         Right(TermShape.Literal(value.toString))
       case Lit.String(value) =>
@@ -173,6 +175,44 @@ object ScalametaTermProjection:
           error(
             "NEUTRAL_TERM_UNSUPPORTED",
             s"unsupported Scalameta term node: ${other.productPrefix}."
+          )
+        )
+
+  private def projectBlock(
+      block: Term.Block,
+      activeBinder: Option[ActiveBinder]
+  ): Either[NeutralProjectionError, TermShape] =
+    block.stats match
+      case Nil =>
+        Left(
+          error(
+            "NEUTRAL_BLOCK_EMPTY_UNSUPPORTED",
+            "P1 block projection requires at least one Term statement."
+          )
+        )
+      case stats =>
+        collectTermStatements(stats).flatMap {
+          case result :: Nil =>
+            projectShape(result, activeBinder)
+          case terms =>
+            for
+              prefix <- traverse(terms.init)(projectShape(_, activeBinder))
+              result <- projectShape(terms.last, activeBinder)
+            yield TermShape.Block(prefix, result)
+        }
+
+  private def collectTermStatements(
+      stats: List[Stat]
+  ): Either[NeutralProjectionError, List[Term]] =
+    stats match
+      case Nil => Right(Nil)
+      case (term: Term) :: tail =>
+        collectTermStatements(tail).map(term :: _)
+      case stat :: _ =>
+        Left(
+          error(
+            "NEUTRAL_BLOCK_STATEMENT_UNSUPPORTED",
+            s"P1 blocks admit Term expression statements only, found ${stat.productPrefix}."
           )
         )
 
