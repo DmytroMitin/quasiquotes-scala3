@@ -2,6 +2,7 @@ package quasiquotes.neutral
 
 import quasiquotes.parser.TermShape
 import quasiquotes.publicapi.DefinitionResultView
+import quasiquotes.types.TypeNormalForm
 
 /** Exact source offsets known to belong to the input Scalameta tree. */
 final case class NeutralSourceSpan(start: Int, end: Int) derives CanEqual
@@ -18,6 +19,12 @@ final case class ProjectedContextualMethod(
 /** A projected core Term shape with truthful root source offsets when present. */
 final case class ProjectedTermShape(
     shape: TermShape,
+    sourceSpan: Option[NeutralSourceSpan]
+) derives CanEqual
+
+/** A projected Core Type normal form with truthful root source offsets. */
+final case class ProjectedTypeNormalForm(
+    normalForm: TypeNormalForm,
     sourceSpan: Option[NeutralSourceSpan]
 ) derives CanEqual
 
