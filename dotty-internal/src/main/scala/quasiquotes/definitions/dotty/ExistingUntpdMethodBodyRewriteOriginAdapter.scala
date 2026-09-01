@@ -8,6 +8,8 @@ import dotty.tools.dotc.core.Symbols.NoSymbol
 
 /** Attributes a bounded U002 rewrite to the original sites it transforms. */
 private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
+  private val MaxApplyArguments = 3
+
   enum OriginKind:
     case PreservedOriginalObject
     case ReconstructedAtOriginalSite
@@ -32,8 +34,10 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
     try
       Option(structural)
         .toRight(error("RESULT_REQUIRED", "the U002 structural result was null."))
-        .flatMap(validateInput)
-        .flatMap(position)
+        .flatMap(validateSourceFreeInput)
+        .flatMap(validateSingleNodeReplacement)
+        .flatMap(validateOriginalSites)
+        .flatMap(positionSingleNode)
     catch
       case NonFatal(exception) =>
         Left(
@@ -45,7 +49,31 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
           )
         )
 
-  private def validateInput(
+  /** Attributes one direct-Ident Apply and 1..3 leaf arguments uniformly to the replaced RHS site. */
+  def adaptApply(
+      structural: ExistingUntpdMethodBodyRewriter.Result
+  )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, Result] =
+    try
+      Option(structural)
+        .toRight(error("RESULT_REQUIRED", "the U002 structural result was null."))
+        .flatMap(validateSourceFreeInput)
+        .flatMap(validateApplyReplacement)
+        .flatMap(validated =>
+          validateOriginalSites(validated.structural).map(_ => validated)
+        )
+        .flatMap(positionApply)
+    catch
+      case NonFatal(exception) =>
+        Left(
+          error(
+            "ORIGIN_ADAPTATION_FAILED",
+            Option(exception.getMessage)
+              .filter(_.nonEmpty)
+              .getOrElse(exception.getClass.getSimpleName)
+          )
+        )
+
+  private def validateSourceFreeInput(
       structural: ExistingUntpdMethodBodyRewriter.Result
   )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, ExistingUntpdMethodBodyRewriter.Result] =
     val sourceFreeNodes = Vector[untpd.Tree](
@@ -64,35 +92,123 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
           "the U002 rebuilt containers and complete replacement must remain source/span/symbol-free and contain no TypedSplice."
         )
       )
-    else if allTrees(structural.replacementBody).size != 1 then
-      Left(
-        error(
-          "REPLACEMENT_CHILDREN_UNSUPPORTED",
-          "U003 admits only a single-node replacement; child-bearing replacements require a wider positioning policy."
-        )
-      )
-    else
-      val originalSites = Vector[untpd.Tree](
-        structural.originalRoot,
-        structural.originalTemplate,
-        structural.originalTarget,
-        structural.originalTarget.rhs
-      )
-      Either.cond(
-        originalSites.forall(tree => tree.source.exists && tree.span.exists),
-        structural,
-        error(
-          "ORIGINAL_SITE_REQUIRED",
-          "the original root, template, target, and replaced RHS must each have a source and span."
-        )
-      )
+    else Right(structural)
 
-  private def position(
+  private def validateSingleNodeReplacement(
+      structural: ExistingUntpdMethodBodyRewriter.Result
+  )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, ExistingUntpdMethodBodyRewriter.Result] =
+    Either.cond(
+      allTrees(structural.replacementBody).size == 1,
+      structural,
+      error(
+        "REPLACEMENT_CHILDREN_UNSUPPORTED",
+        "U003 admits only a single-node replacement; child-bearing replacements require a wider positioning policy."
+      )
+    )
+
+  private def validateOriginalSites(
+      structural: ExistingUntpdMethodBodyRewriter.Result
+  )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, ExistingUntpdMethodBodyRewriter.Result] =
+    val originalSites = Vector[untpd.Tree](
+      structural.originalRoot,
+      structural.originalTemplate,
+      structural.originalTarget,
+      structural.originalTarget.rhs
+    )
+    Either.cond(
+      originalSites.forall(tree => tree.source.exists && tree.span.exists),
+      structural,
+      error(
+        "ORIGINAL_SITE_REQUIRED",
+        "the original root, template, target, and replaced RHS must each have a source and span."
+      )
+    )
+
+  private final case class ValidatedApply(
+      structural: ExistingUntpdMethodBodyRewriter.Result,
+      replacement: untpd.Apply,
+      function: untpd.Ident,
+      arguments: List[untpd.Tree]
+  )
+
+  private def validateApplyReplacement(
+      structural: ExistingUntpdMethodBodyRewriter.Result
+  ): Either[ExistingUntpdMethodBodyRewriteOriginError, ValidatedApply] =
+    structural.replacementBody match
+      case replacement: untpd.Apply =>
+        replacement.fun match
+          case function: untpd.Ident =>
+            if replacement.args.isEmpty || replacement.args.size > MaxApplyArguments then
+              Left(
+                error(
+                  "APPLY_ARGUMENT_COUNT_REQUIRED",
+                  s"U005 admits 1..$MaxApplyArguments Apply arguments; found ${replacement.args.size}."
+                )
+              )
+            else
+              replacement.args.find(argument => !isAdmittedApplyLeaf(argument)) match
+                case Some(argument) =>
+                  Left(
+                    error(
+                      "APPLY_ARGUMENT_LEAF_REQUIRED",
+                      s"U005 Apply arguments must be direct Ident, Number, or Literal leaves; found ${nodeKind(argument)}."
+                    )
+                  )
+                case None =>
+                  Right(
+                    ValidatedApply(
+                      structural,
+                      replacement,
+                      function,
+                      replacement.args
+                    )
+                  )
+          case other =>
+            Left(
+              error(
+                "APPLY_FUNCTION_IDENT_REQUIRED",
+                s"U005 requires one direct Ident Apply function; found ${nodeKind(other)}."
+              )
+            )
+      case other =>
+        Left(
+          error(
+            "APPLY_REPLACEMENT_REQUIRED",
+            s"U005 requires one ordinary Apply replacement; found ${nodeKind(other)}."
+          )
+        )
+
+  private def isAdmittedApplyLeaf(tree: untpd.Tree): Boolean =
+    tree.isInstanceOf[untpd.Ident] ||
+      tree.isInstanceOf[untpd.Number] ||
+      tree.isInstanceOf[untpd.Literal]
+
+  private def positionSingleNode(
       structural: ExistingUntpdMethodBodyRewriter.Result
   )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, Result] =
     val positionedReplacement = structural.replacementBody
       .cloneIn(structural.originalTarget.rhs.source)
       .withSpan(structural.originalTarget.rhs.span)
+    positionContainers(structural, positionedReplacement)
+
+  private def positionApply(
+      validated: ValidatedApply
+  )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, Result] =
+    val structural = validated.structural
+    val source = structural.originalTarget.rhs.source
+    val span = structural.originalTarget.rhs.span
+    val positionedFunction = validated.function.cloneIn(source).withSpan(span)
+    val positionedArguments = validated.arguments.map(_.cloneIn(source).withSpan(span))
+    val positionedReplacement = untpd
+      .Apply(positionedFunction, positionedArguments)
+      .cloneIn(source)
+      .withSpan(span)
+    positionContainers(structural, positionedReplacement)
+
+  private def positionContainers(
+      structural: ExistingUntpdMethodBodyRewriter.Result,
+      positionedReplacement: untpd.Tree
+  )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, Result] =
     val positionedTarget =
       untpd
         .cpy
@@ -142,6 +258,17 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
       structural.originalTemplate.body.filterNot(_.eq(structural.originalTarget))
     val positionedUntouched =
       result.positionedTemplate.body.filterNot(_.eq(result.positionedTarget))
+    val structuralReplacementNodes = allTrees(structural.replacementBody)
+    val positionedReplacementNodes = allTrees(result.positionedReplacement)
+    val replacementNodesFresh =
+      structuralReplacementNodes.size == positionedReplacementNodes.size &&
+        structuralReplacementNodes.zip(positionedReplacementNodes).forall((left, right) =>
+          !left.eq(right)
+        )
+    val replacementOriginUniform = positionedReplacementNodes.forall(tree =>
+      tree.source == structural.originalTarget.rhs.source &&
+        tree.span == structural.originalTarget.rhs.span
+    )
     val valid =
       !result.positionedRoot.eq(structural.originalRoot) &&
         !result.positionedRoot.eq(structural.rebuiltRoot) &&
@@ -149,7 +276,7 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
         !result.positionedTemplate.eq(structural.rebuiltTemplate) &&
         !result.positionedTarget.eq(structural.originalTarget) &&
         !result.positionedTarget.eq(structural.rebuiltTarget) &&
-        !result.positionedReplacement.eq(structural.replacementBody) &&
+        replacementNodesFresh &&
         result.positionedRoot.source == structural.originalRoot.source &&
         result.positionedRoot.span == structural.originalRoot.span &&
         result.positionedTemplate.source == structural.originalTemplate.source &&
@@ -158,6 +285,7 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
         result.positionedTarget.span == structural.originalTarget.span &&
         result.positionedReplacement.source == structural.originalTarget.rhs.source &&
         result.positionedReplacement.span == structural.originalTarget.rhs.span &&
+        replacementOriginUniform &&
         result.positionedRoot.mods.eq(structural.originalRoot.mods) &&
         result.positionedTemplate.constr.eq(structural.originalTemplate.constr) &&
         result.positionedTemplate.parentsOrDerived.eq(
@@ -192,6 +320,9 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
         traverseChildren(current)
     traverser.traverse(tree)
     builder.result()
+
+  private def nodeKind(tree: untpd.Tree): String =
+    Option(tree).map(_.getClass.getSimpleName).getOrElse("null")
 
   private def error(
       code: String,
