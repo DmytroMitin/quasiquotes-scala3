@@ -192,9 +192,10 @@ result is a semantic copy; it does not preserve Scalameta child identity or raw
 Dotty subtree identity and adds no opaque raw sidecar. Nested Apply lists, Type
 application, contextual clauses, named/star arguments, `new`, and the other
 Phase-131 prototype forms remain outside production support. The exact backend
-continues to reject the new Identifier, Select, and Apply core shapes rather
-than widening in lock-step. The typed Scalameta frontend remains direct and is
-not refactored through this projector.
+accepts the same bounded Identifier, Select, and one-list Apply core shapes;
+a direct Apply in function position is rejected as a second argument list,
+while Apply remains valid in argument and qualifier positions. The typed
+Scalameta frontend remains direct and is not refactored through this projector.
 
 AUXify's current narrow `@apply` path uses ordinary Scalameta `q`, `t`, and
 `tparam` authoring and Quasiquotes `ContextualMethodPeerBridge` lowering to an
