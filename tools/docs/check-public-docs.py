@@ -188,6 +188,47 @@ def api_count_findings(root: Path, rows: list[dict[str, str]]) -> list[str]:
     return []
 
 
+def source_contract_present(source: str, pattern: str) -> bool:
+    return re.search(pattern, source, flags=re.DOTALL) is not None
+
+
+def qq_contract_markers_present(source: str, count_marker: str) -> bool:
+    normalized = " ".join(source.split()).lower()
+    return all(
+        marker.lower() in normalized
+        for marker in (
+            "scalar",
+            "q.reflect.Term",
+            "sequence",
+            "Seq[q.reflect.Term]",
+            count_marker,
+            "Apply",
+            "New",
+        )
+    )
+
+
+def qq_matrix_contract_present(source: str) -> bool:
+    wanted_roles = {"Sequence-Term arguments", "Ordered term capture extractor"}
+    relevant_rows = []
+    for line in source.splitlines():
+        if not line.lstrip().startswith("|"):
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if cells and cells[0] in wanted_roles:
+            relevant_rows.append(line)
+    return qq_contract_markers_present("\n".join(relevant_rows), "exactly one")
+
+
+def qq_limitations_contract_present(source: str) -> bool:
+    section = re.search(
+        r"(?ms)^## Bounded term-pattern extractor\s*$.*?(?=^## |\Z)", source
+    )
+    return section is not None and qq_contract_markers_present(
+        section.group(0), "one direct"
+    )
+
+
 def source_findings(root: Path) -> list[str]:
     definition_source = (
         root
@@ -196,8 +237,15 @@ def source_findings(root: Path) -> list[str]:
     pattern_source = (
         root / "frontend/src/main/scala/quasiquotes/matching/QuasiPattern.scala"
     ).read_text(encoding="utf-8")
+    pattern_macro_source = (
+        root / "frontend/src/main/scala/quasiquotes/matching/QuasiPatternMacro.scala"
+    ).read_text(encoding="utf-8")
     extractor_source = (
         root / "frontend/src/main/scala/quasiquotes/matching/TermPatternExtractor.scala"
+    ).read_text(encoding="utf-8")
+    ranked_extractor_source = (
+        root
+        / "frontend/src/main/scala/quasiquotes/matching/RankedTermPatternExtractor.scala"
     ).read_text(encoding="utf-8")
     type_surface_source = (
         root / "frontend/src/main/scala/quasiquotes/types/QuasiTypequotes.scala"
@@ -211,6 +259,12 @@ def source_findings(root: Path) -> list[str]:
     definition_pattern_source = (
         root / "frontend/src/main/scala/quasiquotes/matching/DefinitionPattern.scala"
     ).read_text(encoding="utf-8")
+    syntax_matrix = (root / "docs/SYNTAX_SUPPORT_MATRIX.md").read_text(
+        encoding="utf-8"
+    )
+    syntax_limitations = (
+        root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+    ).read_text(encoding="utf-8")
     findings = []
     if "private[quasiquotes] object DefinitionQuasiquotes" not in definition_source:
         findings.append("dqr owner is no longer package-private")
@@ -218,10 +272,57 @@ def source_findings(root: Path) -> list[str]:
         findings.append("documented internal dqr implementation is absent")
     if "def dqr(using q: Quotes)(args: q.reflect.TypeRepr*): q.reflect.DefDef" not in construct_surface_source:
         findings.append("public dqr signature no longer matches documentation")
-    if "def qq(using q: Quotes): TermPatternExtractor[q.reflect.Term]" not in pattern_source:
-        findings.append("public qq signature no longer matches documentation")
-    if "def unapplySeq(value: T): Option[Seq[T]]" not in extractor_source:
+    if not source_contract_present(
+        pattern_source,
+        r"extension\s*\(\s*inline\s+[A-Za-z_]\w*\s*:\s*StringContext\s*\)\s*"
+        r"transparent\s+inline\s+def\s+qq\s*"
+        r"\(\s*using\s+[A-Za-z_]\w*\s*:\s*Quotes\s*\)\s*=",
+    ):
+        findings.append("public qq transparent-inline selector contract is absent")
+    if not (
+        source_contract_present(
+            pattern_source,
+            r"private\s*\[\s*matching\s*\]\s+def\s+scalarExtractor\s*"
+            r"\(\s*[A-Za-z_]\w*\s*:\s*StringContext\s*\)\s*"
+            r"\(\s*using\s+(?P<quotes>[A-Za-z_]\w*)\s*:\s*Quotes\s*\)\s*:\s*"
+            r"TermPatternExtractor\s*\[\s*(?P=quotes)\.reflect\.Term\s*\]",
+        )
+        and "QuasiPattern.scalarExtractor" in pattern_macro_source
+    ):
+        findings.append("public qq scalar extractor route contract is absent")
+    if not source_contract_present(
+        pattern_source,
+        r"@targetName\s*\(\s*\"qq\"\s*\)\s*"
+        r"private\s*\[\s*matching\s*\]\s+def\s+qqLegacy\s*"
+        r"\(\s*(?P<context>[A-Za-z_]\w*)\s*:\s*StringContext\s*\)\s*"
+        r"\(\s*using\s+(?P<quotes>[A-Za-z_]\w*)\s*:\s*Quotes\s*\)\s*:\s*"
+        r"TermPatternExtractor\s*\[\s*(?P=quotes)\.reflect\.Term\s*\]\s*=\s*"
+        r"scalarExtractor\s*\(\s*(?P=context)\s*\)",
+    ):
+        findings.append("public qq legacy JVM bridge contract is absent")
+    if not source_contract_present(
+        extractor_source,
+        r"def\s+unapplySeq\s*\(\s*value\s*:\s*T\s*\)\s*:\s*"
+        r"Option\s*\[\s*Seq\s*\[\s*T\s*\]\s*\]",
+    ):
         findings.append("public qq extractor protocol no longer matches documentation")
+    if not (
+        source_contract_present(
+            ranked_extractor_source,
+            r"final\s+class\s+RankedTermPatternExtractor\s*"
+            r"\[\s*(?P<term>[A-Za-z_]\w*)\s*,\s*"
+            r"(?P<captures>[A-Za-z_]\w*)\s*<:\s*Tuple\s*\].*?"
+            r"def\s+unapply\s*\(\s*[A-Za-z_]\w*\s*:\s*(?P=term)\s*\)\s*:\s*"
+            r"Option\s*\[\s*(?P=captures)\s*\]",
+        )
+        and "RankedTermPatternExtractorFactory" in pattern_macro_source
+    ):
+        findings.append("public qq ranked extractor contract is absent")
+    if not (
+        qq_matrix_contract_present(syntax_matrix)
+        and qq_limitations_contract_present(syntax_limitations)
+    ):
+        findings.append("public qq scalar/ranked documentation contract is absent")
     if "def tqr(using q: Quotes)(args: q.reflect.TypeRepr*): q.reflect.TypeRepr" not in type_surface_source:
         findings.append("public tqr interpolator signature no longer matches documentation")
     if "def tqq(using q: Quotes): TypePatternExtractor[q.reflect.TypeRepr]" not in type_surface_source:

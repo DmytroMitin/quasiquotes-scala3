@@ -100,9 +100,20 @@ class PublicDocsCheckTest(unittest.TestCase):
         (docs / "SYNTAX_SUPPORT_MATRIX.md").write_text(
             "# Syntax support matrix\n\n"
             "SUPPORTED BOUNDED INTERNAL NOT_YET NOT_PLANNED\n\n"
+            "| Sequence-Term arguments | Apply and New sequence support |\n"
+            "| Ordered term capture extractor | Scalar slots bind q.reflect.Term; exactly one "
+            "direct Apply or New sequence slot binds Seq[q.reflect.Term] |\n\n"
             "https://docs.scala-lang.org/overviews/quasiquotes/syntax-summary.html\n"
             "https://scalameta.org/docs/trees/quasiquotes\n\n"
             "Any change that adds, removes, or materially alters a term, type, or definition syntax family must update this matrix.\n",
+            encoding="utf-8",
+        )
+        (docs / "SUPPORTED_SYNTAX_AND_LIMITATIONS.md").write_text(
+            "# Supported syntax and limitations\n\n"
+            "## Bounded term-pattern extractor\n\n"
+            "Scalar slots bind `q.reflect.Term`; exactly one direct sequence slot in ordinary "
+            "`Apply.arguments` or fixed one-list `New.arguments` binds "
+            "`Seq[q.reflect.Term]`.\n",
             encoding="utf-8",
         )
         baselines = docs / "api-baselines"
@@ -136,12 +147,32 @@ class PublicDocsCheckTest(unittest.TestCase):
             encoding="utf-8",
         )
         (matching / "QuasiPattern.scala").write_text(
-            "object QuasiPattern:\n  def term = ()\n  def termOrThrow = ()\n"
-            "  def qq(using q: Quotes): TermPatternExtractor[q.reflect.Term] = ???\n",
+            "object QuasiPattern:\n"
+            "  def term = ()\n"
+            "  def termOrThrow = ()\n"
+            "  private[matching] def scalarExtractor(sc: StringContext)"
+            "(using q: Quotes): TermPatternExtractor[q.reflect.Term] = ???\n"
+            "  @targetName(\"qq\")\n"
+            "  private[matching] def qqLegacy(sc: StringContext)"
+            "(using q: Quotes): TermPatternExtractor[q.reflect.Term] =\n"
+            "    scalarExtractor(sc)\n"
+            "  extension (inline sc: StringContext)\n"
+            "    transparent inline def qq(using q: Quotes) = extractor(sc)\n",
+            encoding="utf-8",
+        )
+        (matching / "QuasiPatternMacro.scala").write_text(
+            "object QuasiPatternMacro:\n"
+            "  def scalar = QuasiPattern.scalarExtractor(context)\n"
+            "  def ranked = RankedTermPatternExtractorFactory.extractor(context)\n",
             encoding="utf-8",
         )
         (matching / "TermPatternExtractor.scala").write_text(
             "final class TermPatternExtractor[T]:\n  def unapplySeq(value: T): Option[Seq[T]] = ???\n",
+            encoding="utf-8",
+        )
+        (matching / "RankedTermPatternExtractor.scala").write_text(
+            "final class RankedTermPatternExtractor[T, Captures <: Tuple](extract: T => Option[Captures]):\n"
+            "  def unapply(value: T): Option[Captures] = extract(value)\n",
             encoding="utf-8",
         )
         (matching / "DefinitionPattern.scala").write_text(
@@ -183,6 +214,109 @@ class PublicDocsCheckTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("PUBLIC_DOCUMENTATION_BOUNDARY_PASS", result.stdout)
+
+    def test_rejects_missing_transparent_inline_qq_selector(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            source = root / "frontend/src/main/scala/quasiquotes/matching/QuasiPattern.scala"
+            source.write_text(
+                source.read_text(encoding="utf-8").replace(
+                    "transparent inline def qq(using q: Quotes) = extractor(sc)",
+                    "def qqCurrent(using q: Quotes) = extractor(sc)",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("transparent-inline selector contract", result.stderr)
+
+    def test_rejects_missing_scalar_qq_extractor_route(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            source = root / "frontend/src/main/scala/quasiquotes/matching/QuasiPatternMacro.scala"
+            source.write_text(
+                source.read_text(encoding="utf-8").replace(
+                    "QuasiPattern.scalarExtractor", "QuasiPattern.removedScalarRoute"
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("scalar extractor route contract", result.stderr)
+
+    def test_rejects_missing_legacy_qq_jvm_bridge(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            source = root / "frontend/src/main/scala/quasiquotes/matching/QuasiPattern.scala"
+            source.write_text(
+                source.read_text(encoding="utf-8").replace(
+                    "@targetName(\"qq\")", "@targetName(\"qqRemoved\")"
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("legacy JVM bridge contract", result.stderr)
+
+    def test_rejects_missing_ranked_qq_extractor_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            source = root / "frontend/src/main/scala/quasiquotes/matching/RankedTermPatternExtractor.scala"
+            source.write_text(
+                source.read_text(encoding="utf-8").replace(
+                    "final class RankedTermPatternExtractor", "final class RemovedRankedExtractor"
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("ranked extractor contract", result.stderr)
+
+    def test_rejects_stale_pre_q002_qq_source_shape_as_current_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            source = root / "frontend/src/main/scala/quasiquotes/matching/QuasiPattern.scala"
+            source.write_text(
+                "object QuasiPattern:\n"
+                "  def term = ()\n"
+                "  def termOrThrow = ()\n"
+                "  def qq(using q: Quotes): TermPatternExtractor[q.reflect.Term] = ???\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("transparent-inline selector contract", result.stderr)
+            self.assertIn("legacy JVM bridge contract", result.stderr)
+
+    def test_rejects_missing_ranked_qq_documentation_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            limitations = root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+            limitations.write_text(
+                "# Supported syntax and limitations\n\nScalar qq matching only.\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("scalar/ranked documentation contract", result.stderr)
 
     def test_rejects_missing_relative_documentation_link(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
