@@ -115,7 +115,7 @@ final class Phase142IntegerInfixParityTest extends munit.FunSuite:
         parseFallback.map(result => result.engine.toString -> result.primaryFailure.map(_.category)),
         terminalLowering.left.map(_.category),
         hybridString.map(result => result.engine.toString -> result.primaryFailure.isEmpty),
-        neutralString.left.map(_.code),
+        neutralString.map(_.shape.render),
         ScalametaTermProjection.project(typedInfix).left.map(_.code),
         hybridTree(typedInfix).isRight,
         ScalametaTermProjection.project(contextualInfix).left.map(_.code),
@@ -129,7 +129,7 @@ final class Phase142IntegerInfixParityTest extends munit.FunSuite:
     assertEquals(evidence._1, Right("CurrentDottyFallback" -> Some("SCALAMETA_PARSE_FAILURE")))
     assertEquals(evidence._2, Left("SCALAMETA_LOWERING_UNSUPPORTED"))
     assertEquals(evidence._3, Right("Scalameta" -> true))
-    assertEquals(evidence._4, Left("NEUTRAL_TERM_UNSUPPORTED"))
+    assertEquals(evidence._4, Right("Literal(\"value\")"))
     assertEquals(evidence._5, Left("NEUTRAL_INFIX_TYPE_ARGUMENTS_UNSUPPORTED"))
     assert(evidence._6)
     assertEquals(evidence._7, Left("NEUTRAL_INFIX_ARGUMENT_CLAUSE_UNSUPPORTED"))

@@ -6,6 +6,7 @@ import scala.meta.*
 
 /** Compiler-free projection for the bounded ordinary source-Term family. */
 object ScalametaTermProjection:
+  private val SupportedUnaryOperators = Set("+", "-", "!", "~")
   private val PlainSourceName = "[A-Za-z_][A-Za-z0-9_]*".r
   private val Scala3Keywords = Set(
     "abstract",
@@ -88,6 +89,10 @@ object ScalametaTermProjection:
         ).map(TermShape.Identifier(_, isPlaceholder = false))
       case Lit.Int(value) =>
         Right(TermShape.Literal(value.toString))
+      case Lit.String(value) =>
+        Right(TermShape.Literal("\"" + value + "\""))
+      case Lit.Boolean(value) =>
+        Right(TermShape.Literal(value.toString))
       case select: Term.Select =>
         for
           qualifier <- projectShape(select.qual)
@@ -99,6 +104,15 @@ object ScalametaTermProjection:
         yield TermShape.Select(qualifier, selectedName)
       case application: Term.Apply =>
         projectApply(application)
+      case unary: Term.ApplyUnary =>
+        for
+          _ <- require(
+            SupportedUnaryOperators(unary.op.value),
+            "NEUTRAL_UNARY_OPERATOR_UNSUPPORTED",
+            "unary terms support exactly +, -, !, and ~."
+          )
+          operand <- projectShape(unary.arg)
+        yield TermShape.Unary(unary.op.value, operand)
       case infix: Term.ApplyInfix =>
         for
           _ <- require(
@@ -118,6 +132,26 @@ object ScalametaTermProjection:
           leftShape <- projectShape(infix.lhs)
           rightShape <- projectShape(right)
         yield TermShape.Infix(leftShape, infix.op.value, rightShape)
+      case tuple: Term.Tuple =>
+        for
+          _ <- require(
+            tuple.args.size >= 2 && tuple.args.size <= 22,
+            "NEUTRAL_TUPLE_ARITY_UNSUPPORTED",
+            s"tuple terms require arity 2 through 22, found ${tuple.args.size}."
+          )
+          elements <- traverse(tuple.args)(projectShape)
+        yield TermShape.Tuple(elements)
+      case conditional: Term.If =>
+        for
+          _ <- require(
+            !isSyntheticNoElse(conditional.elsep),
+            "NEUTRAL_IF_ELSE_UNSUPPORTED",
+            "if terms require an explicit else branch."
+          )
+          condition <- projectShape(conditional.cond)
+          thenBranch <- projectShape(conditional.thenp)
+          elseBranch <- projectShape(conditional.elsep)
+        yield TermShape.If(condition, thenBranch, elseBranch)
       case other =>
         Left(
           error(
@@ -167,6 +201,14 @@ object ScalametaTermProjection:
           )
         )
       case other => projectShape(other)
+
+  private def isSyntheticNoElse(term: Term): Boolean =
+    term match
+      case _: Lit.Unit =>
+        term.pos match
+          case Position.None => true
+          case position => position.start == position.end
+      case _ => false
 
   private def validateSourceName(
       name: String,

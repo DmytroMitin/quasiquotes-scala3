@@ -46,6 +46,158 @@ final class ScalametaTermProjectionTest extends munit.FunSuite:
       project(q"1").shape,
       TermShape.Literal("1")
     )
+
+  test("projects canonical String and Boolean literals without collapsing literal kinds"):
+    val integer = project(Lit.Int(1)).shape
+    val string = project(Lit.String("1")).shape
+
+    assertEquals(integer, TermShape.Literal("1"))
+    assertEquals(string, TermShape.Literal("\"1\""))
+    assertNotEquals(integer, string)
+    assertEquals(project(Lit.Boolean(true)).shape, TermShape.Literal("true"))
+    assertEquals(project(Lit.Boolean(false)).shape, TermShape.Literal("false"))
+    assertEquals(
+      project(Lit.String("a\"b\\c")).shape,
+      TermShape.Literal("\"a\"b\\c\"")
+    )
+
+    val recursive = Term.Apply(
+      Term.Name("f"),
+      Term.ArgClause(List(Lit.String("1"), Lit.Boolean(true)))
+    )
+    assertEquals(
+      project(recursive).shape,
+      TermShape.Apply(
+        TermShape.Identifier("f", false),
+        List(TermShape.Literal("\"1\""), TermShape.Literal("true"))
+      )
+    )
+    assertEquals(
+      project(Term.Select(Lit.String("text"), Term.Name("length"))).shape,
+      TermShape.Select(TermShape.Literal("\"text\""), "length")
+    )
+    assertEquals(
+      project(
+        Term.ApplyInfix(
+          Lit.String("left"),
+          Term.Name("+"),
+          Type.ArgClause(Nil),
+          Term.ArgClause(List(Lit.String("right")))
+        )
+      ).shape,
+      TermShape.Infix(
+        TermShape.Literal("\"left\""),
+        "+",
+        TermShape.Literal("\"right\"")
+      )
+    )
+
+  test("projects exactly the admitted structural unary family and preserves signed-literal behavior"):
+    List("+", "-", "!", "~").foreach { operator =>
+      assertEquals(
+        project(Term.ApplyUnary(Term.Name(operator), Term.Name("value"))).shape,
+        TermShape.Unary(operator, TermShape.Identifier("value", false))
+      )
+    }
+
+    val nested = Term.ApplyUnary(
+      Term.Name("!"),
+      Term.ApplyUnary(Term.Name("-"), Term.Name("value"))
+    )
+    assertEquals(
+      project(nested).shape,
+      TermShape.Unary(
+        "!",
+        TermShape.Unary("-", TermShape.Identifier("value", false))
+      )
+    )
+
+    assertEquals(project(q"-1").shape, TermShape.Literal("-1"))
+    assertEquals(project(q"+1").shape, TermShape.Literal("1"))
+    assertEquals(
+      project(Term.ApplyUnary(Term.Name("-"), Lit.Int(1))).shape,
+      TermShape.Unary("-", TermShape.Literal("1"))
+    )
+    assertErrorCode(
+      Term.ApplyUnary(Term.Name("!"), q"new java.lang.StringBuilder(16)"),
+      "NEUTRAL_TERM_UNSUPPORTED"
+    )
+
+  test("projects tuples recursively only at the established arity 2 through 22"):
+    val pair = Term.Tuple(List(Lit.Int(1), Lit.String("two")))
+    assertEquals(
+      project(pair).shape,
+      TermShape.Tuple(List(TermShape.Literal("1"), TermShape.Literal("\"two\"")))
+    )
+
+    val nested = Term.Tuple(
+      List(
+        Term.Apply(Term.Name("f"), Term.ArgClause(List(Lit.Boolean(true)))),
+        Term.ApplyUnary(Term.Name("!"), Term.Name("flag")),
+        Term.Tuple(List(Lit.Int(1), Lit.Int(2)))
+      )
+    )
+    assertEquals(
+      project(nested).shape,
+      TermShape.Tuple(
+        List(
+          TermShape.Apply(
+            TermShape.Identifier("f", false),
+            List(TermShape.Literal("true"))
+          ),
+          TermShape.Unary("!", TermShape.Identifier("flag", false)),
+          TermShape.Tuple(List(TermShape.Literal("1"), TermShape.Literal("2")))
+        )
+      )
+    )
+
+    val upperBoundary = Term.Tuple((1 to 22).toList.map(Lit.Int(_)))
+    assertEquals(
+      project(upperBoundary).shape,
+      TermShape.Tuple((1 to 22).toList.map(value => TermShape.Literal(value.toString)))
+    )
+
+    assertErrorCode(
+      Term.Tuple(List(Lit.Int(1))),
+      "NEUTRAL_TUPLE_ARITY_UNSUPPORTED"
+    )
+    assertErrorCode(
+      Term.Tuple((1 to 23).toList.map(Lit.Int(_))),
+      "NEUTRAL_TUPLE_ARITY_UNSUPPORTED"
+    )
+
+  test("projects explicit three-branch if expressions recursively and rejects no-else topology"):
+    val explicit = Input.String("if flag then (1, true) else (\"x\", !flag)").parse[Term].get
+    assertEquals(
+      project(explicit).shape,
+      TermShape.If(
+        TermShape.Identifier("flag", false),
+        TermShape.Tuple(List(TermShape.Literal("1"), TermShape.Literal("true"))),
+        TermShape.Tuple(
+          List(
+            TermShape.Literal("\"x\""),
+            TermShape.Unary("!", TermShape.Identifier("flag", false))
+          )
+        )
+      )
+    )
+
+    val nested = q"if true then if false then 1 else 2 else 3"
+    assertEquals(
+      project(nested).shape,
+      TermShape.If(
+        TermShape.Literal("true"),
+        TermShape.If(
+          TermShape.Literal("false"),
+          TermShape.Literal("1"),
+          TermShape.Literal("2")
+        ),
+        TermShape.Literal("3")
+      )
+    )
+
+    val noElse = Input.String("if true then 1").parse[Term].get
+    assertErrorCode(noElse, "NEUTRAL_IF_ELSE_UNSUPPORTED")
     assertEquals(
       project(q"1 + 1").shape,
       TermShape.Infix(
@@ -91,6 +243,13 @@ final class ScalametaTermProjectionTest extends munit.FunSuite:
       )
     )
 
+    val conditionalSource = "if true then (1, false) else (\"x\", !flag)"
+    val conditional = Input.String(conditionalSource).parse[Term].get
+    assertEquals(
+      project(conditional).sourceSpan,
+      Some(NeutralSourceSpan(0, conditionalSource.length))
+    )
+
   test("accepts an explicitly constructed unpositioned tree"):
     val source = Term.ApplyInfix(
       Lit.Int(1),
@@ -128,17 +287,28 @@ final class ScalametaTermProjectionTest extends munit.FunSuite:
       )
     )
 
+    val conditional = Term.If(Lit.Boolean(true), Lit.Int(1), Lit.Int(2))
+    assertEquals(conditional.pos, Position.None)
+    assertEquals(
+      project(conditional),
+      ProjectedTermShape(
+        TermShape.If(
+          TermShape.Literal("true"),
+          TermShape.Literal("1"),
+          TermShape.Literal("2")
+        ),
+        None
+      )
+    )
+
   test("rejects every representative non-admitted Term family deterministically"):
     val unsupported = List[(Term, String)](
       q"x => x" -> "Term.Function",
       q"new java.lang.StringBuilder(16)" -> "Term.New",
-      Term.ApplyUnary(Term.Name("-"), Lit.Int(1)) -> "Term.ApplyUnary",
-      q"(1, 2)" -> "Term.Tuple",
-      q"if true then 1 else 2" -> "Term.If",
       q"{ val x = 1; x }" -> "Term.Block",
       q"(1: Int)" -> "Term.Ascribe",
       Input.String("s\"value=$f\"").parse[Term].get -> "Term.Interpolate",
-      Lit.String("text") -> "Lit.String"
+      Lit.Unit() -> "Lit.Unit"
     )
 
     unsupported.foreach { (source, nodeKind) =>

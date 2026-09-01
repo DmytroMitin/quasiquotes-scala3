@@ -75,3 +75,31 @@ final class ScalametaTermApplyAstCharacterizationTest extends munit.FunSuite:
         "Term.New"
       )
     )
+
+  test("signed literals, structural unary terms, tuples, and if forms have distinguishable topology"):
+    val negativeLiteral = q"-1"
+    val positiveLiteral = q"+1"
+    val structuralUnary = q"!flag"
+    val tuple = q"(1, true)"
+    val explicitElse = Input.String("if true then 1 else 2").parse[Term].get
+    val noElse = Input.String("if true then 1").parse[Term].get
+    val explicitUnitElse = Input.String("if true then 1 else ()").parse[Term].get
+
+    assertEquals(negativeLiteral.asInstanceOf[Lit.Int].value, -1)
+    assertEquals(positiveLiteral.asInstanceOf[Lit.Int].value, 1)
+    assert(structuralUnary.isInstanceOf[Term.ApplyUnary])
+    assertEquals(tuple.asInstanceOf[Term.Tuple].args.size, 2)
+    intercept[Exception](
+      Term.ApplyUnary(Term.Name("custom"), Term.Name("value"))
+    )
+
+    val explicitConditional = explicitElse.asInstanceOf[Term.If]
+    assert(!explicitConditional.elsep.isInstanceOf[Lit.Unit])
+
+    val noElseConditional = noElse.asInstanceOf[Term.If]
+    assert(noElseConditional.elsep.isInstanceOf[Lit.Unit])
+    assertEquals(noElseConditional.elsep.pos.start, noElseConditional.elsep.pos.end)
+
+    val explicitUnitConditional = explicitUnitElse.asInstanceOf[Term.If]
+    assert(explicitUnitConditional.elsep.isInstanceOf[Lit.Unit])
+    assert(explicitUnitConditional.elsep.pos.start < explicitUnitConditional.elsep.pos.end)
