@@ -33,6 +33,8 @@ private[quasiquotes] object CoreTermShapeUntypedLowererTyperProbe:
 
   inline def multiArgumentApplyViable: Boolean = ${ multiArgumentApplyViableImpl }
 
+  inline def nestedU004Viable: Boolean = ${ nestedU004ViableImpl }
+
   private def onePlusOneImpl(using Quotes): Expr[Int] =
     typeAndReturn(
       TermShape.Infix(
@@ -91,6 +93,19 @@ private[quasiquotes] object CoreTermShapeUntypedLowererTyperProbe:
       TermShape.Apply(
         TermShape.Select(fixtureIdentifier, "add"),
         List(TermShape.Literal("2"), TermShape.Literal("3"))
+      )
+    )
+
+  private def nestedU004ViableImpl(using Quotes): Expr[Boolean] =
+    typeForViability(
+      TermShape.If(
+        TermShape.Unary("!", TermShape.Literal("false")),
+        TermShape.Tuple(
+          List(TermShape.Literal("\"yes\""), TermShape.Literal("true"))
+        ),
+        TermShape.Tuple(
+          List(TermShape.Literal("\"no\""), TermShape.Unary("!", TermShape.Literal("true")))
+        )
       )
     )
 

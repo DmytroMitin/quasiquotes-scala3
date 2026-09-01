@@ -21,11 +21,20 @@ class CoreTermShapeRawCharacterizationTest extends munit.FunSuite:
     "obj.f(1 + 2, 3)" ->
       "Apply(Select(Ident(obj), f), [InfixOp(Number(1,Whole(10)),Ident(+),Number(2,Whole(10))), Number(3,Whole(10))])",
     "f(g(1), 2)" ->
-      "Apply(Ident(f), [Apply(Ident(g), [Number(1,Whole(10))]), Number(2,Whole(10))])"
+      "Apply(Ident(f), [Apply(Ident(g), [Number(1,Whole(10))]), Number(2,Whole(10))])",
+    "true" -> "Literal(Boolean(true))",
+    "\"text\"" -> "Literal(String(\"text\"))",
+    "!flag" -> "PrefixOp(!,Ident(flag))",
+    "~mask" -> "PrefixOp(~,Ident(mask))",
+    "-value" -> "PrefixOp(-,Ident(value))",
+    "(x, true, \"value\")" ->
+      "Tuple([Ident(x), Literal(Boolean(true)), Literal(String(\"value\"))])",
+    "if cond then \"yes\" else \"no\"" ->
+      "If(Ident(cond),Literal(String(\"yes\")),Literal(String(\"no\")))"
   )
 
   expected.foreach { case (source, structure) =>
-    test(s"characterizes parser-produced raw integer/infix structure: $source") {
+    test(s"characterizes parser-produced raw direct-lowerer structure: $source") {
       val parsed = TinyTermParser.parseOrThrow(source)
 
       assertEquals(parsed.rawStructure, structure)

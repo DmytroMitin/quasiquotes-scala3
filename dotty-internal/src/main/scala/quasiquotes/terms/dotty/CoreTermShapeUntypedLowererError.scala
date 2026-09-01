@@ -11,7 +11,7 @@ private[quasiquotes] object CoreTermShapeUntypedLowererError:
   final case class InvalidIntegerLiteral(value: String)
       extends CoreTermShapeUntypedLowererError:
     def message: String =
-      s"Invalid bounded exact-backend integer literal `${String.valueOf(value)}`: expected 0, a non-zero decimal digit followed by decimal digits, or the same non-zero form prefixed by minus."
+      s"Invalid bounded exact-backend literal `${String.valueOf(value)}`: expected a canonical decimal integer, Boolean, or semantic String value enclosed by marker quotes."
 
   final case class InvalidInfixOperator(operator: String)
       extends CoreTermShapeUntypedLowererError:
@@ -40,6 +40,20 @@ private[quasiquotes] object CoreTermShapeUntypedLowererError:
   case object MissingApplyArguments extends CoreTermShapeUntypedLowererError:
     def message: String =
       "Cannot lower a bounded exact-backend Apply with a missing ordinary argument list."
+
+  final case class InvalidUnaryOperator(operator: String)
+      extends CoreTermShapeUntypedLowererError:
+    def message: String =
+      s"Invalid bounded exact-backend unary operator `${String.valueOf(operator)}`: expected one of +, -, !, or ~."
+
+  case object MissingTupleElements extends CoreTermShapeUntypedLowererError:
+    def message: String =
+      "Cannot lower a bounded exact-backend Tuple with a missing element list."
+
+  final case class InvalidTupleArity(arity: Int)
+      extends CoreTermShapeUntypedLowererError:
+    def message: String =
+      s"Invalid bounded exact-backend Tuple arity $arity: expected 2 through 22 elements."
 
   final case class UnsupportedTermShape(nodeKind: String)
       extends CoreTermShapeUntypedLowererError:

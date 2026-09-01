@@ -1,6 +1,7 @@
 package quasiquotes.terms.dotty
 
 import dotty.tools.dotc.ast.untpd
+import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Names.termName
 import dotty.tools.dotc.core.Symbols.NoSymbol
@@ -25,6 +26,7 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
     ">",
     ">="
   )
+  private val AdmittedUnaryOperators = Set("+", "-", "!", "~")
   private val PlainSourceName = "[A-Za-z_][A-Za-z0-9_]*".r
   private val Scala3Keywords = Set(
     "abstract",
@@ -101,6 +103,19 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
         Option(value) match
           case Some(CanonicalInteger()) =>
             Right(untpd.Number(value, untpd.NumberKind.Whole(10)))
+          case Some("true") => Right(untpd.Literal(Constant(true)))
+          case Some("false") => Right(untpd.Literal(Constant(false)))
+          case Some(semanticString)
+              if semanticString.length >= 2 &&
+                semanticString.head == '"' &&
+                semanticString.last == '"' =>
+            Right(
+              untpd.Literal(
+                Constant(
+                  semanticString.substring(1, semanticString.length - 1)
+                )
+              )
+            )
           case _ => Left(InvalidIntegerLiteral(value))
       case Some(TermShape.Infix(left, operator, right)) =>
         if !Option(operator).exists(AdmittedOperators) then
@@ -134,6 +149,30 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
               rawFunction <- lowerAdmitted(function)
               rawArguments <- traverse(argumentList)(lowerAdmitted)
             yield untpd.Apply(rawFunction, rawArguments)
+      case Some(TermShape.Unary(operator, operand)) =>
+        if !Option(operator).exists(AdmittedUnaryOperators) then
+          Left(InvalidUnaryOperator(operator))
+        else
+          lowerAdmitted(operand).map(rawOperand =>
+            untpd.PrefixOp(
+              untpd.Ident(termName(operator)),
+              rawOperand
+            )
+          )
+      case Some(TermShape.Tuple(elements)) =>
+        Option(elements) match
+          case None => Left(MissingTupleElements)
+          case Some(elementList)
+              if elementList.size < 2 || elementList.size > 22 =>
+            Left(InvalidTupleArity(elementList.size))
+          case Some(elementList) =>
+            traverse(elementList)(lowerAdmitted).map(untpd.Tuple.apply)
+      case Some(TermShape.If(condition, thenBranch, elseBranch)) =>
+        for
+          rawCondition <- lowerAdmitted(condition)
+          rawThen <- lowerAdmitted(thenBranch)
+          rawElse <- lowerAdmitted(elseBranch)
+        yield untpd.If(rawCondition, rawThen, rawElse)
       case Some(other) =>
         Left(UnsupportedTermShape(nodeKind(other)))
 
@@ -206,5 +245,18 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
             _ <- verifySourceFree(left)
             _ <- verifySourceFree(operator)
             _ <- verifySourceFree(right)
+          yield ()
+        case untpd.PrefixOp(operator, operand) =>
+          for
+            _ <- verifySourceFree(operator)
+            _ <- verifySourceFree(operand)
+          yield ()
+        case untpd.Tuple(elements) =>
+          traverse(elements)(verifySourceFree).map(_ => ())
+        case untpd.If(condition, thenBranch, elseBranch) =>
+          for
+            _ <- verifySourceFree(condition)
+            _ <- verifySourceFree(thenBranch)
+            _ <- verifySourceFree(elseBranch)
           yield ()
         case _ => Right(())

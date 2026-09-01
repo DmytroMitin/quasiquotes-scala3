@@ -6,8 +6,10 @@ import dotty.tools.dotc.core.Symbols.NoSymbol
 
 import quasiquotes.neutral.ScalametaTermProjection
 import quasiquotes.parser.{BinderId, TermShape, TermShapeInspector, TinyTermParser}
+import quasiquotes.terms.ConstructedTerm
 
 import scala.meta.*
+import scala.meta.dialects.Scala3
 
 class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
   import CoreTermShapeUntypedLowererError.*
@@ -33,7 +35,7 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
     }
   }
 
-  private val malformedIntegers = Vector(
+  private val unsupportedLiteralTexts = Vector(
     "",
     "+1",
     " 1",
@@ -41,6 +43,11 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
     "1.0",
     "1e2",
     "1L",
+    "'x'",
+    "null",
+    "()",
+    "1_000",
+    "\"",
     "value",
     "00",
     "01",
@@ -48,8 +55,8 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
     "-01"
   )
 
-  malformedIntegers.foreach { value =>
-    test(s"rejects noncanonical semantic integer text: ${value.replace(" ", "<space>")}") {
+  unsupportedLiteralTexts.foreach { value =>
+    test(s"rejects unsupported semantic literal text: ${value.replace(" ", "<space>")}") {
       withContext {
         assertEquals(
           CoreTermShapeUntypedLowerer.lower(TermShape.Literal(value)),
@@ -59,11 +66,157 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
     }
   }
 
-  test("rejects a null semantic integer value") {
+  test("rejects a null semantic literal payload") {
     withContext {
       assertEquals(
         CoreTermShapeUntypedLowerer.lower(TermShape.Literal(null)),
         Left(InvalidIntegerLiteral(null))
+      )
+    }
+  }
+
+  test("lowers Boolean and semantic String literals without reparsing payload text") {
+    withContext {
+      val fixtures = Vector(
+        TermShape.Literal("true") -> "Literal(Boolean(true))",
+        TermShape.Literal("false") -> "Literal(Boolean(false))",
+        TermShape.Literal("\"1\"") -> "Literal(String(\"1\"))",
+        TermShape.Literal("\"a quoted \"value\" and \\ slash\nλ\"") ->
+          "Literal(String(\"a quoted \"value\" and \\ slash\nλ\"))"
+      )
+
+      fixtures.foreach { case (shape, expected) =>
+        assertEquals(
+          TermShapeInspector.rawStructure(lowerOrFail(shape)),
+          expected,
+          clues(shape)
+        )
+      }
+    }
+  }
+
+  test("lowers the selected unary tuple and explicit-if families recursively") {
+    withContext {
+      val shape =
+        TermShape.If(
+          TermShape.Unary("!", TermShape.Identifier("flag", false)),
+          TermShape.Tuple(
+            List(
+              TermShape.Literal("\"yes\""),
+              TermShape.Unary("~", TermShape.Identifier("mask", false)),
+              TermShape.Apply(
+                TermShape.Identifier("f", false),
+                TermShape.Literal("1") :: Nil
+              )
+            )
+          ),
+          TermShape.Tuple(List(TermShape.Literal("false"), TermShape.Literal("0")))
+        )
+
+      assertEquals(
+        TermShapeInspector.rawStructure(lowerOrFail(shape)),
+        "If(PrefixOp(!,Ident(flag)),Tuple([Literal(String(\"yes\")), PrefixOp(~,Ident(mask)), Apply(Ident(f), [Number(1,Whole(10))])]),Tuple([Literal(Boolean(false)), Number(0,Whole(10))]))"
+      )
+    }
+  }
+
+  test("preserves integer and String literal identity and folded versus structural minus") {
+    withContext {
+      val integer = lowerOrFail(TermShape.Literal("1"))
+      val string = lowerOrFail(TermShape.Literal("\"1\""))
+      val folded = lowerOrFail(TermShape.Literal("-1"))
+      val structural = lowerOrFail(TermShape.Unary("-", TermShape.Literal("1")))
+
+      assertEquals(TermShapeInspector.rawStructure(integer), "Number(1,Whole(10))")
+      assertEquals(TermShapeInspector.rawStructure(string), "Literal(String(\"1\"))")
+      assertEquals(TermShapeInspector.rawStructure(folded), "Number(-1,Whole(10))")
+      assertEquals(
+        TermShapeInspector.rawStructure(structural),
+        "PrefixOp(-,Number(1,Whole(10)))"
+      )
+    }
+  }
+
+  test("admits exactly the four selected unary operators") {
+    withContext {
+      Vector("+", "-", "!", "~").foreach { operator =>
+        val raw = lowerOrFail(
+          TermShape.Unary(operator, TermShape.Identifier("value", false))
+        )
+        assertEquals(
+          TermShapeInspector.rawStructure(raw),
+          s"PrefixOp($operator,Ident(value))"
+        )
+      }
+
+      Vector("", "not", "++", "&", null).foreach { operator =>
+        assertEquals(
+          CoreTermShapeUntypedLowerer.lower(
+            TermShape.Unary(operator, TermShape.Identifier("value", false))
+          ),
+          Left(InvalidUnaryOperator(operator))
+        )
+      }
+    }
+  }
+
+  test("enforces Tuple arity 2 through 22 and recursive child admission") {
+    withContext {
+      Vector(2, 3, 22).foreach { arity =>
+        val elements = (1 to arity).map(index => TermShape.Literal(index.toString)).toList
+        lowerOrFail(TermShape.Tuple(elements)) match
+          case untpd.Tuple(rawElements) => assertEquals(rawElements.size, arity)
+          case other => fail(s"expected Tuple, found ${other.getClass.getSimpleName}")
+      }
+
+      Vector(0, 1, 23).foreach { arity =>
+        val elements = List.fill(arity)(TermShape.Literal("1"))
+        assertEquals(
+          CoreTermShapeUntypedLowerer.lower(TermShape.Tuple(elements)),
+          Left(InvalidTupleArity(arity))
+        )
+      }
+      assertEquals(
+        CoreTermShapeUntypedLowerer.lower(TermShape.Tuple(null)),
+        Left(MissingTupleElements)
+      )
+      assertEquals(
+        CoreTermShapeUntypedLowerer.lower(
+          TermShape.Tuple(List(TermShape.Literal("1"), null))
+        ),
+        Left(MissingTermShape)
+      )
+      assertEquals(
+        CoreTermShapeUntypedLowerer.lower(
+          TermShape.Tuple(List(TermShape.Literal("1"), TermShape.New("Value", Nil)))
+        ),
+        Left(UnsupportedTermShape("New"))
+      )
+    }
+  }
+
+  test("fails closed for missing or unsupported Unary and If children") {
+    val literal = TermShape.Literal("1")
+    val unsupported = TermShape.New("Value", Nil)
+    withContext {
+      Vector[TermShape](
+        TermShape.Unary("!", null),
+        TermShape.If(null, literal, literal),
+        TermShape.If(literal, null, literal),
+        TermShape.If(literal, literal, null)
+      ).foreach(shape =>
+        assertEquals(CoreTermShapeUntypedLowerer.lower(shape), Left(MissingTermShape))
+      )
+      Vector[TermShape](
+        TermShape.Unary("!", unsupported),
+        TermShape.If(unsupported, literal, literal),
+        TermShape.If(literal, unsupported, literal),
+        TermShape.If(literal, literal, unsupported)
+      ).foreach(shape =>
+        assertEquals(
+          CoreTermShapeUntypedLowerer.lower(shape),
+          Left(UnsupportedTermShape("New"))
+        )
       )
     }
   }
@@ -393,24 +546,36 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
   test("constructs only recursively source-free span-free symbol-free raw nodes without TypedSplice") {
     withContext {
       val raw = lowerOrFail(
-        TermShape.Apply(
-          TermShape.Select(
-            TermShape.Apply(
-              TermShape.Identifier("f", isPlaceholder = false),
-              TermShape.Literal("1") :: Nil
-            ),
-            "g"
-          ),
-          List(
-            TermShape.Infix(
-              TermShape.Literal("-1"),
-              "+",
-              TermShape.Literal("2")
-            ),
-            TermShape.Apply(
-              TermShape.Identifier("h", isPlaceholder = false),
-              TermShape.Literal("3") :: Nil
+        TermShape.If(
+          TermShape.Unary("!", TermShape.Literal("false")),
+          TermShape.Tuple(
+            List(
+              TermShape.Apply(
+                TermShape.Select(
+                  TermShape.Identifier("service", isPlaceholder = false),
+                  "answer"
+                ),
+                TermShape.Literal("1") :: Nil
+              ),
+              TermShape.Literal("\"text\""),
+              TermShape.Unary(
+                "~",
+                TermShape.Select(
+                  TermShape.Identifier("state", isPlaceholder = false),
+                  "mask"
+                )
+              )
             )
+          ),
+          TermShape.Tuple(
+            List(
+              TermShape.Infix(
+                TermShape.Literal("-1"),
+                "+",
+                TermShape.Literal("2")
+              ),
+              TermShape.Literal("true")
+            ),
           )
         )
       )
@@ -424,19 +589,16 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
     }
   }
 
-  test("fails closed for every core TermShape family outside the bounded call backend") {
+  test("fails closed for every core TermShape family outside the bounded direct backend") {
     val binder = BinderId(0)
     val literal = TermShape.Literal("1")
     val unsupported = Vector(
       TermShape.BoundReference(binder, "value") -> "BoundReference",
       TermShape.Lambda1(binder, "value", "Int", literal) -> "Lambda1",
       TermShape.New("Value", Nil) -> "New",
-      TermShape.Unary("-", literal) -> "Unary",
       TermShape.InterpolatedString("s", List("", ""), List(literal)) ->
         "InterpolatedString",
       TermShape.Typed(literal, "Int") -> "Typed",
-      TermShape.Tuple(List(literal)) -> "Tuple",
-      TermShape.If(literal, literal, literal) -> "If",
       TermShape.Block(List(literal), literal) -> "Block",
       TermShape.Parenthesized(literal) -> "Parenthesized",
       TermShape.Unsupported("Hostile", "detail") -> "Unsupported"
@@ -492,6 +654,62 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
     }
   }
 
+  test("composes current neutral projection through every new exact family") {
+    val sources = Vector(
+      "\"text\"",
+      "true",
+      "!flag",
+      "(x, true, \"value\")",
+      "if cond then \"yes\" else \"no\"",
+      "if !flag then (\"yes\", true) else (\"no\", false)"
+    )
+
+    withContext {
+      sources.foreach { source =>
+        val meta = source.parse[Term].get
+        val projected = ScalametaTermProjection.project(meta).toOption.get
+        val direct = lowerOrFail(projected.shape)
+        val parserOracle = TinyTermParser.parseOrThrow(source)
+
+        assertEquals(
+          TermShapeInspector.rawStructure(direct),
+          parserOracle.rawStructure,
+          clues(source, projected.shape)
+        )
+      }
+    }
+  }
+
+  test("agrees structurally with the richer exact backend on the bounded overlap") {
+    val shapes = Vector(
+      TermShape.Literal("true"),
+      TermShape.Literal("false"),
+      TermShape.Literal("\"a \"quote\" \\ newline\nλ\""),
+      TermShape.Unary("!", TermShape.Identifier("flag", false)),
+      TermShape.Tuple(
+        List(TermShape.Identifier("x", false), TermShape.Literal("true"))
+      ),
+      TermShape.If(
+        TermShape.Identifier("cond", false),
+        TermShape.Literal("\"yes\""),
+        TermShape.Literal("\"no\"")
+      )
+    )
+
+    withContext {
+      shapes.foreach { shape =>
+        val direct = lowerOrFail(shape)
+        val constructed = ConstructedTerm.fromShape(shape).toOption.get
+        val richer = ConstructedTermUntypedBackend.lower(constructed).toOption.get
+        assertEquals(
+          TermShapeInspector.rawStructure(direct),
+          TermShapeInspector.rawStructure(richer),
+          clues(shape)
+        )
+      }
+    }
+  }
+
   private def withContext[A](body: Context ?=> A): A =
     val base = new ContextBase
     given Context = base.initialCtx
@@ -510,4 +728,10 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
         tree :: allTrees(function) ::: arguments.flatMap(allTrees)
       case untpd.InfixOp(left, operator, right) =>
         tree :: allTrees(left) ::: allTrees(operator) ::: allTrees(right)
+      case untpd.PrefixOp(operator, operand) =>
+        tree :: allTrees(operator) ::: allTrees(operand)
+      case untpd.Tuple(elements) =>
+        tree :: elements.flatMap(allTrees)
+      case untpd.If(condition, thenBranch, elseBranch) =>
+        tree :: allTrees(condition) ::: allTrees(thenBranch) ::: allTrees(elseBranch)
       case _ => tree :: Nil
