@@ -59,16 +59,19 @@ Accepted production support is the recursive family formed from Scalameta
 `Term.ApplyInfix`; unary `+`, `-`, `!`, and `~`; tuples of arity 2 through 22;
 explicit three-branch `if`; conservative direct source identifiers and
 selections; and one ordinary positional `Term.Apply` argument list. It also
-admits one explicitly typed ordinary Lambda1, transparent one-Term P0 braces,
-binder-free P1 blocks, one bounded explicitly typed eager immutable local-val
-P2 block with the existing whole-tree binder/shadowing policy, and one bounded
-source-owned local identity-method P3 block. The P3 family requires one
+admits one fully-qualified non-generic `Term.New` with exactly one ordinary
+positional argument list, one explicitly typed ordinary Lambda1, transparent
+one-Term P0 braces, binder-free P1 blocks, one bounded explicitly typed eager
+immutable local-val P2 block with the existing whole-tree binder/shadowing
+policy, and one bounded source-owned local identity-method P3 block. The P3 family requires one
 modifier-free, non-generic, one-parameter method with explicit structurally
 compatible Int/String/Boolean Types, a direct parameter body, a direct method
-result, distinct deterministic binders, and no recursion. Apply permits zero,
-one, or multiple arguments. Nested Apply lists, Type application, contextual
-clauses, named/star arguments, `new`, ascription, interpolation, and broader
-lambdas/binders/statements return stable `NeutralProjectionError` categories;
+result, distinct deterministic binders, and no recursion. Apply and the admitted
+constructor list permit zero, one, or multiple arguments. Nested Apply lists,
+Type application, contextual clauses, simple/import-relative or type-applied
+constructors, multiple constructor lists, named/star arguments, anonymous
+templates, ascription, interpolation, and broader lambdas/binders/statements
+return stable `NeutralProjectionError` categories;
 they never become `TermShape.Unsupported`.
 
 The name policy is syntactic only: direct and selected names use non-keyword
@@ -154,8 +157,10 @@ This exact example is compile-checked and remains a separate definition
 projection. The production term projector uses the bounded accepted family
 described above with explicit name, clause, argument, binder, failure, and span
 contracts. The prototype's one-list `new` remains test-only feasibility
-evidence rather than production support. Lambda1 and P2 reuse existing Core
-binder identity; P2 declared Types reuse the accepted neutral Type projection.
+evidence only for its broader unguarded shape; the accepted production subset
+is the fully-qualified plain-name, non-generic, exactly-one-positional-list
+family above. Lambda1 and P2 reuse existing Core binder identity; P2 declared
+Types reuse the accepted neutral Type projection.
 
 The projector converts fields directly to `CompletedType`, `CompletedTerm`,
 and `DefinitionConstruction.contextualMethod`. Unsupported shapes return

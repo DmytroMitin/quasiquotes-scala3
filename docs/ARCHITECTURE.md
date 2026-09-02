@@ -41,7 +41,7 @@ The production neutral Term route and its narrower exact continuation are:
 
 ```text
 scala.meta.Term (bounded literals / names / select / Apply / infix / unary
-  / tuple / if / Lambda1 / P0-P3 block families)
+  / tuple / if / fully-qualified one-list New / Lambda1 / P0-P3 block families)
   -> ScalametaTermProjection
   -> core TermShape
   -> package-private CoreTermShapeUntypedLowerer (non-binder + P0/P1 overlap)
@@ -61,11 +61,13 @@ encoded by recursive `TermShape.Infix` structure.
   semantic Int/String/Boolean literals, recursive ordinary binary infix and
   unary nodes, tuples, explicit three-branch conditionals, direct identifiers,
   direct selections, exactly one ordinary positional Apply argument list, one
-  explicitly typed Lambda1, transparent P0/binder-free P1 blocks, one bounded
-  typed local-val P2 block, and one bounded source-owned local identity-method
-  P3 block into core `TermShape`. Unsupported and broader binder/statement
-  shapes fail closed.
-- `hybridScalametaFrontend` is an unpublished opt-in typed Term/Type frontend.
+  bounded fully-qualified non-generic constructor with one ordinary positional
+  argument list, one explicitly typed Lambda1, transparent P0/binder-free P1
+  blocks, one bounded typed local-val P2 block, and one bounded source-owned
+  local identity-method P3 block into core `TermShape`. Unsupported and broader
+  constructor/binder/statement shapes fail closed.
+- `hybridScalametaFrontend` is an unpublished opt-in typed Term/Type/Definition
+  frontend.
   It reuses project-owned templates, patterns, matching, and Type models where
   applicable. Term construction currently lowers Scalameta ASTs directly in
   the caller's `Quotes` universe; it does not route through the narrower
@@ -193,6 +195,7 @@ The reusable neutral Term route is now:
 ```text
 scala.meta Int/String/Boolean literals / ApplyInfix / unary / tuple / if
   / Term.Name / Term.Select / one ordinary Term.Apply argument list
+  / one fully-qualified non-generic Term.New with one ordinary argument list
   / one typed Lambda1 / transparent P0 and bounded P1/P2/P3 blocks
   -> ScalametaTermProjection
   -> core TermShape
@@ -202,8 +205,10 @@ It preserves only a truthful root source span and performs no rendering,
 reparse, typing, symbol lookup, overload resolution, or fallback. The recursive
 result is a semantic copy; it does not preserve Scalameta child identity or raw
 Dotty subtree identity and adds no opaque raw sidecar. Nested Apply lists, Type
-application, contextual clauses, named/star arguments, `new`, and broader
-statement/binder forms remain outside the neutral contract. The direct
+application, contextual clauses, simple/import-relative or type-applied
+constructors, multiple constructor lists, named/star arguments, anonymous
+templates, and broader statement/binder forms remain outside the neutral
+contract. The direct
 exact backend accepts the non-binder family above plus transparent P0 and
 binder-free P1 blocks; a direct Apply in function position is rejected as a
 second argument list, while Apply remains valid in argument and qualifier

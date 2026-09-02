@@ -7,7 +7,7 @@ expanded release set:
 | Role | Future coordinate shape | Cross policy | Direct project dependencies |
 | --- | --- | --- | --- |
 | compiler-free source-AST bridge | `com.github.dmytromitin:quasiquotes-scala3-neutral-scalameta_3:0.3.0` | Scala 3 binary | `core_3`, Scalameta 4.17.3 |
-| typed Term and Type opt-in | `com.github.dmytromitin:quasiquotes-scala3-scalameta-frontend_<3.3.8-or-3.8.4>:0.3.0` | full Scala version | matching `frontend_<exact-scala>`, `neutral-scalameta_3` |
+| typed Term, Type, and bounded Definition opt-in | `com.github.dmytromitin:quasiquotes-scala3-scalameta-frontend_<3.3.8-or-3.8.4>:0.3.0` | full Scala version | matching `frontend_<exact-scala>`, `neutral-scalameta_3` |
 | exact-version peer backend | `com.github.dmytromitin:quasiquotes-scala3-dotty-internal_<3.3.8-or-3.8.4>:0.3.0` | full Scala version | `neutral-scalameta_3`, matching `scala3-compiler_3` |
 
 Ordinary builds keep all three modules skipped. Only
@@ -26,18 +26,18 @@ quasiquotes directly; the project does not copy or export an `n*` macro engine.
 
 The typed coordinate exposes only `quasiquotes.scalameta`:
 
-- `ScalametaQuasiquotes.*` for explicit opt-in `qr` and `tqr`;
-- `ScalametaQuasiPattern.*` for explicit opt-in `qq` and `tqq`;
+- `ScalametaQuasiquotes.*` for explicit opt-in `qr`, `tqr`, and bounded `dqr`;
+- `ScalametaQuasiPattern.*` for explicit opt-in `qq`, `tqq`, and bounded `dqq`;
 - compact `TermFrontend` and `TypeFrontend` programmatic boundaries;
 - ordered extractor results that preserve original caller-owned reflected
   subtrees.
 
-There is no typed Scalameta `dqr`/`dqq` surface. If a Definition frontend is
-added later, it must project through the shared compiler-free Definition model
-and then use the selected typed-backend ownership plan. The neutral
-Scalameta-to-validated-definition projector and the exact `dottyInternal`
-pre-typer bridge remain separate routes with different output and placement
-contracts.
+The typed Scalameta `dqr`/`dqq` surface is limited to the exact current-Dotty
+single-parameter identity-Definition overlap. It reuses the same typed
+owner/binder lowerer and `SingleParameterDefinitionPattern`; it does not route
+through the neutral contextual-method projector. That neutral route and the
+exact `dottyInternal` pre-typer bridge remain separate contracts with different
+outputs and placement semantics.
 
 Its Term and Type mappers, dialect policy, selectors, parity inventories, and
 evidence macros remain package-private. Ordinary imports from

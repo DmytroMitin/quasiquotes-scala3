@@ -176,6 +176,7 @@ Scalameta trees are source syntax, not typed reflection or exact Dotty trees.
 `ScalametaTermProjection` admits the bounded accepted Int/String/Boolean
 literal, binary infix, unary, tuple, explicit conditional, direct identifier,
 selection, one-list Apply, typed Lambda1, transparent P0, binder-free P1,
+one fully-qualified non-generic constructor with one ordinary positional list,
 single typed local-val P2, and bounded source-owned local identity-method P3
 families into the existing core `TermShape`. It preserves one truthful root
 span when present and fails closed otherwise. The separate
@@ -200,7 +201,7 @@ general Scalameta-definition conversion.
 | `TermPattern` / `MatchResult` | Public neutral structural matching data in `core`. |
 | `TermTemplate` / `ConstructedTerm` | Package-internal validated construction IR in `core`; deliberately not public. |
 | `CompletedTerm` | Public bounded definition-body payload; not the general term AST. |
-| `scala.meta.Term` | Experimental unpublished source-syntax term in `neutralScalameta`; direct construction/matching, with accepted production projection to `TermShape` for the bounded literal/infix/unary/tuple/conditional/name/select/Apply, typed Lambda1, and P0/P1/P2/P3 block families. |
+| `scala.meta.Term` | Experimental unpublished source-syntax term in `neutralScalameta`; direct construction/matching, with accepted production projection to `TermShape` for the bounded literal/infix/unary/tuple/conditional/name/select/Apply, fully-qualified one-list constructor/New, typed Lambda1, and P0/P1/P2/P3 block families. |
 | `Expr[T]` / `quotes.reflect.Term` | Caller-`Quotes` staged and reflected values used by `qr`/`qq`; compiler-coupled and universe-dependent. |
 | `dotty.tools.dotc.ast.untpd.Tree` | Exact compiler-internal value used by parsing and the unpublished exact backend; not a published AST contract. |
 
@@ -236,11 +237,11 @@ members: forwarding the macro interpolators is rejected upstream, and copying
 their implementation is outside this experiment.
 
 Those `ndqr`/`ndqq` names are only consumer aliases for upstream untyped
-Scalameta `q` definition syntax. The typed Scalameta opt-in exports `qr`/`qq`
-and `tqr`/`tqq` only; it has no typed `dqr`/`dqq`. A future typed Definition
-frontend must reuse the project-owned Definition model and a backend ownership
-plan rather than treating a Scalameta `Defn` as an insertion-ready reflected
-definition.
+Scalameta `q` definition syntax. The typed Scalameta opt-in also exports bounded
+`dqr`/`dqq` for the exact current-Dotty single-parameter identity-Definition
+overlap. They reuse the project-owned Definition lowerer/matcher and typed
+ownership plan rather than treating a Scalameta `Defn` as an insertion-ready
+reflected definition.
 
 For reflected Type composition, `TypeRepr` is the semantic transport in one
 active `Quotes` universe. `TypeTree.tpe`, `TypeRepr.of[T]`, and `tqr` all

@@ -18,14 +18,15 @@ delivery chronology.
   `dottyInternal` remains an unpublished exact backend, not a generic raw-tree
   toolkit.
 - Preserve the production compiler-free `scala.meta.Term -> TermShape`
-  projector for recursive semantic `Lit.Int`, ordinary one-RHS binary infix,
-  direct identifier, direct selection, and one ordinary positional `Apply`
-  argument-list nodes. Zero, one, and multiple arguments compose recursively;
-  nested application lists, Type application, contextual clauses, named/star
-  arguments, and every other Term shape fail closed. The projector retains one
+  projector for the accepted literal/infix/unary/tuple/conditional/name/select/
+  one-list-Apply family, one typed Lambda1, bounded P0/P1/P2/P3 blocks, and a
+  fully-qualified non-generic constructor with exactly one ordinary positional
+  argument list. Constructor arguments reuse the existing recursive Term
+  projection. Simple/import-relative constructors, constructor Type arguments,
+  multiple/contextual lists, named/star arguments, anonymous templates, and
+  every other unsupported Term shape fail closed. The projector retains one
   truthful root span, makes semantic copies rather than preserving raw-tree
-  identity, and performs no name or overload resolution. The Phase-131
-  one-list `new` helper remains test-only feasibility evidence.
+  identity, and performs no name, class, overload, or symbol resolution.
 - Preserve the package-private production exact backend for that same bounded
   family. `CoreTermShapeUntypedLowerer` accepts canonical signed decimal
   integer strings, the fixed ordinary operator set `+`, `-`, `*`, `/`, `%`,
@@ -49,10 +50,11 @@ delivery chronology.
   Use direct Scalameta authoring until a genuinely reusable façade can delegate
   upstream macros without forwarding or duplicating them.
 - Keep the compiler-coupled `hybridScalametaFrontend` experiment unpublished
-  and side by side with the current term engine. Expand its admitted `qr`/`qq`
-  slice only through differential tests, exact-compiler validation, original
-  reflected-hole/capture identity, and compiler-line dialect selection; do not
-  switch the public default without a separate compatibility decision.
+  and side by side with the current engine. Its admitted typed Term, Type, and
+  bounded Definition slices expand only through differential tests,
+  exact-compiler validation, original reflected-hole/capture identity, and
+  compiler-line dialect selection; do not switch the public default without a
+  separate compatibility decision.
 - Keep `dottyInternal` source visible but its artifact unpublished. Retain only
   definition-specific exact-version bridges for tightly coupled foreign-package
   peers. `ContextualMethodPeerBridge` admits the unchanged legacy `Show[A]`
@@ -154,13 +156,14 @@ are different source categories.
 
 ### Typed Scalameta Definitions
 
-Typed Scalameta `dqr`/`dqq` are a future candidate after a shared typed
-Definition slice exists. They must reuse the same compiler-free Definition
-semantics and typed-backend ownership plan as the current-Dotty route. They
-are not aliases for neutral upstream Scalameta `q` definition AST authoring,
-and they are not the exact pre-typer bridge in `dottyInternal`. Parity between
-typed frontends remains required only for their overlapping advertised slices,
-not in lock-step.
+Typed Scalameta `dqr`/`dqq` are implemented in the unpublished opt-in hybrid
+frontend for the exact current-Dotty one-ordinary-parameter identity-Definition
+overlap. Construction delegates to the same typed owner/binder lowerer and
+matching delegates to the same `SingleParameterDefinitionPattern`; successful
+matching returns the caller's original reflected RHS. They are not aliases for
+neutral upstream Scalameta `q` definition AST authoring, and they are not the
+exact pre-typer bridge in `dottyInternal`. Parity between typed frontends remains
+required only for their overlapping advertised slices, not in lock-step.
 
 ### Additive import façade
 
@@ -176,10 +179,12 @@ and, for the typed Scalameta route:
 import quasiquotes.scalameta.Quasiquotes.{qr, qq, tqr, tqq}
 ```
 
-The Scalameta façade may add `dqr`/`dqq` only after that typed Definition
-surface exists. Current public package imports will remain supported; no deep
-package move or deprecation is selected. Separate domain façades remain a
-fallback, not the primary direction.
+The typed Definition surface now exists, so the selected future Scalameta
+umbrella includes `dqr`/`dqq` as well. The umbrella façade itself remains
+unimplemented until its independently selected Q task is accepted. Current
+public package imports will remain supported; no deep package move or
+deprecation is selected. Separate domain façades remain a fallback, not the
+primary direction.
 
 ## North-star source-like generation
 

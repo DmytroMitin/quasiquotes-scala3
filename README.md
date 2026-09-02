@@ -148,18 +148,22 @@ construct/match boundary and its deliberate limits.
   reflection adapters, and public source-oriented conveniences.
 - `neutralScalameta` is a remotely unpublished compiler-free experiment backed by
   Scalameta 4.17.3. It provides direct source-AST authoring plus a bounded
-  structural projection into the existing validated IR, without `Quotes`,
-  compiler implementation dependencies, staging, SemanticDB, or exact trees.
+  structural projection into the existing validated IR, including the accepted
+  fully-qualified, non-generic, one-positional-list constructor/New family,
+  without `Quotes`, compiler implementation dependencies, staging, SemanticDB,
+  or exact trees.
 - `hybridScalametaFrontend` is a remotely unpublished, compiler-coupled side-by-side
-  experiment. It contains explicit typed Term and Type opt-in APIs in
-  `quasiquotes.scalameta`. Both parse public Scalameta ASTs, lower into existing
-  project semantics, and retain current-Dotty as the reference/oracle. Only a
-  Scalameta parse failure may use the current parser as fallback; semantic or
-  lowering failures remain fail-closed.
+  experiment. It contains explicit typed Term, Type, and bounded Definition
+  opt-in APIs in `quasiquotes.scalameta`. They parse public Scalameta ASTs,
+  lower into existing project semantics, and retain current-Dotty as the
+  reference/oracle. Only a Scalameta parse failure may use the current parser
+  as fallback; semantic or lowering failures remain fail-closed.
   Public `qr`/`qq` and `tqr`/`tqq` defaults and published dependencies do not
   change.
-  It has no typed `dqr`/`dqq`; neutral Scalameta definition authoring and typed
-  reflected Definition placement are distinct contracts.
+  Its typed `dqr`/`dqq` reuse the current-Dotty one-ordinary-parameter
+  Definition lowerer and matcher for their exact overlapping slice; neutral
+  Scalameta definition authoring and typed reflected Definition placement
+  remain distinct contracts.
 - `dottyInternal` contains exact-compiler internal adapters and four narrow
   experimental foreign-package peer bridges: contextual-method lowering,
   bounded AUXify self abstract-Type-member lowering, delegated forwarding, and
