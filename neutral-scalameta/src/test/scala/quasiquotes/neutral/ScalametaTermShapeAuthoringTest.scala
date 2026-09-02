@@ -161,7 +161,6 @@ final class ScalametaTermShapeAuthoringTest extends munit.FunSuite:
     val excluded = List(
       TermShape.InterpolatedString("s", List("", ""), List(free)),
       TermShape.Typed(free, "Int"),
-      TermShape.Block(List(TermShape.Literal("1")), TermShape.Literal("2")),
       TermShape.Lambda1(BinderId(0), "x", "Int", free),
       TermShape.BoundReference(BinderId(0), "x"),
       TermShape.Parenthesized(free),

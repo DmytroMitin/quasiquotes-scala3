@@ -86,7 +86,7 @@ final class ScalametaConstructorNewAuthoringTest extends munit.FunSuite:
     List(
       TermShape.Typed(free, "Int"),
       TermShape.InterpolatedString("s", List("", ""), List(free)),
-      TermShape.Block(List(TermShape.Literal("1")), TermShape.Literal("2"))
+      TermShape.Parenthesized(free)
     ).foreach(child =>
       assertErrorCode(
         TermShape.New("synthetic.unresolved.Widget", List(child)),

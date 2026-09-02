@@ -1,12 +1,12 @@
 package quasiquotes.neutral
 
-import _root_.quasiquotes.parser.{ConstructorNamePolicy, TermShape}
+import _root_.quasiquotes.parser.{BlockStatement, ConstructorNamePolicy, TermShape}
 
 import scala.annotation.nowarn
 import scala.meta.*
 import scala.util.control.NonFatal
 
-/** Direct structural authoring for the bounded binder-free P0 and constructor TermShape family. */
+/** Direct structural authoring for the bounded binder-free P0/P1 and constructor TermShape family. */
 @nowarn("cat=deprecation")
 object ScalametaTermShapeAuthoring:
   /** Stable bounded failure for TermShape-to-Scalameta Term authoring. */
@@ -121,11 +121,33 @@ object ScalametaTermShapeAuthoring:
               Term.If(authoredCondition, authoredThen, authoredElse)
             )
           yield authored
+        case TermShape.Block(statements, result) =>
+          for
+            authoredStatements <- traverse(statements)(authorBlockStatement)
+            authoredResult <- authorPresent(result)
+            authored <- construct("binder-free P1 block")(
+              Term.Block(authoredStatements :+ authoredResult)
+            )
+          yield authored
         case _ =>
           Left(
             error(
               "NEUTRAL_TERM_AUTHORING_FAMILY_UNSUPPORTED",
-              "this TermShape family is outside binder-free N013/N014 authoring."
+              "this TermShape family is outside binder-free N013/N014/N015 authoring."
+            )
+          )
+      }
+
+  private def authorBlockStatement(statement: BlockStatement): Either[Error, Term] =
+    Option(statement)
+      .toRight(structureError("binder-free P1 block prefixes must be present."))
+      .flatMap {
+        case term: TermShape => authorPresent(term)
+        case _: BlockStatement.LocalVal | _: BlockStatement.LocalDef =>
+          Left(
+            error(
+              "NEUTRAL_TERM_AUTHORING_FAMILY_UNSUPPORTED",
+              "binder-free P1 authoring does not admit local definitions or binders."
             )
           )
       }
