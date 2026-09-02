@@ -6,7 +6,7 @@ north stars. It does not add class quasiquote syntax, anonymous-class support,
 a Symbol quasiquote, a general class builder, or a public API.
 
 The dedicated `frontend` fixture compiles and runs on Scala 3.3.8, 3.8.4, and
-3.9.0-RC1. It creates a fresh local class below the active splice owner,
+final 3.9.0. It creates a fresh local class below the active splice owner,
 extends a caller-selected reflected parent Type, creates one overriding method
 below that class, constructs the `ClassDef` and `DefDef`, invokes the generated
 parameterless primary constructor, and calls the override at runtime.
@@ -32,7 +32,7 @@ owner is the generated class, the primary-constructor owner is the generated
 class, the method has `Flags.Override`, and the method reports the inherited
 `map` declaration through `allOverriddenSymbols`.
 
-| Reflection surface | 3.3.8 | 3.8.4 | 3.9.0-RC1 |
+| Reflection surface | 3.3.8 | 3.8.4 | 3.9.0 |
 | --- | --- | --- | --- |
 | basic parameterless `Symbol.newClass` | public, experimental | public | public |
 | `ClassDef.apply` | public, experimental | public | public |
@@ -42,7 +42,7 @@ class, the method has `Flags.Override`, and the method reports the inherited
 
 Scala 3.3.8 requires `scala.annotation.experimental` at the fixture boundary.
 The basic common overload creates a public parameterless constructor. Scala
-3.8.4 and 3.9.0-RC1 additionally expose overloads for a single term-parameter
+3.8.4 and 3.9.0 additionally expose overloads for a single term-parameter
 clause and for a general `MethodOrPoly` constructor plan. A backend promising
 all three lines cannot make those newer overloads its only constructor route.
 

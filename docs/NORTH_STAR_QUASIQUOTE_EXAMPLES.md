@@ -38,8 +38,8 @@ correct class/member/parameter owner and binder wiring.
 
 The compact test-only fixture described in
 [typed class, symbol, and owner feasibility](TYPED_CLASS_SYMBOL_OWNER_FEASIBILITY.md)
-now compile-checks and runs this owner plan on Scala 3.3.8, 3.8.4, and
-3.9.0-RC1. It also proves unchanged literal/local caller-Term capture and
+now compile-checks and runs this owner plan on Scala 3.3.8, 3.8.4, and final
+3.9.0. It also proves unchanged literal/local caller-Term capture and
 selects `S1`, with no raw Symbol interpolation. It remains a manual backend
 oracle rather than supported class quasiquote syntax. A package-private
 `frontend` carrier and public-reflection lowerer now implement its bounded

@@ -21,13 +21,13 @@ jobs:
         include:
           - scala: "3.8.4"
             experimental: false
-            role: required-stable
-          - scala: "3.9.0-RC1"
-            experimental: true
-            role: forward-probe
+            role: required-previous-stable
+          - scala: "3.9.0"
+            experimental: false
+            role: required-current-lts
           - scala: "3.3.8"
-            experimental: true
-            role: lts-feasibility
+            experimental: false
+            role: required-previous-lts
 
     steps:
       - name: Checkout repository
@@ -47,4 +47,9 @@ jobs:
         run: echo "Scala ${{ matrix.scala }} / ${{ matrix.role }} / experimental=${{ matrix.experimental }}"
 
       - name: Run clean tests with Scala ${{ matrix.scala }}
-        run: sbt -batch "++${{ matrix.scala }}!" clean test publicCoreExamples/test core/verifyCoreBoundary neutralScalameta/verifyNeutralScalametaBoundary verifyModuleGraph
+        run: sbt -batch "++${{ matrix.scala }}!" clean test publicCoreExamples/test publicApiExamples/test core/verifyCoreBoundary neutralScalameta/verifyNeutralScalametaBoundary verifyModuleGraph verifyScalametaArtifactTopology packageDoc
+
+      - name: Verify release topology policy
+        run: |
+          python3 tools/release/test-check-release-repository.py
+          python3 tools/release/test-release-configuration.py

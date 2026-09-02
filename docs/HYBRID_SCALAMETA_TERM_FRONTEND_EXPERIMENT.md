@@ -54,7 +54,7 @@ programmatic `TermFrontend`, the compiler-free `ScalametaTermProjection`, and
 the current parser shape. Arithmetic and comparison results agree in type and
 runtime value, recursive precedence shapes agree, and the admitted typed route
 uses `Engine.Scalameta` with no primary failure on Scala 3.3.8, 3.8.4, and
-3.9.0-RC1.
+final 3.9.0.
 
 That common evidence is a differential contract, not a shared lowering
 implementation. The neutral projector returns a compiler-free `TermShape` plus

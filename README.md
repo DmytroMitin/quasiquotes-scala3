@@ -8,7 +8,7 @@ The project is a research proof of concept. Its API, coordinates, supported
 syntax, and compatibility policy may change. The immutable `0.2.0` `core` and
 matching 3.3.8/3.8.4 `frontend` artifacts are available from Maven Central;
 the current `0.3.0-SNAPSHOT` tree is not published. Its candidate release
-topology expands to eight artifacts under an explicit fail-closed release mode;
+topology expands to eleven artifacts under an explicit fail-closed release mode;
 that local readiness is not Maven availability.
 
 The canonical [architecture](docs/ARCHITECTURE.md) has one project-owned,
@@ -231,10 +231,11 @@ and is not interchangeable with these released coordinates.
 
 The candidate `0.3.0` topology is exactly `core_3`, binary-crossed
 `neutral-scalameta_3`, and full-crossed `frontend`, `scalameta-frontend`, and
-`dotty-internal` for Scala 3.3.8 and 3.8.4: eight coordinates total. It is
-enabled for local staging only by `-Dquasiquotes.expandedRelease=true`. Scala
-3.9.0-RC1 remains a forward test line, the root/examples remain skipped, and
-no `0.3.0` coordinate is remotely released by this policy.
+`dotty-internal` for Scala 3.3.8, 3.8.4, and final 3.9.0: eleven coordinates
+total. It is enabled for local staging only by
+`-Dquasiquotes.expandedRelease=true`. All three compiler lines are required CI
+lanes, the binary-cross artifacts are built once with 3.3.8, the root/examples
+remain skipped, and no `0.3.0` coordinate is remotely released by this policy.
 
 See [Getting started](docs/GETTING_STARTED.md),
 [execution environments and AST representations](docs/EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md),

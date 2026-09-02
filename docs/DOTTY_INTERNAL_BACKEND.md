@@ -2,7 +2,7 @@
 
 `dottyInternal` is an experimental, remotely unpublished, full-crossed module
 for exact Scala compiler operations. It is locally stageable for the selected
-Scala 3.3.8/3.8.4 candidate coordinates only under explicit expanded-release
+Scala 3.3.8/3.8.4/3.9.0 candidate coordinates only under explicit expanded-release
 mode; Maven availability is not API stability. It follows the project's 0.x
 compatibility policy and is not a generic public `untpd` or `tpd` toolkit.
 Consumers must align with the module's full Scala compiler version and active
@@ -119,7 +119,7 @@ Tests demonstrate bounded capabilities that are not production APIs:
 - the production neutral projector composes with
   `CoreTermShapeUntypedLowerer` for the bounded non-binder and P0/P1 family,
   and the resulting source-free raw structure agrees with independent parser
-  oracles on Scala 3.3.8, 3.8.4, and 3.9.0-RC1.
+  oracles on Scala 3.3.8, 3.8.4, and final 3.9.0.
 - ordinary Typer accepts the source-free Identifier/Select/Apply results over
   declared fixture names, including empty, one-argument, and multi-argument
   calls, without manufactured positions.

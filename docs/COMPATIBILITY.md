@@ -1,7 +1,9 @@
 # Compatibility
 
-The required source-build baseline is Scala 3.8.4 on JDK 25 with sbt 1.12.15.
-The test dependency is MUnit 1.2.4.
+The required source-build matrix is Scala 3.3.8 (previous LTS), Scala 3.8.4
+(previous stable), and final Scala 3.9.0 (current LTS) on JDK 25 with sbt
+1.12.15. The development default remains 3.8.4; it does not define the full
+support matrix. The test dependency is MUnit 1.2.4.
 
 Additional source lanes have been used as experimental evidence, including
 Scala 3.3.8 and newer compiler lines. Passing lanes do not create a permanent
@@ -16,18 +18,20 @@ Artifact policy:
   compiler lines must match exactly (for example, a Scala 3.8.4 consumer uses
   `quasiquotes-scala3-frontend_3.8.4`, never a 3.3.8 or 3.9 artifact);
 - `neutralScalameta`: ordinary Scala 3 binary crossing, Scalameta 4.17.3,
-  experimental and unpublished; compatibility is tested on Scala 3.3.8 and
-  3.8.4 and remains bounded by Scalameta dialect support;
+  experimental and unpublished; compatibility is tested on Scala 3.3.8,
+  3.8.4, and 3.9.0 and remains bounded by Scalameta dialect support;
 - `dottyInternal`: full Scala-version crossing, unpublished, with an
   experimental `ContextualMethodPeerBridge` whose compiler-internal input and
   output require an exact producer/consumer compiler match;
 - aggregate root and example modules: unpublished.
 
 The candidate expanded `0.3.0` release set adds the binary-crossed neutral
-artifact plus 3.3.8/3.8.4 full-crossed Scalameta-frontend and exact-backend
-artifacts under an explicit release-mode opt-in. Scala 3.9.0-RC1 remains
-validation-only. This candidate topology does not describe a completed remote
-release or turn the exact backend into a stable raw-tree API.
+artifact plus 3.3.8/3.8.4/3.9.0 full-crossed frontend, Scalameta-frontend, and
+exact-backend artifacts under an explicit release-mode opt-in. The two
+binary-cross artifacts are built with the oldest supported line, Scala 3.3.8,
+so all three advertised compilers can consume the same `_3` bytes. This
+candidate topology does not describe a completed remote release or turn the
+exact backend into a stable raw-tree API.
 
 Version `0.2.0` and group `com.github.dmytromitin` identify the immutable
 released Maven Central coordinates. The current working tree is the

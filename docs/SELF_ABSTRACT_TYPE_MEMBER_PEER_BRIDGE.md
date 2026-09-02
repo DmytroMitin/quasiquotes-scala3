@@ -45,7 +45,7 @@ adapter then positions all nine nodes under one virtual source while retaining
 `NoSymbol` and no `TypedSplice`. Failures expose compact `code` and `detail`
 fields and do not fall back to a more permissive projector.
 
-Product fixtures cover Scala 3.3.8, 3.8.4, and 3.9.0-RC1. The disposable live
+Product fixtures cover Scala 3.3.8, 3.8.4, and final 3.9.0. The disposable live
 AUXify coordinate proof and source-built Macro-Paradise callback proof use
 Scala 3.8.4. The Macro-Paradise callback is source-built and unreleased; no
 stable published coordinate for this integration is claimed. The sibling

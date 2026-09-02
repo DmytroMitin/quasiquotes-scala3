@@ -109,9 +109,10 @@ The tested surface is TASTy-compatible on both Scala 3.3.8 and Scala 3.8.4.
 The current tree passes the complete aggregate, focused statement/P1/Lambda1,
 Scalameta Term and Type, public example, compiler-free boundary, neutral
 boundary, module-graph, Scalameta topology, and affected packaging checks on
-Scala 3.3.8 and 3.8.4. Scala 3.9.0-RC1 remains an experimental forward probe,
-not a promoted support promise. The public API, first-use, documentation, and
-release-configuration tools remain separate checks.
+Scala 3.3.8 and 3.8.4. At the time of that qualification, Scala 3.9.0-RC1 was
+an experimental forward probe rather than a promoted support promise; the
+later final-3.9.0 compatibility rebase is separate. The public API, first-use,
+documentation, and release-configuration tools remain separate checks.
 
 `docs/api-baselines/0.2.0.tsv` remains the immutable released 618-row
 `0.2.0` baseline. The 634-row development inventory remains generated

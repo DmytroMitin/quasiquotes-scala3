@@ -8,7 +8,7 @@ delivery chronology.
 - Preserve the Phase-142 typed integer/infix overlap decision: current-Dotty
   `qr`/`qq`, opt-in typed Scalameta `qr`/`qq`, programmatic `TermFrontend`, the
   neutral projector, and the current parser agree on the fixed no-hole
-  arithmetic/comparison family across Scala 3.3.8, 3.8.4, and 3.9.0-RC1.
+  arithmetic/comparison family across Scala 3.3.8, 3.8.4, and final 3.9.0.
   Keep direct typed Scalameta AST-to-reflection lowering and share the
   differential parity contract; do not route it through the narrower neutral
   projector or add a core-to-typed lowerer merely for symmetry.
@@ -90,7 +90,7 @@ delivery chronology.
   statement splices deferred until an explicit reownership contract exists;
   do not add direct `Symbol` splicing.
 - Preserve the typed class implementation result: public reflection on
-  Scala 3.3.8, 3.8.4, and 3.9.0-RC1 can synthesize a local parameterless class,
+  Scala 3.3.8, 3.8.4, and final 3.9.0 can synthesize a local parameterless class,
   one non-overloaded override, primary-constructor invocation, and unchanged
   literal/local caller-Term and invocation-argument capture without raw Symbol
   interpolation. The package-private `frontend` plan and public-reflection

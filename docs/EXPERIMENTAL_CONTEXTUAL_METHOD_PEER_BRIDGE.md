@@ -43,10 +43,10 @@ is copied into generated source or exposed publicly.
 
 This API is compiler-internal and exact-Scala-version coupled. A consumer must
 use the same full Scala compiler version as the artifact; the foreign-package
-product fixture has been verified on Scala 3.3.8, 3.8.4, and 3.9.0-RC1, while
+product fixture has been verified on Scala 3.3.8, 3.8.4, and final 3.9.0, while
 the disposable live AUXify build proof is specifically Scala 3.8.4. Ordinary
 builds keep `dottyInternal` skipped; the explicit expanded-release mode makes
-its selected 3.3.8 and 3.8.4 candidate coordinates stageable. No remote
+its selected 3.3.8, 3.8.4, and 3.9.0 candidate coordinates stageable. No remote
 coordinate containing this bridge exists unless a later release gate
 explicitly authorizes one.
 

@@ -12,6 +12,12 @@ class ReleaseConfigurationTest(unittest.TestCase):
     def test_development_version_and_tool_versions_are_pinned(self) -> None:
         build = (ROOT / "build.sbt").read_text()
         self.assertIn('ThisBuild / version := "0.3.0-SNAPSHOT"', build)
+        self.assertIn('ThisBuild / scalaVersion := "3.8.4"', build)
+        self.assertIn(
+            'lazy val supportedScalaVersions = Vector("3.3.8", "3.8.4", "3.9.0")',
+            build,
+        )
+        self.assertIn('lazy val binaryArtifactBuildScalaVersion = "3.3.8"', build)
         self.assertIn('ThisBuild / organization := "com.github.dmytromitin"', build)
         self.assertIn('ThisBuild / organizationName := "com.github.dmytromitin"', build)
         self.assertNotIn("io.github.dmytromitin", build)
@@ -46,6 +52,23 @@ class ReleaseConfigurationTest(unittest.TestCase):
             end = build.find("\nlazy val ", start + 1)
             section = build[start:] if end < 0 else build[start:end]
             self.assertIn("publish / skip := !expandedReleaseEnabled", section, module)
+
+    def test_binary_cross_publication_requires_oldest_supported_line(self) -> None:
+        build = (ROOT / "build.sbt").read_text()
+        self.assertIn("lazy val verifyBinaryArtifactBuildBaseline = taskKey[Unit]", build)
+        self.assertIn(
+            "publish := publish.dependsOn(verifyBinaryArtifactBuildBaseline).value",
+            build,
+        )
+        self.assertIn(
+            "PgpKeys.publishSigned := PgpKeys.publishSigned.dependsOn(verifyBinaryArtifactBuildBaseline).value",
+            build,
+        )
+        for module in ("core", "neutralScalameta"):
+            start = build.index(f"lazy val {module}")
+            end = build.find("\nlazy val ", start + 1)
+            section = build[start:] if end < 0 else build[start:end]
+            self.assertIn(".settings(binaryCrossPublicationSettings)", section, module)
 
     def test_root_and_examples_are_always_skipped(self) -> None:
         build = (ROOT / "build.sbt").read_text()

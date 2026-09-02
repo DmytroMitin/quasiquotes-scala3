@@ -57,7 +57,7 @@ The ownership split is narrow:
   companion creation/merge, placement, conflicts, rollback, and ordinary
   typing.
 
-Product fixtures cover Scala 3.3.8, 3.8.4, and 3.9.0-RC1. A disposable copy of
+Product fixtures cover Scala 3.3.8, 3.8.4, and final 3.9.0. A disposable copy of
 the current AUXify checkout consumes the Scala-3.8.4 candidate jars directly
 and passes canonical, fresh-renamed, controlled-failure, and real
 companion-placement checks. No Maven publication or real peer-repository

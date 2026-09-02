@@ -7,15 +7,15 @@ expanded release set:
 | Role | Future coordinate shape | Cross policy | Direct project dependencies |
 | --- | --- | --- | --- |
 | compiler-free source-AST bridge | `com.github.dmytromitin:quasiquotes-scala3-neutral-scalameta_3:0.3.0` | Scala 3 binary | `core_3`, Scalameta 4.17.3 |
-| typed Term, Type, and bounded Definition opt-in | `com.github.dmytromitin:quasiquotes-scala3-scalameta-frontend_<3.3.8-or-3.8.4>:0.3.0` | full Scala version | matching `frontend_<exact-scala>`, `neutral-scalameta_3` |
-| exact-version peer backend | `com.github.dmytromitin:quasiquotes-scala3-dotty-internal_<3.3.8-or-3.8.4>:0.3.0` | full Scala version | `neutral-scalameta_3`, matching `scala3-compiler_3` |
+| typed Term, Type, and bounded Definition opt-in | `com.github.dmytromitin:quasiquotes-scala3-scalameta-frontend_<3.3.8-or-3.8.4-or-3.9.0>:0.3.0` | full Scala version | matching `frontend_<exact-scala>`, `neutral-scalameta_3` |
+| exact-version peer backend | `com.github.dmytromitin:quasiquotes-scala3-dotty-internal_<3.3.8-or-3.8.4-or-3.9.0>:0.3.0` | full Scala version | `neutral-scalameta_3`, matching `scala3-compiler_3` |
 
 Ordinary builds keep all three modules skipped. Only
 `-Dquasiquotes.expandedRelease=true` enables them for explicit release-mode
 staging; the aggregate and examples remain skipped. The first two rows are the
 potential user-facing opt-in topology. The exact backend is a separately
-version-coupled integration artifact, not a stable public raw-tree API. Scala
-3.9.0-RC1 remains validation-only and has no candidate release coordinate.
+version-coupled integration artifact, not a stable public raw-tree API. Final
+Scala 3.9.0 is a required support line and has matching candidate coordinates.
 
 ## Semantic and public API boundary
 
@@ -66,7 +66,7 @@ required when both routes claim a feature, not as a lock-step delivery rule.
 
 ## Measured local consumability
 
-Disposable coordinate-only builds on Scala 3.3.8 and 3.8.4 validated the
+Disposable coordinate-only builds on Scala 3.3.8, 3.8.4, and 3.9.0 validated the
 binary-cross neutral closure, the 24-JAR full-cross typed closure, POM/source/
 documentation artifacts, Term construction and matching, complete bounded
 Type construction and matching, original capture identity, observable

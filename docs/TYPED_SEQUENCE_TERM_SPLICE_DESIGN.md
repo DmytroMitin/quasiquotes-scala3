@@ -34,7 +34,7 @@ designed.
 
 ## Host-language evidence
 
-Test-only macros compile and run on Scala 3.3.8, 3.8.4, and 3.9.0-RC1. On all
+Test-only macros compile and run on Scala 3.3.8, 3.8.4, and final 3.9.0. On all
 three lines:
 
 - `f(..$args)` reaches a custom interpolator as `StringContext("f(..", ")")`

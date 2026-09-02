@@ -78,7 +78,26 @@ class ReleaseRepositoryTest(unittest.TestCase):
     def test_exact_repository_passes(self) -> None:
         self.assertEqual(self.run_check(), [])
 
-    def test_forward_probe_coordinate_blocks(self) -> None:
+    def test_expanded_profile_has_exact_final_lts_coordinate_set(self) -> None:
+        self.assertEqual(
+            {coordinate.artifact for coordinate in self.profile.coordinates},
+            {
+                "quasiquotes-scala3-core_3",
+                "quasiquotes-scala3-neutral-scalameta_3",
+                "quasiquotes-scala3-frontend_3.3.8",
+                "quasiquotes-scala3-scalameta-frontend_3.3.8",
+                "quasiquotes-scala3-dotty-internal_3.3.8",
+                "quasiquotes-scala3-frontend_3.8.4",
+                "quasiquotes-scala3-scalameta-frontend_3.8.4",
+                "quasiquotes-scala3-dotty-internal_3.8.4",
+                "quasiquotes-scala3-frontend_3.9.0",
+                "quasiquotes-scala3-scalameta-frontend_3.9.0",
+                "quasiquotes-scala3-dotty-internal_3.9.0",
+            },
+        )
+        self.assertEqual(len(self.profile.coordinates), 11)
+
+    def test_release_candidate_coordinate_blocks(self) -> None:
         (self.repository / CHECKER.GROUP_PATH / "quasiquotes-scala3-frontend_3.9.0-RC1").mkdir()
         self.assertTrue(any(error.startswith("COORDINATE_UNEXPECTED") for error in self.run_check()))
 
@@ -129,6 +148,19 @@ class ReleaseRepositoryTest(unittest.TestCase):
         for coordinate in self.profile.coordinates:
             self.write_coordinate(coordinate)
         self.assertEqual(self.run_check(), [])
+
+    def test_historical_0_2_0_profile_is_exactly_unchanged(self) -> None:
+        profile = CHECKER.RELEASE_PROFILES["0.2.0"]
+        self.assertEqual(profile.version, "0.2.0")
+        self.assertEqual(profile.pass_marker, "QUASIQUOTES_RELEASE_REPOSITORY_0_2_0_PASS")
+        self.assertEqual(
+            [(coordinate.artifact, coordinate.scala_line, coordinate.role) for coordinate in profile.coordinates],
+            [
+                ("quasiquotes-scala3-core_3", "3.3.8", "core"),
+                ("quasiquotes-scala3-frontend_3.3.8", "3.3.8", "frontend"),
+                ("quasiquotes-scala3-frontend_3.8.4", "3.8.4", "frontend"),
+            ],
+        )
 
 
 if __name__ == "__main__":

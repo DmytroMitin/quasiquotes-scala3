@@ -307,7 +307,7 @@ splice scope. The positive return path used here is instead:
 tpd.Tree -> the active q.reflect.Term implementation -> asExprOf[Int]
 ```
 
-For typed construction, Scala 3.3.8, 3.8.4, and 3.9.0-RC1 expose the same
+For typed construction, Scala 3.3.8, 3.8.4, and final 3.9.0 expose the same
 exact internal call:
 
 ```scala
@@ -460,7 +460,7 @@ recursively checked for no source, no span, `NoSymbol`, and no `TypedSplice`.
 Exact parser-oracle comparison is structural and removes only parser-owned
 metadata; it does not render and reparse backend output.
 
-Across Scala 3.3.8, 3.8.4, and 3.9.0-RC1, Dotty's
+Across Scala 3.3.8, 3.8.4, and final 3.9.0, Dotty's
 `Typer.typedInfixOp` delegates to infix desugaring that reads operand/operator
 spans. Direct `new Typer().typedExpr` on the production `NoSpan` `InfixOp`
 therefore asserts. The viability oracle uses a test-only recursive source-free
@@ -479,7 +479,7 @@ source-sensitive standard-`s` interpolation evidence. If a position has
 `NoSpan`, or its source text is otherwise unavailable, that optional evidence
 is absent and ordinary structural matching continues.
 
-On the tested Scala 3.3.8, 3.8.4, and 3.9.0-RC1 lanes,
+On the tested Scala 3.3.8, 3.8.4, and final 3.9.0 lanes,
 `Quotes.Position.sourceCode: Option[String]` can itself assert while reading a
 valid generated `NoSpan`; the public position API exposes no availability
 predicate. The frontend therefore guards only the two known `start/end of

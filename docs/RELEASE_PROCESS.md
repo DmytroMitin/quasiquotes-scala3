@@ -20,7 +20,7 @@ scanning arbitrary staged content.
 
 ## Candidate expanded 0.3.0 artifact set
 
-The separately authorized future release candidate contains exactly eight
+The separately authorized future release candidate contains exactly eleven
 coordinates:
 
 ```text
@@ -32,12 +32,16 @@ com.github.dmytromitin:quasiquotes-scala3-dotty-internal_3.3.8:0.3.0
 com.github.dmytromitin:quasiquotes-scala3-frontend_3.8.4:0.3.0
 com.github.dmytromitin:quasiquotes-scala3-scalameta-frontend_3.8.4:0.3.0
 com.github.dmytromitin:quasiquotes-scala3-dotty-internal_3.8.4:0.3.0
+com.github.dmytromitin:quasiquotes-scala3-frontend_3.9.0:0.3.0
+com.github.dmytromitin:quasiquotes-scala3-scalameta-frontend_3.9.0:0.3.0
+com.github.dmytromitin:quasiquotes-scala3-dotty-internal_3.9.0:0.3.0
 ```
 
 `core_3` and `neutral-scalameta_3` are binary-crossed and staged once from the
-Scala 3.3.8 session. The other six coordinates are full-crossed. Scala
-3.9.0-RC1 remains a forward validation line and must not be staged. The
-aggregate and example modules remain non-published in every mode.
+Scala 3.3.8 session, the oldest supported line; those exact artifact bytes must
+be consumed successfully from Scala 3.3.8, 3.8.4, and 3.9.0. The other nine
+coordinates are full-crossed and must be built with their exact compiler line.
+The aggregate and example modules remain non-published in every mode.
 
 Maven availability does not make the experimental modules stable. In
 particular, `dotty-internal` is exact-compiler-version coupled, follows 0.x
@@ -60,6 +64,11 @@ Only the exact value `true` enables those modules; an omitted property or
 and examples remain skipped. `verifyScalametaArtifactTopology` validates the
 active mode as well as coordinate crossing, POM closure, packaging, licenses,
 typed-API confinement, and checkout-contamination guards.
+
+Both `publish` and `publishSigned` for `core` and `neutralScalameta` also fail
+closed unless the active Scala version is exactly 3.3.8. This prevents a newer
+default or ad hoc session from replacing the single `_3` coordinates with
+newer TASTy while older advertised consumers remain supported.
 
 ## Required public identity
 
@@ -107,10 +116,18 @@ sbt -Dquasiquotes.expandedRelease=true <developer-properties> -batch \
   'frontend/publishSigned' \
   'hybridScalametaFrontend/publishSigned' \
   'dottyInternal/publishSigned'
+
+sbt -Dquasiquotes.expandedRelease=true <developer-properties> -batch \
+  '++3.9.0!' \
+  'set ThisBuild / version := "0.3.0"' \
+  'frontend/publishSigned' \
+  'hybridScalametaFrontend/publishSigned' \
+  'dottyInternal/publishSigned'
 ```
 
-Do not stage `core` or `neutralScalameta` in the second session: their
-binary-cross coordinates would be duplicates.
+Do not stage `core` or `neutralScalameta` in the second or third session: their
+binary-cross coordinates would be duplicates, and rebuilding the same `_3`
+coordinate with newer TASTy would violate the compatibility baseline.
 
 Validate the expanded result with the explicit checker profile:
 
@@ -134,12 +151,12 @@ versions, root/examples, and RC coordinates.
 Before any remote-release decision:
 
 1. Freeze an exact clean source commit and supported JDK/sbt/Scala matrix.
-2. Run full aggregate/module tests on Scala 3.3.8 and 3.8.4, plus the
-   3.9.0-RC1 forward probe without staging an RC coordinate.
+2. Run full aggregate/module tests on required Scala 3.3.8, 3.8.4, and final
+   3.9.0 lanes.
 3. Verify Core/neutral boundaries, module graph, both publication modes, all
    binary/source/doc packages, public examples, API inventories, released
    `0.2.0` comparison, docs/content/workflow hygiene, and first-use snippets.
-4. Resolve the eight staged coordinates from fresh external projects without
+4. Resolve the eleven staged coordinates from fresh external projects without
    `ProjectRef`, checkout sources, or checkout class directories. Exercise the
    compiler-free Core/neutral route and both exact typed Scalameta and
    documented foreign-package bridge lines. Prove exact compiler mismatch

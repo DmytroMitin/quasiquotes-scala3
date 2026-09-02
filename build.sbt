@@ -22,6 +22,8 @@ Global / concurrentRestrictions := Seq(Tags.limitAll(1))
 
 lazy val munitVersion = "1.2.4"
 lazy val scalametaVersion = "4.17.3"
+lazy val supportedScalaVersions = Vector("3.3.8", "3.8.4", "3.9.0")
+lazy val binaryArtifactBuildScalaVersion = "3.3.8"
 lazy val expandedReleaseProperty = "quasiquotes.expandedRelease"
 lazy val expandedReleaseEnabled = sys.props.get(expandedReleaseProperty) match {
   case None | Some("false") => false
@@ -46,6 +48,9 @@ lazy val verifyScalametaArtifactTopology = taskKey[Unit](
 )
 lazy val verifyReleaseIdentity = taskKey[Unit](
   "Require explicitly supplied public developer metadata before signed staging"
+)
+lazy val verifyBinaryArtifactBuildBaseline = taskKey[Unit](
+  "Require binary-cross release artifacts to use the oldest supported Scala line"
 )
 
 lazy val releaseDeveloperProperties = Vector(
@@ -94,9 +99,23 @@ lazy val publicationLicenseSettings = Seq(
   PgpKeys.publishSigned := PgpKeys.publishSigned.dependsOn(verifyReleaseIdentity).value
 )
 
+lazy val binaryCrossPublicationSettings = Seq(
+  verifyBinaryArtifactBuildBaseline := {
+    val actual = scalaVersion.value
+    if (actual != binaryArtifactBuildScalaVersion) {
+      sys.error(
+        s"Binary-cross artifacts must be built with Scala $binaryArtifactBuildScalaVersion; found $actual."
+      )
+    }
+  },
+  publish := publish.dependsOn(verifyBinaryArtifactBuildBaseline).value,
+  PgpKeys.publishSigned := PgpKeys.publishSigned.dependsOn(verifyBinaryArtifactBuildBaseline).value
+)
+
 lazy val core = (project in file("core"))
   .settings(commonSettings)
   .settings(publicationLicenseSettings)
+  .settings(binaryCrossPublicationSettings)
   .settings(
     name := "quasiquotes-scala3-core",
     description := "Compiler-free structural quasiquote values and algorithms for Scala 3",
@@ -209,6 +228,7 @@ lazy val neutralScalameta = (project in file("neutral-scalameta"))
   .dependsOn(core % "compile->compile;test->test")
   .settings(commonSettings)
   .settings(publicationLicenseSettings)
+  .settings(binaryCrossPublicationSettings)
   .settings(
     name := "quasiquotes-scala3-neutral-scalameta",
     description := "Experimental compiler-free Scalameta-backed neutral quasiquotes",
@@ -497,6 +517,16 @@ lazy val root = (project in file("."))
     verifyScalametaArtifactTopology := {
       val log = streams.value.log
       val line = scalaVersion.value
+      if (!supportedScalaVersions.contains(line)) {
+        sys.error(
+          s"Unsupported candidate Scala line $line; expected one of ${supportedScalaVersions.mkString(", ")}"
+        )
+      }
+      if (binaryArtifactBuildScalaVersion != supportedScalaVersions.head) {
+        sys.error(
+          "Binary-cross candidate artifacts must be built with the oldest supported Scala line."
+        )
+      }
       val neutralPom = IO.read((neutralScalameta / Compile / makePom).value)
       val frontendPom = IO.read((hybridScalametaFrontend / Compile / makePom).value)
       val backendPom = IO.read((dottyInternal / Compile / makePom).value)
