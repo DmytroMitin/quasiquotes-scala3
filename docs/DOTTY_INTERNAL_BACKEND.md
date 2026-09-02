@@ -64,15 +64,18 @@ Only the documented foreign-package bridges above are intended consumer seams.
 All other production owners are package-private or otherwise project-internal
 and carry no stable compatibility promise:
 
-- `CoreTermShapeUntypedLowerer` lowers canonical signed decimal literals,
-  recursive ordinary infix nodes, direct identifiers, recursive selections,
-  and exactly one ordinary positional Apply list from core `TermShape` to
-  source-free raw syntax. It validates the fixed operator and ASCII
-  non-keyword name sets, rejects placeholders and a direct Apply in function
-  position, and audits no source, no span, `NoSymbol`, and no `TypedSplice`
-  recursively.
+- `CoreTermShapeUntypedLowerer` lowers the accepted non-binder Core family:
+  canonical Int/String/Boolean literals, recursive ordinary infix and unary
+  nodes, tuples, explicit conditionals, direct identifiers, recursive
+  selections, and exactly one ordinary positional Apply list. It also lowers
+  transparent P0 and binder-free P1 blocks. It validates the bounded literal,
+  operator, and ASCII non-keyword name sets, rejects placeholders and a direct
+  Apply in function position, and audits no source, no span, `NoSymbol`, and
+  no `TypedSplice` recursively.
 - `ConstructedTermUntypedBackend` and `CompletedTypeUntypedLowerer` lower the
-  admitted compiler-free Term/Type models to source-free raw trees.
+  admitted compiler-free Term/Type models to source-free raw trees. The richer
+  Term backend also accepts binder-free P1 blocks with deterministic
+  left-to-right sidecar consumption; P2 local values remain rejected.
 - `ConstructedDefinitionUntypedBackend` and
   `PublicContextualMethodUntypedBackend` construct bounded raw definitions.
 - `ScopedContextualMethodUntypedLowerer` and its generated-origin adapter own
@@ -110,10 +113,9 @@ Tests demonstrate bounded capabilities that are not production APIs:
 - `untpd.TypedSplice` can embed typed leaves in a newly constructed untyped
   shell, after which `Typer.typedExpr` produces a typed result.
 - the production neutral projector composes with
-  `CoreTermShapeUntypedLowerer` for the bounded
-  integer/infix/Identifier/Select/one-list Apply family, and the resulting
-  source-free raw structure agrees with an independent parser oracle on Scala
-  3.3.8, 3.8.4, and 3.9.0-RC1.
+  `CoreTermShapeUntypedLowerer` for the bounded non-binder and P0/P1 family,
+  and the resulting source-free raw structure agrees with independent parser
+  oracles on Scala 3.3.8, 3.8.4, and 3.9.0-RC1.
 - ordinary Typer accepts the source-free Identifier/Select/Apply results over
   declared fixture names, including empty, one-argument, and multi-argument
   calls, without manufactured positions.
@@ -135,16 +137,17 @@ There is no production public bridge from arbitrary `scala.meta.Term` to
 generic raw-tree family, no placement service, and no stable published
 coordinate for this module today. A future candidate Maven coordinate does not
 widen those API boundaries or stabilize the internal machinery. The
-package-private production composition admits
-only recursive semantic integers, ordinary binary infix Terms, direct
-identifiers, selections, and one-list ordinary applications through core
-`TermShape`.
+package-private production composition admits the bounded accepted
+Int/String/Boolean literal, infix, unary, tuple, conditional, direct
+identifier/selection, one-list ordinary Apply, and transparent P0/binder-free
+P1 families through core `TermShape`.
 Typed Scalameta Term traversal instead belongs to the separate unpublished
 `hybridScalametaFrontend` and returns caller-owned `q.reflect.Term`.
 
-The exact backend's Identifier/Select/Apply support is bounded to new
-source-free D construction from project-owned `TermShape`. It does not preserve
-input raw-tree identity, implement U matching/reconstruction, or introduce a
-cross-surface capability layer. `new`, unary, tuple, block, binder,
-Type-sidecar, and other raw Term families remain explicit later slices. None
-of the definition-specific bridges widen that boundary.
+This exact support is bounded to new source-free D construction from
+project-owned `TermShape`. It does not preserve input raw-tree identity,
+implement U matching/reconstruction, or introduce a cross-surface capability
+layer. `new`, interpolation, ascription, Lambda1 in the direct lowerer, P2
+statement binders in either Term backend, local definitions, and other raw
+Term families remain explicit separate slices. None of the
+definition-specific bridges widens that boundary.

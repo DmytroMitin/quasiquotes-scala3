@@ -54,15 +54,22 @@ Right(
 )
 ```
 
-Production support is exactly the recursive family formed from Scalameta
-`Lit.Int` semantic values, ordinary binary `Term.ApplyInfix` nodes with no Type
-arguments and exactly one non-contextual RHS argument, conservative direct
-source identifiers, direct selections, and one ordinary positional
-`Term.Apply` argument list. Apply permits zero, one, or multiple arguments.
-Nested Apply lists, Type application, contextual clauses, named/star
-arguments, `new`, unary, tuple, `if`, block, ascription, interpolation, binder,
-lambda, and placeholder shapes return a stable `NeutralProjectionError`.
-They never become `TermShape.Unsupported`.
+Accepted production support is the recursive family formed from Scalameta
+`Lit.Int`, `Lit.String`, and `Lit.Boolean` semantic values; ordinary binary
+`Term.ApplyInfix`; unary `+`, `-`, `!`, and `~`; tuples of arity 2 through 22;
+explicit three-branch `if`; conservative direct source identifiers and
+selections; and one ordinary positional `Term.Apply` argument list. It also
+admits one explicitly typed ordinary Lambda1, transparent one-Term P0 braces,
+binder-free P1 blocks, one bounded explicitly typed eager immutable local-val
+P2 block with the existing whole-tree binder/shadowing policy, and one bounded
+source-owned local identity-method P3 block. The P3 family requires one
+modifier-free, non-generic, one-parameter method with explicit structurally
+compatible Int/String/Boolean Types, a direct parameter body, a direct method
+result, distinct deterministic binders, and no recursion. Apply permits zero,
+one, or multiple arguments. Nested Apply lists, Type application, contextual
+clauses, named/star arguments, `new`, ascription, interpolation, and broader
+lambdas/binders/statements return stable `NeutralProjectionError` categories;
+they never become `TermShape.Unsupported`.
 
 The name policy is syntactic only: direct and selected names use non-keyword
 ASCII spellings matching `[A-Za-z_][A-Za-z0-9_]*`, excluding `_`. No compiler,
@@ -144,11 +151,11 @@ val resultType = projected.map(_.result.resultType.source)       // Right("Show[
 ```
 
 This exact example is compile-checked and remains a separate definition
-projection. The production term projector now promotes the Phase-131
-identifier, select, and one-list Apply evidence with stricter name, clause,
-argument, failure, and span contracts. The prototype's one-list `new` remains
-test-only feasibility evidence rather than production support. Binder identity
-and completed Type sidecars still need their own bounded contracts.
+projection. The production term projector uses the bounded accepted family
+described above with explicit name, clause, argument, binder, failure, and span
+contracts. The prototype's one-list `new` remains test-only feasibility
+evidence rather than production support. Lambda1 and P2 reuse existing Core
+binder identity; P2 declared Types reuse the accepted neutral Type projection.
 
 The projector converts fields directly to `CompletedType`, `CompletedTerm`,
 and `DefinitionConstruction.contextualMethod`. Unsupported shapes return
@@ -163,14 +170,16 @@ start/end offsets as `NeutralSourceSpan`. Explicitly constructed trees with
 ## Exact backend boundary
 
 The unpublished `dottyInternal` module depends on `neutralScalameta` and owns
-the exact bridges. For the production Term route, the projected
-integer/infix/Identifier/Select/one-list Apply `TermShape` family is consumed
-by package-private `CoreTermShapeUntypedLowerer`, which directly constructs
-the corresponding source-free raw nodes. Canonical signed decimal text, the
-fixed ordinary operator set, and direct ASCII non-keyword names are validated
-before raw names or nodes are created. A direct nested Apply in function
-position is rejected as multiple lists; Apply remains recursively valid in
-ordinary argument and qualifier positions.
+the exact bridges. For the production Term route, the accepted non-binder
+literal/infix/unary/tuple/conditional/Identifier/Select/one-list Apply family,
+plus transparent P0 and binder-free P1 blocks, is consumed by package-private
+`CoreTermShapeUntypedLowerer`, which directly constructs corresponding
+source-free raw nodes. Canonical literal text, the fixed ordinary operator and
+unary sets, and direct ASCII non-keyword names are validated before raw names
+or nodes are created. A direct nested Apply in function position is rejected
+as multiple lists; Apply remains recursively valid in ordinary argument and
+qualifier positions. Lambda1, P2, and P3 are outside this direct edge; P2 and
+P3 also remain rejected by the richer exact backend.
 
 The separate definition route reuses the existing validated-IR and
 generated-origin adapters to produce a positioned `untpd.DefDef`. Reverse

@@ -40,10 +40,11 @@ Scalameta projection available. `frontend` never depends on `dottyInternal`.
 The production neutral Term route and its narrower exact continuation are:
 
 ```text
-scala.meta.Term (integer / infix / identifier / select / one-list Apply)
+scala.meta.Term (bounded literals / names / select / Apply / infix / unary
+  / tuple / if / Lambda1 / P0-P3 block families)
   -> ScalametaTermProjection
   -> core TermShape
-  -> package-private CoreTermShapeUntypedLowerer
+  -> package-private CoreTermShapeUntypedLowerer (non-binder + P0/P1 overlap)
   -> source-free untpd.Tree
 ```
 
@@ -57,9 +58,13 @@ encoded by recursive `TermShape.Infix` structure.
 - `neutralScalameta` is an unpublished compiler-free Scalameta 4.17.3 AST
   boundary and projection layer. Scalameta trees are source syntax; they are
   not the project's semantic model. Its production Term projection admits
-  semantic integer literals, recursive ordinary binary infix nodes, direct
-  identifiers, direct selections, and exactly one ordinary positional Apply
-  argument list into core `TermShape`; every other Term shape fails closed.
+  semantic Int/String/Boolean literals, recursive ordinary binary infix and
+  unary nodes, tuples, explicit three-branch conditionals, direct identifiers,
+  direct selections, exactly one ordinary positional Apply argument list, one
+  explicitly typed Lambda1, transparent P0/binder-free P1 blocks, one bounded
+  typed local-val P2 block, and one bounded source-owned local identity-method
+  P3 block into core `TermShape`. Unsupported and broader binder/statement
+  shapes fail closed.
 - `hybridScalametaFrontend` is an unpublished opt-in typed Term/Type frontend.
   It reuses project-owned templates, patterns, matching, and Type models where
   applicable. Term construction currently lowers Scalameta ASTs directly in
@@ -69,11 +74,14 @@ encoded by recursive `TermShape.Infix` structure.
   narrow `ContextualMethodPeerBridge`, `SelfAbstractTypeMemberPeerBridge`, and
   `DelegatedForwardingMethodPeerBridge`, plus the bounded
   `AuxTypeAliasPeerBridge`. Its package-private
-  `CoreTermShapeUntypedLowerer` consumes exactly the neutral
-  integer/infix/Identifier/Select/one-list Apply family and emits source-free
-  raw syntax. A direct Apply in function position is rejected as multiple
-  lists, while Apply remains valid in argument and qualifier positions. It is
-  not a general raw-tree API and does not perform U-style identity-preserving
+  `CoreTermShapeUntypedLowerer` consumes the accepted neutral non-binder family
+  (Int/String/Boolean literals, infix, unary, tuple, conditional,
+  Identifier/Select/one-list Apply) plus transparent P0 and binder-free P1
+  blocks, and emits source-free raw syntax. A direct Apply in function
+  position is rejected as multiple lists, while Apply remains valid in
+  argument and qualifier positions. Lambda1 and P2 are not admitted by this
+  direct lowerer; P2 also remains outside the richer exact backend. This is not
+  a general raw-tree API and does not perform U-style identity-preserving
   rewriting of existing raw trees.
 - the aggregate and example projects publish no production artifacts.
 
@@ -91,7 +99,7 @@ explicit, experimental, and remotely unpublished today. The explicit
 expanded-release mode can stage the selected `0.3.0` Scalameta and exact
 backend candidate artifacts without changing this semantic ownership model.
 
-For the no-hole semantic integer/infix overlap, shared differential behavior
+For the accepted no-hole non-binder overlap, shared differential behavior
 is the consolidation boundary. The neutral projector is a compiler-free
 source-AST validator with a narrower topology and source-span contract; the
 typed route owns active-`Quotes` lowering, reflected holes, member selection,
@@ -183,8 +191,9 @@ projection into this project's shared model.
 The reusable neutral Term route is now:
 
 ```text
-scala.meta Lit.Int / ordinary binary ApplyInfix / Term.Name / Term.Select
-  / one ordinary Term.Apply argument list
+scala.meta Int/String/Boolean literals / ApplyInfix / unary / tuple / if
+  / Term.Name / Term.Select / one ordinary Term.Apply argument list
+  / one typed Lambda1 / transparent P0 and bounded P1/P2/P3 blocks
   -> ScalametaTermProjection
   -> core TermShape
 ```
@@ -193,12 +202,14 @@ It preserves only a truthful root source span and performs no rendering,
 reparse, typing, symbol lookup, overload resolution, or fallback. The recursive
 result is a semantic copy; it does not preserve Scalameta child identity or raw
 Dotty subtree identity and adds no opaque raw sidecar. Nested Apply lists, Type
-application, contextual clauses, named/star arguments, `new`, and the other
-Phase-131 prototype forms remain outside production support. The exact backend
-accepts the same bounded Identifier, Select, and one-list Apply core shapes;
-a direct Apply in function position is rejected as a second argument list,
-while Apply remains valid in argument and qualifier positions. The typed
-Scalameta frontend remains direct and is not refactored through this projector.
+application, contextual clauses, named/star arguments, `new`, and broader
+statement/binder forms remain outside the neutral contract. The direct
+exact backend accepts the non-binder family above plus transparent P0 and
+binder-free P1 blocks; a direct Apply in function position is rejected as a
+second argument list, while Apply remains valid in argument and qualifier
+positions. Lambda1, P2, and P3 do not cross this direct edge; P2 and P3 remain
+closed in the richer exact path. The typed Scalameta frontend remains direct
+and is not refactored through this projector.
 
 AUXify's current narrow `@apply` path uses ordinary Scalameta `q`, `t`, and
 `tparam` authoring and Quasiquotes `ContextualMethodPeerBridge` lowering to an

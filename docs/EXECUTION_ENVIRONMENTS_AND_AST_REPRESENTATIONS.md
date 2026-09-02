@@ -173,10 +173,12 @@ source construction and extractor matching. It requires neither an active
 compiler implementation and SemanticDB.
 
 Scalameta trees are source syntax, not typed reflection or exact Dotty trees.
-`ScalametaTermProjection` admits semantic integer literals, ordinary one-RHS
-binary infix nodes, direct identifiers, direct selections, and one ordinary
-positional Apply argument list into the existing core `TermShape`, preserving
-one truthful root span when present and failing closed otherwise. The separate
+`ScalametaTermProjection` admits the bounded accepted Int/String/Boolean
+literal, binary infix, unary, tuple, explicit conditional, direct identifier,
+selection, one-list Apply, typed Lambda1, transparent P0, binder-free P1,
+single typed local-val P2, and bounded source-owned local identity-method P3
+families into the existing core `TermShape`. It preserves one truthful root
+span when present and fails closed otherwise. The separate
 `ScalametaContextualMethodProjection` admits one contextual method into the
 existing validated definition IR. Exact lowering and reverse raw-tree
 projection remain in `dottyInternal`. See the
@@ -198,7 +200,7 @@ general Scalameta-definition conversion.
 | `TermPattern` / `MatchResult` | Public neutral structural matching data in `core`. |
 | `TermTemplate` / `ConstructedTerm` | Package-internal validated construction IR in `core`; deliberately not public. |
 | `CompletedTerm` | Public bounded definition-body payload; not the general term AST. |
-| `scala.meta.Term` | Experimental unpublished source-syntax term in `neutralScalameta`; direct construction/matching, with production projection to `TermShape` for semantic integers, ordinary binary infix, direct identifier/select, and one-list ordinary Apply nodes. |
+| `scala.meta.Term` | Experimental unpublished source-syntax term in `neutralScalameta`; direct construction/matching, with accepted production projection to `TermShape` for the bounded literal/infix/unary/tuple/conditional/name/select/Apply, typed Lambda1, and P0/P1/P2/P3 block families. |
 | `Expr[T]` / `quotes.reflect.Term` | Caller-`Quotes` staged and reflected values used by `qr`/`qq`; compiler-coupled and universe-dependent. |
 | `dotty.tools.dotc.ast.untpd.Tree` | Exact compiler-internal value used by parsing and the unpublished exact backend; not a published AST contract. |
 
@@ -404,12 +406,13 @@ untpd.Tree
 ```
 
 The current production endpoints of this second route are the bounded
-contextual-method, self abstract-Type-member, and delegated-forwarding-method
-bridges plus the package-private integer/infix Term backend.
-The latter composes only the projector's integer/infix subset with core
-`TermShape` and direct source-free `untpd.Number`/`untpd.InfixOp` construction;
-the newly projected Identifier/Select/Apply shapes stop at its unsupported-
-shape boundary. It is not a general Term bridge. See the
+contextual-method, self abstract-Type-member, delegated-forwarding-method, and
+AUXify-039 Type-alias bridges plus the package-private Core Term backend. The
+latter composes the projector's accepted non-binder and transparent
+P0/binder-free P1 overlap with core `TermShape` and direct source-free raw
+construction. Typed Lambda1, P2, and P3 projected shapes stop at the direct
+lowerer's unsupported-shape boundary; P2 and P3 remain rejected by the richer
+Term backend. It is not a general Term bridge. See the
 [Dotty-internal exact backend](DOTTY_INTERNAL_BACKEND.md).
 
 ## Exact-version `Quotes` and Dotty-internal interoperability
@@ -445,14 +448,14 @@ be one narrow, exact-version operation with owned validation and context rules,
 not a general raw-tree toolkit.
 
 The separate package-private `CoreTermShapeUntypedLowerer` is narrower again:
-it accepts canonical signed decimal `TermShape.Literal` values, recursive
-`TermShape.Infix` values over a fixed ordinary-operator set, direct
-Identifiers, recursive Selects, and exactly one ordinary positional Apply
-list. A direct Apply in function position is rejected as multiple lists, while
-Apply remains admitted in ordinary argument and qualifier positions. Every
-constructed node is recursively checked for no source, no span, `NoSymbol`,
-and no `TypedSplice`. Exact parser-oracle comparison is structural and removes
-only parser-owned metadata; it does not render and reparse backend output.
+it accepts the bounded Int/String/Boolean literal, recursive infix and unary,
+tuple, explicit conditional, direct Identifier, recursive Select, and one-list
+Apply family, plus transparent P0 and binder-free P1 blocks. A direct Apply in
+function position is rejected as multiple lists, while Apply remains admitted
+in ordinary argument and qualifier positions. Every constructed node is
+recursively checked for no source, no span, `NoSymbol`, and no `TypedSplice`.
+Exact parser-oracle comparison is structural and removes only parser-owned
+metadata; it does not render and reparse backend output.
 
 Across Scala 3.3.8, 3.8.4, and 3.9.0-RC1, Dotty's
 `Typer.typedInfixOp` delegates to infix desugaring that reads operand/operator
