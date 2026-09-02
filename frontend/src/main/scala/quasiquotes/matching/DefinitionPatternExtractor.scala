@@ -6,19 +6,14 @@ import scala.util.control.NonFatal
 import quasiquotes.definitions.DefinitionName
 import quasiquotes.types.{TargetTypeReprInspector, TypeNormalForm, TypeNormalFormSource}
 
-final class TwoParameterDefinitionPattern private[matching] (
-    private val expectedMethodName: String,
-    private val expectedFirstParameterName: String,
-    private val expectedFirstParameterType: TypeNormalForm,
-    private val expectedSecondParameterName: String,
-    private val expectedSecondParameterType: TypeNormalForm,
-    private val expectedResultType: TypeNormalForm
+final class DefinitionPatternExtractor private (
+    private val expected: DefinitionPatternExtractor.StructuralSpec
 ):
   def unapply(using q: Quotes)(target: q.reflect.DefDef): Option[q.reflect.Term] =
     import q.reflect.*
 
     if target == null ||
-        target.name != expectedMethodName ||
+        target.name != expected.methodName ||
         target.symbol == Symbol.noSymbol ||
         !target.symbol.isDefDef ||
         target.symbol.isClassConstructor ||
@@ -29,50 +24,52 @@ final class TwoParameterDefinitionPattern private[matching] (
         target.symbol.flags.is(Flags.Given)
     then None
     else
-      target.paramss match
-        case List(clause: TermParamClause)
-            if !clause.isImplicit && !clause.isGiven && !clause.isErased =>
-          clause.params match
-            case List(first, second)
-                if admittedParameters(target, first, second) &&
-                  first.name == expectedFirstParameterName &&
-                  second.name == expectedSecondParameterName =>
-              for
-                body <- target.rhs
-                firstType <- TargetTypeReprInspector.inspect(first.tpt.tpe).toOption
-                if firstType == expectedFirstParameterType
-                secondType <- TargetTypeReprInspector.inspect(second.tpt.tpe).toOption
-                if secondType == expectedSecondParameterType
-                resultType <- TargetTypeReprInspector.inspect(target.returnTpt.tpe).toOption
-                if resultType == expectedResultType
-              yield body
-            case _ => None
-        case _ => None
+      target.rhs.filter(_ => matchesHeader(target))
 
-  private def admittedParameters(using q: Quotes)(
-      target: q.reflect.DefDef,
-      first: q.reflect.ValDef,
-      second: q.reflect.ValDef
-  ): Boolean =
+  private def matchesHeader(using q: Quotes)(target: q.reflect.DefDef): Boolean =
     import q.reflect.*
 
-    target.symbol.paramSymss match
-      case List(List(firstSymbol, secondSymbol)) =>
-        first.symbol != Symbol.noSymbol &&
-          second.symbol != Symbol.noSymbol &&
-          first.symbol != second.symbol &&
-          !first.symbol.flags.is(Flags.HasDefault) &&
-          !second.symbol.flags.is(Flags.HasDefault) &&
-          !first.symbol.flags.is(Flags.Erased) &&
-          !second.symbol.flags.is(Flags.Erased) &&
-          firstSymbol == first.symbol &&
-          secondSymbol == second.symbol &&
-          first.symbol.owner == target.symbol &&
-          second.symbol.owner == target.symbol
-      case _ => false
+    val clauses = target.paramss.collect { case clause: TermParamClause => clause }
+    val parameters = clauses.flatMap(_.params)
+    clauses.size == target.paramss.size &&
+      clauses.size == expected.parameterClauses.size &&
+      parameters.map(_.symbol).distinct.size == parameters.size &&
+      target.symbol.paramSymss == clauses.map(_.params.map(_.symbol)) &&
+      clauses.zip(expected.parameterClauses).forall { (clause, expectedClause) =>
+        !clause.isImplicit && !clause.isGiven && !clause.isErased &&
+          clause.params.size == expectedClause.parameters.size &&
+          clause.params.zip(expectedClause.parameters).forall { (parameter, expectedParameter) =>
+            parameter.symbol != Symbol.noSymbol &&
+              !parameter.symbol.flags.is(Flags.HasDefault) &&
+              !parameter.symbol.flags.is(Flags.Erased) &&
+              parameter.symbol.owner == target.symbol &&
+              parameter.name == expectedParameter.name &&
+              TargetTypeReprInspector
+                .inspect(parameter.tpt.tpe)
+                .contains(expectedParameter.parameterType)
+          }
+      } &&
+      TargetTypeReprInspector
+        .inspect(target.returnTpt.tpe)
+        .contains(expected.resultType)
 
-private[matching] object TwoParameterDefinitionPattern:
-  private final case class Parsed(
+private[matching] object DefinitionPatternExtractor:
+  private final case class ParameterSpec(
+      name: String,
+      parameterType: TypeNormalForm
+  )
+
+  private final case class ParameterClauseSpec(
+      parameters: Vector[ParameterSpec]
+  )
+
+  private final case class StructuralSpec(
+      methodName: String,
+      parameterClauses: Vector[ParameterClauseSpec],
+      resultType: TypeNormalForm
+  )
+
+  private final case class ParsedExactTwo(
       methodName: String,
       firstParameterName: String,
       firstParameterTypeSource: String,
@@ -85,13 +82,15 @@ private[matching] object TwoParameterDefinitionPattern:
     "Invalid exact-two definition pattern; expected one ordinary method with two distinct parameters, standalone Int/String/Boolean types, and `$body` as the complete right-hand side."
   private val AdmittedTypes = Set("Int", "String", "Boolean")
 
-  def compile(source: String): Either[String, TwoParameterDefinitionPattern] =
+  def compileExactTwo(source: String): Either[String, DefinitionPatternExtractor] =
     if source == null then Left("Definition pattern source must not be null.")
     else
-      try parse(source).flatMap(compileParsed)
+      try parseExactTwo(source).flatMap(compileParsedExactTwo)
       catch case NonFatal(_) => Left(InvalidPatternMessage)
 
-  private def compileParsed(parsed: Parsed): Either[String, TwoParameterDefinitionPattern] =
+  private def compileParsedExactTwo(
+      parsed: ParsedExactTwo
+  ): Either[String, DefinitionPatternExtractor] =
     for
       methodName <- name(parsed.methodName)
       firstName <- name(parsed.firstParameterName)
@@ -100,13 +99,19 @@ private[matching] object TwoParameterDefinitionPattern:
       firstType <- admittedType(parsed.firstParameterTypeSource)
       secondType <- admittedType(parsed.secondParameterTypeSource)
       resultType <- admittedType(parsed.resultTypeSource)
-    yield new TwoParameterDefinitionPattern(
-      methodName.decoded,
-      firstName.decoded,
-      firstType,
-      secondName.decoded,
-      secondType,
-      resultType
+    yield new DefinitionPatternExtractor(
+      StructuralSpec(
+        methodName.decoded,
+        Vector(
+          ParameterClauseSpec(
+            Vector(
+              ParameterSpec(firstName.decoded, firstType),
+              ParameterSpec(secondName.decoded, secondType)
+            )
+          )
+        ),
+        resultType
+      )
     )
 
   private def name(source: String): Either[String, DefinitionName] =
@@ -118,7 +123,7 @@ private[matching] object TwoParameterDefinitionPattern:
       case _ => Left(InvalidPatternMessage)
     }
 
-  private def parse(source: String): Either[String, Parsed] =
+  private def parseExactTwo(source: String): Either[String, ParsedExactTwo] =
     var cursor = 0
 
     def skipWhitespace(): Unit =
@@ -209,7 +214,14 @@ private[matching] object TwoParameterDefinitionPattern:
       _ <- Option.when(punctuation("="))(())
       _ <- Option.when(punctuation("$body"))(())
       _ <- Option.when(atEnd)(())
-    yield Parsed(methodName, firstName, firstType, secondName, secondType, resultType)
+    yield ParsedExactTwo(
+      methodName,
+      firstName,
+      firstType,
+      secondName,
+      secondType,
+      resultType
+    )
 
     parsed.toRight(InvalidPatternMessage)
 

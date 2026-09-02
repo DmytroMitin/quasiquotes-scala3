@@ -180,7 +180,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             "  private[matching] def singleParameterExtractor(sc: StringContext)"
             "(using q: Quotes): SingleParameterDefinitionPattern = ???\n"
             "  private[matching] def twoParameterExtractor(sc: StringContext)"
-            "(using q: Quotes): TwoParameterDefinitionPattern = ???\n"
+            "(using q: Quotes): DefinitionPatternExtractor = ???\n"
             "  @targetName(\"dqq\")\n"
             "  private[matching] def dqqLegacy(sc: StringContext)"
             "(using q: Quotes): SingleParameterDefinitionPattern =\n"
@@ -199,8 +199,8 @@ class PublicDocsCheckTest(unittest.TestCase):
             "  def two = DefinitionPattern.twoParameterExtractor(context)\n",
             encoding="utf-8",
         )
-        (matching / "TwoParameterDefinitionPattern.scala").write_text(
-            "final class TwoParameterDefinitionPattern:\n"
+        (matching / "DefinitionPatternExtractor.scala").write_text(
+            "final class DefinitionPatternExtractor private (expected: Any):\n"
             "  def unapply(using q: Quotes)(target: q.reflect.DefDef) = ???\n",
             encoding="utf-8",
         )

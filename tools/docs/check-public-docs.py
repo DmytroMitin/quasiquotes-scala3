@@ -262,9 +262,9 @@ def source_findings(root: Path) -> list[str]:
     definition_pattern_macro_source = (
         root / "frontend/src/main/scala/quasiquotes/matching/DefinitionPatternMacro.scala"
     ).read_text(encoding="utf-8")
-    two_parameter_pattern_source = (
+    definition_pattern_extractor_source = (
         root
-        / "frontend/src/main/scala/quasiquotes/matching/TwoParameterDefinitionPattern.scala"
+        / "frontend/src/main/scala/quasiquotes/matching/DefinitionPatternExtractor.scala"
     ).read_text(encoding="utf-8")
     syntax_matrix = (root / "docs/SYNTAX_SUPPORT_MATRIX.md").read_text(
         encoding="utf-8"
@@ -364,9 +364,9 @@ def source_findings(root: Path) -> list[str]:
         findings.append("public dqq legacy JVM bridge contract is absent")
     if "def unapply(using q: Quotes)(" not in definition_pattern_source:
         findings.append("public definition extractor protocol no longer matches documentation")
-    if "final class TwoParameterDefinitionPattern" not in two_parameter_pattern_source or \
-            "def unapply(using q: Quotes)(" not in two_parameter_pattern_source:
-        findings.append("public exact-two definition extractor protocol is absent")
+    if "final class DefinitionPatternExtractor" not in definition_pattern_extractor_source or \
+            "def unapply(using q: Quotes)(" not in definition_pattern_extractor_source:
+        findings.append("public structural definition extractor protocol is absent")
     return findings
 
 

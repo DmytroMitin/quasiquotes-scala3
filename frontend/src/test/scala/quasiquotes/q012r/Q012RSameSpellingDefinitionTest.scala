@@ -168,7 +168,7 @@ final class Q012RSameSpellingDefinitionTest extends munit.FunSuite:
       )
     assert(pattern != null)
 
-  test("production source contains one dqq spelling and no arity-numbered interpolator"):
+  test("production source exposes no arity-numbered interpolator or Definition-pattern carrier"):
     val sourceRoot = Paths.get(
       sys.props("user.dir"), "frontend", "src", "main", "scala"
     )
@@ -183,3 +183,7 @@ final class Q012RSameSpellingDefinitionTest extends munit.FunSuite:
     assert(!production.contains("def dqq2"))
     assert(!production.contains("def dqq3"))
     assert(!production.contains("def dqq4"))
+    assert(!production.contains("TwoParameterDefinitionPattern"))
+    assert(!production.contains("ThreeParameterDefinitionPattern"))
+    assert(!production.contains("NParameterDefinitionPattern"))
+    assert(!production.contains("OneClauseDefinitionPattern"))

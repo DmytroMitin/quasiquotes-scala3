@@ -137,12 +137,12 @@ object DefinitionPattern:
 
   private[matching] def twoParameterExtractor(
       sc: StringContext
-  )(using q: Quotes): TwoParameterDefinitionPattern =
+  )(using q: Quotes): DefinitionPatternExtractor =
     def abort(message: String): Nothing =
       q.reflect.report.errorAndAbort(s"$InvalidDqqPrefix $message")
 
     validateParts(sc).flatMap(parts =>
-      TwoParameterDefinitionPattern.compile(parts.head + "$body" + parts.last)
+      DefinitionPatternExtractor.compileExactTwo(parts.head + "$body" + parts.last)
     ) match
       case Right(pattern) => pattern
       case Left(message) => abort(message)
@@ -166,7 +166,7 @@ object DefinitionPattern:
             singleParameter(source) match
               case Right(_) => Right(1)
               case Left(_) =>
-                TwoParameterDefinitionPattern.compile(source) match
+                DefinitionPatternExtractor.compileExactTwo(source) match
                   case Right(_) => Right(2)
                   case Left(message) => Left(message)
         }

@@ -4,9 +4,9 @@ import scala.quoted.*
 
 import quasiquotes.matching.{
   DefinitionPattern,
+  DefinitionPatternExtractor,
   SingleParameterDefinitionMatch,
-  SingleParameterDefinitionPattern,
-  TwoParameterDefinitionPattern
+  SingleParameterDefinitionPattern
 }
 
 object Q012RSameSpellingDefinitionProbe:
@@ -35,7 +35,7 @@ object Q012RSameSpellingDefinitionProbe:
       SingleParameterDefinitionMatch[q.reflect.TypeRepr, q.reflect.Term]
     ] = single.matchDefinition(using q)
 
-    val exactTwo: TwoParameterDefinitionPattern = DefinitionPattern.dqq(
+    val exactTwo: DefinitionPatternExtractor = DefinitionPattern.dqq(
       StringContext("def first(left: Int, right: String): Int = ", "")
     )(using q)
     val first = target("first", TypeRepr.of[Int], selectSecond = false)
@@ -50,7 +50,7 @@ object Q012RSameSpellingDefinitionProbe:
 
     val umbrella = locally {
       import quasiquotes.Quasiquotes.dqq
-      val pattern: TwoParameterDefinitionPattern = dqq(
+      val pattern: DefinitionPatternExtractor = dqq(
         StringContext("def second(left: Int, right: String): String = ", "")
       )(using q)
       val second = target("second", TypeRepr.of[String], selectSecond = true)

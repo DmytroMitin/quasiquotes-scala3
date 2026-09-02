@@ -3,7 +3,7 @@ package quasiquotes.q012r
 import scala.language.experimental.erasedDefinitions
 import scala.quoted.*
 
-import quasiquotes.matching.{DefinitionPattern, TwoParameterDefinitionPattern}
+import quasiquotes.matching.{DefinitionPattern, DefinitionPatternExtractor}
 
 object Q012RDefinitionEvidence:
   inline def construction: List[(String, Boolean, Boolean, Boolean, Boolean, Boolean)] =
@@ -32,7 +32,7 @@ object Q012RDefinitionEvidence:
       val clause = definition.paramss.head.asInstanceOf[TermParamClause]
       val List(first, second) = clause.params: @unchecked
       val selected = if selectSecond then second else first
-      val pattern: TwoParameterDefinitionPattern =
+      val pattern: DefinitionPatternExtractor =
         if selectSecond then
           dqq(StringContext("def second(left: Int, right: String): String = ", ""))(using q)
         else
@@ -97,7 +97,7 @@ object Q012RDefinitionEvidence:
       ()
     })
     val foreign = definition('{ def first(left: Int, right: String): Int = left; () })
-    val pattern: TwoParameterDefinitionPattern = DefinitionPattern.dqq(
+    val pattern: DefinitionPatternExtractor = DefinitionPattern.dqq(
       StringContext("def first(left: Int, right: String): Int = ", "")
     )(using q)
 

@@ -4,8 +4,8 @@ import scala.quoted.*
 
 import quasiquotes.matching.{
   DefinitionPattern,
+  DefinitionPatternExtractor,
   SingleParameterDefinitionPattern,
-  TwoParameterDefinitionPattern
 }
 
 object Q011DefinitionPatternApiTypingProbe:
@@ -39,7 +39,7 @@ object Q011DefinitionPatternApiTypingProbe:
       val two = DefinitionPattern.dqq(
         StringContext("def first(left: Int, right: String): Int = ", "")
       )(using q)
-      val _: TwoParameterDefinitionPattern = two
+      val _: DefinitionPatternExtractor = two
       target("first", intType, selectSecond = false) match
         case dqq"def first(left: Int, right: String): Int = $body" =>
           val _: q.reflect.Term = body
@@ -55,7 +55,7 @@ object Q011DefinitionPatternApiTypingProbe:
       val two = dqq(
         StringContext("def second(left: Int, right: String): String = ", "")
       )(using q)
-      val _: TwoParameterDefinitionPattern = two
+      val _: DefinitionPatternExtractor = two
       target("second", stringType, selectSecond = true) match
         case dqq"def second(left: Int, right: String): String = $body" =>
           val _: q.reflect.Term = body
