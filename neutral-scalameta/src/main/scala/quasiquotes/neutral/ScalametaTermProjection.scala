@@ -149,6 +149,8 @@ object ScalametaTermProjection:
         )
       case fresh: Term.New =>
         projectNew(fresh, scope, state)
+      case interpolation: Term.Interpolate =>
+        projectInterpolation(interpolation, scope, state)
       case Lit.Int(value) =>
         Right(TermShape.Literal(value.toString))
       case Lit.String(value) =>
@@ -704,6 +706,56 @@ object ScalametaTermProjection:
             s"constructor-new arguments must be positional Terms, found ${argument.productPrefix}."
           )
         )
+      case other => projectShape(other, scope, state)
+
+  private def projectInterpolation(
+      interpolation: Term.Interpolate,
+      scope: List[ActiveBinder],
+      state: ProjectionState
+  ): Either[NeutralProjectionError, TermShape] =
+    for
+      _ <- require(
+        interpolation.prefix.value == "s" &&
+          nameTokenText(interpolation.prefix).forall(_ == "s"),
+        "NEUTRAL_INTERPOLATION_PREFIX_UNSUPPORTED",
+        "standard interpolation projection admits exactly the unquoted s prefix."
+      )
+      parts <- traverse(interpolation.parts) {
+        case Lit.String(value) => Right(value)
+        case other =>
+          Left(
+            error(
+              "NEUTRAL_INTERPOLATION_STRUCTURE_UNSUPPORTED",
+              s"interpolation parts must be Lit.String values, found ${other.productPrefix}."
+            )
+          )
+      }
+      _ <- require(
+        parts.size == interpolation.args.size + 1,
+        "NEUTRAL_INTERPOLATION_STRUCTURE_UNSUPPORTED",
+        s"interpolation requires one more part than argument, found parts=${parts.size}, arguments=${interpolation.args.size}."
+      )
+      arguments <- traverse(interpolation.args)(
+        projectInterpolationArgument(_, scope, state)
+      )
+    yield TermShape.InterpolatedString("s", parts, arguments)
+
+  private def projectInterpolationArgument(
+      argument: Term,
+      scope: List[ActiveBinder],
+      state: ProjectionState
+  ): Either[NeutralProjectionError, TermShape] =
+    argument match
+      case block: Term.Block =>
+        block.stats match
+          case (term: Term) :: Nil => projectShape(term, scope, state)
+          case _ =>
+            Left(
+              error(
+                "NEUTRAL_INTERPOLATION_ARGUMENT_UNSUPPORTED",
+                "interpolation argument blocks must contain exactly one Term."
+              )
+            )
       case other => projectShape(other, scope, state)
 
   private def projectApplyArgument(

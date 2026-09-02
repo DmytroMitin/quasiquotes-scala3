@@ -305,7 +305,6 @@ final class ScalametaTermProjectionTest extends munit.FunSuite:
     val unsupported = List[(Term, String)](
       q"throw boom" -> "Term.Throw",
       q"(1: Int)" -> "Term.Ascribe",
-      Input.String("s\"value=$f\"").parse[Term].get -> "Term.Interpolate",
       Lit.Unit() -> "Lit.Unit"
     )
 
