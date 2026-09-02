@@ -203,8 +203,8 @@ private[quasiquotes] object TermShapeTraversal:
               builder += declaredType
               loop(initializer)
             case BlockStatement.LocalDef(_, _, _, _, parameterType, resultType, body) =>
-              builder += parameterType.render
-              builder += resultType.render
+              builder += renderCompletedTypeShape(parameterType)
+              builder += renderCompletedTypeShape(resultType)
               loop(body)
             case term: TermShape => loop(term)
           }
@@ -217,6 +217,11 @@ private[quasiquotes] object TermShapeTraversal:
 
     loop(shape)
     builder.result()
+
+  private def renderCompletedTypeShape(shape: quasiquotes.parser.TypeShape): String =
+    TypeNormalForm
+      .fromShape(shape)
+      .fold(_ => shape.render, renderNormalForm)
 
   def nonIdentifierFields(shape: TermShape): Vector[String] =
     val builder = Vector.newBuilder[String]

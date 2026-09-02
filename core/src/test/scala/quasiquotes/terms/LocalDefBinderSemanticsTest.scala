@@ -1,6 +1,7 @@
 package quasiquotes.terms
 
 import quasiquotes.parser.{BinderId, BlockStatement, TermShape, TypeShape}
+import quasiquotes.types.TypeNormalForm
 
 class LocalDefBinderSemanticsTest extends munit.FunSuite:
   private def shape(methodId: Int, parameterId: Int, methodName: String, parameterName: String): TermShape =
@@ -52,4 +53,59 @@ class LocalDefBinderSemanticsTest extends munit.FunSuite:
 
     assert(TermShapeTraversal.validateSupported(methodInBody).isLeft)
     assert(TermShapeTraversal.validateSupported(duplicate).isLeft)
+  }
+
+  test("completion derives local-def sidecars from structured type evidence") {
+    val localDef = shape(7, 8, "id", "value")
+    val completed = ConstructedTerm.fromShape(localDef)
+
+    assertEquals(TypeShape.Identifier("Int").render, "TypeIdent(Int)")
+    assertEquals(TermShapeTraversal.typedNames(localDef), Vector("Int", "Int"))
+
+    assertEquals(
+      completed.map(_.ascriptionTypes),
+      Right(
+        Vector(
+          TypeNormalForm.STypeIdent("Int"),
+          TypeNormalForm.STypeIdent("Int")
+        )
+      )
+    )
+  }
+
+  test("completion preserves existing structured applied-type authority for local defs") {
+    val parameterType = TypeShape.Apply(
+      TypeShape.Identifier("Option"),
+      List(TypeShape.Identifier("Int"))
+    )
+    val resultType = TypeShape.Apply(
+      TypeShape.Identifier("Either"),
+      List(TypeShape.Identifier("String"), TypeShape.Identifier("Boolean"))
+    )
+    val localDef = shape(7, 8, "id", "value") match
+      case TermShape.Block(List(local: BlockStatement.LocalDef), result) =>
+        TermShape.Block(
+          List(local.copy(parameterType = parameterType, resultType = resultType)),
+          result
+        )
+      case other => fail(other.render)
+
+    assertEquals(
+      ConstructedTerm.fromShape(localDef).map(_.ascriptionTypes),
+      Right(
+        Vector(
+          TypeNormalForm.STypeApply(
+            TypeNormalForm.STypeIdent("Option"),
+            List(TypeNormalForm.STypeIdent("Int"))
+          ),
+          TypeNormalForm.STypeApply(
+            TypeNormalForm.STypeIdent("Either"),
+            List(
+              TypeNormalForm.STypeIdent("String"),
+              TypeNormalForm.STypeIdent("Boolean")
+            )
+          )
+        )
+      )
+    )
   }

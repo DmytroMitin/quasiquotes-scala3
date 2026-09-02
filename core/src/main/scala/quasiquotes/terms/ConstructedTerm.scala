@@ -1,6 +1,6 @@
 package quasiquotes.terms
 
-import quasiquotes.parser.TermShape
+import quasiquotes.parser.{BlockStatement, TermShape, TypeShape}
 import quasiquotes.types.{TypeNormalForm, TypeTemplate}
 
 private[quasiquotes] final class ConstructedTerm private (
@@ -49,7 +49,7 @@ private[quasiquotes] object ConstructedTerm:
     for
       _ <- validateShape(shape, enclosingBinderIds)
       names = TermShapeTraversal.typedNames(shape)
-      ascriptions <- deriveSimpleAscriptions(names)
+      ascriptions <- deriveAscriptions(shape, names)
       constructed <- createUsing(shape, ascriptions, enclosingBinderIds)
     yield constructed
 
@@ -124,13 +124,42 @@ private[quasiquotes] object ConstructedTerm:
     if enclosingBinderIds.isEmpty then TermShapeTraversal.validateSupported(shape)
     else TermShapeTraversal.validateSupportedInScope(shape, enclosingBinderIds)
 
-  private def deriveSimpleAscriptions(
+  private def deriveAscriptions(
+      shape: TermShape,
       names: Vector[String]
+  ): Either[TermConstructionError, Vector[TypeNormalForm]] =
+    shape match
+      case TermShape.Block((local: BlockStatement.LocalDef) :: Nil, _) =>
+        for
+          parameterType <- normalFormFromShape(local.parameterType, 0)
+          resultType <- normalFormFromShape(local.resultType, 1)
+          nestedTypes <- deriveSimpleAscriptions(names.drop(2), 2)
+        yield Vector(parameterType, resultType) ++ nestedTypes
+      case _ => deriveSimpleAscriptions(names, 0)
+
+  private def normalFormFromShape(
+      shape: TypeShape,
+      typedOrdinal: Int
+  ): Either[TermConstructionError, TypeNormalForm] =
+    TypeNormalForm
+      .fromShape(shape)
+      .left
+      .map(error =>
+        TermConstructionError.InvalidTypeTemplateSidecar(
+          typedOrdinal,
+          error.message
+        )
+      )
+
+  private def deriveSimpleAscriptions(
+      names: Vector[String],
+      startingOrdinal: Int
   ): Either[TermConstructionError, Vector[TypeNormalForm]] =
     names.zipWithIndex.foldLeft[
       Either[TermConstructionError, Vector[TypeNormalForm]]
-    ](Right(Vector.empty)) { case (result, (name, typedOrdinal)) =>
+    ](Right(Vector.empty)) { case (result, (name, index)) =>
       result.flatMap { values =>
+        val typedOrdinal = startingOrdinal + index
         name match
           case "Int" | "String" | "Boolean" =>
             Right(values :+ TypeNormalForm.STypeIdent(name))
