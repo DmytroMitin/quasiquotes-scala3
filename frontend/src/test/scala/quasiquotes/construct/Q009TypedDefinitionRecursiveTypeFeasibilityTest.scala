@@ -126,16 +126,20 @@ class Q009TypedDefinitionRecursiveTypeFeasibilityTest extends munit.FunSuite:
         )
       }
 
-    val baseline = evidence.take(3)
-    val recursive = evidence.drop(3)
-    baseline.foreach { value =>
+    val admitted = evidence.take(8)
+    val tupleAndFunction = evidence.drop(8)
+    admitted.foreach { value =>
       assert(value.lowererSucceeded, value)
       assert(value.publicDqrSucceeded, value)
       assert(value.ownerBinderAndIdentity, value)
       assert(value.publicDqqOriginalRhs, value)
-      assertEquals(value.completedKind, "named", value.label)
+      assertEquals(
+        value.completedKind,
+        if value.label == "Int" || value.label == "String" || value.label == "Boolean" then "named" else "applied",
+        value.label
+      )
     }
-    recursive.foreach { value =>
+    tupleAndFunction.foreach { value =>
       assert(!value.lowererSucceeded, value)
       assert(!value.publicDqrSucceeded, value)
       assert(!value.ownerBinderAndIdentity, value)

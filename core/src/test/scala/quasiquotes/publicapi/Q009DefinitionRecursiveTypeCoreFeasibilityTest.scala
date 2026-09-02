@@ -7,7 +7,8 @@ class Q009DefinitionRecursiveTypeCoreFeasibilityTest extends munit.FunSuite:
       label: String,
       normalForm: TypeNormalForm,
       completedSource: String,
-      firstRejectedConstructor: Option[String]
+      completedKind: String,
+      publicConstructionExpected: Boolean
   )
 
   private val int = TypeNormalForm.STypeIdent("Int")
@@ -15,26 +16,29 @@ class Q009DefinitionRecursiveTypeCoreFeasibilityTest extends munit.FunSuite:
   private val boolean = TypeNormalForm.STypeIdent("Boolean")
 
   private val families = List(
-    Family("Int", int, "Int", None),
-    Family("String", string, "String", None),
-    Family("Boolean", boolean, "Boolean", None),
+    Family("Int", int, "Int", "named", true),
+    Family("String", string, "String", "named", true),
+    Family("Boolean", boolean, "Boolean", "named", true),
     Family(
       "List[Int]",
       TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent("List"), List(int)),
       "List[Int]",
-      Some("List")
+      "applied",
+      true
     ),
     Family(
       "Option[String]",
       TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent("Option"), List(string)),
       "Option[String]",
-      Some("Option")
+      "applied",
+      true
     ),
     Family(
       "Either[Int, String]",
       TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent("Either"), List(int, string)),
       "Either[Int, String]",
-      Some("Either")
+      "applied",
+      true
     ),
     Family(
       "List[Option[Int]]",
@@ -43,7 +47,8 @@ class Q009DefinitionRecursiveTypeCoreFeasibilityTest extends munit.FunSuite:
         List(TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent("Option"), List(int)))
       ),
       "List[Option[Int]]",
-      Some("List")
+      "applied",
+      true
     ),
     Family(
       "Either[List[Int], Option[String]]",
@@ -55,31 +60,36 @@ class Q009DefinitionRecursiveTypeCoreFeasibilityTest extends munit.FunSuite:
         )
       ),
       "Either[List[Int], Option[String]]",
-      Some("Either")
+      "applied",
+      true
     ),
     Family(
       "(Int, String)",
       TypeNormalForm.STypeTuple(List(int, string)),
       "Tuple2[Int, String]",
-      Some("Tuple2")
+      "applied",
+      false
     ),
     Family(
       "(Int, String, Boolean)",
       TypeNormalForm.STypeTuple(List(int, string, boolean)),
       "Tuple3[Int, String, Boolean]",
-      Some("Tuple3")
+      "applied",
+      false
     ),
     Family(
       "Int => String",
       TypeNormalForm.STypeFunction(List(int), string),
       "Function1[Int, String]",
-      Some("Function1")
+      "applied",
+      false
     ),
     Family(
       "(Int, Boolean) => String",
       TypeNormalForm.STypeFunction(List(int, boolean), string),
       "Function2[Int, Boolean, String]",
-      Some("Function2")
+      "applied",
+      false
     )
   )
 
@@ -95,11 +105,7 @@ class Q009DefinitionRecursiveTypeCoreFeasibilityTest extends munit.FunSuite:
     families.foreach { family =>
       val completed = toCurrentCompletedType(family.normalForm)
       assertEquals(completed.source, family.completedSource, family.label)
-      assertEquals(
-        completed.kindCode,
-        if family.firstRejectedConstructor.isEmpty then "named" else "applied",
-        family.label
-      )
+      assertEquals(completed.kindCode, family.completedKind, family.label)
     }
 
     val tuple = toCurrentCompletedType(TypeNormalForm.STypeTuple(List(int, string)))
@@ -107,7 +113,7 @@ class Q009DefinitionRecursiveTypeCoreFeasibilityTest extends munit.FunSuite:
     assertEquals(tuple.constructor.flatMap(_.name), Some("Tuple2"))
     assertEquals(function.constructor.flatMap(_.name), Some("Function1"))
 
-  test("public DefinitionConstruction rejects recursive children before the complete form"):
+  test("public DefinitionConstruction admits fixed applications while keeping tuple and function encodings closed"):
     val body = CompletedTerm.definitionParameterReference("value").toOption.get
 
     families.foreach { family =>
@@ -120,13 +126,13 @@ class Q009DefinitionRecursiveTypeCoreFeasibilityTest extends munit.FunSuite:
         body
       )
 
-      family.firstRejectedConstructor match
-        case None => assert(result.isRight, family.label)
-        case Some(constructor) =>
+      if family.publicConstructionExpected then
+        assert(result.isRight, family.label)
+      else
           assert(result.isLeft, family.label)
           assert(
             result.left.toOption.get.message.contains(
-              s"Unsupported type-construction identifier `$constructor`"
+              s"Unsupported constructed applied type `${family.completedSource}`"
             ),
             s"${family.label}: ${result.left.toOption.get.message}"
           )

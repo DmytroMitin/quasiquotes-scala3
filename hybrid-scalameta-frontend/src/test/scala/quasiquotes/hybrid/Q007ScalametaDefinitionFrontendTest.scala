@@ -5,18 +5,18 @@ import scala.quoted.staging.{Compiler, withQuotes}
 import quasiquotes.definitions.hybrid.ScalametaDefinitionFrontend
 
 class Q007ScalametaDefinitionFrontendTest extends munit.FunSuite:
-  test("applied tuple and function construction retain the current bounded rejection"):
+  test("fixed applied construction succeeds while tuple and function encodings remain rejected"):
     given Compiler = Compiler.make(getClass.getClassLoader)
     val evidence = withQuotes:
       val q = summon[scala.quoted.Quotes]
       import q.reflect.*
 
       val callerTypes = List(
-        TypeRepr.of[List[Int]],
-        TypeRepr.of[(Int, String)],
-        TypeRepr.of[Int => String]
+        (TypeRepr.of[List[Int]], true),
+        (TypeRepr.of[(Int, String)], false),
+        (TypeRepr.of[Int => String], false)
       )
-      callerTypes.map { callerType =>
+      callerTypes.map { (callerType, expectedSuccess) =>
         val scalameta = ScalametaDefinitionFrontend
           .build(using q)(
             Seq("def id(value: ", "): ", " = value"),
@@ -31,8 +31,11 @@ class Q007ScalametaDefinitionFrontendTest extends munit.FunSuite:
           catch
             case error: Throwable => Option(error.getMessage).getOrElse(error.getClass.getName)
 
-        scalameta.left.exists(_.detail.contains("Unsupported type-construction identifier")) &&
-          current.contains("Unsupported type-construction identifier")
+        if expectedSuccess then
+          scalameta.isRight && current == "<no-abort>"
+        else
+          scalameta.left.exists(_.detail.contains("Unsupported constructed applied type")) &&
+            current.contains("Unsupported constructed applied type")
       }
 
     assertEquals(evidence, List(true, true, true))

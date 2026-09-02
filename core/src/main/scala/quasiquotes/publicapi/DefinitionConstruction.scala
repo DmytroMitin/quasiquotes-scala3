@@ -253,15 +253,13 @@ object DefinitionConstruction:
     for
       methodName <- validateName(name, FailureAnchor.MethodName)
       parameter <- validateName(parameterName, FailureAnchor.ParameterName)
-      completedParameterType <- definitionType(
+      completedParameterType <- singleParameterDefinitionType(
         parameterType,
-        FailureAnchor.ParameterType,
-        PublicFailure.invalidSingleParameterMethodContract
+        FailureAnchor.ParameterType
       )
-      completedResultType <- definitionType(
+      completedResultType <- singleParameterDefinitionType(
         resultType,
-        FailureAnchor.ResultType,
-        PublicFailure.invalidSingleParameterMethodContract
+        FailureAnchor.ResultType
       )
       _ <- Either.cond(
         completedResultType == completedParameterType,
@@ -586,6 +584,77 @@ object DefinitionConstruction:
           )
         )
         .map(_ => normalForm)
+    }
+
+  private def singleParameterDefinitionType(
+      value: CompletedType,
+      anchor: FailureAnchor
+  ): Either[PublicFailure, TypeNormalForm] =
+    convertSingleParameterDefinitionType(value, anchor).flatMap { normalForm =>
+      TypeTemplate
+        .validateConstructed(normalForm)
+        .left
+        .map(error =>
+          PublicFailure.invalidSingleParameterMethodContract(
+            error.message,
+            anchor
+          )
+        )
+        .map(_ => normalForm)
+    }
+
+  private def convertSingleParameterDefinitionType(
+      value: CompletedType,
+      anchor: FailureAnchor
+  ): Either[PublicFailure, TypeNormalForm] =
+    if value == null then
+      Left(
+        PublicFailure.invalidSingleParameterMethodContract(
+          "The definition type must be present.",
+          anchor
+        )
+      )
+    else
+      value.kindCode match
+        case "named" =>
+          Right(TypeNormalForm.STypeIdent(value.name.get))
+        case "applied" =>
+          for
+            constructor <- convertSingleParameterDefinitionType(
+              value.constructor.get,
+              anchor
+            )
+            arguments <- collectSingleParameterDefinitionTypes(
+              value.arguments,
+              anchor
+            )
+          yield TypeNormalForm.STypeApply(constructor, arguments.toList)
+        case "type-parameter" =>
+          Left(
+            PublicFailure.invalidSingleParameterMethodContract(
+              "Ordinary parameter methods do not declare type parameters.",
+              anchor
+            )
+          )
+        case other =>
+          Left(
+            PublicFailure.invalidSingleParameterMethodContract(
+              s"Unsupported completed definition type kind `$other`.",
+              anchor
+            )
+          )
+
+  private def collectSingleParameterDefinitionTypes(
+      values: Vector[CompletedType],
+      anchor: FailureAnchor
+  ): Either[PublicFailure, Vector[TypeNormalForm]] =
+    values.foldLeft[Either[PublicFailure, Vector[TypeNormalForm]]](
+      Right(Vector.empty)
+    ) { (result, value) =>
+      for
+        completed <- result
+        next <- convertSingleParameterDefinitionType(value, anchor)
+      yield completed :+ next
     }
 
   private def collectDefinitionTypes(
