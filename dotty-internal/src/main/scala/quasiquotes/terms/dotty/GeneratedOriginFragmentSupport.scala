@@ -21,6 +21,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
     case Lambda
     case LambdaParameter
     case LocalVal
+    case LocalDef
+    case LocalDefParameter
     case TermIdent
     case Literal
     case InterpolatedString
@@ -423,14 +425,10 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
                   renderBlockPrefix(expression).map(values :+ _)
                 case local: BlockStatement.LocalVal =>
                   renderLocalVal(local).map(values :+ _)
+                case local: BlockStatement.LocalDef =>
+                  renderLocalDef(local).map(values :+ _)
                 case null =>
                   Left(MalformedBlock(s"prefix entry $index is null."))
-                case other =>
-                  Left(
-                    MalformedBlock(
-                      s"prefix entry $index is ${blockStatementKind(other)}; expected a Term expression or the bounded P2 LocalVal statement."
-                    )
-                  )
             }
           }
           _ = builder.append("; ")
@@ -466,6 +464,78 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
         nameStart,
         Vector(rawDeclaredType, rawInitializer)
       )
+
+    private def renderLocalDef(
+        local: BlockStatement.LocalDef
+    ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
+      if local.methodBinderId == null || local.parameterBinderId == null then
+        Left(MalformedLocalDef("a binder identity was null."))
+      else if local.methodBinderId == local.parameterBinderId then
+        Left(MalformedLocalDef("method and parameter binder identities were equal."))
+      else
+        val parameterOrdinal = typedOrdinal
+        val unavailable = LocalDefBinderSpelling.unavailableKeys(binderNames.values)
+        for
+          parameterType <- ascriptionTypes
+            .lift(parameterOrdinal)
+            .toRight(MissingTypeSidecar(parameterOrdinal))
+          methodName = LocalDefBinderSpelling.freshen(
+            local.methodDisplayName,
+            unavailable
+          )
+          parameterName = LocalDefBinderSpelling.freshen(
+            local.parameterDisplayName,
+            unavailable
+          )
+          renderedMethod <- renderIdentifier("local def", methodName)
+          renderedParameter <- renderIdentifier(
+            "local def parameter",
+            parameterName
+          )
+          _ = typedOrdinal += 1
+          start = builder.length
+          _ = builder.append("def ")
+          methodStart = builder.length
+          _ = builder.append(renderedMethod)
+          _ = builder.append('(')
+          parameterStart = builder.length
+          _ = builder.append(renderedParameter)
+          _ = builder.append(": ")
+          rawParameterType <- renderAscriptionType(
+            parameterType,
+            parameterOrdinal
+          )
+          rawParameter = NodePlan(
+            NodeKind.LocalDefParameter,
+            parameterStart,
+            builder.length,
+            parameterStart,
+            Vector(rawParameterType)
+          )
+          _ = builder.append("): ")
+          resultOrdinal = typedOrdinal
+          resultType <- ascriptionTypes
+            .lift(resultOrdinal)
+            .toRight(MissingTypeSidecar(resultOrdinal))
+          _ = typedOrdinal += 1
+          rawResultType <- renderAscriptionType(resultType, resultOrdinal)
+          _ = builder.append(" = ")
+          previousBinders = binderNames
+          _ = binderNames = previousBinders
+            .removed(local.methodBinderId)
+            .updated(local.parameterBinderId, renderedParameter)
+          rawBodyResult = renderTermNode(local.body)
+          _ = binderNames = previousBinders.updated(
+            local.methodBinderId,
+            renderedMethod
+          )
+          rawBody <- rawBodyResult
+        yield node(
+          NodeKind.LocalDef,
+          start,
+          methodStart,
+          Vector(rawParameter, rawResultType, rawBody)
+        )
 
     private def renderBlockPrefix(
         expression: TermShape
@@ -517,12 +587,6 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
         builder.append(')')
         node(NodeKind.SyntheticParens, start, start, Vector(plan))
       }
-
-    private def blockStatementKind(statement: BlockStatement): String =
-      statement match
-        case _: BlockStatement.LocalVal => "LocalVal"
-        case _: BlockStatement.LocalDef => "LocalDef"
-        case _: TermShape => "TermShape"
 
     private def renderLambda1(
         binderId: BinderId,
@@ -1284,6 +1348,40 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
               .withMods(tree.mods)
           )
         }
+      case (tree: untpd.ValDef, NodeKind.LocalDefParameter) =>
+        oneChild(plan).flatMap(position(tree.tpt, _, source)).map {
+          parameterType =>
+            attach(
+              untpd
+                .ValDef(tree.name, parameterType, untpd.EmptyTree)
+                .withMods(tree.mods)
+            )
+        }
+      case (tree: untpd.DefDef, NodeKind.LocalDef) =>
+        exactChildren(plan, 3).flatMap { children =>
+          tree.paramss match
+            case List(List(parameter: untpd.ValDef)) =>
+              for
+                positionedParameter <- position(parameter, children(0), source)
+                resultType <- position(tree.tpt, children(1), source)
+                body <- position(tree.rhs, children(2), source)
+              yield attach(
+                untpd
+                  .DefDef(
+                    tree.name,
+                    List(List(positionedParameter.asInstanceOf[untpd.ValDef])),
+                    resultType,
+                    body
+                  )
+                  .withMods(tree.mods)
+              )
+            case other =>
+              Left(
+                RawTreePlanMismatch(
+                  s"bounded P3 DefDef has parameter topology ${other.map(_.size)}"
+                )
+              )
+        }
       case _ =>
         Left(
           RawTreePlanMismatch(
@@ -1393,7 +1491,7 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
   )(using Context): Vector[untpd.Tree] =
     tree match
       case value: untpd.DefDef =>
-        Vector(value.tpt, value.rhs)
+        value.paramss.flatten.toVector ++ Vector(value.tpt, value.rhs)
       case value: untpd.ValDef =>
         Vector(value.tpt, value.rhs).filterNot(_.isEmpty)
       case value: untpd.Select =>

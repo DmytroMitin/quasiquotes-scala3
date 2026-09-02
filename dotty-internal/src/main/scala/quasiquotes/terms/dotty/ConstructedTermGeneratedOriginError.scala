@@ -52,7 +52,12 @@ private[quasiquotes] object ConstructedTermGeneratedOriginError:
   final case class MalformedBlock(detail: String)
       extends ConstructedTermGeneratedOriginError:
     def message: String =
-      s"Cannot render malformed generated-origin bounded P1/P2 Block: $detail"
+      s"Cannot render malformed generated-origin bounded P1/P2/P3 Block: $detail"
+
+  final case class MalformedLocalDef(detail: String)
+      extends ConstructedTermGeneratedOriginError:
+    def message: String =
+      s"Cannot render malformed generated-origin bounded P3 LocalDef: $detail"
 
   final case class UnsupportedInterpolationPrefix(prefix: String)
       extends ConstructedTermGeneratedOriginError:

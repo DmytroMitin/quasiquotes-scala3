@@ -353,7 +353,7 @@ class P2LocalValExactBackendTest extends munit.FunSuite:
     }
   }
 
-  test("P2 failures remain controlled and P3 LocalDef remains rejected") {
+  test("P2 failures remain controlled and only direct P3 LocalDef remains rejected") {
     val binder = BinderId(60)
     val p2 = localBlock(
       binder,
@@ -380,7 +380,7 @@ class P2LocalValExactBackendTest extends munit.FunSuite:
       localBlock(binder, "bad.name", "Int", TermShape.Literal("1"), TermShape.BoundReference(binder, "x")),
       Vector(STypeIdent("Int"))
     )
-    val localDef = corrupt(
+    val localDef = ConstructedTerm.fromShape(
       TermShape.Block(
         List(
           BlockStatement.LocalDef(
@@ -394,9 +394,8 @@ class P2LocalValExactBackendTest extends munit.FunSuite:
           )
         ),
         TermShape.BoundReference(BinderId(61), "f")
-      ),
-      Vector(STypeIdent("Int"), STypeIdent("Int"))
-    )
+      )
+    ).toOption.get
 
     assertEquals(ConstructedTermUntypedBackend.lower(missing), Left(RawError.MissingTypeSidecar(0)))
     assertEquals(ConstructedTermUntypedBackend.lower(extra), Left(RawError.UnconsumedTypeSidecars(1, 2)))
@@ -412,7 +411,7 @@ class P2LocalValExactBackendTest extends munit.FunSuite:
       ConstructedTermUntypedBackend.lower(malformedName),
       Left(RawError.UnsupportedTermNode("LocalValName"))
     )
-    assert(ConstructedTermUntypedBackend.lower(localDef).isLeft)
+    assert(ConstructedTermUntypedBackend.lower(localDef).isRight)
 
     withContext {
       val directLocalDef = CoreTermShapeUntypedLowerer.lower(localDef.root)
@@ -438,7 +437,7 @@ class P2LocalValExactBackendTest extends munit.FunSuite:
         ConstructedTermGeneratedOriginAdapter.lower(malformedName, "<u007-malformed-name>"),
         Left(GeneratedError.UnrenderableName("local val", "bad.name"))
       )
-      assert(ConstructedTermGeneratedOriginAdapter.lower(localDef, "<u007-p3>").isLeft)
+      assert(ConstructedTermGeneratedOriginAdapter.lower(localDef, "<u012-p3>").isRight)
 
       val valid = ConstructedTerm.fromShape(p2).toOption.get
       val fragment = GeneratedOriginFragmentSupport.planTerm(valid).toOption.get

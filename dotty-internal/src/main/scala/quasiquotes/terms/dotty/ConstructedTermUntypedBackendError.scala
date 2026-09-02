@@ -60,7 +60,12 @@ private[quasiquotes] object ConstructedTermUntypedBackendError:
   final case class MalformedBlock(detail: String)
       extends ConstructedTermUntypedBackendError:
     def message: String =
-      s"Malformed constructed-term bounded P1/P2 Block: $detail"
+      s"Malformed constructed-term bounded P1/P2/P3 Block: $detail"
+
+  final case class MalformedLocalDef(detail: String)
+      extends ConstructedTermUntypedBackendError:
+    def message: String =
+      s"Malformed constructed-term bounded P3 LocalDef: $detail"
 
   final case class UnsupportedInterpolationPrefix(prefix: String)
       extends ConstructedTermUntypedBackendError:

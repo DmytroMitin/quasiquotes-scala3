@@ -229,13 +229,11 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
             lowerLocalVal(local, current).map { case (raw, next) =>
               (raw :: values) -> next
             }
+          case local: BlockStatement.LocalDef =>
+            lowerLocalDef(local, current).map { case (raw, next) =>
+              (raw :: values) -> next
+            }
           case null => Left(MalformedBlock(s"prefix entry $index is null."))
-          case other =>
-            Left(
-              MalformedBlock(
-                s"prefix entry $index is ${blockStatementKind(other)}; expected a Term expression or the bounded P2 LocalVal statement."
-              )
-            )
       }
     }.map { case (reversed, next) => reversed.reverse -> next }
 
@@ -276,11 +274,83 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
         )
       yield definition -> next
 
-  private def blockStatementKind(statement: BlockStatement): String =
-    statement match
-      case _: BlockStatement.LocalVal => "LocalVal"
-      case _: BlockStatement.LocalDef => "LocalDef"
-      case _: TermShape => "TermShape"
+  private def lowerLocalDef(
+      local: BlockStatement.LocalDef,
+      state: LoweringState
+  )(using SourceFile): Either[
+    ConstructedTermUntypedBackendError,
+    (untpd.DefDef, LoweringState)
+  ] =
+    if local.methodBinderId == null || local.parameterBinderId == null then
+      Left(MalformedLocalDef("a binder identity was null."))
+    else if local.methodBinderId == local.parameterBinderId then
+      Left(MalformedLocalDef("method and parameter binder identities were equal."))
+    else if !isValidBinderName(local.methodDisplayName) then
+      Left(UnsupportedTermNode("LocalDefName"))
+    else if !isValidBinderName(local.parameterDisplayName) then
+      Left(UnsupportedTermNode("LocalDefParameterName"))
+    else
+      val unavailable = LocalDefBinderSpelling.unavailableKeys(state.binders.values)
+      val methodName = LocalDefBinderSpelling.freshen(
+        local.methodDisplayName,
+        unavailable
+      )
+      val parameterName = LocalDefBinderSpelling.freshen(
+        local.parameterDisplayName,
+        unavailable
+      )
+      for
+        consumedParameter <- state.consume
+        (parameterType, afterParameterType) = consumedParameter
+        rawParameterType <- CompletedTypeUntypedLowerer
+          .lower(parameterType)
+          .left
+          .map(_ =>
+            UnsupportedTypeSidecar(
+              state.typedOrdinal,
+              parameterType.render
+            )
+          )
+        consumedResult <- afterParameterType.consume
+        (resultType, afterResultType) = consumedResult
+        rawResultType <- CompletedTypeUntypedLowerer
+          .lower(resultType)
+          .left
+          .map(_ =>
+            UnsupportedTypeSidecar(
+              afterParameterType.typedOrdinal,
+              resultType.render
+            )
+          )
+        bodyState = afterResultType.copy(
+          binders = state.binders
+            .removed(local.methodBinderId)
+            .updated(local.parameterBinderId, parameterName)
+        )
+        loweredBody <- lowerTerm(local.body, bodyState)
+        (rawBody, afterBody) = loweredBody
+        parameter = untpd
+          .ValDef(
+            termName(parameterName),
+            rawParameterType,
+            untpd.EmptyTree
+          )
+          .withMods(untpd.Modifiers(Flags.Param))
+        definition = untpd
+          .DefDef(
+            termName(methodName),
+            List(List(parameter)),
+            rawResultType,
+            rawBody
+          )
+          .withMods(untpd.Modifiers(Flags.Method))
+        next = afterBody.copy(
+          binders = state.binders.updated(
+            local.methodBinderId,
+            methodName
+          )
+        )
+      yield definition -> next
 
   private def lowerLambda1(
       binderId: BinderId,
