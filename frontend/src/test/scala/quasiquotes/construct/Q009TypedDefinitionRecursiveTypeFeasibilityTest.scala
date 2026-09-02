@@ -4,7 +4,6 @@ import scala.quoted.staging.{Compiler, withQuotes}
 
 import quasiquotes.definitions.DefinitionName
 import quasiquotes.matching.DefinitionPattern
-import quasiquotes.publicapi.CompletedType
 import quasiquotes.types.{TargetTypeReprInspector, TypeNormalForm}
 
 trait Q009RefinedBase:
@@ -14,15 +13,13 @@ class Q009TypedDefinitionRecursiveTypeFeasibilityTest extends munit.FunSuite:
   private final case class LayerEvidence(
       label: String,
       inspected: String,
-      completedKind: String,
-      completedSource: String,
       lowererSucceeded: Boolean,
       publicDqrSucceeded: Boolean,
       ownerBinderAndIdentity: Boolean,
       publicDqqOriginalRhs: Boolean
   )
 
-  test("required families locate the first loss across inspector conversion lowerer and public hosts"):
+  test("required recursive families retain inspector lowerer construction and matching parity"):
     given Compiler = Compiler.make(getClass.getClassLoader)
     val evidence = withQuotes:
       val q = summon[scala.quoted.Quotes]
@@ -30,17 +27,6 @@ class Q009TypedDefinitionRecursiveTypeFeasibilityTest extends munit.FunSuite:
 
       val methodName = DefinitionName.plain("identity").toOption.get
       val parameterName = DefinitionName.plain("value").toOption.get
-      val converter = TypedSingleParameterDefinitionLowerer.getClass
-        .getDeclaredMethod("toCompletedType", classOf[TypeNormalForm])
-      converter.setAccessible(true)
-
-      def exactCompleted(normalForm: TypeNormalForm): CompletedType =
-        converter
-          .invoke(TypedSingleParameterDefinitionLowerer, normalForm)
-          .asInstanceOf[Either[String, CompletedType]]
-          .toOption
-          .get
-
       def independentDefinition(tpe: TypeRepr): DefDef =
         val methodType = MethodType(List("value"))(_ => List(tpe), _ => tpe)
         val symbol = Symbol.newMethod(Symbol.spliceOwner, "identity", methodType)
@@ -99,7 +85,6 @@ class Q009TypedDefinitionRecursiveTypeFeasibilityTest extends munit.FunSuite:
 
       families.map { (label, tpe, source) =>
         val normalForm = TargetTypeReprInspector.inspect(using q)(tpe).toOption.get
-        val completed = exactCompleted(normalForm)
         val lowered = TypedSingleParameterDefinitionLowerer.lower(using q)(
           methodName,
           parameterName,
@@ -116,8 +101,6 @@ class Q009TypedDefinitionRecursiveTypeFeasibilityTest extends munit.FunSuite:
         LayerEvidence(
           label,
           normalForm.render,
-          completed.kindCode,
-          completed.source,
           lowered.isRight,
           public.isRight,
           lowered.toOption.exists(ownerBinderAndIdentity(_, tpe)) &&
@@ -126,25 +109,11 @@ class Q009TypedDefinitionRecursiveTypeFeasibilityTest extends munit.FunSuite:
         )
       }
 
-    val admitted = evidence.take(8)
-    val tupleAndFunction = evidence.drop(8)
-    admitted.foreach { value =>
+    evidence.foreach { value =>
       assert(value.lowererSucceeded, value)
       assert(value.publicDqrSucceeded, value)
       assert(value.ownerBinderAndIdentity, value)
       assert(value.publicDqqOriginalRhs, value)
-      assertEquals(
-        value.completedKind,
-        if value.label == "Int" || value.label == "String" || value.label == "Boolean" then "named" else "applied",
-        value.label
-      )
-    }
-    tupleAndFunction.foreach { value =>
-      assert(!value.lowererSucceeded, value)
-      assert(!value.publicDqrSucceeded, value)
-      assert(!value.ownerBinderAndIdentity, value)
-      assert(value.publicDqqOriginalRhs, value)
-      assertEquals(value.completedKind, "applied", value.label)
     }
     assertEquals(evidence.map(_.label), List(
       "Int",
@@ -174,21 +143,6 @@ class Q009TypedDefinitionRecursiveTypeFeasibilityTest extends munit.FunSuite:
       "STypeFunction([STypeIdent(Int)], STypeIdent(String))",
       "STypeFunction([STypeIdent(Int), STypeIdent(Boolean)], STypeIdent(String))"
     ))
-    assertEquals(evidence.map(_.completedSource), List(
-      "Int",
-      "String",
-      "Boolean",
-      "List[Int]",
-      "Option[String]",
-      "Either[Int, String]",
-      "List[Option[Int]]",
-      "Either[List[Int], Option[String]]",
-      "Tuple2[Int, String]",
-      "Tuple3[Int, String, Boolean]",
-      "Function1[Int, String]",
-      "Function2[Int, Boolean, String]"
-    ))
-
   test("negative controls reject unequal and refined Types without widening"):
     given Compiler = Compiler.make(getClass.getClassLoader)
     val evidence = withQuotes:

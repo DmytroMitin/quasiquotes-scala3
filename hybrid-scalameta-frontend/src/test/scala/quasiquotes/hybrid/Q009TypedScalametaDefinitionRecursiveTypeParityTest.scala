@@ -100,19 +100,11 @@ class Q009TypedScalametaDefinitionRecursiveTypeParityTest extends munit.FunSuite
         )
       }
 
-    evidence.take(8).foreach { value =>
+    evidence.foreach { value =>
       assert(value.currentConstruction, value)
       assert(value.scalametaConstruction, value)
       assert(value.currentOwnerBinderAndIdentity, value)
       assert(value.scalametaOwnerBinderAndIdentity, value)
-      assert(value.currentPatternOriginalRhs, value)
-      assert(value.scalametaPatternOriginalRhs, value)
-    }
-    evidence.drop(8).foreach { value =>
-      assert(!value.currentConstruction, value)
-      assert(!value.scalametaConstruction, value)
-      assert(!value.currentOwnerBinderAndIdentity, value)
-      assert(!value.scalametaOwnerBinderAndIdentity, value)
       assert(value.currentPatternOriginalRhs, value)
       assert(value.scalametaPatternOriginalRhs, value)
     }

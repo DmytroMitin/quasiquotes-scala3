@@ -261,6 +261,50 @@ object DefinitionConstruction:
         resultType,
         FailureAnchor.ResultType
       )
+      constructed <- constructValidatedSingleParameterMethod(
+        methodName,
+        parameter,
+        completedParameterType,
+        completedResultType,
+        body
+      )
+    yield constructed
+
+  private[quasiquotes] def constructSingleParameterMethodFromNormalForms(
+      name: String,
+      parameterName: String,
+      parameterType: TypeNormalForm,
+      resultType: TypeNormalForm,
+      body: CompletedTerm
+  ): Either[PublicFailure, ConstructedDefinition.SingleParameterDef] =
+    for
+      methodName <- validateName(name, FailureAnchor.MethodName)
+      parameter <- validateName(parameterName, FailureAnchor.ParameterName)
+      completedParameterType <- singleParameterDefinitionNormalForm(
+        parameterType,
+        FailureAnchor.ParameterType
+      )
+      completedResultType <- singleParameterDefinitionNormalForm(
+        resultType,
+        FailureAnchor.ResultType
+      )
+      constructed <- constructValidatedSingleParameterMethod(
+        methodName,
+        parameter,
+        completedParameterType,
+        completedResultType,
+        body
+      )
+    yield constructed
+
+  private def constructValidatedSingleParameterMethod(
+      methodName: String,
+      parameter: String,
+      completedParameterType: TypeNormalForm,
+      completedResultType: TypeNormalForm,
+      body: CompletedTerm
+  ): Either[PublicFailure, ConstructedDefinition.SingleParameterDef] =
+    for
       _ <- Either.cond(
         completedResultType == completedParameterType,
         (),
@@ -602,6 +646,57 @@ object DefinitionConstruction:
         )
         .map(_ => normalForm)
     }
+
+  private def singleParameterDefinitionNormalForm(
+      value: TypeNormalForm,
+      anchor: FailureAnchor
+  ): Either[PublicFailure, TypeNormalForm] =
+    if value == null then
+      Left(
+        PublicFailure.invalidSingleParameterMethodContract(
+          "The definition type must be present.",
+          anchor
+        )
+      )
+    else
+      try
+        if containsResolvedType(value) then
+          Left(
+            PublicFailure.invalidSingleParameterMethodContract(
+              "Resolved selected Types are not admitted by ordinary single-parameter methods.",
+              anchor
+            )
+          )
+        else
+          TypeTemplate
+            .validateConstructed(value)
+            .left
+            .map(error =>
+              PublicFailure.invalidSingleParameterMethodContract(
+                error.message,
+                anchor
+              )
+            )
+            .map(_ => value)
+      catch
+        case _: MatchError | _: NullPointerException =>
+          Left(
+            PublicFailure.invalidSingleParameterMethodContract(
+              "The definition type must be well-formed.",
+              anchor
+            )
+          )
+
+  private def containsResolvedType(value: TypeNormalForm): Boolean =
+    value match
+      case TypeNormalForm.STypeIdent(_) => false
+      case TypeNormalForm.STypeResolved(_) => true
+      case TypeNormalForm.STypeApply(constructor, arguments) =>
+        containsResolvedType(constructor) || arguments.exists(containsResolvedType)
+      case TypeNormalForm.STypeTuple(elements) =>
+        elements.exists(containsResolvedType)
+      case TypeNormalForm.STypeFunction(arguments, result) =>
+        arguments.exists(containsResolvedType) || containsResolvedType(result)
 
   private def convertSingleParameterDefinitionType(
       value: CompletedType,
