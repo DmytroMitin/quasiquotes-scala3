@@ -10,6 +10,7 @@ import dotty.tools.dotc.{Compiler, Driver, report}
 import dotty.tools.dotc.ast.untpd
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Phases.Phase
+import dotty.tools.dotc.core.Symbols.NoSymbol
 import dotty.tools.dotc.parsing.Parser
 
 import quasiquotes.parser.TermShape
@@ -114,12 +115,64 @@ class ConstructedTermGeneratedOriginTyperRuntimeTest extends munit.FunSuite:
     finally deleteRecursively(temporary)
   }
 
+  test("P2 local val generated origin survives pre-Typer validation TASTy emission and runtime") {
+    val temporary = Files.createTempDirectory("u007-p2-generated-origin-")
+    try
+      val source = temporary.resolve("U007P2GeneratedRuntime.scala")
+      val output = temporary.resolve("classes")
+      Files.createDirectories(output)
+      Files.writeString(
+        source,
+        """object U007P2GeneratedRuntime:
+          |  def result: Int = 0
+          |""".stripMargin,
+        StandardCharsets.UTF_8
+      )
+
+      val driver = new GeneratedOriginDriver(p2LocalValFixture, "<u007-p2-generated-origin>")
+      val reporter =
+        driver.process(
+          Array(
+            "-classpath",
+            compilationClasspath,
+            "-d",
+            output.toString,
+            source.toString
+          )
+        )
+
+      assert(!reporter.hasErrors, clues(reporter.allErrors))
+      assertEquals(driver.insertedSource, Some(P2LocalValSource))
+      assertEquals(driver.insertedP2Topology, Some(true))
+      assertEquals(driver.insertedAllNoSymbol, Some(true))
+      assertEquals(driver.insertedAllPositioned, Some(true))
+      val emitted =
+        val stream = Files.walk(output)
+        try stream.filter(Files.isRegularFile(_)).iterator().asScala.toVector
+        finally stream.close()
+      assert(emitted.exists(_.toString.endsWith(".class")))
+      assert(emitted.exists(_.toString.endsWith(".tasty")))
+
+      val loader =
+        new URLClassLoader(Array(output.toUri.toURL), getClass.getClassLoader)
+      try
+        val moduleClass = loader.loadClass("U007P2GeneratedRuntime$")
+        val module = moduleClass.getField("MODULE$").get(null)
+        val value = moduleClass.getMethod("result").invoke(module)
+        assertEquals(value, 42)
+      finally loader.close()
+    finally deleteRecursively(temporary)
+  }
+
   private final class GeneratedOriginDriver(
       constructed: ConstructedTerm,
       sourceName: String
   )
       extends Driver:
     @volatile var insertedSource: Option[String] = None
+    @volatile var insertedP2Topology: Option[Boolean] = None
+    @volatile var insertedAllNoSymbol: Option[Boolean] = None
+    @volatile var insertedAllPositioned: Option[Boolean] = None
 
     override protected def newCompiler(using Context): Compiler =
       new Compiler:
@@ -147,6 +200,25 @@ class ConstructedTermGeneratedOriginTyperRuntimeTest extends munit.FunSuite:
         case Left(error) =>
           report.error(error.message)
         case Right(result) =>
+          evidence.insertedP2Topology = Some(
+            result.tree match
+              case untpd.Block((definition: untpd.ValDef) :: Nil, _: untpd.InfixOp) =>
+                definition.name.toString == "x" &&
+                  definition.rhs.isInstanceOf[untpd.Number]
+              case _ => false
+          )
+          val insertedTrees = GeneratedOriginFragmentSupport.allTrees(result.tree)
+          evidence.insertedAllNoSymbol = Some(
+            insertedTrees.forall(_.symbol == NoSymbol)
+          )
+          evidence.insertedAllPositioned = Some(
+            insertedTrees.forall(tree =>
+              tree.source.path == result.virtualSourceName &&
+                tree.span.exists &&
+                tree.span.start >= 0 &&
+                tree.span.end <= result.generatedSource.length
+            )
+          )
           val transformer = new untpd.UntypedTreeMap:
             override def transform(tree: untpd.Tree)(using Context): untpd.Tree =
               tree match
@@ -211,6 +283,29 @@ class ConstructedTermGeneratedOriginTyperRuntimeTest extends munit.FunSuite:
 
   private val P1BlockSource =
     """{ "discarded": String; { "nested"; "inner" }; "u006-result": String }"""
+
+  private def p2LocalValFixture: ConstructedTerm =
+    val binder = quasiquotes.parser.BinderId(0)
+    ConstructedTerm.fromShape(
+      TermShape.Block(
+        List(
+          quasiquotes.parser.BlockStatement.LocalVal(
+            binder,
+            "x",
+            "Int",
+            TermShape.Literal("41")
+          )
+        ),
+        TermShape.Infix(
+          TermShape.BoundReference(binder, "hostile-reference-text"),
+          "+",
+          TermShape.Literal("1")
+        )
+      )
+    ).toOption.get
+
+  private val P2LocalValSource =
+    "{ val x: Int = 41; x + 1 }"
 
   private def compilationClasspath: String =
     Vector(

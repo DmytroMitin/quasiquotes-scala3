@@ -20,6 +20,7 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
   private[dotty] enum NodeKind:
     case Lambda
     case LambdaParameter
+    case LocalVal
     case TermIdent
     case Literal
     case InterpolatedString
@@ -213,6 +214,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
     private val builder = new StringBuilder
     private var typedOrdinal = 0
     private var binderNames = initialBinders
+    private var lambdaActive = false
+    private val ambientBindersPresent = initialBinders.nonEmpty
 
     def renderTerm(
       rootShape: TermShape
@@ -407,37 +410,62 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
     ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
       val start = builder.length
       builder.append("{ ")
-      val expressionPrefix =
-        statements.zipWithIndex.foldLeft[
-          Either[ConstructedTermGeneratedOriginError, Vector[TermShape]]
-        ](Right(Vector.empty)) { case (accumulated, (statement, index)) =>
-          accumulated.flatMap { values =>
-            statement match
-              case expression: TermShape => Right(values :+ expression)
-              case null => Left(MalformedBlock(s"prefix entry $index is null."))
-              case other =>
-                Left(
-                  MalformedBlock(
-                    s"prefix entry $index is ${blockStatementKind(other)}; expected a binder-free Term expression."
-                  )
-                )
-          }
-        }
-      for
-        prefix <- expressionPrefix
-        rawPrefix <- prefix.zipWithIndex.foldLeft[
+      val previousBinders = binderNames
+      val rendered =
+        for
+          rawPrefix <- statements.zipWithIndex.foldLeft[
           Either[ConstructedTermGeneratedOriginError, Vector[NodePlan]]
-        ](Right(Vector.empty)) { case (accumulated, (expression, index)) =>
-          accumulated.flatMap { values =>
-            if index > 0 then builder.append("; ")
-            renderBlockPrefix(expression).map(values :+ _)
+          ](Right(Vector.empty)) { case (accumulated, (statement, index)) =>
+            accumulated.flatMap { values =>
+              if index > 0 then builder.append("; ")
+              statement match
+                case expression: TermShape =>
+                  renderBlockPrefix(expression).map(values :+ _)
+                case local: BlockStatement.LocalVal =>
+                  renderLocalVal(local).map(values :+ _)
+                case null =>
+                  Left(MalformedBlock(s"prefix entry $index is null."))
+                case other =>
+                  Left(
+                    MalformedBlock(
+                      s"prefix entry $index is ${blockStatementKind(other)}; expected a Term expression or the bounded P2 LocalVal statement."
+                    )
+                  )
+            }
           }
-        }
-        _ = builder.append("; ")
-        rawResult <- renderBlockTerm(result)
-      yield
-        builder.append(" }")
-        node(NodeKind.Block, start, start, rawPrefix :+ rawResult)
+          _ = builder.append("; ")
+          rawResult <- renderBlockTerm(result)
+        yield
+          builder.append(" }")
+          node(NodeKind.Block, start, start, rawPrefix :+ rawResult)
+      binderNames = previousBinders
+      rendered
+
+    private def renderLocalVal(
+        local: BlockStatement.LocalVal
+    ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
+      val ordinal = typedOrdinal
+      for
+        declaredType <- ascriptionTypes
+          .lift(ordinal)
+          .toRight(MissingTypeSidecar(ordinal))
+        renderedName <- renderIdentifier("local val", local.displayName)
+        _ = typedOrdinal += 1
+        start = builder.length
+        _ = builder.append("val ")
+        nameStart = builder.length
+        _ = builder.append(renderedName)
+        _ = builder.append(": ")
+        rawDeclaredType <- renderAscriptionType(declaredType, ordinal)
+        _ = builder.append(" = ")
+        rawInitializer <- renderTermNode(local.initializer)
+        _ = binderNames = binderNames.updated(local.binderId, renderedName)
+      yield node(
+        NodeKind.LocalVal,
+        start,
+        nameStart,
+        Vector(rawDeclaredType, rawInitializer)
+      )
 
     private def renderBlockPrefix(
         expression: TermShape
@@ -501,7 +529,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
         displayName: String,
         body: TermShape
     ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
-      if binderNames.nonEmpty then Left(NestedLambda1Unsupported)
+      if lambdaActive || ambientBindersPresent then
+        Left(NestedLambda1Unsupported)
       else
         val ordinal = typedOrdinal
         for
@@ -527,9 +556,12 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
           arrowPoint = builder.length
           _ = builder.append("=> ")
           previousBinders = binderNames
+          previousLambdaActive = lambdaActive
           _ = binderNames = binderNames.updated(binderId, renderedName)
+          _ = lambdaActive = true
           rawBodyResult = renderLambdaBody(body)
           _ = binderNames = previousBinders
+          _ = lambdaActive = previousLambdaActive
           rawBody <- rawBodyResult
         yield node(
           NodeKind.Lambda,
@@ -1240,6 +1272,17 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
                 .ValDef(tree.name, parameterType, untpd.EmptyTree)
                 .withMods(tree.mods)
             )
+        }
+      case (tree: untpd.ValDef, NodeKind.LocalVal) =>
+        exactChildren(plan, 2).flatMap { children =>
+          for
+            declaredType <- position(tree.tpt, children(0), source)
+            initializer <- position(tree.rhs, children(1), source)
+          yield attach(
+            untpd
+              .ValDef(tree.name, declaredType, initializer)
+              .withMods(tree.mods)
+          )
         }
       case _ =>
         Left(

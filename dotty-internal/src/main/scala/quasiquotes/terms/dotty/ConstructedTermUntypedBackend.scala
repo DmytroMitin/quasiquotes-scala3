@@ -19,7 +19,9 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
   private final case class LoweringState(
       sidecars: Vector[TypeNormalForm],
       typedOrdinal: Int,
-      binders: Map[BinderId, String]
+      binders: Map[BinderId, String],
+      lambdaActive: Boolean,
+      ambientBindersPresent: Boolean
   ):
     def consume:
         Either[ConstructedTermUntypedBackendError, (TypeNormalForm, LoweringState)] =
@@ -85,7 +87,9 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
       LoweringState(
         constructed.ascriptionTypes,
         typedOrdinal = 0,
-        binders = binders
+        binders = binders,
+        lambdaActive = false,
+        ambientBindersPresent = binders.nonEmpty
       )
     ).flatMap { case (tree, state) =>
       Either.cond(
@@ -193,30 +197,84 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
     ConstructedTermUntypedBackendError,
     (untpd.Tree, LoweringState)
   ] =
-    val expressionPrefix =
-      statements.zipWithIndex.foldLeft[
-        Either[ConstructedTermUntypedBackendError, List[TermShape]]
-      ](Right(Nil)) { case (accumulated, (statement, index)) =>
-        accumulated.flatMap { values =>
-          statement match
-            case expression: TermShape => Right(expression :: values)
-            case null => Left(MalformedBlock(s"prefix entry $index is null."))
-            case other =>
-              Left(
-                MalformedBlock(
-                  s"prefix entry $index is ${blockStatementKind(other)}; expected a binder-free Term expression."
-                )
-              )
-        }
-      }.map(_.reverse)
-
+    val incomingBinders = state.binders
     for
-      prefix <- expressionPrefix
-      loweredPrefix <- lowerTerms(prefix, state)
+      loweredPrefix <- lowerBlockStatements(statements, state)
       (rawPrefix, afterPrefix) = loweredPrefix
       loweredResult <- lowerTerm(result, afterPrefix)
       (rawResult, afterResult) = loweredResult
-    yield untpd.Block(rawPrefix, rawResult) -> afterResult
+      restored = afterResult.copy(binders = incomingBinders)
+    yield untpd.Block(rawPrefix, rawResult) -> restored
+
+  private def lowerBlockStatements(
+      statements: List[BlockStatement],
+      state: LoweringState
+  )(using SourceFile): Either[
+    ConstructedTermUntypedBackendError,
+    (List[untpd.Tree], LoweringState)
+  ] =
+    statements.zipWithIndex.foldLeft[
+      Either[
+        ConstructedTermUntypedBackendError,
+        (List[untpd.Tree], LoweringState)
+      ]
+    ](Right(Nil -> state)) { case (accumulated, (statement, index)) =>
+      accumulated.flatMap { case (values, current) =>
+        statement match
+          case expression: TermShape =>
+            lowerTerm(expression, current).map { case (raw, next) =>
+              (raw :: values) -> next
+            }
+          case local: BlockStatement.LocalVal =>
+            lowerLocalVal(local, current).map { case (raw, next) =>
+              (raw :: values) -> next
+            }
+          case null => Left(MalformedBlock(s"prefix entry $index is null."))
+          case other =>
+            Left(
+              MalformedBlock(
+                s"prefix entry $index is ${blockStatementKind(other)}; expected a Term expression or the bounded P2 LocalVal statement."
+              )
+            )
+      }
+    }.map { case (reversed, next) => reversed.reverse -> next }
+
+  private def lowerLocalVal(
+      local: BlockStatement.LocalVal,
+      state: LoweringState
+  )(using SourceFile): Either[
+    ConstructedTermUntypedBackendError,
+    (untpd.ValDef, LoweringState)
+  ] =
+    if !isValidBinderName(local.displayName) then
+      Left(UnsupportedTermNode("LocalValName"))
+    else
+      for
+        consumed <- state.consume
+        (declaredType, afterDeclaredType) = consumed
+        rawDeclaredType <- CompletedTypeUntypedLowerer
+          .lower(declaredType)
+          .left
+          .map(_ =>
+            UnsupportedTypeSidecar(
+              state.typedOrdinal,
+              declaredType.render
+            )
+          )
+        loweredInitializer <- lowerTerm(local.initializer, afterDeclaredType)
+        (rawInitializer, afterInitializer) = loweredInitializer
+        definition = untpd.ValDef(
+          termName(local.displayName),
+          rawDeclaredType,
+          rawInitializer
+        )
+        next = afterInitializer.copy(
+          binders = afterInitializer.binders.updated(
+            local.binderId,
+            local.displayName
+          )
+        )
+      yield definition -> next
 
   private def blockStatementKind(statement: BlockStatement): String =
     statement match
@@ -233,8 +291,9 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
     ConstructedTermUntypedBackendError,
     (untpd.Tree, LoweringState)
   ] =
-    if state.binders.nonEmpty then Left(NestedLambda1Unsupported)
-    else if !isValidLambdaParameterName(displayName) then
+    if state.lambdaActive || state.ambientBindersPresent then
+      Left(NestedLambda1Unsupported)
+    else if !isValidBinderName(displayName) then
       Left(UnsupportedTermNode("Lambda1ParameterName"))
     else
       for
@@ -250,7 +309,8 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
             )
           )
         bodyState = afterParameterType.copy(
-          binders = afterParameterType.binders.updated(binderId, displayName)
+          binders = afterParameterType.binders.updated(binderId, displayName),
+          lambdaActive = true
         )
         loweredBody <- lowerTerm(body, bodyState)
         (rawBody, afterBody) = loweredBody
@@ -261,14 +321,17 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
             untpd.EmptyTree
           )
           .withMods(untpd.Modifiers(Flags.Param))
-        restored = afterBody.copy(binders = state.binders)
+        restored = afterBody.copy(
+          binders = state.binders,
+          lambdaActive = state.lambdaActive
+        )
         parserEquivalentBody =
           body match
             case _: TermShape.Typed => untpd.Parens(rawBody)
             case _ => rawBody
       yield untpd.Function(parameter :: Nil, parserEquivalentBody) -> restored
 
-  private def isValidLambdaParameterName(name: String): Boolean =
+  private def isValidBinderName(name: String): Boolean =
     Option(name).exists(StandardSInterpolationEncoding.isPlainIdentifier)
 
   private def lowerNew(

@@ -382,7 +382,7 @@ class P1BlockExactBackendTest extends munit.FunSuite:
     }
   }
 
-  test("reconciled N006 P2 projection remains rejected by all U006 backend routes") {
+  test("reconciled N006 P2 projection keeps direct rejection and reaches U007 richer routes") {
     val p2 = project("{ val x: Int = 1; x }")
     p2 match
       case TermShape.Block(
@@ -394,11 +394,11 @@ class P1BlockExactBackendTest extends munit.FunSuite:
 
     withContext {
       assert(CoreTermShapeUntypedLowerer.lower(p2).isLeft)
-      assert(ConstructedTermUntypedBackend.lower(constructed).isLeft)
+      assert(ConstructedTermUntypedBackend.lower(constructed).isRight)
       assert(
         ConstructedTermGeneratedOriginAdapter
-          .lower(constructed, "<u006-p2-rejected>")
-          .isLeft
+          .lower(constructed, "<u007-p2-accepted>")
+          .isRight
       )
     }
   }

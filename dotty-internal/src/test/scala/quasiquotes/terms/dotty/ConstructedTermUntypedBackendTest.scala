@@ -325,7 +325,7 @@ class ConstructedTermUntypedBackendTest extends munit.FunSuite:
     )
   }
 
-  test("exact untyped backend fails closed for the P2 local-val semantic node") {
+  test("exact richer untyped backend lowers the P2 local-val semantic node") {
     val binderId = BinderId(0)
     val shape = TermShape.Block(
       List(
@@ -340,13 +340,10 @@ class ConstructedTermUntypedBackendTest extends munit.FunSuite:
     )
     val constructed = ConstructedTerm.fromShape(shape).toOption.get
 
+    val raw = ConstructedTermUntypedBackend.lower(constructed).toOption.get
     assertEquals(
-      ConstructedTermUntypedBackend.lower(constructed),
-      Left(
-        MalformedBlock(
-          "prefix entry 0 is LocalVal; expected a binder-free Term expression."
-        )
-      )
+      TermShapeInspector.rawStructure(raw),
+      TinyTermParser.parseOrThrow("{ val x: Int = 1; x }").rawStructure
     )
   }
 

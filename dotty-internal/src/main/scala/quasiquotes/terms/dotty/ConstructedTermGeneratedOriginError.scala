@@ -52,7 +52,7 @@ private[quasiquotes] object ConstructedTermGeneratedOriginError:
   final case class MalformedBlock(detail: String)
       extends ConstructedTermGeneratedOriginError:
     def message: String =
-      s"Cannot render malformed generated-origin binder-free P1 Block: $detail"
+      s"Cannot render malformed generated-origin bounded P1/P2 Block: $detail"
 
   final case class UnsupportedInterpolationPrefix(prefix: String)
       extends ConstructedTermGeneratedOriginError:
