@@ -33,12 +33,23 @@ class ReleaseConfigurationTest(unittest.TestCase):
         ):
             self.assertIn(property_name, build)
 
-    def test_only_selected_modules_are_publishable(self) -> None:
+    def test_expanded_modules_require_explicit_release_mode(self) -> None:
         build = (ROOT / "build.sbt").read_text()
+        self.assertIn('quasiquotes.expandedRelease', build)
+        self.assertIn('expandedReleaseEnabled', build)
         for module in (
             "neutralScalameta",
             "dottyInternal",
             "hybridScalametaFrontend",
+        ):
+            start = build.index(f"lazy val {module}")
+            end = build.find("\nlazy val ", start + 1)
+            section = build[start:] if end < 0 else build[start:end]
+            self.assertIn("publish / skip := !expandedReleaseEnabled", section, module)
+
+    def test_root_and_examples_are_always_skipped(self) -> None:
+        build = (ROOT / "build.sbt").read_text()
+        for module in (
             "publicApiExamples",
             "publicCoreExamples",
             "root",

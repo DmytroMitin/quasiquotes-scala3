@@ -1,9 +1,12 @@
 # Dotty-internal exact backend
 
 `dottyInternal` is an experimental, remotely unpublished, full-crossed module
-for exact Scala compiler operations. It is not a generic public `untpd` or
-`tpd` toolkit. Consumers must align with the module's full Scala compiler
-version and active compiler context.
+for exact Scala compiler operations. It is locally stageable for the selected
+Scala 3.3.8/3.8.4 candidate coordinates only under explicit expanded-release
+mode; Maven availability is not API stability. It follows the project's 0.x
+compatibility policy and is not a generic public `untpd` or `tpd` toolkit.
+Consumers must align with the module's full Scala compiler version and active
+compiler context.
 
 ## Current public-for-JVM-access surface
 
@@ -57,7 +60,9 @@ The 039 operation is documented on the
 
 ## Internal module inventory
 
-All other production owners are package-private or otherwise project-internal:
+Only the documented foreign-package bridges above are intended consumer seams.
+All other production owners are package-private or otherwise project-internal
+and carry no stable compatibility promise:
 
 - `CoreTermShapeUntypedLowerer` lowers canonical signed decimal literals,
   recursive ordinary infix nodes, direct identifiers, recursive selections,
@@ -128,7 +133,9 @@ contexts.
 There is no production public bridge from arbitrary `scala.meta.Term` to
 `untpd.Tree`, no public neutral projector from arbitrary `scala.meta.Term`, no
 generic raw-tree family, no placement service, and no stable published
-coordinate for this module. The package-private production composition admits
+coordinate for this module today. A future candidate Maven coordinate does not
+widen those API boundaries or stabilize the internal machinery. The
+package-private production composition admits
 only recursive semantic integers, ordinary binary infix Terms, direct
 identifiers, selections, and one-list ordinary applications through core
 `TermShape`.

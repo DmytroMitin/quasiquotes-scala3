@@ -1,17 +1,21 @@
 # Scalameta opt-in artifact topology
 
-The selected topology keeps the Scalameta routes explicit, experimental, and
-remotely unpublished:
+The selected topology keeps the Scalameta routes explicit and experimental.
+They remain remotely unpublished today but are part of the candidate `0.3.0`
+expanded release set:
 
 | Role | Future coordinate shape | Cross policy | Direct project dependencies |
 | --- | --- | --- | --- |
-| compiler-free source-AST bridge | `com.github.dmytromitin:quasiquotes-scala3-neutral-scalameta_3:<future-version>` | Scala 3 binary | `core_3`, Scalameta 4.17.3 |
-| typed Term and Type opt-in | `com.github.dmytromitin:quasiquotes-scala3-scalameta-frontend_<exact-scala>:<future-version>` | full Scala version | matching `frontend_<exact-scala>`, `neutral-scalameta_3` |
-| exact-version peer backend | `com.github.dmytromitin:quasiquotes-scala3-dotty-internal_<exact-scala>:<future-version>` | full Scala version | `neutral-scalameta_3`, matching `scala3-compiler_3` |
+| compiler-free source-AST bridge | `com.github.dmytromitin:quasiquotes-scala3-neutral-scalameta_3:0.3.0` | Scala 3 binary | `core_3`, Scalameta 4.17.3 |
+| typed Term and Type opt-in | `com.github.dmytromitin:quasiquotes-scala3-scalameta-frontend_<3.3.8-or-3.8.4>:0.3.0` | full Scala version | matching `frontend_<exact-scala>`, `neutral-scalameta_3` |
+| exact-version peer backend | `com.github.dmytromitin:quasiquotes-scala3-dotty-internal_<3.3.8-or-3.8.4>:0.3.0` | full Scala version | `neutral-scalameta_3`, matching `scala3-compiler_3` |
 
-All three modules retain `publish / skip := true`. The first two rows are the
+Ordinary builds keep all three modules skipped. Only
+`-Dquasiquotes.expandedRelease=true` enables them for explicit release-mode
+staging; the aggregate and examples remain skipped. The first two rows are the
 potential user-facing opt-in topology. The exact backend is a separately
-version-coupled integration artifact, not a stable public raw-tree API.
+version-coupled integration artifact, not a stable public raw-tree API. Scala
+3.9.0-RC1 remains validation-only and has no candidate release coordinate.
 
 ## Semantic and public API boundary
 
@@ -63,8 +67,9 @@ parse-only fallback, and unchanged current-Dotty controls. Those local builds
 contained no project references, checkout paths, source/class directories, or
 controller paths.
 
-This evidence does not make the coordinates remotely available. Released
-`0.2.0` retains its immutable 618-row `core`/`frontend`
+This evidence and the candidate publication policy do not make the coordinates
+remotely available. Released `0.2.0` retains its immutable 618-row
+`core`/`frontend`
 [API baseline](api-baselines/0.2.0.tsv).
 
 ## Peer backend boundary

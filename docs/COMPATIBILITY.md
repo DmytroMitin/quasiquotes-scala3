@@ -23,6 +23,12 @@ Artifact policy:
   output require an exact producer/consumer compiler match;
 - aggregate root and example modules: unpublished.
 
+The candidate expanded `0.3.0` release set adds the binary-crossed neutral
+artifact plus 3.3.8/3.8.4 full-crossed Scalameta-frontend and exact-backend
+artifacts under an explicit release-mode opt-in. Scala 3.9.0-RC1 remains
+validation-only. This candidate topology does not describe a completed remote
+release or turn the exact backend into a stable raw-tree API.
+
 Version `0.2.0` and group `com.github.dmytromitin` identify the immutable
 released Maven Central coordinates. The current working tree is the
 unpublished `0.3.0-SNAPSHOT` development line. The selected experimental 0.x
