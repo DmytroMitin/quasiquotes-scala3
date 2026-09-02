@@ -14,6 +14,7 @@ import _root_.quasiquotes.parser.{
 import _root_.quasiquotes.terms.TermShapeTraversal
 
 import scala.meta.*
+import scala.meta.tokens.Token
 
 /** Compiler-free projection for the bounded ordinary source-Term family. */
 object ScalametaTermProjection:
@@ -720,7 +721,7 @@ object ScalametaTermProjection:
         "NEUTRAL_INTERPOLATION_PREFIX_UNSUPPORTED",
         "standard interpolation projection admits exactly the unquoted s prefix."
       )
-      parts <- traverse(interpolation.parts) {
+      rawParts <- traverse(interpolation.parts) {
         case Lit.String(value) => Right(value)
         case other =>
           Left(
@@ -731,6 +732,12 @@ object ScalametaTermProjection:
           )
       }
       _ <- require(
+        interpolationDelimiters(interpolation) == List("\"", "\""),
+        "NEUTRAL_INTERPOLATION_SURFACE_UNSUPPORTED",
+        "standard interpolation projection admits only the single-quoted s surface."
+      )
+      parts <- traverse(rawParts)(decodeStandardInterpolationPart)
+      _ <- require(
         parts.size == interpolation.args.size + 1,
         "NEUTRAL_INTERPOLATION_STRUCTURE_UNSUPPORTED",
         s"interpolation requires one more part than argument, found parts=${parts.size}, arguments=${interpolation.args.size}."
@@ -739,6 +746,25 @@ object ScalametaTermProjection:
         projectInterpolationArgument(_, scope, state)
       )
     yield TermShape.InterpolatedString("s", parts, arguments)
+
+  private def interpolationDelimiters(interpolation: Term.Interpolate): List[String] =
+    interpolation.tokens.toList.collect {
+      case token: Token.Interpolation.Start => token.text
+      case token: Token.Interpolation.End => token.text
+    }
+
+  private def decodeStandardInterpolationPart(
+      value: String
+  ): Either[NeutralProjectionError, String] =
+    try Right(StringContext.processEscapes(value))
+    catch
+      case _: IllegalArgumentException =>
+        Left(
+          error(
+            "NEUTRAL_INTERPOLATION_STRUCTURE_UNSUPPORTED",
+            "standard s interpolation part contains an unsupported escape spelling."
+          )
+        )
 
   private def projectInterpolationArgument(
       argument: Term,

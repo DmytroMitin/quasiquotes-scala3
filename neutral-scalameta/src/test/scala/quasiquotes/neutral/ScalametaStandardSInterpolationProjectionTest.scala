@@ -5,6 +5,7 @@ import _root_.quasiquotes.parser.{BinderId, BlockStatement, TermShape}
 import scala.annotation.nowarn
 import scala.meta.*
 import scala.meta.dialects.Scala3
+import scala.meta.tokens.Token
 
 @nowarn("cat=deprecation")
 final class ScalametaStandardSInterpolationProjectionTest extends munit.FunSuite:
@@ -54,6 +55,22 @@ final class ScalametaStandardSInterpolationProjectionTest extends munit.FunSuite
       List("quote = \\\"", "\\\"; slash = \\\\; line = \\n; tab = \\t")
     )
 
+  test("Scalameta tokens distinguish single-quoted and triple-quoted s interpolation"):
+    val singlePlain = interpolation("""s"plain"""")
+    val singleArgument = interpolation("""s"hello $name"""")
+    val triplePlain = interpolation("s\"\"\"plain\"\"\"")
+    val tripleArgument = interpolation("s\"\"\"hello $name\"\"\"")
+    val tripleEscape = interpolation("s\"\"\"line = \\n\"\"\"")
+
+    assertEquals(interpolationDelimiters(singlePlain), List("\"", "\""))
+    assertEquals(interpolationDelimiters(singleArgument), List("\"", "\""))
+    assertEquals(interpolationDelimiters(triplePlain), List("\"\"\"", "\"\"\""))
+    assertEquals(interpolationDelimiters(tripleArgument), List("\"\"\"", "\"\"\""))
+    assertEquals(interpolationDelimiters(tripleEscape), List("\"\"\"", "\"\"\""))
+    assertEquals(stringPartValues(triplePlain), List("plain"))
+    assertEquals(stringPartValues(tripleArgument), List("hello ", ""))
+    assertEquals(stringPartValues(tripleEscape), List("line = \\n"))
+
   test("Scalameta distinguishes neighboring prefixes and retains prefix token spelling"):
     val standard = interpolation("""s"plain"""")
     val raw = interpolation("""raw"plain"""")
@@ -71,6 +88,7 @@ final class ScalametaStandardSInterpolationProjectionTest extends munit.FunSuite
     )
     assertEquals(standard.prefix.tokens.map(_.text).toList, List("s"))
     assertEquals(programmatic.prefix.tokens.map(_.text).mkString, "s")
+    assertEquals(interpolationDelimiters(programmatic), List("\"", "\""))
     assertEquals(programmatic.pos, Position.None)
     assert(Input.String("""`s`"plain"""").parse[Term].isInstanceOf[Parsed.Error])
 
@@ -140,7 +158,7 @@ final class ScalametaStandardSInterpolationProjectionTest extends munit.FunSuite
       project(parsed("""s"hello ${name}"""")).shape
     )
 
-  test("projects literal dollars and Scalameta semantic escape values without rewriting them"):
+  test("projects literal dollars and decodes Scalameta escape spellings into semantic values"):
     assertEquals(
       project(parsed("""s"literal $$ dollar"""")).shape,
       TermShape.InterpolatedString("s", List("literal $ dollar"), Nil)
@@ -149,9 +167,59 @@ final class ScalametaStandardSInterpolationProjectionTest extends munit.FunSuite
       project(parsed("""s"quote = \"$name\"; slash = \\; line = \n; tab = \t"""")).shape,
       TermShape.InterpolatedString(
         "s",
-        List("quote = \\\"", "\\\"; slash = \\\\; line = \\n; tab = \\t"),
+        List("quote = \"", "\"; slash = \\; line = \n; tab = \t"),
         List(TermShape.Identifier("name", isPlaceholder = false))
       )
+    )
+
+  private val semanticEscapeFixtures = List(
+    "plain" -> "plain",
+    "\\\"" -> "\"",
+    "\\\\" -> "\\",
+    "\\n" -> "\n",
+    "\\r" -> "\r",
+    "\\t" -> "\t",
+    "\\b" -> "\b",
+    "\\f" -> "\f",
+    "\\u0001" -> "\u0001"
+  )
+
+  semanticEscapeFixtures.foreach { (sourcePart, semanticPart) =>
+    test(s"decodes standard s escape spelling $sourcePart into its Core semantic value"):
+      val source = "s\"" + sourcePart + "\""
+      assertEquals(
+        project(parsed(source)).shape,
+        TermShape.InterpolatedString("s", List(semanticPart), Nil),
+        clues(source, sourcePart, semanticPart)
+      )
+  }
+
+  test("decodes escaped parts around an argument while preserving argument identity and order"):
+    val mixedSource = "s\"before " + "\\n" + "$name after " + "\\t" + "\""
+    assertEquals(
+      project(parsed(mixedSource)).shape,
+      TermShape.InterpolatedString(
+        "s",
+        List("before \n", " after \t"),
+        List(TermShape.Identifier("name", isPlaceholder = false))
+      )
+    )
+
+  private val tripleQuotedSources = List(
+    "s\"\"\"plain\"\"\"",
+    "s\"\"\"hello $name\"\"\"",
+    "s\"\"\"line = \\n\"\"\""
+  )
+
+  tripleQuotedSources.foreach { source =>
+    test(s"rejects triple-quoted standard s surface ${source.take(12)}"):
+      assertErrorCode(parsed(source), "NEUTRAL_INTERPOLATION_SURFACE_UNSUPPORTED")
+  }
+
+  test("converts malformed programmatic escape spelling into a controlled Left"):
+    assertErrorCode(
+      Term.Interpolate(Term.Name("s"), List(Lit.String("\\q")), Nil),
+      "NEUTRAL_INTERPOLATION_STRUCTURE_UNSUPPORTED"
     )
 
   test("recursively projects the already admitted unary tuple if Apply New and P1 children"):
@@ -331,4 +399,10 @@ final class ScalametaStandardSInterpolationProjectionTest extends munit.FunSuite
     interpolation.parts.map {
       case Lit.String(value) => value
       case other => fail(s"expected Lit.String interpolation part, got ${other.productPrefix}")
+    }
+
+  private def interpolationDelimiters(interpolation: Term.Interpolate): List[String] =
+    interpolation.tokens.toList.collect {
+      case token: Token.Interpolation.Start => token.text
+      case token: Token.Interpolation.End => token.text
     }
