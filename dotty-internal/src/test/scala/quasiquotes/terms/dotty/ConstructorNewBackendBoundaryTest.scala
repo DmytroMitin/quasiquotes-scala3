@@ -9,8 +9,13 @@ import dotty.tools.dotc.reporting.StoreReporter
 import dotty.tools.dotc.util.SourceFile
 
 import quasiquotes.parser.TermShape
+import quasiquotes.neutral.ScalametaTermProjection
+import quasiquotes.parser.TermShapeInspector
 import quasiquotes.terms.ConstructedTerm
 import quasiquotes.types.TypeNormalForm
+
+import scala.meta.*
+import scala.meta.dialects.Scala3
 
 class ConstructorNewBackendBoundaryTest extends munit.FunSuite:
   import ConstructedTermGeneratedOriginError as GeneratedError
@@ -21,6 +26,11 @@ class ConstructorNewBackendBoundaryTest extends munit.FunSuite:
       TermShape.New("java.lang.StringBuilder", Nil),
     "new java.lang.StringBuilder(16)" ->
       TermShape.New("java.lang.StringBuilder", List(TermShape.Literal("16"))),
+    "new java.lang.StringBuilder(\"u010\")" ->
+      TermShape.New(
+        "java.lang.StringBuilder",
+        List(TermShape.Literal("\"u010\""))
+      ),
     "new java.lang.RuntimeException(\"boom\")" ->
       TermShape.New(
         "java.lang.RuntimeException",
@@ -59,6 +69,7 @@ class ConstructorNewBackendBoundaryTest extends munit.FunSuite:
 
         assertEquals(structure(raw), structure(expected))
         assertConstructorSkeleton(raw)
+        assert(allConstructorNameRoles(raw).forall(isQualifiedTypePath))
         allTrees(raw).foreach { tree =>
           assert(!tree.source.exists)
           assert(!tree.span.exists)
@@ -79,12 +90,49 @@ class ConstructorNewBackendBoundaryTest extends munit.FunSuite:
         assertEquals(result.generatedSource, source)
         assertEquals(snapshot(result.tree, source), snapshot(expected, source))
         assertConstructorSkeleton(result.tree)
+        assert(allConstructorNameRoles(result.tree).forall(isQualifiedTypePath))
         allTrees(result.tree).foreach { tree =>
           assertEquals(tree.source.path, result.sourceFile.path)
           assert(tree.span.exists)
           assertEquals(tree.symbol, NoSymbol)
           assert(!tree.isInstanceOf[untpd.TypedSplice])
         }
+      }
+    }
+  }
+
+  test("parser direct richer and generated constructor paths agree on Dotty name roles") {
+    val required = Vector(
+      "new java.lang.StringBuilder()" ->
+        TermShape.New("java.lang.StringBuilder", Nil),
+      "new java.lang.StringBuilder(\"u010\")" ->
+        TermShape.New(
+          "java.lang.StringBuilder",
+          List(TermShape.Literal("\"u010\""))
+        ),
+      "new java.lang.RuntimeException(\"boom\")" ->
+        TermShape.New(
+          "java.lang.RuntimeException",
+          List(TermShape.Literal("\"boom\""))
+        )
+    )
+
+    required.foreach { case (source, shape) =>
+      withParserContext(source) { parsed =>
+        val constructed = ConstructedTerm.fromShape(shape).toOption.get
+        val direct = CoreTermShapeUntypedLowerer.lower(shape).toOption.get
+        val richer = ConstructedTermUntypedBackend.lower(constructed).toOption.get
+        val generated = ConstructedTermGeneratedOriginAdapter
+          .lower(constructed, "<u010-constructor-name-role>")
+          .toOption
+          .get
+          .tree
+
+        val expected = Vector(false, false, true)
+        assertEquals(constructorNameRoles(parsed), expected, clues(source, "parser"))
+        assertEquals(constructorNameRoles(direct), expected, clues(source, "direct"))
+        assertEquals(constructorNameRoles(richer), expected, clues(source, "richer"))
+        assertEquals(constructorNameRoles(generated), expected, clues(source, "generated"))
       }
     }
   }
@@ -136,11 +184,54 @@ class ConstructorNewBackendBoundaryTest extends munit.FunSuite:
     )
   }
 
+  test("accepted N008 constructors compose through richer and generated exact backends") {
+    val sources = Vector(
+      "new java.lang.StringBuilder()",
+      "new java.lang.StringBuilder(16)",
+      "new synthetic.unresolved.Widget(1, 2)",
+      "new java.lang.StringBuilder(foo(x))",
+      "new java.lang.StringBuilder(if cond then 8 else 16)",
+      "new synthetic.unresolved.Widget(new other.missing.Value(1))"
+    )
+
+    sources.foreach { source =>
+      val projected = ScalametaTermProjection
+        .project(Scala3(source).parse[Term].get)
+        .toOption
+        .get
+      val constructed = ConstructedTerm.fromShape(projected.shape).toOption.get
+
+      withParserContext(source) { parsed =>
+        val richer = ConstructedTermUntypedBackend.lower(constructed).toOption.get
+        val generated = ConstructedTermGeneratedOriginAdapter
+          .lower(constructed, "<u010-n008-generated-constructor>")
+          .toOption
+          .get
+
+        assertEquals(
+          TermShapeInspector.rawStructure(richer),
+          TermShapeInspector.rawStructure(parsed),
+          clues(source, "richer")
+        )
+        assertEquals(generated.generatedSource, source)
+        assertEquals(
+          TermShapeInspector.rawStructure(generated.tree),
+          TermShapeInspector.rawStructure(parsed),
+          clues(source, "generated")
+        )
+        assert(allConstructorNameRoles(richer).forall(isQualifiedTypePath))
+        assert(allConstructorNameRoles(generated.tree).forall(isQualifiedTypePath))
+      }
+    }
+  }
+
   test("defensive constructor corruptions return bounded internal errors") {
     val invalidNames = Vector(
       null,
+      "",
       "StringBuilder",
       ".java.lang.StringBuilder",
+      "java.lang.StringBuilder.",
       "java..lang.StringBuilder",
       "java.lang.StringBuilder[Int]",
       "java.lang.`StringBuilder`",
@@ -199,6 +290,51 @@ class ConstructorNewBackendBoundaryTest extends munit.FunSuite:
           "<phase75-null-argument>"
         ),
         Left(GeneratedError.NullConstructorArgument(0))
+      )
+    }
+
+    val laterNullArgument = corrupt(
+      TermShape.New(
+        "java.lang.StringBuilder",
+        List(TermShape.Literal("1"), null)
+      ),
+      Vector.empty
+    )
+    assertEquals(
+      ConstructedTermUntypedBackend.lower(laterNullArgument),
+      Left(RawError.NullConstructorArgument(1))
+    )
+    withContext {
+      assertEquals(
+        ConstructedTermGeneratedOriginAdapter.lower(
+          laterNullArgument,
+          "<u010-later-null-argument>"
+        ),
+        Left(GeneratedError.NullConstructorArgument(1))
+      )
+    }
+
+    val nestedMalformed = corrupt(
+      TermShape.New(
+        "java.lang.StringBuilder",
+        List(TermShape.New("Value", Nil))
+      ),
+      Vector.empty
+    )
+    assert(
+      ConstructedTermUntypedBackend
+        .lower(nestedMalformed)
+        .left
+        .toOption
+        .exists(_.isInstanceOf[RawError.InvalidConstructorName])
+    )
+    withContext {
+      assert(
+        ConstructedTermGeneratedOriginAdapter
+          .lower(nestedMalformed, "<u010-nested-malformed-constructor>")
+          .left
+          .toOption
+          .exists(_.isInstanceOf[GeneratedError.InvalidConstructorName])
       )
     }
 
@@ -295,6 +431,33 @@ class ConstructorNewBackendBoundaryTest extends munit.FunSuite:
         value.name.toString == "<init>" && value.qualifier.isInstanceOf[untpd.New]
       case _ => false
     })
+
+  private def constructorNameRoles(tree: untpd.Tree): Vector[Boolean] =
+    tree match
+      case untpd.Apply(untpd.Select(fresh: untpd.New, _), _) =>
+        typePathNames(fresh.tpt).map(_.isTypeName)
+      case other =>
+        fail(s"unexpected constructor topology: ${other.getClass.getSimpleName}")
+
+  private def typePathNames(
+      tree: untpd.Tree
+  ): Vector[dotty.tools.dotc.core.Names.Name] =
+    tree match
+      case identifier: untpd.Ident => Vector(identifier.name)
+      case selected: untpd.Select =>
+        typePathNames(selected.qualifier) :+ selected.name
+      case other =>
+        fail(s"unexpected constructor type path: ${other.getClass.getSimpleName}")
+
+  private def allConstructorNameRoles(
+      tree: untpd.Tree
+  )(using Context): Vector[Vector[Boolean]] =
+    allTrees(tree).collect { case fresh: untpd.New =>
+      typePathNames(fresh.tpt).map(_.isTypeName)
+    }
+
+  private def isQualifiedTypePath(roles: Vector[Boolean]): Boolean =
+    roles.size >= 2 && roles.init.forall(_ == false) && roles.last
 
   private def withParserContext(source: String)(body: Context ?=> untpd.Tree => Unit): Unit =
     val base = new ContextBase

@@ -3,7 +3,7 @@ package quasiquotes.terms.dotty
 import dotty.tools.dotc.ast.untpd
 import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Flags
-import dotty.tools.dotc.core.Names.termName
+import dotty.tools.dotc.core.Names.{termName, typeName}
 import dotty.tools.dotc.util.{NoSource, SourceFile}
 
 import quasiquotes.parser.{BinderId, BlockStatement, ConstructorNamePolicy, TermShape}
@@ -367,10 +367,13 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
   private def lowerConstructorTypePath(
       constructor: String
   )(using SourceFile): untpd.Tree =
-    val head +: tail = constructor.split("\\.").toList: @unchecked
-    tail.foldLeft[untpd.Tree](untpd.Ident(termName(head))) { (qualifier, segment) =>
-      untpd.Select(qualifier, termName(segment))
+    val segments = constructor.split("\\.").toList
+    val qualifier = segments.init.tail.foldLeft[untpd.Tree](
+      untpd.Ident(termName(segments.head))
+    ) { (prefix, segment) =>
+      untpd.Select(prefix, termName(segment))
     }
+    untpd.Select(qualifier, typeName(segments.last))
 
   private def lowerInterpolation(
       prefix: String,
