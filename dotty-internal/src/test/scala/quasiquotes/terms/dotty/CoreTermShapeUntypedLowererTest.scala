@@ -188,16 +188,30 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
       )
       assertEquals(
         CoreTermShapeUntypedLowerer.lower(
-          TermShape.Tuple(List(TermShape.Literal("1"), TermShape.New("Value", Nil)))
+          TermShape.Tuple(
+            List(
+              TermShape.Literal("1"),
+              TermShape.InterpolatedString(
+                "s",
+                List("", ""),
+                List(TermShape.Literal("1"))
+              )
+            )
+          )
         ),
-        Left(UnsupportedTermShape("New"))
+        Left(UnsupportedTermShape("InterpolatedString"))
       )
     }
   }
 
   test("fails closed for missing or unsupported Unary and If children") {
     val literal = TermShape.Literal("1")
-    val unsupported = TermShape.New("Value", Nil)
+    val unsupported =
+      TermShape.InterpolatedString(
+        "s",
+        List("", ""),
+        List(TermShape.Literal("1"))
+      )
     withContext {
       Vector[TermShape](
         TermShape.Unary("!", null),
@@ -215,7 +229,7 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
       ).foreach(shape =>
         assertEquals(
           CoreTermShapeUntypedLowerer.lower(shape),
-          Left(UnsupportedTermShape("New"))
+          Left(UnsupportedTermShape("InterpolatedString"))
         )
       )
     }
@@ -454,10 +468,14 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
         CoreTermShapeUntypedLowerer.lower(
           TermShape.Apply(
             TermShape.Identifier("f", isPlaceholder = false),
-            TermShape.New("Value", Nil) :: Nil
+            TermShape.InterpolatedString(
+              "s",
+              List("", ""),
+              List(TermShape.Literal("1"))
+            ) :: Nil
           )
         ),
-        Left(UnsupportedTermShape("New"))
+        Left(UnsupportedTermShape("InterpolatedString"))
       )
     }
   }
@@ -595,7 +613,6 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
     val unsupported = Vector(
       TermShape.BoundReference(binder, "value") -> "BoundReference",
       TermShape.Lambda1(binder, "value", "Int", literal) -> "Lambda1",
-      TermShape.New("Value", Nil) -> "New",
       TermShape.InterpolatedString("s", List("", ""), List(literal)) ->
         "InterpolatedString",
       TermShape.Typed(literal, "Int") -> "Typed",

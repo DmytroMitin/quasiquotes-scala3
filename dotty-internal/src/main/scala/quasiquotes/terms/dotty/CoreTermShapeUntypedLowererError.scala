@@ -41,6 +41,21 @@ private[quasiquotes] object CoreTermShapeUntypedLowererError:
     def message: String =
       "Cannot lower a bounded exact-backend Apply with a missing ordinary argument list."
 
+  final case class InvalidConstructorName(name: String, detail: String)
+      extends CoreTermShapeUntypedLowererError:
+    def message: String =
+      s"Invalid bounded exact-backend constructor name `$name`: $detail."
+
+  final case class MalformedConstructorArguments(arguments: Int)
+      extends CoreTermShapeUntypedLowererError:
+    def message: String =
+      s"Malformed bounded exact-backend constructor arguments: arguments=$arguments; expected a non-null argument list."
+
+  final case class NullConstructorArgument(index: Int)
+      extends CoreTermShapeUntypedLowererError:
+    def message: String =
+      s"Malformed bounded exact-backend constructor arguments: argument $index is null."
+
   final case class InvalidUnaryOperator(operator: String)
       extends CoreTermShapeUntypedLowererError:
     def message: String =

@@ -3,11 +3,11 @@ package quasiquotes.terms.dotty
 import dotty.tools.dotc.ast.untpd
 import dotty.tools.dotc.core.Constants.Constant
 import dotty.tools.dotc.core.Contexts.Context
-import dotty.tools.dotc.core.Names.termName
+import dotty.tools.dotc.core.Names.{termName, typeName}
 import dotty.tools.dotc.core.Symbols.NoSymbol
 import dotty.tools.dotc.util.{NoSource, SourceFile}
 
-import quasiquotes.parser.{BlockStatement, TermShape}
+import quasiquotes.parser.{BlockStatement, ConstructorNamePolicy, TermShape}
 
 private[quasiquotes] object CoreTermShapeUntypedLowerer:
   import CoreTermShapeUntypedLowererError.*
@@ -149,6 +149,8 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
               rawFunction <- lowerAdmitted(function)
               rawArguments <- traverse(argumentList)(lowerAdmitted)
             yield untpd.Apply(rawFunction, rawArguments)
+      case Some(TermShape.New(constructor, arguments)) =>
+        lowerNew(constructor, arguments)
       case Some(TermShape.Unary(operator, operand)) =>
         if !Option(operator).exists(AdmittedUnaryOperators) then
           Left(InvalidUnaryOperator(operator))
@@ -177,6 +179,42 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
         lowerBlock(statements, result)
       case Some(other) =>
         Left(UnsupportedTermShape(nodeKind(other)))
+
+  private def lowerNew(
+      constructor: String,
+      arguments: List[TermShape]
+  )(using SourceFile): Either[CoreTermShapeUntypedLowererError, untpd.Tree] =
+    for
+      validated <- ConstructorNamePolicy
+        .validate(constructor)
+        .left
+        .map(detail => InvalidConstructorName(String.valueOf(constructor), detail))
+      _ <- validateConstructorArguments(arguments)
+      rawArguments <- traverse(arguments)(lowerAdmitted)
+      rawType = lowerConstructorTypePath(validated)
+      rawNew = untpd.New(rawType)
+      rawConstructor = untpd.Select(rawNew, termName("<init>"))
+    yield untpd.Apply(rawConstructor, rawArguments)
+
+  private def validateConstructorArguments(
+      arguments: List[TermShape]
+  ): Either[CoreTermShapeUntypedLowererError, Unit] =
+    if arguments == null then Left(MalformedConstructorArguments(-1))
+    else
+      arguments.zipWithIndex.collectFirst { case (null, index) => index } match
+        case Some(index) => Left(NullConstructorArgument(index))
+        case None => Right(())
+
+  private def lowerConstructorTypePath(
+      constructor: String
+  )(using SourceFile): untpd.Tree =
+    val segments = constructor.split("\\.").toList
+    val qualifier = segments.init.tail.foldLeft[untpd.Tree](
+      untpd.Ident(termName(segments.head))
+    ) { (prefix, segment) =>
+      untpd.Select(prefix, termName(segment))
+    }
+    untpd.Select(qualifier, typeName(segments.last))
 
   private def lowerBlock(
       statements: List[BlockStatement],
@@ -270,6 +308,7 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
     else
       tree match
         case untpd.Select(qualifier, _) => verifySourceFree(qualifier)
+        case fresh: untpd.New => verifySourceFree(fresh.tpt)
         case untpd.Apply(function, arguments) =>
           for
             _ <- verifySourceFree(function)
@@ -300,3 +339,8 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
             _ <- verifySourceFree(result)
           yield ()
         case _ => Right(())
+
+  private[dotty] def verifySourceFreeForTest(
+      tree: untpd.Tree
+  )(using Context): Either[CoreTermShapeUntypedLowererError, Unit] =
+    verifySourceFree(tree)

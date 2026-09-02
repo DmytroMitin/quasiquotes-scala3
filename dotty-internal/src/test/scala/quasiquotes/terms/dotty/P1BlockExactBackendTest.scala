@@ -64,7 +64,16 @@ class P1BlockExactBackendTest extends munit.FunSuite:
       TermShape.Block(List(null), TermShape.Literal("1")) -> "prefix entry 0 is null",
       TermShape.Block(List(TermShape.Literal("1")), null) -> "missing core TermShape",
       TermShape.Block(List(local), TermShape.Literal("1")) -> "prefix entry 0 is LocalVal",
-      TermShape.Block(List(TermShape.New("Value", Nil)), TermShape.Literal("1")) ->
+      TermShape.Block(
+        List(
+          TermShape.InterpolatedString(
+            "s",
+            List("", ""),
+            List(TermShape.Literal("1"))
+          )
+        ),
+        TermShape.Literal("1")
+      ) ->
         "Unsupported core TermShape"
     )
 
