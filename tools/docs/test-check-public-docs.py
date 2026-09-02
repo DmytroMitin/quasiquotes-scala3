@@ -177,11 +177,30 @@ class PublicDocsCheckTest(unittest.TestCase):
         )
         (matching / "DefinitionPattern.scala").write_text(
             "object DefinitionPattern:\n"
-            "  extension (sc: StringContext)\n"
-            "    def dqq(using q: Quotes): SingleParameterDefinitionPattern = ???\n"
+            "  private[matching] def singleParameterExtractor(sc: StringContext)"
+            "(using q: Quotes): SingleParameterDefinitionPattern = ???\n"
+            "  private[matching] def twoParameterExtractor(sc: StringContext)"
+            "(using q: Quotes): TwoParameterDefinitionPattern = ???\n"
+            "  @targetName(\"dqq\")\n"
+            "  private[matching] def dqqLegacy(sc: StringContext)"
+            "(using q: Quotes): SingleParameterDefinitionPattern =\n"
+            "    singleParameterExtractor(sc)\n"
+            "  extension (inline sc: StringContext)\n"
+            "    transparent inline def dqq(using q: Quotes) = extractor(sc)\n"
             "  def singleParameter(source: String) = ???\n"
             "final class SingleParameterDefinitionPattern:\n"
             "  def matchDefinition(using q: Quotes)(target: q.reflect.DefDef) = ???\n"
+            "  def unapply(using q: Quotes)(target: q.reflect.DefDef) = ???\n",
+            encoding="utf-8",
+        )
+        (matching / "DefinitionPatternMacro.scala").write_text(
+            "object DefinitionPatternMacro:\n"
+            "  def single = DefinitionPattern.singleParameterExtractor(context)\n"
+            "  def two = DefinitionPattern.twoParameterExtractor(context)\n",
+            encoding="utf-8",
+        )
+        (matching / "TwoParameterDefinitionPattern.scala").write_text(
+            "final class TwoParameterDefinitionPattern:\n"
             "  def unapply(using q: Quotes)(target: q.reflect.DefDef) = ???\n",
             encoding="utf-8",
         )

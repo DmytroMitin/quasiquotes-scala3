@@ -2,6 +2,8 @@ package quasiquotes.q011
 
 import scala.quoted.*
 
+import quasiquotes.matching.{DefinitionPattern, TwoParameterDefinitionPattern}
+
 object Q011DefinitionPatternFixtureProbe:
   inline def evidence: List[(String, Boolean, Boolean)] = ${ evidenceImpl }
 
@@ -72,7 +74,9 @@ object Q011DefinitionPatternFixtureProbe:
       def first(left: Int, right: String): Int = left
       ()
     })
-    val pattern = Q011TwoParameterDefinitionPattern.exactFirst
+    val pattern: TwoParameterDefinitionPattern = DefinitionPattern.dqq(
+      StringContext("def first(left: Int, right: String): Int = ", "")
+    )(using q)
 
     def result(label: String, target: DefDef): Expr[(String, Boolean, Boolean)] =
       val captured = pattern.unapply(using q)(target)

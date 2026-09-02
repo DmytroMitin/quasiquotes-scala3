@@ -1,6 +1,7 @@
 package quasiquotes.hybrid
 
 import scala.meta.dialects
+import scala.compiletime.testing.typeCheckErrors
 import scala.quoted.staging.{Compiler, withQuotes}
 
 import quasiquotes.matching.DefinitionPattern
@@ -153,20 +154,18 @@ class Q006ScalametaDefinitionFeasibilityTest extends munit.FunSuite:
       .project("def id(x: Int): String = x")
       .flatMap(Q006DefinitionFrontendProbe.semanticTypes)
 
-    given Compiler = Compiler.make(getClass.getClassLoader)
-    val rankMessage = withQuotes:
-      val q = summon[scala.quoted.Quotes]
-      try
-        DefinitionPattern.dqq(
-          StringContext("def id(x: Int): Int = ..", "")
-        )(using q)
-        "<no-abort>"
-      catch
-        case error: Throwable => Option(error.getMessage).getOrElse(error.getClass.getName)
+    val rankMessages = typeCheckErrors(
+      """import scala.quoted.*
+        import quasiquotes.matching.DefinitionPattern.*
+        def attempt(using q: Quotes)(definition: q.reflect.DefDef) = definition match
+          case dqq"def id(x: Int): Int = ..$body" => ()
+          case _ => ()
+      """
+    ).map(_.message)
 
     assert(malformed.left.exists(_.startsWith("SCALAMETA_PARSE_FAILURE:")), malformed)
     assertEquals(unequal.left.toOption, Some("PARAMETER_RESULT_TYPE_MISMATCH"))
     assert(
-      rankMessage.contains("rank-2 captures are not supported for Definition patterns"),
-      rankMessage
+      rankMessages.exists(_.contains("rank-2 captures are not supported for Definition patterns")),
+      rankMessages.mkString(" | ")
     )

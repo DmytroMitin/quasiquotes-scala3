@@ -2,7 +2,11 @@ package quasiquotes.q011
 
 import scala.quoted.*
 
-import quasiquotes.matching.{DefinitionPattern, SingleParameterDefinitionPattern}
+import quasiquotes.matching.{
+  DefinitionPattern,
+  SingleParameterDefinitionPattern,
+  TwoParameterDefinitionPattern
+}
 
 object Q011DefinitionPatternApiTypingProbe:
   inline def verify(): Boolean = ${ verifyImpl }
@@ -27,15 +31,15 @@ object Q011DefinitionPatternApiTypingProbe:
       )
 
     locally {
-      import Q011SpecializedDqqProbe.*
-      val single = Q011SpecializedDqqProbe.dqq(
+      import DefinitionPattern.dqq
+      val single = DefinitionPattern.dqq(
         StringContext("def identity(value: Int): Int = ", "")
       )(using q)
       val _: SingleParameterDefinitionPattern = single
-      val two = Q011SpecializedDqqProbe.dqq(
+      val two = DefinitionPattern.dqq(
         StringContext("def first(left: Int, right: String): Int = ", "")
       )(using q)
-      val _: Q011TwoParameterDefinitionPattern = two
+      val _: TwoParameterDefinitionPattern = two
       target("first", intType, selectSecond = false) match
         case dqq"def first(left: Int, right: String): Int = $body" =>
           val _: q.reflect.Term = body
@@ -43,19 +47,19 @@ object Q011DefinitionPatternApiTypingProbe:
     }
 
     locally {
-      import Q011AdditiveUmbrellaProbe.*
-      val single = DefinitionPattern.dqq(
+      import quasiquotes.Quasiquotes.dqq
+      val single = dqq(
         StringContext("def identity(value: Int): Int = ", "")
       )(using q)
       val _: SingleParameterDefinitionPattern = single
-      val two = Q011AdditiveDqqProbe.dqq2(
+      val two = dqq(
         StringContext("def second(left: Int, right: String): String = ", "")
       )(using q)
-      val _: Q011TwoParameterDefinitionPattern = two
+      val _: TwoParameterDefinitionPattern = two
       target("second", stringType, selectSecond = true) match
-        case dqq2"def second(left: Int, right: String): String = $body" =>
+        case dqq"def second(left: Int, right: String): String = $body" =>
           val _: q.reflect.Term = body
-        case _ => report.errorAndAbort("Q011 Strategy B exact-two pattern did not match")
+        case _ => report.errorAndAbort("Q011 production same-spelling exact-two pattern did not match")
     }
 
     Expr(true)

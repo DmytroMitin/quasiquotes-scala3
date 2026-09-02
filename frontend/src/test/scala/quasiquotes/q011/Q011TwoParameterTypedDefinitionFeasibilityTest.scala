@@ -4,6 +4,7 @@ import scala.compiletime.testing.typeCheckErrors
 import scala.quoted.staging.{Compiler, withQuotes}
 
 import quasiquotes.construct.Quasiquotes
+import quasiquotes.construct.TypedTwoParameterDefinitionLowerer
 import quasiquotes.definitions.DefinitionName
 import quasiquotes.publicapi.{CompletedTerm, CompletedType, DefinitionConstruction}
 
@@ -52,7 +53,7 @@ final class Q011TwoParameterTypedDefinitionFeasibilityTest extends munit.FunSuit
           completed(resultType),
           CompletedTerm.definitionParameterReference(selected.decoded).toOption.get
         ).toOption.get
-        val definition = Q011TwoParameterDefinitionLowerer.lower(using q)(
+        val definition = TypedTwoParameterDefinitionLowerer.lower(using q)(
           methodName,
           leftName,
           firstType,
@@ -144,7 +145,7 @@ final class Q011TwoParameterTypedDefinitionFeasibilityTest extends munit.FunSuit
       )
     )
 
-  test("existing dqr signature accepts three TypeRepr arguments and single templates stay unambiguous"):
+  test("existing dqr signature now constructs exact-two templates and single templates stay unambiguous"):
     given Compiler = Compiler.make(getClass.getClassLoader)
     val evidence = withQuotes:
       val q = summon[scala.quoted.Quotes]
@@ -155,21 +156,15 @@ final class Q011TwoParameterTypedDefinitionFeasibilityTest extends munit.FunSuit
       val single = Quasiquotes.dqr(
         StringContext("def identity(value: ", "): ", " = value")
       )(using q)(intType, intType)
-      val threeArgumentFailure =
-        try
-          Quasiquotes.dqr(
-            StringContext("def first(left: ", ", right: ", "): ", " = left")
-          )(using q)(intType, stringType, intType)
-          "unexpected-success"
-        catch
-          case failure: Throwable => Option(failure.getMessage).getOrElse(failure.getClass.getName)
+      val exactTwo = Quasiquotes.dqr(
+        StringContext("def first(left: ", ", right: ", "): ", " = left")
+      )(using q)(intType, stringType, intType)
 
-      (single.name, threeArgumentFailure)
+      (single.name, exactTwo.name)
 
-    assertEquals(evidence._1, "identity")
-    assert(evidence._2.contains("expected exactly two TypeRepr splice positions"), evidence._2)
+    assertEquals(evidence, ("identity", "first"))
 
-  test("Strategies A and B preserve exact Term binders while the additive umbrella keeps old dqq typing"):
+  test("the production same-spelling selector preserves exact Term binders through direct and umbrella imports"):
     assert(Q011DefinitionPatternApiTypingProbe.verify())
 
   test("explicit current single-pattern typing and matchDefinition remain source-valid"):

@@ -259,6 +259,13 @@ def source_findings(root: Path) -> list[str]:
     definition_pattern_source = (
         root / "frontend/src/main/scala/quasiquotes/matching/DefinitionPattern.scala"
     ).read_text(encoding="utf-8")
+    definition_pattern_macro_source = (
+        root / "frontend/src/main/scala/quasiquotes/matching/DefinitionPatternMacro.scala"
+    ).read_text(encoding="utf-8")
+    two_parameter_pattern_source = (
+        root
+        / "frontend/src/main/scala/quasiquotes/matching/TwoParameterDefinitionPattern.scala"
+    ).read_text(encoding="utf-8")
     syntax_matrix = (root / "docs/SYNTAX_SUPPORT_MATRIX.md").read_text(
         encoding="utf-8"
     )
@@ -333,10 +340,33 @@ def source_findings(root: Path) -> list[str]:
         findings.append("public definition-pattern factory no longer matches documentation")
     if "def matchDefinition(using q: Quotes)(" not in definition_pattern_source:
         findings.append("public definition matcher no longer matches documentation")
-    if "def dqq(using q: Quotes): SingleParameterDefinitionPattern" not in definition_pattern_source:
-        findings.append("public dqq signature no longer matches documentation")
+    if not source_contract_present(
+        definition_pattern_source,
+        r"extension\s*\(\s*inline\s+[A-Za-z_]\w*\s*:\s*StringContext\s*\)\s*"
+        r"transparent\s+inline\s+def\s+dqq\s*"
+        r"\(\s*using\s+[A-Za-z_]\w*\s*:\s*Quotes\s*\)\s*=",
+    ):
+        findings.append("public dqq transparent-inline selector contract is absent")
+    if not (
+        "DefinitionPattern.singleParameterExtractor" in definition_pattern_macro_source
+        and "DefinitionPattern.twoParameterExtractor" in definition_pattern_macro_source
+    ):
+        findings.append("public dqq structural specialization routes are absent")
+    if not source_contract_present(
+        definition_pattern_source,
+        r"@targetName\s*\(\s*\"dqq\"\s*\)\s*"
+        r"private\s*\[\s*matching\s*\]\s+def\s+dqqLegacy\s*"
+        r"\(\s*(?P<context>[A-Za-z_]\w*)\s*:\s*StringContext\s*\)\s*"
+        r"\(\s*using\s+(?P<quotes>[A-Za-z_]\w*)\s*:\s*Quotes\s*\)\s*:\s*"
+        r"SingleParameterDefinitionPattern\s*=\s*"
+        r"singleParameterExtractor\s*\(\s*(?P=context)\s*\)",
+    ):
+        findings.append("public dqq legacy JVM bridge contract is absent")
     if "def unapply(using q: Quotes)(" not in definition_pattern_source:
         findings.append("public definition extractor protocol no longer matches documentation")
+    if "final class TwoParameterDefinitionPattern" not in two_parameter_pattern_source or \
+            "def unapply(using q: Quotes)(" not in two_parameter_pattern_source:
+        findings.append("public exact-two definition extractor protocol is absent")
     return findings
 
 

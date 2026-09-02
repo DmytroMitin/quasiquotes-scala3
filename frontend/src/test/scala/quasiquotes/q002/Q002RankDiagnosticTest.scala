@@ -96,11 +96,14 @@ class Q002RankDiagnosticTest extends munit.FunSuite:
     val typeRank = stagedAbortMessage:
       val q = summon[scala.quoted.Quotes]
       quasiquotes.types.QuasiTypequotes.tqq(StringContext("List[..", "]"))(using q)
-    val definitionRank = stagedAbortMessage:
-      val q = summon[scala.quoted.Quotes]
-      quasiquotes.matching.DefinitionPattern.dqq(
-        StringContext("def f(x: Int): Int = ..", "")
-      )(using q)
+    val definitionRank = messages(
+      """import scala.quoted.*
+        import quasiquotes.matching.DefinitionPattern.*
+        def attempt(using q: Quotes)(definition: q.reflect.DefDef) = definition match
+          case dqq"def f(x: Int): Int = ..$body" => ()
+          case _ => ()
+      """
+    )
 
     assert(
       splitDots.exists(_.contains("orphan or malformed rank-marker spelling")),
@@ -111,8 +114,8 @@ class Q002RankDiagnosticTest extends munit.FunSuite:
       typeRank
     )
     assert(
-      definitionRank.contains("rank-2 captures are not supported for Definition patterns"),
-      definitionRank
+      definitionRank.exists(_.contains("rank-2 captures are not supported for Definition patterns")),
+      definitionRank.mkString(" | ")
     )
 
   test("rank text inside guest strings, comments, and backticks is not classified"):

@@ -1,6 +1,7 @@
 package quasiquotes.matching
 
 import scala.quoted.*
+import scala.annotation.targetName
 import scala.util.control.NonFatal
 
 import quasiquotes.definitions.DefinitionName
@@ -111,27 +112,86 @@ object DefinitionPattern:
   private val InvalidDqqPrefix =
     "Invalid dqq definition-pattern template:"
 
-  extension (sc: StringContext)
-    def dqq(using q: Quotes): SingleParameterDefinitionPattern =
-      def abort(message: String): Nothing =
-        q.reflect.report.errorAndAbort(s"$InvalidDqqPrefix $message")
+  private[matching] def singleParameterExtractor(
+      sc: StringContext
+  )(using q: Quotes): SingleParameterDefinitionPattern =
+    def abort(message: String): Nothing =
+      q.reflect.report.errorAndAbort(s"$InvalidDqqPrefix $message")
 
-      if sc == null then abort("StringContext must not be null.")
-      val parts = sc.parts
-      if parts == null || parts.isEmpty then
-        abort("StringContext must contain exactly two literal parts.")
-      if parts.exists(_ == null) then
-        abort("StringContext literal parts must not be null.")
+    if sc == null then abort("StringContext must not be null.")
+    val parts = sc.parts
+    if parts == null || parts.isEmpty then
+      abort("StringContext must contain exactly two literal parts.")
+    if parts.exists(_ == null) then
+      abort("StringContext literal parts must not be null.")
+    RankedPatternSource
+      .unsupportedFamilyRankDiagnostic(parts, "Definition")
+      .foreach(abort)
+    if parts.size != 2 then
+      abort(s"Expected exactly one body capture slot, but found ${parts.size - 1}.")
+
+    val source = parts.head + "$body" + parts.last
+    singleParameter(source) match
+      case Right(pattern) => pattern
+      case Left(error) => abort(error.message)
+
+  private[matching] def twoParameterExtractor(
+      sc: StringContext
+  )(using q: Quotes): TwoParameterDefinitionPattern =
+    def abort(message: String): Nothing =
+      q.reflect.report.errorAndAbort(s"$InvalidDqqPrefix $message")
+
+    validateParts(sc).flatMap(parts =>
+      TwoParameterDefinitionPattern.compile(parts.head + "$body" + parts.last)
+    ) match
+      case Right(pattern) => pattern
+      case Left(message) => abort(message)
+
+  private[matching] def classifyStaticParts(
+      parts: List[String]
+  ): Either[String, Int] =
+    if parts == null || parts.isEmpty then
+      Left("StringContext must contain exactly two literal parts.")
+    else if parts.exists(_ == null) then
+      Left("StringContext literal parts must not be null.")
+    else
       RankedPatternSource
         .unsupportedFamilyRankDiagnostic(parts, "Definition")
-        .foreach(abort)
-      if parts.size != 2 then
-        abort(s"Expected exactly one body capture slot, but found ${parts.size - 1}.")
+        .map(Left(_))
+        .getOrElse {
+          if parts.size != 2 then
+            Left(s"Expected exactly one body capture slot, but found ${parts.size - 1}.")
+          else
+            val source = parts.head + "$body" + parts.last
+            singleParameter(source) match
+              case Right(_) => Right(1)
+              case Left(_) =>
+                TwoParameterDefinitionPattern.compile(source) match
+                  case Right(_) => Right(2)
+                  case Left(message) => Left(message)
+        }
 
-      val source = parts.head + "$body" + parts.last
-      singleParameter(source) match
-        case Right(pattern) => pattern
-        case Left(error) => abort(error.message)
+  private def validateParts(sc: StringContext): Either[String, List[String]] =
+    if sc == null then Left("StringContext must not be null.")
+    else
+      val rawParts = sc.parts
+      if rawParts == null then Left("StringContext must contain exactly two literal parts.")
+      else
+        val parts = rawParts.toList
+        classifyStaticParts(parts).map(_ => parts)
+
+  /** JVM-linkage bridge for callers compiled against the pre-Q012R extension.
+    * New source calls use the transparent inline structural selector.
+    */
+  @targetName("dqq")
+  private[matching] def dqqLegacy(
+      sc: StringContext
+  )(using q: Quotes): SingleParameterDefinitionPattern =
+    singleParameterExtractor(sc)
+
+  extension (inline sc: StringContext)
+    transparent inline def dqq(using q: Quotes) =
+      ${ DefinitionPatternMacro.extractor('sc, 'q) }
 
   def singleParameter(
       source: String
