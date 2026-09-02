@@ -113,11 +113,17 @@ that names that parameter. It returns a `DefDef` owned by the current
 block. It is not a detached tree, body-hole API, or general owner/placement
 facility.
 
-No umbrella import façade is public in this snapshot. A test-scoped design
-probe shows that an additive façade can directly export the existing six
-interpolators when used in a real macro `Quotes` universe. The current domain
-imports above remain the compatibility baseline until a separate
-implementation gate.
+Two additive umbrella façades are public in the current source snapshot:
+
+```scala
+import quasiquotes.Quasiquotes.{qr, qq, tqr, tqq, dqr, dqq}
+import quasiquotes.scalameta.Quasiquotes.{qr, qq, tqr, tqq, dqr, dqq}
+```
+
+They directly export the six established current-Dotty and typed-Scalameta
+families respectively; they do not duplicate parsing, matching, lowering, or
+reflection semantics. Every original domain-specific import above remains
+supported.
 
 The public `dqq` extractor and programmatic
 `DefinitionPattern.singleParameter(...)` matcher admit one fixed ordinary

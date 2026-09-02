@@ -144,6 +144,17 @@ The following fixture is compiled from outside all `quasiquotes.*` packages.
 It demonstrates parsing, structural patterns, construction, `QuasiPattern`, a
 real `qr` macro, and the explicit `toTypeRepr` extension import.
 
+For macro-only use, the accepted additive umbrella can replace the separate
+interpolator imports without changing their semantics:
+
+```scala
+import quasiquotes.Quasiquotes.{qr, qq, tqr, tqq, dqr, dqq}
+```
+
+The typed-Scalameta coordinate provides the parallel explicit opt-in import
+`quasiquotes.scalameta.Quasiquotes.{qr, qq, tqr, tqq, dqr, dqq}`. Existing
+domain-specific imports remain supported.
+
 <!-- snippet:frontend-first-use:start -->
 ```scala
 import scala.quoted.*

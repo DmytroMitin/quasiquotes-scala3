@@ -28,6 +28,8 @@ The typed coordinate exposes only `quasiquotes.scalameta`:
 
 - `ScalametaQuasiquotes.*` for explicit opt-in `qr`, `tqr`, and bounded `dqr`;
 - `ScalametaQuasiPattern.*` for explicit opt-in `qq`, `tqq`, and bounded `dqq`;
+- `quasiquotes.scalameta.Quasiquotes.*` as the additive direct-export umbrella
+  for those same six established members;
 - compact `TermFrontend` and `TypeFrontend` programmatic boundaries;
 - ordered extractor results that preserve original caller-owned reflected
   subtrees.
@@ -43,6 +45,11 @@ Its Term and Type mappers, dialect policy, selectors, parity inventories, and
 evidence macros remain package-private. Ordinary imports from
 `quasiquotes.construct`, `quasiquotes.matching`, and `quasiquotes.types`
 continue to select current-Dotty.
+
+The standard frontend likewise exposes
+`quasiquotes.Quasiquotes.{qr, qq, tqr, tqq, dqr, dqq}` as an additive umbrella.
+Both umbrella objects export their established hosts directly; the original
+imports remain supported and authoritative for the underlying semantics.
 
 The Type opt-in covers the same deliberately overlapping bounded matrix as the
 current route: names, recursive fixed `List`/`Option`/`Either`, Tuple2/Tuple3,

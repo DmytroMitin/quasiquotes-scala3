@@ -103,6 +103,11 @@ explicit, experimental, and remotely unpublished today. The explicit
 expanded-release mode can stage the selected `0.3.0` Scalameta and exact
 backend candidate artifacts without changing this semantic ownership model.
 
+The additive `quasiquotes.Quasiquotes` and
+`quasiquotes.scalameta.Quasiquotes` objects are direct-export import façades for
+the six established `qr`/`qq`/`tqr`/`tqq`/`dqr`/`dqq` families. They do not add
+a third semantic route, and every original host remains supported.
+
 For the accepted no-hole non-binder overlap, shared differential behavior
 is the consolidation boundary. The neutral projector is a compiler-free
 source-AST validator with a narrower topology and source-span contract; the

@@ -175,7 +175,7 @@ required only for their overlapping advertised slices, not in lock-step.
 
 ### Additive import façade
 
-The selected future ergonomics are additive umbrella imports:
+The accepted additive umbrella import for the current-Dotty route is:
 
 ```scala
 import quasiquotes.Quasiquotes.{qr, qq, tqr, tqq, dqr, dqq}
@@ -184,15 +184,15 @@ import quasiquotes.Quasiquotes.{qr, qq, tqr, tqq, dqr, dqq}
 and, for the typed Scalameta route:
 
 ```scala
-import quasiquotes.scalameta.Quasiquotes.{qr, qq, tqr, tqq}
+import quasiquotes.scalameta.Quasiquotes.{qr, qq, tqr, tqq, dqr, dqq}
 ```
 
-The typed Definition surface now exists, so the selected future Scalameta
-umbrella includes `dqr`/`dqq` as well. The umbrella façade itself remains
-unimplemented until its independently selected Q task is accepted. Current
-public package imports will remain supported; no deep package move or
-deprecation is selected. Separate domain façades remain a fallback, not the
-primary direction.
+The typed Definition surface is included in that façade too. Both objects
+are direct exports over the existing hosts, preserve exact transparent-inline
+and ranked typing, and add no semantic wrapper. Current public package imports
+remain supported; no deep package move or deprecation is selected. The exact
+accepted API delta is additive: standard 676 to 677 rows and hybrid 42 to 43
+search rows, with one object addition and zero removals in each inventory.
 
 ## North-star source-like generation
 
