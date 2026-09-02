@@ -342,7 +342,11 @@ class ConstructedTermUntypedBackendTest extends munit.FunSuite:
 
     assertEquals(
       ConstructedTermUntypedBackend.lower(constructed),
-      Left(UnsupportedTermNode("Block"))
+      Left(
+        MalformedBlock(
+          "prefix entry 0 is LocalVal; expected a binder-free Term expression."
+        )
+      )
     )
   }
 

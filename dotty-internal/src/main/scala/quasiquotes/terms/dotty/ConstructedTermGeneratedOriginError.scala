@@ -5,6 +5,15 @@ private[quasiquotes] sealed trait ConstructedTermGeneratedOriginError
   def message: String
 
 private[quasiquotes] object ConstructedTermGeneratedOriginError:
+  case object MissingConstructedTerm
+      extends ConstructedTermGeneratedOriginError:
+    def message: String =
+      "Cannot render a missing ConstructedTerm at the generated-origin boundary."
+
+  case object MissingTermShape extends ConstructedTermGeneratedOriginError:
+    def message: String =
+      "Cannot render a missing TermShape at the generated-origin boundary."
+
   final case class InvalidVirtualSourceName(detail: String)
       extends ConstructedTermGeneratedOriginError:
     def message: String =
@@ -39,6 +48,11 @@ private[quasiquotes] object ConstructedTermGeneratedOriginError:
       extends ConstructedTermGeneratedOriginError:
     def message: String =
       s"Cannot render generated-origin unary operator `$operator`: expected one of +, -, !, or ~."
+
+  final case class MalformedBlock(detail: String)
+      extends ConstructedTermGeneratedOriginError:
+    def message: String =
+      s"Cannot render malformed generated-origin binder-free P1 Block: $detail"
 
   final case class UnsupportedInterpolationPrefix(prefix: String)
       extends ConstructedTermGeneratedOriginError:

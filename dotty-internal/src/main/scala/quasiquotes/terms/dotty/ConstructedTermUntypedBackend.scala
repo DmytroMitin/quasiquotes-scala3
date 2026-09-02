@@ -6,7 +6,7 @@ import dotty.tools.dotc.core.Flags
 import dotty.tools.dotc.core.Names.termName
 import dotty.tools.dotc.util.{NoSource, SourceFile}
 
-import quasiquotes.parser.{BinderId, ConstructorNamePolicy, TermShape}
+import quasiquotes.parser.{BinderId, BlockStatement, ConstructorNamePolicy, TermShape}
 import quasiquotes.terms.ConstructedTerm
 import quasiquotes.types.TypeNormalForm
 
@@ -31,7 +31,7 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
   def lower(
       constructed: ConstructedTerm
   ): Either[ConstructedTermUntypedBackendError, untpd.Tree] =
-    lowerUsing(constructed, Map.empty)
+    Option(constructed).toRight(MissingConstructedTerm).flatMap(lowerUsing(_, Map.empty))
 
   private[quasiquotes] def lowerInScope(
       constructed: ConstructedTerm,
@@ -102,7 +102,8 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
     ConstructedTermUntypedBackendError,
     (untpd.Tree, LoweringState)
   ] =
-    shape match
+    if shape == null then Left(MissingTermShape)
+    else shape match
       case TermShape.BoundReference(binderId, _) =>
         state.binders
           .get(binderId)
@@ -179,10 +180,49 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
         lowerTerm(expression, state).map { case (rawExpression, next) =>
           untpd.Parens(rawExpression) -> next
         }
-      case TermShape.Block(_, _) =>
-        Left(UnsupportedTermNode("Block"))
+      case TermShape.Block(statements, result) =>
+        lowerBlock(statements, result, state)
       case TermShape.Unsupported(nodeKind, _) =>
         Left(UnsupportedTermNode(nodeKind))
+
+  private def lowerBlock(
+      statements: List[BlockStatement],
+      result: TermShape,
+      state: LoweringState
+  )(using SourceFile): Either[
+    ConstructedTermUntypedBackendError,
+    (untpd.Tree, LoweringState)
+  ] =
+    val expressionPrefix =
+      statements.zipWithIndex.foldLeft[
+        Either[ConstructedTermUntypedBackendError, List[TermShape]]
+      ](Right(Nil)) { case (accumulated, (statement, index)) =>
+        accumulated.flatMap { values =>
+          statement match
+            case expression: TermShape => Right(expression :: values)
+            case null => Left(MalformedBlock(s"prefix entry $index is null."))
+            case other =>
+              Left(
+                MalformedBlock(
+                  s"prefix entry $index is ${blockStatementKind(other)}; expected a binder-free Term expression."
+                )
+              )
+        }
+      }.map(_.reverse)
+
+    for
+      prefix <- expressionPrefix
+      loweredPrefix <- lowerTerms(prefix, state)
+      (rawPrefix, afterPrefix) = loweredPrefix
+      loweredResult <- lowerTerm(result, afterPrefix)
+      (rawResult, afterResult) = loweredResult
+    yield untpd.Block(rawPrefix, rawResult) -> afterResult
+
+  private def blockStatementKind(statement: BlockStatement): String =
+    statement match
+      case _: BlockStatement.LocalVal => "LocalVal"
+      case _: BlockStatement.LocalDef => "LocalDef"
+      case _: TermShape => "TermShape"
 
   private def lowerLambda1(
       binderId: BinderId,

@@ -4,6 +4,14 @@ private[quasiquotes] sealed trait ConstructedTermUntypedBackendError derives Can
   def message: String
 
 private[quasiquotes] object ConstructedTermUntypedBackendError:
+  case object MissingConstructedTerm extends ConstructedTermUntypedBackendError:
+    def message: String =
+      "Cannot lower a missing ConstructedTerm at the exact-version untyped backend boundary."
+
+  case object MissingTermShape extends ConstructedTermUntypedBackendError:
+    def message: String =
+      "Cannot lower a missing TermShape at the exact-version untyped backend boundary."
+
   final case class UnsupportedLiteral(value: String)
       extends ConstructedTermUntypedBackendError:
     def message: String =
@@ -48,6 +56,11 @@ private[quasiquotes] object ConstructedTermUntypedBackendError:
       extends ConstructedTermUntypedBackendError:
     def message: String =
       s"Unsupported constructed-term unary operator `$operator`: expected one of +, -, !, or ~."
+
+  final case class MalformedBlock(detail: String)
+      extends ConstructedTermUntypedBackendError:
+    def message: String =
+      s"Malformed constructed-term binder-free P1 Block: $detail"
 
   final case class UnsupportedInterpolationPrefix(prefix: String)
       extends ConstructedTermUntypedBackendError:

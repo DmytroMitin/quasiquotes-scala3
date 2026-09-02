@@ -7,7 +7,7 @@ import dotty.tools.dotc.core.Names.termName
 import dotty.tools.dotc.core.Symbols.NoSymbol
 import dotty.tools.dotc.util.{NoSource, SourceFile}
 
-import quasiquotes.parser.TermShape
+import quasiquotes.parser.{BlockStatement, TermShape}
 
 private[quasiquotes] object CoreTermShapeUntypedLowerer:
   import CoreTermShapeUntypedLowererError.*
@@ -173,8 +173,43 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
           rawThen <- lowerAdmitted(thenBranch)
           rawElse <- lowerAdmitted(elseBranch)
         yield untpd.If(rawCondition, rawThen, rawElse)
+      case Some(TermShape.Block(statements, result)) =>
+        lowerBlock(statements, result)
       case Some(other) =>
         Left(UnsupportedTermShape(nodeKind(other)))
+
+  private def lowerBlock(
+      statements: List[BlockStatement],
+      result: TermShape
+  )(using SourceFile): Either[CoreTermShapeUntypedLowererError, untpd.Tree] =
+    val expressionPrefix =
+      statements.zipWithIndex.foldLeft[
+        Either[CoreTermShapeUntypedLowererError, List[TermShape]]
+      ](Right(Nil)) { case (accumulated, (statement, index)) =>
+        accumulated.flatMap { values =>
+          statement match
+            case expression: TermShape => Right(expression :: values)
+            case null => Left(MalformedBlock(s"prefix entry $index is null."))
+            case other =>
+              Left(
+                MalformedBlock(
+                  s"prefix entry $index is ${blockStatementKind(other)}; expected a binder-free Term expression."
+                )
+              )
+        }
+      }.map(_.reverse)
+
+    for
+      prefix <- expressionPrefix
+      rawPrefix <- traverse(prefix)(lowerAdmitted)
+      rawResult <- lowerAdmitted(result)
+    yield untpd.Block(rawPrefix, rawResult)
+
+  private def blockStatementKind(statement: BlockStatement): String =
+    statement match
+      case _: BlockStatement.LocalVal => "LocalVal"
+      case _: BlockStatement.LocalDef => "LocalDef"
+      case _: TermShape => "TermShape"
 
   private def validateSourceName(
       name: String,
@@ -258,5 +293,10 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
             _ <- verifySourceFree(condition)
             _ <- verifySourceFree(thenBranch)
             _ <- verifySourceFree(elseBranch)
+          yield ()
+        case untpd.Block(statements, result) =>
+          for
+            _ <- traverse(statements)(verifySourceFree)
+            _ <- verifySourceFree(result)
           yield ()
         case _ => Right(())

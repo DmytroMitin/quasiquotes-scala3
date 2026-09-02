@@ -55,6 +55,11 @@ private[quasiquotes] object CoreTermShapeUntypedLowererError:
     def message: String =
       s"Invalid bounded exact-backend Tuple arity $arity: expected 2 through 22 elements."
 
+  final case class MalformedBlock(detail: String)
+      extends CoreTermShapeUntypedLowererError:
+    def message: String =
+      s"Malformed bounded exact-backend P1 Block: $detail"
+
   final case class UnsupportedTermShape(nodeKind: String)
       extends CoreTermShapeUntypedLowererError:
     def message: String =

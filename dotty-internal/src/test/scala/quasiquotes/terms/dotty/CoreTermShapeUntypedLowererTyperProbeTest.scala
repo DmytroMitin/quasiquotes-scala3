@@ -18,3 +18,7 @@ class CoreTermShapeUntypedLowererTyperProbeTest extends munit.FunSuite:
   test("ordinary pre-Typer flow accepts nested source-free If Tuple Boolean String and Unary") {
     assert(CoreTermShapeUntypedLowererTyperProbe.nestedU004Viable)
   }
+
+  test("ordinary pre-Typer flow accepts a nested source-free P1 Block and returns its result") {
+    assertEquals(CoreTermShapeUntypedLowererTyperProbe.p1BlockResult, 4)
+  }

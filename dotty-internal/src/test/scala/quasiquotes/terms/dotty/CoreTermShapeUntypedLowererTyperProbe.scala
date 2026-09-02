@@ -35,6 +35,8 @@ private[quasiquotes] object CoreTermShapeUntypedLowererTyperProbe:
 
   inline def nestedU004Viable: Boolean = ${ nestedU004ViableImpl }
 
+  inline def p1BlockResult: Int = ${ p1BlockResultImpl }
+
   private def onePlusOneImpl(using Quotes): Expr[Int] =
     typeAndReturn(
       TermShape.Infix(
@@ -106,6 +108,20 @@ private[quasiquotes] object CoreTermShapeUntypedLowererTyperProbe:
         TermShape.Tuple(
           List(TermShape.Literal("\"no\""), TermShape.Unary("!", TermShape.Literal("true")))
         )
+      )
+    )
+
+  private def p1BlockResultImpl(using Quotes): Expr[Int] =
+    typeAndReturn(
+      TermShape.Block(
+        List(
+          TermShape.Literal("1"),
+          TermShape.Block(
+            List(TermShape.Literal("2")),
+            TermShape.Literal("3")
+          )
+        ),
+        TermShape.Literal("4")
       )
     )
 

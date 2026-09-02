@@ -68,6 +68,52 @@ class ConstructedTermGeneratedOriginTyperRuntimeTest extends munit.FunSuite:
     finally deleteRecursively(temporary)
   }
 
+  test("P1 Block generated origin survives typer TASTy class emission and runtime") {
+    val temporary = Files.createTempDirectory("u006-p1-generated-origin-")
+    try
+      val source = temporary.resolve("U006P1GeneratedRuntime.scala")
+      val output = temporary.resolve("classes")
+      Files.createDirectories(output)
+      Files.writeString(
+        source,
+        """object U006P1GeneratedRuntime:
+          |  def result: String = "adapter-placeholder"
+          |""".stripMargin,
+        StandardCharsets.UTF_8
+      )
+
+      val driver = new GeneratedOriginDriver(p1BlockFixture, "<u006-p1-generated-origin>")
+      val reporter =
+        driver.process(
+          Array(
+            "-classpath",
+            compilationClasspath,
+            "-d",
+            output.toString,
+            source.toString
+          )
+        )
+
+      assert(!reporter.hasErrors, clues(reporter.allErrors))
+      assertEquals(driver.insertedSource, Some(P1BlockSource))
+      val emitted =
+        val stream = Files.walk(output)
+        try stream.filter(Files.isRegularFile(_)).iterator().asScala.toVector
+        finally stream.close()
+      assert(emitted.exists(_.toString.endsWith(".class")))
+      assert(emitted.exists(_.toString.endsWith(".tasty")))
+
+      val loader =
+        new URLClassLoader(Array(output.toUri.toURL), getClass.getClassLoader)
+      try
+        val moduleClass = loader.loadClass("U006P1GeneratedRuntime$")
+        val module = moduleClass.getField("MODULE$").get(null)
+        val value = moduleClass.getMethod("result").invoke(module)
+        assertEquals(value, "u006-result")
+      finally loader.close()
+    finally deleteRecursively(temporary)
+  }
+
   private final class GeneratedOriginDriver(
       constructed: ConstructedTerm,
       sourceName: String
@@ -139,6 +185,32 @@ class ConstructedTermGeneratedOriginTyperRuntimeTest extends munit.FunSuite:
 
   private val PeerSource =
     """if true then ("phase44:" + "QuasiquotesBackendUser"): String else "unreachable""""
+
+  private def p1BlockFixture: ConstructedTerm =
+    val root =
+      TermShape.Block(
+        List(
+          TermShape.Typed(TermShape.Literal("\"discarded\""), "String"),
+          TermShape.Block(
+            List(TermShape.Literal("\"nested\"")),
+            TermShape.Literal("\"inner\"")
+          )
+        ),
+        TermShape.Typed(TermShape.Literal("\"u006-result\""), "String")
+      )
+    ConstructedTerm
+      .create(
+        root,
+        Vector(
+          TypeNormalForm.STypeIdent("String"),
+          TypeNormalForm.STypeIdent("String")
+        )
+      )
+      .toOption
+      .get
+
+  private val P1BlockSource =
+    """{ "discarded": String; { "nested"; "inner" }; "u006-result": String }"""
 
   private def compilationClasspath: String =
     Vector(

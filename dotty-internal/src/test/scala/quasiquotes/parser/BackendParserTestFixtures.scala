@@ -177,6 +177,9 @@ private[quasiquotes] object TermShapeInspector:
       case untpd.Tuple(elements) => TermShape.Tuple(elements.map(inspect))
       case untpd.If(condition, thenBranch, elseBranch) =>
         TermShape.If(inspect(condition), inspect(thenBranch), inspect(elseBranch))
+      case untpd.Block(Nil, result) => inspect(result)
+      case untpd.Block(statements, result) =>
+        TermShape.Block(statements.map(inspect), inspect(result))
       case untpd.TypedSplice(tree) => inspect(tree)
       case untpd.Parens(tree) => TermShape.Parenthesized(inspect(tree))
       case other => TermShape.Unsupported(other.getClass.getSimpleName, other.toString)
@@ -201,6 +204,8 @@ private[quasiquotes] object TermShapeInspector:
         s"Tuple([${elements.map(rawStructure).mkString(", ")}])"
       case untpd.If(condition, thenBranch, elseBranch) =>
         s"If(${rawStructure(condition)},${rawStructure(thenBranch)},${rawStructure(elseBranch)})"
+      case untpd.Block(statements, result) =>
+        s"Block([${statements.map(rawStructure).mkString(", ")}], ${rawStructure(result)})"
       case untpd.TypedSplice(tree) => s"TypedSplice(${rawStructure(tree)})"
       case untpd.Parens(tree) => s"Parens(${rawStructure(tree)})"
       case other => other.getClass.getSimpleName

@@ -599,7 +599,6 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
       TermShape.InterpolatedString("s", List("", ""), List(literal)) ->
         "InterpolatedString",
       TermShape.Typed(literal, "Int") -> "Typed",
-      TermShape.Block(List(literal), literal) -> "Block",
       TermShape.Parenthesized(literal) -> "Parenthesized",
       TermShape.Unsupported("Hostile", "detail") -> "Unsupported"
     )

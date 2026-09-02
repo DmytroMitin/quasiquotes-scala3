@@ -6,7 +6,7 @@ import dotty.tools.dotc.core.Symbols.NoSymbol
 import dotty.tools.dotc.util.SourceFile
 import dotty.tools.dotc.util.Spans.Span
 
-import quasiquotes.parser.{BinderId, ConstructorNamePolicy, TermShape}
+import quasiquotes.parser.{BinderId, BlockStatement, ConstructorNamePolicy, TermShape}
 import quasiquotes.terms.ConstructedTerm
 import quasiquotes.types.{AppliedTypeConstructorPolicy, TypeNormalForm}
 
@@ -35,7 +35,9 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
     case Typed
     case TermTuple
     case If
+    case Block
     case Parens
+    case SyntheticParens
     case OperatorIdent
     case TypeIdent
     case AppliedType
@@ -78,10 +80,11 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
       constructed: ConstructedTerm
   ): Either[ConstructedTermGeneratedOriginError, TermFragment] =
     for
+      value <- Option(constructed).toRight(MissingConstructedTerm)
       rendered <- Planner(
-        constructed.ascriptionTypes,
+        value.ascriptionTypes,
         compactDefinitionBodyRoot = false
-      ).renderTerm(constructed.root)
+      ).renderTerm(value.root)
       _ <- validatePlan(rendered.root, rendered.source.length)
     yield new TermFragment(rendered.source, rendered.root)
 
@@ -250,7 +253,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
     private def renderTermNode(
         shape: TermShape
     ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
-      shape match
+      if shape == null then Left(MissingTermShape)
+      else shape match
         case TermShape.BoundReference(binderId, _) =>
           binderNames
             .get(binderId)
@@ -348,9 +352,16 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
           val start = builder.length
           for
             normalForm <- sidecar
-            _ = builder.append('(')
-            rawExpression <- renderTermNode(expression)
-            _ = builder.append("): ")
+            rawExpression <-
+              expression match
+                case _: TermShape.Block => renderSyntheticParens(expression)
+                case _ =>
+                  builder.append('(')
+                  renderTermNode(expression).map { plan =>
+                    builder.append(')')
+                    plan
+                  }
+            _ = builder.append(": ")
             rawType <- renderAscriptionType(normalForm, ordinal)
           yield node(
             NodeKind.Typed,
@@ -385,10 +396,105 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
             builder.append(')')
             node(NodeKind.Parens, start, start, Vector(rawExpression))
           }
-        case TermShape.Block(_, _) =>
-          Left(UnsupportedTermNode("Block"))
+        case TermShape.Block(statements, result) =>
+          renderBlock(statements, result)
         case TermShape.Unsupported(nodeKind, _) =>
           Left(UnsupportedTermNode(nodeKind))
+
+    private def renderBlock(
+        statements: List[BlockStatement],
+        result: TermShape
+    ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
+      val start = builder.length
+      builder.append("{ ")
+      val expressionPrefix =
+        statements.zipWithIndex.foldLeft[
+          Either[ConstructedTermGeneratedOriginError, Vector[TermShape]]
+        ](Right(Vector.empty)) { case (accumulated, (statement, index)) =>
+          accumulated.flatMap { values =>
+            statement match
+              case expression: TermShape => Right(values :+ expression)
+              case null => Left(MalformedBlock(s"prefix entry $index is null."))
+              case other =>
+                Left(
+                  MalformedBlock(
+                    s"prefix entry $index is ${blockStatementKind(other)}; expected a binder-free Term expression."
+                  )
+                )
+          }
+        }
+      for
+        prefix <- expressionPrefix
+        rawPrefix <- prefix.zipWithIndex.foldLeft[
+          Either[ConstructedTermGeneratedOriginError, Vector[NodePlan]]
+        ](Right(Vector.empty)) { case (accumulated, (expression, index)) =>
+          accumulated.flatMap { values =>
+            if index > 0 then builder.append("; ")
+            renderBlockPrefix(expression).map(values :+ _)
+          }
+        }
+        _ = builder.append("; ")
+        rawResult <- renderBlockTerm(result)
+      yield
+        builder.append(" }")
+        node(NodeKind.Block, start, start, rawPrefix :+ rawResult)
+
+    private def renderBlockPrefix(
+        expression: TermShape
+    ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
+      expression match
+        case _: TermShape.Lambda1 =>
+          renderSyntheticParens(expression)
+        case _ => renderBlockTerm(expression)
+
+    private def renderBlockTerm(
+        expression: TermShape
+    ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
+      expression match
+        case TermShape.Typed(typedExpression, _) =>
+          renderBlockTyped(typedExpression)
+        case _ => renderTermNode(expression)
+
+    private def renderBlockTyped(
+        expression: TermShape
+    ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
+      val ordinal = typedOrdinal
+      val sidecar =
+        ascriptionTypes
+          .lift(ordinal)
+          .toRight(MissingTypeSidecar(ordinal))
+      typedOrdinal += 1
+      val start = builder.length
+      for
+        normalForm <- sidecar
+        rawExpression <-
+          if expression != null && termPrecedence(expression) <= 40 then
+            renderSyntheticParens(expression)
+          else renderTermNode(expression)
+        _ = builder.append(": ")
+        rawType <- renderAscriptionType(normalForm, ordinal)
+      yield node(
+        NodeKind.Typed,
+        start,
+        start,
+        Vector(rawExpression, rawType)
+      )
+
+    private def renderSyntheticParens(
+        expression: TermShape
+    ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
+      val start = builder.length
+      builder.append('(')
+      renderTermNode(expression).map { plan =>
+        builder.append(')')
+        node(NodeKind.SyntheticParens, start, start, Vector(plan))
+      }
+
+    private def blockStatementKind(statement: BlockStatement): String =
+      statement match
+        case _: BlockStatement.LocalVal => "LocalVal"
+        case _: BlockStatement.LocalDef => "LocalDef"
+        case _: TermShape => "TermShape"
 
     private def renderLambda1(
         binderId: BinderId,
@@ -655,11 +761,14 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
         precedence: Int
     ): Either[ConstructedTermGeneratedOriginError, NodePlan] =
       if termPrecedence(shape) < precedence then
-        builder.append('(')
-        renderTermNode(shape).map { plan =>
-          builder.append(')')
-          plan
-        }
+        shape match
+          case _: TermShape.Block => renderSyntheticParens(shape)
+          case _ =>
+            builder.append('(')
+            renderTermNode(shape).map { plan =>
+              builder.append(')')
+              plan
+            }
       else renderTermNode(shape)
 
     private def renderPrefixOperand(
@@ -1085,9 +1194,20 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
             untpd.cpy.If(tree)(condition, thenBranch, elseBranch)
           )
         }
+      case (tree: untpd.Block, NodeKind.Block) =>
+        splitLast(plan).flatMap { case (statementPlans, resultPlan) =>
+          for
+            statements <- positionAll(tree.stats, statementPlans, source)
+            result <- position(tree.expr, resultPlan, source)
+          yield attach(untpd.cpy.Block(tree)(statements, result))
+        }
       case (tree: untpd.Parens, NodeKind.Parens) =>
         oneChild(plan).flatMap(position(tree.t, _, source)).map { expression =>
           attach(untpd.cpy.Parens(tree)(expression))
+        }
+      case (tree, NodeKind.SyntheticParens) =>
+        oneChild(plan).flatMap(position(tree, _, source)).map { expression =>
+          attach(untpd.Parens(expression))
         }
       case (tree: untpd.AppliedTypeTree, NodeKind.AppliedType) =>
         splitHead(plan).flatMap { case (constructorPlan, argumentPlans) =>
@@ -1247,8 +1367,8 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
         value.segments.toVector
       case value: untpd.Thicket =>
         value.trees.toVector
-      case untpd.Block(Nil, expression) =>
-        Vector(expression)
+      case value: untpd.Block =>
+        value.stats.toVector :+ value.expr
       case value: untpd.Typed =>
         Vector(value.expr, value.tpt)
       case value: untpd.AppliedTypeTree =>
