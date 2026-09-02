@@ -1,12 +1,35 @@
 package quasiquotes.neutral
 
-import _root_.quasiquotes.parser.{BinderId, TermShape}
+import _root_.quasiquotes.parser.{
+  BinderId,
+  BlockStatement,
+  P2LocalValAdmission,
+  P2LocalValDiagnosticMessages,
+  TermShape
+}
+import _root_.quasiquotes.terms.TermShapeTraversal
 
 import scala.meta.*
 
 /** Compiler-free projection for the bounded ordinary source-Term family. */
 object ScalametaTermProjection:
-  private final case class ActiveBinder(name: String, id: BinderId)
+  private enum BinderKind:
+    case Lambda1, P2LocalVal
+
+  private final case class ActiveBinder(
+      name: String,
+      id: BinderId,
+      kind: BinderKind
+  )
+
+  private final class ProjectionState:
+    val p2Admission = new P2LocalValAdmission.Tracker
+    private var nextBinderId = 0
+
+    def allocateBinder(): BinderId =
+      val result = BinderId(nextBinderId)
+      nextBinderId += 1
+      result
 
   private val SupportedUnaryOperators = Set("+", "-", "!", "~")
   private val PlainSourceName = "[A-Za-z_][A-Za-z0-9_]*".r
@@ -77,15 +100,17 @@ object ScalametaTermProjection:
   private def projectPresent(
       term: Term
   ): Either[NeutralProjectionError, ProjectedTermShape] =
-    projectShape(term, None).map(ProjectedTermShape(_, truthfulSpan(term)))
+    projectShape(term, Nil, new ProjectionState)
+      .map(ProjectedTermShape(_, truthfulSpan(term)))
 
   private def projectShape(
       term: Term,
-      activeBinder: Option[ActiveBinder]
+      scope: List[ActiveBinder],
+      state: ProjectionState
   ): Either[NeutralProjectionError, TermShape] =
     term match
       case name: Term.Name =>
-        activeBinder.filter(_.name == name.value) match
+        scope.find(_.name == name.value) match
           case Some(binder) =>
             Right(TermShape.BoundReference(binder.id, name.value))
           case None =>
@@ -102,9 +127,9 @@ object ScalametaTermProjection:
           )
         )
       case function: Term.Function =>
-        projectLambda1(function, activeBinder)
+        projectLambda1(function, scope, state)
       case block: Term.Block =>
-        projectBlock(block, activeBinder)
+        projectBlock(block, scope, state)
       case Lit.Int(value) =>
         Right(TermShape.Literal(value.toString))
       case Lit.String(value) =>
@@ -113,7 +138,7 @@ object ScalametaTermProjection:
         Right(TermShape.Literal(value.toString))
       case select: Term.Select =>
         for
-          qualifier <- projectShape(select.qual, activeBinder)
+          qualifier <- projectShape(select.qual, scope, state)
           selectedName <- validateSourceName(
             select.name.value,
             "NEUTRAL_SELECTION_NAME_UNSUPPORTED",
@@ -121,7 +146,7 @@ object ScalametaTermProjection:
           )
         yield TermShape.Select(qualifier, selectedName)
       case application: Term.Apply =>
-        projectApply(application, activeBinder)
+        projectApply(application, scope, state)
       case unary: Term.ApplyUnary =>
         for
           _ <- require(
@@ -129,7 +154,7 @@ object ScalametaTermProjection:
             "NEUTRAL_UNARY_OPERATOR_UNSUPPORTED",
             "unary terms support exactly +, -, !, and ~."
           )
-          operand <- projectShape(unary.arg, activeBinder)
+          operand <- projectShape(unary.arg, scope, state)
         yield TermShape.Unary(unary.op.value, operand)
       case infix: Term.ApplyInfix =>
         for
@@ -147,8 +172,8 @@ object ScalametaTermProjection:
                   "binary infix terms require exactly one ordinary RHS argument."
                 )
               )
-          leftShape <- projectShape(infix.lhs, activeBinder)
-          rightShape <- projectShape(right, activeBinder)
+          leftShape <- projectShape(infix.lhs, scope, state)
+          rightShape <- projectShape(right, scope, state)
         yield TermShape.Infix(leftShape, infix.op.value, rightShape)
       case tuple: Term.Tuple =>
         for
@@ -157,7 +182,7 @@ object ScalametaTermProjection:
             "NEUTRAL_TUPLE_ARITY_UNSUPPORTED",
             s"tuple terms require arity 2 through 22, found ${tuple.args.size}."
           )
-          elements <- traverse(tuple.args)(projectShape(_, activeBinder))
+          elements <- traverse(tuple.args)(projectShape(_, scope, state))
         yield TermShape.Tuple(elements)
       case conditional: Term.If =>
         for
@@ -166,9 +191,9 @@ object ScalametaTermProjection:
             "NEUTRAL_IF_ELSE_UNSUPPORTED",
             "if terms require an explicit else branch."
           )
-          condition <- projectShape(conditional.cond, activeBinder)
-          thenBranch <- projectShape(conditional.thenp, activeBinder)
-          elseBranch <- projectShape(conditional.elsep, activeBinder)
+          condition <- projectShape(conditional.cond, scope, state)
+          thenBranch <- projectShape(conditional.thenp, scope, state)
+          elseBranch <- projectShape(conditional.elsep, scope, state)
         yield TermShape.If(condition, thenBranch, elseBranch)
       case other =>
         Left(
@@ -180,7 +205,8 @@ object ScalametaTermProjection:
 
   private def projectBlock(
       block: Term.Block,
-      activeBinder: Option[ActiveBinder]
+      scope: List[ActiveBinder],
+      state: ProjectionState
   ): Either[NeutralProjectionError, TermShape] =
     block.stats match
       case Nil =>
@@ -190,16 +216,137 @@ object ScalametaTermProjection:
             "P1 block projection requires at least one Term statement."
           )
         )
+      case (definition: Defn.Val) :: (result: Term) :: Nil =>
+        projectP2LocalVal(definition, result, scope, state)
+      case (_: Defn.Var) :: (_: Term) :: Nil =>
+        Left(
+          error(
+            "NEUTRAL_P2_MUTABLE_UNSUPPORTED",
+            P2LocalValDiagnosticMessages.Mutable
+          )
+        )
+      case stats if stats.exists(_.isInstanceOf[Defn.Val]) =>
+        Left(
+          error(
+            "NEUTRAL_P2_EXACTLY_ONE_LOCAL_VAL_UNSUPPORTED",
+            P2LocalValDiagnosticMessages.ExactlyOne
+          )
+        )
+      case stats if stats.exists(_.isInstanceOf[Defn.Var]) =>
+        Left(
+          error(
+            "NEUTRAL_P2_MUTABLE_UNSUPPORTED",
+            P2LocalValDiagnosticMessages.Mutable
+          )
+        )
+      case stats if stats.exists(_.isInstanceOf[Defn.Def]) =>
+        Left(
+          error(
+            "NEUTRAL_P2_LOCAL_DEF_UNSUPPORTED",
+            P2LocalValDiagnosticMessages.LocalDef
+          )
+        )
       case stats =>
         collectTermStatements(stats).flatMap {
           case result :: Nil =>
-            projectShape(result, activeBinder)
+            projectShape(result, scope, state)
           case terms =>
             for
-              prefix <- traverse(terms.init)(projectShape(_, activeBinder))
-              result <- projectShape(terms.last, activeBinder)
+              prefix <- traverse(terms.init)(projectShape(_, scope, state))
+              result <- projectShape(terms.last, scope, state)
             yield TermShape.Block(prefix, result)
         }
+
+  private def projectP2LocalVal(
+      definition: Defn.Val,
+      result: Term,
+      scope: List[ActiveBinder],
+      state: ProjectionState
+  ): Either[NeutralProjectionError, TermShape] =
+    definition.pats match
+      case Pat.Var(name) :: Nil if definition.mods.exists(_.isInstanceOf[Mod.Lazy]) =>
+        Left(
+          error(
+            "NEUTRAL_P2_LAZY_UNSUPPORTED",
+            P2LocalValDiagnosticMessages.Lazy
+          )
+        )
+      case Pat.Var(name) :: Nil =>
+        for
+          _ <- require(
+            definition.mods.isEmpty,
+            "NEUTRAL_P2_MODIFIERS_UNSUPPORTED",
+            "P2 local val requires an eager immutable declaration without modifiers."
+          )
+          displayName <- validateSourceName(
+            name.value,
+            "NEUTRAL_P2_BINDER_NAME_UNSUPPORTED",
+            "P2 local val binder names"
+          )
+          declaredType <- definition.decltpe
+            .toRight(
+              error(
+                "NEUTRAL_P2_TYPE_REQUIRED",
+                P2LocalValDiagnosticMessages.MissingExplicitType
+              )
+            )
+            .flatMap(projectP2DeclaredType)
+          _ <- state.p2Admission
+            .introduceLocalVal(displayName)
+            .left
+            .map(admissionError)
+          initializer <- mapP2ChildFailure(
+            projectShape(definition.rhs, scope, state),
+            "NEUTRAL_P2_INITIALIZER_UNSUPPORTED",
+            P2LocalValDiagnosticMessages.UnsupportedInitializer
+          )
+          binder = ActiveBinder(
+            displayName,
+            state.allocateBinder(),
+            BinderKind.P2LocalVal
+          )
+          resultShape <- withinLocalValResult(
+            state,
+            displayName
+          )(
+            mapP2ChildFailure(
+              projectShape(result, binder :: scope, state),
+              "NEUTRAL_P2_RESULT_UNSUPPORTED",
+              P2LocalValDiagnosticMessages.UnsupportedResult
+            )
+          )
+        yield TermShape.Block(
+          List(
+            BlockStatement.LocalVal(
+              binder.id,
+              displayName,
+              declaredType,
+              initializer
+            )
+          ),
+          resultShape
+        )
+      case _ =>
+        Left(
+          error(
+            "NEUTRAL_P2_PATTERN_UNSUPPORTED",
+            P2LocalValDiagnosticMessages.Pattern
+          )
+        )
+
+  private def projectP2DeclaredType(
+      declaredType: Type
+  ): Either[NeutralProjectionError, String] =
+    ScalametaTypeNormalFormProjection
+      .project(declaredType)
+      .map(projected => TermShapeTraversal.renderNormalForm(projected.normalForm))
+      .left
+      .map(_ =>
+        error(
+          "NEUTRAL_P2_DECLARED_TYPE_UNSUPPORTED",
+          P2LocalValDiagnosticMessages.UnsupportedType
+        )
+      )
 
   private def collectTermStatements(
       stats: List[Stat]
@@ -218,7 +365,8 @@ object ScalametaTermProjection:
 
   private def projectApply(
       application: Term.Apply,
-      activeBinder: Option[ActiveBinder]
+      scope: List[ActiveBinder],
+      state: ProjectionState
   ): Either[NeutralProjectionError, TermShape] =
     for
       _ <- require(
@@ -242,13 +390,14 @@ object ScalametaTermProjection:
             )
           )
         case _ => Right(())
-      function <- projectShape(application.fun, activeBinder)
-      arguments <- traverse(application.argClause.values)(projectApplyArgument(_, activeBinder))
+      function <- projectShape(application.fun, scope, state)
+      arguments <- traverse(application.argClause.values)(projectApplyArgument(_, scope, state))
     yield TermShape.Apply(function, arguments)
 
   private def projectApplyArgument(
       argument: Term,
-      activeBinder: Option[ActiveBinder]
+      scope: List[ActiveBinder],
+      state: ProjectionState
   ): Either[NeutralProjectionError, TermShape] =
     argument match
       case _: Term.Assign | _: Term.Repeated =>
@@ -258,13 +407,14 @@ object ScalametaTermProjection:
             s"ordinary Apply arguments must be positional Terms, found ${argument.productPrefix}."
           )
         )
-      case other => projectShape(other, activeBinder)
+      case other => projectShape(other, scope, state)
 
   private def projectLambda1(
       function: Term.Function,
-      activeBinder: Option[ActiveBinder]
+      scope: List[ActiveBinder],
+      state: ProjectionState
   ): Either[NeutralProjectionError, TermShape] =
-    activeBinder match
+    scope.find(_.kind == BinderKind.Lambda1) match
       case Some(_) =>
         Left(
           error(
@@ -294,8 +444,15 @@ object ScalametaTermProjection:
                 "NEUTRAL_LAMBDA_PARAMETER_NAME_UNSUPPORTED",
                 "lambda parameter names"
               )
-              binder = ActiveBinder(parameterName, BinderId(0))
-              body <- projectShape(function.body, Some(binder))
+              binder = ActiveBinder(
+                parameterName,
+                state.allocateBinder(),
+                BinderKind.Lambda1
+              )
+              body <- withinLambda(
+                state,
+                parameterName
+              )(projectShape(function.body, binder :: scope, state))
             yield TermShape.Lambda1(binder.id, parameterName, parameterType, body)
           case _ =>
             Left(
@@ -328,6 +485,86 @@ object ScalametaTermProjection:
         "Lambda1 parameter types are limited to the established Int, String, and Boolean concrete spellings."
       )
     )
+
+  private def withinLocalValResult[A](
+      state: ProjectionState,
+      displayName: String
+  )(
+      body: => Either[NeutralProjectionError, A]
+  ): Either[NeutralProjectionError, A] =
+    var projected = Option.empty[Either[NeutralProjectionError, A]]
+    state.p2Admission
+      .withinLocalValResult(displayName) {
+        projected = Some(body)
+        Right(())
+      }
+      .left
+      .map(admissionError)
+      .flatMap(_ =>
+        projected match
+          case Some(result) => result
+          case None =>
+            Left(
+              error(
+                "NEUTRAL_P2_ADMISSION_INTERNAL",
+                "P2 result admission did not evaluate the projection body."
+              )
+            )
+      )
+
+  private def withinLambda[A](
+      state: ProjectionState,
+      displayName: String
+  )(
+      body: => Either[NeutralProjectionError, A]
+  ): Either[NeutralProjectionError, A] =
+    var projected = Option.empty[Either[NeutralProjectionError, A]]
+    state.p2Admission
+      .withinLambda(displayName) {
+        projected = Some(body)
+        Right(())
+      }
+      .left
+      .map(admissionError)
+      .flatMap(_ =>
+        projected match
+          case Some(result) => result
+          case None =>
+            Left(
+              error(
+                "NEUTRAL_P2_ADMISSION_INTERNAL",
+                "Lambda admission did not evaluate the projection body."
+              )
+            )
+      )
+
+  private def admissionError(
+      violation: P2LocalValAdmission.Violation
+  ): NeutralProjectionError =
+    violation match
+      case P2LocalValAdmission.Violation.SecondOrNestedLocalVal =>
+        error(
+          "NEUTRAL_P2_SECOND_OR_NESTED_LOCAL_VAL_UNSUPPORTED",
+          violation.message
+        )
+      case P2LocalValAdmission.Violation.SourceBinderShadowing =>
+        error(
+          "NEUTRAL_P2_SOURCE_BINDER_SHADOWING_UNSUPPORTED",
+          violation.message
+        )
+
+  private def mapP2ChildFailure[A](
+      projection: Either[NeutralProjectionError, A],
+      code: String,
+      detail: String
+  ): Either[NeutralProjectionError, A] =
+    projection.left.map { problem =>
+      if problem.code == "NEUTRAL_P2_SECOND_OR_NESTED_LOCAL_VAL_UNSUPPORTED" ||
+          problem.code == "NEUTRAL_P2_SOURCE_BINDER_SHADOWING_UNSUPPORTED" ||
+          problem.code == "NEUTRAL_LAMBDA_NESTED_UNSUPPORTED"
+      then problem
+      else error(code, detail)
+    }
 
   private def termPath(reference: Term): Option[List[String]] =
     reference match
@@ -363,12 +600,14 @@ object ScalametaTermProjection:
   private def traverse[A, B](
       values: List[A]
   )(projectValue: A => Either[NeutralProjectionError, B]): Either[NeutralProjectionError, List[B]] =
-    values.foldRight(Right(Nil): Either[NeutralProjectionError, List[B]]) { (value, rest) =>
-      for
-        head <- projectValue(value)
-        tail <- rest
-      yield head :: tail
-    }
+    values
+      .foldLeft(Right(Nil): Either[NeutralProjectionError, List[B]]) { (result, value) =>
+        for
+          reversed <- result
+          projected <- projectValue(value)
+        yield projected :: reversed
+      }
+      .map(_.reverse)
 
   private def truthfulSpan(tree: Tree): Option[NeutralSourceSpan] =
     tree.pos match

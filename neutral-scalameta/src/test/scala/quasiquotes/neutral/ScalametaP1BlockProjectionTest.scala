@@ -155,9 +155,9 @@ final class ScalametaP1BlockProjectionTest extends munit.FunSuite:
   test("rejects empty and non-Term block topology with stable neutral categories"):
     val cases = List(
       Term.Block(Nil) -> "NEUTRAL_BLOCK_EMPTY_UNSUPPORTED",
-      parsed("{ val x = 1; x }") -> "NEUTRAL_BLOCK_STATEMENT_UNSUPPORTED",
-      parsed("{ var x = 1; x }") -> "NEUTRAL_BLOCK_STATEMENT_UNSUPPORTED",
-      parsed("{ def f = 1; f }") -> "NEUTRAL_BLOCK_STATEMENT_UNSUPPORTED",
+      parsed("{ val x = 1; x }") -> "NEUTRAL_P2_TYPE_REQUIRED",
+      parsed("{ var x = 1; x }") -> "NEUTRAL_P2_MUTABLE_UNSUPPORTED",
+      parsed("{ def f = 1; f }") -> "NEUTRAL_P2_LOCAL_DEF_UNSUPPORTED",
       parsed("{ import scala.util.Try; result }") -> "NEUTRAL_BLOCK_STATEMENT_UNSUPPORTED"
     )
 
