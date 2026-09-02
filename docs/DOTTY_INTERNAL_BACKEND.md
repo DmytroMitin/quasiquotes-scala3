@@ -75,7 +75,11 @@ and carry no stable compatibility promise:
 - `ConstructedTermUntypedBackend` and `CompletedTypeUntypedLowerer` lower the
   admitted compiler-free Term/Type models to source-free raw trees. The richer
   Term backend also accepts binder-free P1 blocks with deterministic
-  left-to-right sidecar consumption; P2 local values remain rejected.
+  left-to-right sidecar consumption and one bounded P2 local-val block. P2
+  consumes its completed declared-Type sidecar before initializer sidecars,
+  installs the existing BinderId only after the initializer, and restores the
+  incoming scope at Block exit. Its generated-origin adapter emits the same
+  parser-equivalent positioned P2 topology.
 - `ConstructedDefinitionUntypedBackend` and
   `PublicContextualMethodUntypedBackend` construct bounded raw definitions.
 - `ScopedContextualMethodUntypedLowerer` and its generated-origin adapter own
@@ -148,6 +152,8 @@ This exact support is bounded to new source-free D construction from
 project-owned `TermShape`. It does not preserve input raw-tree identity,
 implement U matching/reconstruction, or introduce a cross-surface capability
 layer. `new`, interpolation, ascription, Lambda1 in the direct lowerer, P2
-statement binders in either Term backend, local definitions, and other raw
-Term families remain explicit separate slices. None of the
+statement binders in the direct lowerer, local definitions, and other raw Term
+families remain explicit separate slices. The richer backend's P2 support does
+not widen the direct lowerer because the latter has no authoritative completed
+Type sidecar. None of the
 definition-specific bridges widens that boundary.

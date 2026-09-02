@@ -184,7 +184,9 @@ unary sets, and direct ASCII non-keyword names are validated before raw names
 or nodes are created. A direct nested Apply in function position is rejected
 as multiple lists; Apply remains recursively valid in ordinary argument and
 qualifier positions. Lambda1, P2, and P3 are outside this direct edge; P2 and
-P3 also remain rejected by the richer exact backend.
+P3 also remain rejected by the direct lowerer. The richer exact Term backend
+separately admits the bounded P2 shape using authoritative completed declared-
+Type sidecars and existing BinderId scope; P3 remains rejected.
 
 The separate definition route reuses the existing validated-IR and
 generated-origin adapters to produce a positioned `untpd.DefDef`. Reverse

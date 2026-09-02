@@ -37,6 +37,14 @@ delivery chronology.
   family. It is not a public Scalameta-to-Dotty bridge or a generic `TermShape`
   backend. Exact structural rewriting of existing raw trees remains a separate
   U experiment and is not absorbed by this N-to-D route.
+- Preserve the richer package-private exact Term backend's bounded P2 closure:
+  one already-admitted `LocalVal` block consumes its authoritative completed
+  declared-Type sidecar before initializer sidecars, lowers the initializer in
+  the incoming scope, installs the existing BinderId only for later block
+  children, restores the incoming scope at exit, and supports both source-free
+  and generated-origin parser-equivalent raw trees. The direct Core lowerer
+  still rejects P2 because it has no authoritative completed Type sidecar;
+  P3/local definitions remain outside both Term backends.
 
 - Preserve one semantic architecture: source frontends project into the
   project-owned compiler-free model in `core`, followed by backend-specific

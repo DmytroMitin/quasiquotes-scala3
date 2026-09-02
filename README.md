@@ -167,7 +167,10 @@ construct/match boundary and its deliberate limits.
 - `dottyInternal` contains exact-compiler internal adapters and four narrow
   experimental foreign-package peer bridges: contextual-method lowering,
   bounded AUXify self abstract-Type-member lowering, delegated forwarding, and
-  the bounded AUXify-039 Type alias.
+  the bounded AUXify-039 Type alias. Its richer package-private Term backend
+  also accepts the bounded one-local-val P2 block when authoritative completed
+  Type sidecars are available; the narrower direct Core lowerer remains
+  intentionally closed to P2.
   Its source is present for review and testing, and its artifact remains
   remotely unpublished. The candidate `0.3.0` topology can stage it only in
   explicit expanded-release mode; consumers must match the exact Scala

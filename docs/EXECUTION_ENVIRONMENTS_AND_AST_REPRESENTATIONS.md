@@ -412,8 +412,10 @@ AUXify-039 Type-alias bridges plus the package-private Core Term backend. The
 latter composes the projector's accepted non-binder and transparent
 P0/binder-free P1 overlap with core `TermShape` and direct source-free raw
 construction. Typed Lambda1, P2, and P3 projected shapes stop at the direct
-lowerer's unsupported-shape boundary; P2 and P3 remain rejected by the richer
-Term backend. It is not a general Term bridge. See the
+lowerer's unsupported-shape boundary. The richer Term backend separately
+admits the bounded one-local-val P2 shape when completed declared-Type sidecars
+are available, in source-free and generated-origin modes; P3 remains rejected.
+It is not a general Term bridge. See the
 [Dotty-internal exact backend](DOTTY_INTERNAL_BACKEND.md).
 
 ## Exact-version `Quotes` and Dotty-internal interoperability

@@ -82,9 +82,11 @@ encoded by recursive `TermShape.Infix` structure.
   blocks, and emits source-free raw syntax. A direct Apply in function
   position is rejected as multiple lists, while Apply remains valid in
   argument and qualifier positions. Lambda1 and P2 are not admitted by this
-  direct lowerer; P2 also remains outside the richer exact backend. This is not
-  a general raw-tree API and does not perform U-style identity-preserving
-  rewriting of existing raw trees.
+  direct lowerer. The separate richer `ConstructedTermUntypedBackend` accepts
+  one admitted P2 local-val block using completed declared-Type sidecars and
+  existing BinderId scope, in source-free and generated-origin modes; P3/local
+  definitions remain rejected. This is not a general raw-tree API and does not
+  perform U-style identity-preserving rewriting of existing raw trees.
 - the aggregate and example projects publish no production artifacts.
 
 Only a Scalameta parse failure may select the current parser inside the hybrid
@@ -213,8 +215,10 @@ exact backend accepts the non-binder family above plus transparent P0 and
 binder-free P1 blocks; a direct Apply in function position is rejected as a
 second argument list, while Apply remains valid in argument and qualifier
 positions. Lambda1, P2, and P3 do not cross this direct edge; P2 and P3 remain
-closed in the richer exact path. The typed Scalameta frontend remains direct
-and is not refactored through this projector.
+outside the direct lowerer. The richer exact path admits the bounded P2 shape
+only when completed Type sidecars are present, while P3 remains rejected. The
+typed Scalameta frontend remains direct and is not refactored through this
+projector.
 
 AUXify's current narrow `@apply` path uses ordinary Scalameta `q`, `t`, and
 `tparam` authoring and Quasiquotes `ContextualMethodPeerBridge` lowering to an
