@@ -1,12 +1,12 @@
 package quasiquotes.neutral
 
-import _root_.quasiquotes.parser.TermShape
+import _root_.quasiquotes.parser.{ConstructorNamePolicy, TermShape}
 
 import scala.annotation.nowarn
 import scala.meta.*
 import scala.util.control.NonFatal
 
-/** Direct structural authoring for the bounded binder-free P0 TermShape family. */
+/** Direct structural authoring for the bounded binder-free P0 and constructor TermShape family. */
 @nowarn("cat=deprecation")
 object ScalametaTermShapeAuthoring:
   /** Stable bounded failure for TermShape-to-Scalameta Term authoring. */
@@ -53,6 +53,28 @@ object ScalametaTermShapeAuthoring:
             authored <- construct("ordinary Apply")(
               Term.Apply(authoredFunction, Term.ArgClause(authoredArguments))
             )
+          yield authored
+        case TermShape.New(constructor, arguments) =>
+          for
+            validatedConstructor <- ConstructorNamePolicy
+              .validate(constructor)
+              .left
+              .map(structureError)
+            authoredArguments <- traverse(arguments)(authorPresent)
+            authored <- construct("constructor-new term") {
+              val segments = validatedConstructor.split("\\.", -1).toList
+              val qualifier = segments.init.tail.foldLeft[Term.Ref](Term.Name(segments.head)) {
+                case (current, segment) => Term.Select(current, Term.Name(segment))
+              }
+              val constructorType = Type.Select(qualifier, Type.Name(segments.last))
+              Term.New(
+                Init(
+                  constructorType,
+                  Name.Anonymous(),
+                  List(Term.ArgClause(authoredArguments))
+                )
+              )
+            }
           yield authored
         case TermShape.Infix(left, operator, right) =>
           for
@@ -103,7 +125,7 @@ object ScalametaTermShapeAuthoring:
           Left(
             error(
               "NEUTRAL_TERM_AUTHORING_FAMILY_UNSUPPORTED",
-              "this TermShape family is outside binder-free N013 authoring."
+              "this TermShape family is outside binder-free N013/N014 authoring."
             )
           )
       }

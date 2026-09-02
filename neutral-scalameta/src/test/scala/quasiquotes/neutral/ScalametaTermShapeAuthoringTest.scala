@@ -159,7 +159,6 @@ final class ScalametaTermShapeAuthoringTest extends munit.FunSuite:
 
   test("fails closed for every explicitly excluded TermShape family"):
     val excluded = List(
-      TermShape.New("example.Box", Nil),
       TermShape.InterpolatedString("s", List("", ""), List(free)),
       TermShape.Typed(free, "Int"),
       TermShape.Block(List(TermShape.Literal("1")), TermShape.Literal("2")),
