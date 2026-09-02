@@ -19,6 +19,8 @@ object ScalametaOptInMacros:
     ${ ordinaryNullaryImpl('receiver) }
   inline def dynamicNullary(receiver: ScalametaNullarySelectedCallTarget): Int =
     ${ dynamicNullaryImpl('receiver) }
+  inline def definitionRoundTrip: Boolean = ${ definitionRoundTripImpl }
+  inline def definitionMismatchFallsThrough: Boolean = ${ definitionMismatchFallsThroughImpl }
 
   private def constructedImpl(using q: Quotes): Expr[(Int, Int)] =
     import q.reflect.*
@@ -111,3 +113,39 @@ object ScalametaOptInMacros:
       identity
     )
     qr"${receiver.asTerm}.$selected()".asExprOf[Int]
+
+  private def definitionRoundTripImpl(using q: Quotes): Expr[Boolean] =
+    import q.reflect.*
+    import quasiquotes.scalameta.ScalametaQuasiPattern.*
+    import quasiquotes.scalameta.ScalametaQuasiquotes.*
+
+    val callerType = TypeRepr.of[Int]
+    val definition = dqr"def identity(value: $callerType): $callerType = value"
+    val parameter = definition.paramss.head.asInstanceOf[TermParamClause].params.head
+    val body = definition.rhs.get
+    val captured = definition match
+      case dqq"def identity(value: Int): Int = $result" =>
+        val _: q.reflect.Term = result
+        Some(result)
+      case _ => None
+
+    Expr(
+      captured.exists(_.asInstanceOf[AnyRef].eq(body.asInstanceOf[AnyRef])) &&
+        definition.symbol.owner == Symbol.spliceOwner &&
+        parameter.symbol.owner == definition.symbol &&
+        parameter.tpt.tpe.asInstanceOf[AnyRef].eq(callerType.asInstanceOf[AnyRef]) &&
+        definition.returnTpt.tpe.asInstanceOf[AnyRef].eq(callerType.asInstanceOf[AnyRef])
+    )
+
+  private def definitionMismatchFallsThroughImpl(using q: Quotes): Expr[Boolean] =
+    import q.reflect.*
+    import quasiquotes.scalameta.ScalametaQuasiPattern.*
+    import quasiquotes.scalameta.ScalametaQuasiquotes.*
+
+    val callerType = TypeRepr.of[Int]
+    val definition = dqr"def identity(value: $callerType): $callerType = value"
+    Expr(
+      definition match
+        case dqq"def other(value: Int): Int = $body" => false
+        case _ => true
+    )

@@ -4,11 +4,6 @@ import scala.quoted.*
 import scala.util.matching.Regex
 
 import quasiquotes.definitions.DefinitionName
-import quasiquotes.publicapi.CompletedTerm
-import quasiquotes.publicapi.CompletedType
-import quasiquotes.publicapi.DefinitionConstruction
-import quasiquotes.types.TargetTypeReprInspector
-import quasiquotes.types.TypeNormalForm
 
 private[quasiquotes] object PublicDefinitionQuasiquote:
   private val DiagnosticPrefix = "Invalid dqr definition template:"
@@ -63,83 +58,6 @@ private[quasiquotes] object PublicDefinitionQuasiquote:
     if bodyNameSource != parameterName.source then
       abort("the body must reference the declared parameter name exactly.")
 
-    val inspectedTypes = args.zipWithIndex.map { (argument, index) =>
-      TargetTypeReprInspector.inspect(argument).fold(
-        error => abort(s"unsupported TypeRepr splice at ordinal $index: ${error.message}"),
-        identity
-      )
-    }
-    if inspectedTypes(0) != inspectedTypes(1) then
-      abort("the parameter and result TypeRepr splices must have equal normalized types.")
-
-    val completedType = toCompletedType(inspectedTypes.head).fold(abort, identity)
-    val completedBody = CompletedTerm
-      .definitionParameterReference(parameterName.decoded)
-      .fold(error => abort(error.message), identity)
-    DefinitionConstruction
-      .singleParameterMethod(
-        methodName.decoded,
-        parameterName.decoded,
-        completedType,
-        completedType,
-        completedBody
-      )
-      .fold(error => abort(error.message), _ => ())
-
-    val methodType = MethodType(List(parameterName.decoded))(
-      _ => List(args.head),
-      _ => args(1)
-    )
-    val methodSymbol = Symbol.newMethod(
-      Symbol.spliceOwner,
-      methodName.decoded,
-      methodType
-    )
-    DefDef(methodSymbol, parameterClauses =>
-      parameterClauses match
-        case List(List(parameter)) => Some(Ref(parameter.symbol))
-        case _ => abort("generated method parameters violated the single-parameter contract.")
-    )
-
-  private def toCompletedType(normalForm: TypeNormalForm): Either[String, CompletedType] =
-    normalForm match
-      case TypeNormalForm.STypeIdent(name) => named(name)
-      case TypeNormalForm.STypeResolved(id) =>
-        Left(s"Resolved selected Type `${id.canonicalSource}` is not admitted by the public Definition construction surface.")
-      case TypeNormalForm.STypeApply(constructor, arguments) =>
-        for
-          completedConstructor <- toCompletedType(constructor)
-          completedArguments <- collect(arguments.map(toCompletedType))
-          result <- CompletedType
-            .applied(completedConstructor, completedArguments.toVector)
-            .left
-            .map(_.message)
-        yield result
-      case TypeNormalForm.STypeTuple(elements) =>
-        applied(s"Tuple${elements.size}", elements)
-      case TypeNormalForm.STypeFunction(arguments, result) =>
-        applied(s"Function${arguments.size}", arguments :+ result)
-
-  private def named(name: String): Either[String, CompletedType] =
-    CompletedType.named(name).left.map(_.message)
-
-  private def applied(
-      constructor: String,
-      arguments: List[TypeNormalForm]
-  ): Either[String, CompletedType] =
-    for
-      completedConstructor <- named(constructor)
-      completedArguments <- collect(arguments.map(toCompletedType))
-      result <- CompletedType
-        .applied(completedConstructor, completedArguments.toVector)
-        .left
-        .map(_.message)
-    yield result
-
-  private def collect[A](values: List[Either[String, A]]): Either[String, List[A]] =
-    values.foldRight[Either[String, List[A]]](Right(Nil)) { (value, accumulated) =>
-      for
-        head <- value
-        tail <- accumulated
-      yield head :: tail
-    }
+    TypedSingleParameterDefinitionLowerer
+      .lower(methodName, parameterName, args.head, args(1))
+      .fold(abort, identity)

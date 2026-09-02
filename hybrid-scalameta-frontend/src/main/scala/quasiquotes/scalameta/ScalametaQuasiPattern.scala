@@ -3,6 +3,8 @@ package quasiquotes.scalameta
 import scala.quoted.Quotes
 
 import quasiquotes.matching.TermMatcher
+import quasiquotes.matching.SingleParameterDefinitionPattern
+import quasiquotes.definitions.hybrid.ScalametaDefinitionFrontend
 
 /** Bounded extractor for ordered captures from the opt-in pattern frontend. */
 final class ScalametaTermPatternExtractor[T] private[scalameta] (
@@ -73,4 +75,12 @@ object ScalametaQuasiPattern:
               .toOption
               .flatten
               .map(_.captures)
+          )
+
+    def dqq(using q: Quotes): SingleParameterDefinitionPattern =
+      ScalametaDefinitionFrontend.compilePattern(context.parts) match
+        case Right(pattern) => pattern
+        case Left(failure) =>
+          q.reflect.report.errorAndAbort(
+            s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"
           )

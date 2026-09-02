@@ -1,6 +1,19 @@
 package quasiquotes.matching
 
+import quasiquotes.definitions.DefinitionName
+import quasiquotes.types.TypeNormalForm
+
 final class DefinitionPatternConfigurationTest extends munit.FunSuite:
+  test("structured factory creates the existing matcher without source parsing"):
+    val pattern = DefinitionPattern.singleParameterStructured(
+      DefinitionName.plain("selected").toOption.get,
+      DefinitionName.plain("value").toOption.get,
+      TypeNormalForm.STypeIdent("Int"),
+      TypeNormalForm.STypeIdent("Int")
+    )
+
+    assert(pattern.isInstanceOf[SingleParameterDefinitionPattern])
+
   test("singleParameter accepts the exact bounded whole-body-hole grammar"):
     assert(
       DefinitionPattern

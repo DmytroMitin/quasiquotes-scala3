@@ -143,6 +143,19 @@ object DefinitionPattern:
       catch
         case NonFatal(_) => invalidPattern
 
+  private[quasiquotes] def singleParameterStructured(
+      methodName: DefinitionName,
+      parameterName: DefinitionName,
+      parameterType: TypeNormalForm,
+      resultType: TypeNormalForm
+  ): SingleParameterDefinitionPattern =
+    new SingleParameterDefinitionPattern(
+      methodName.decoded,
+      parameterName.decoded,
+      parameterType,
+      resultType
+    )
+
   private def compile(
       source: String
   ): Either[DefinitionPatternError, SingleParameterDefinitionPattern] =
@@ -152,8 +165,8 @@ object DefinitionPattern:
       parsed: ParsedPattern
   ): Either[DefinitionPatternError, SingleParameterDefinitionPattern] =
     for
-      _ <- DefinitionName.plain(parsed.methodName).left.map(_ => patternError)
-      _ <- DefinitionName
+      methodName <- DefinitionName.plain(parsed.methodName).left.map(_ => patternError)
+      parameterName <- DefinitionName
         .plain(parsed.parameterName)
         .left
         .map(_ => patternError)
@@ -165,10 +178,9 @@ object DefinitionPattern:
         .fromSource(parsed.resultTypeSource)
         .left
         .map(_ => patternError)
-    yield
-      new SingleParameterDefinitionPattern(
-        parsed.methodName,
-        parsed.parameterName,
+    yield singleParameterStructured(
+        methodName,
+        parameterName,
         parameterType,
         resultType
       )

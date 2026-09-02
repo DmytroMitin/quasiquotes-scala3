@@ -36,3 +36,7 @@ class ScalametaOptInSurfaceTest extends munit.FunSuite:
     assertEquals(ScalametaOptInMacros.constructorCapacity(16), 16)
     assertEquals(ScalametaOptInMacros.ordinaryNullary(receiver), 41)
     assertEquals(ScalametaOptInMacros.dynamicNullary(receiver), 41)
+
+  test("external opt-in Definition construction and matching preserve owners and body identity"):
+    assert(ScalametaOptInMacros.definitionRoundTrip)
+    assert(ScalametaOptInMacros.definitionMismatchFallsThrough)

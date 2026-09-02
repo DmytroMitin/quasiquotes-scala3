@@ -1,9 +1,9 @@
 # Hybrid Scalameta typed frontend experiment
 
 `hybridScalametaFrontend` is an unpublished, compiler-coupled opt-in source
-frontend for typed Term and Type construction and matching. It exists beside
-the released/default current-Dotty frontend; public ordinary `qr`/`qq` and
-`tqr`/`tqq` still use current-Dotty.
+frontend for typed Term, Type, and bounded Definition construction and
+matching. It exists beside the released/default current-Dotty frontend; public
+ordinary `qr`/`qq` and `tqr`/`tqq` still use current-Dotty.
 
 The [canonical architecture](ARCHITECTURE.md) owns the durable default,
 semantic-model, fallback, and parity status. This experiment document records
@@ -18,6 +18,16 @@ universe. Term matching projects into the existing project-owned
 `TypeShape`, `TypeNormalForm`, `TypeTemplate`, and `TypePattern` pipeline.
 Neither route prints a Scalameta tree for normal reparsing and neither creates
 a second semantic model.
+
+For the bounded Definition overlap, Scalameta admits exactly one ordinary
+fixed-name method with one ordinary fixed-name parameter. Construction places
+two collision-free placeholders only in the complete declared-Type fields and
+then forwards the original `TypeRepr` objects to the existing current-Dotty
+Definition lowerer. Matching places one collision-free sentinel in the
+complete RHS and creates the existing `SingleParameterDefinitionPattern` from
+validated names and `TypeNormalForm` values. The route neither prints/reparses
+through the handwritten Definition parser nor uses the neutral or exact
+Definition backends.
 
 The supported overlapping slice is checked differentially against the
 current-Dotty reference implementation on Scala 3.3.8 and 3.8.4. Type coverage
@@ -76,7 +86,8 @@ The module remains skipped in ordinary builds and becomes publish-enabled only
 under the explicit `-Dquasiquotes.expandedRelease=true` candidate-release
 mode. It is not remotely released today. Its public experimental package is
 limited to explicit `quasiquotes.scalameta` import hosts and the compact
-`TermFrontend`/`TypeFrontend` programmatic boundaries. Research lowerers,
+`TermFrontend`/`TypeFrontend` programmatic boundaries plus the two bounded
+Definition interpolators. Research lowerers,
 selectors, dialect policy, and parity inventories remain package-private.
 See [Scalameta opt-in artifact topology](SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md).
 
@@ -103,7 +114,8 @@ Scalameta `qr` can be inspected by current `qq`. This is tested overlap, not a
 promise that arbitrary future syntax can be mixed or that one route silently
 rescues the other.
 
-The typed opt-in currently exposes only `qr`/`qq` and `tqr`/`tqq`. It does not
-expose typed Scalameta `dqr`/`dqq`; direct Scalameta definition quasiquotes in
-the neutral module are source AST authoring, not reflected Definition
-construction or placement.
+The same hosts expose bounded `dqr`/`dqq` for the exact current-Dotty
+single-parameter identity-Definition overlap. They preserve the current typed
+owner/binder and original RHS capture contracts. Direct Scalameta definition
+quasiquotes in the neutral module remain source AST authoring, not reflected
+Definition construction or placement.
