@@ -3,9 +3,12 @@ package quasiquotes.neutral
 import _root_.quasiquotes.parser.{
   BinderId,
   BlockStatement,
+  LocalDefDiagnosticMessages,
   P2LocalValAdmission,
   P2LocalValDiagnosticMessages,
-  TermShape
+  SourceOwnedLocalDefAdmission,
+  TermShape,
+  TypeShape
 }
 import _root_.quasiquotes.terms.TermShapeTraversal
 
@@ -14,7 +17,7 @@ import scala.meta.*
 /** Compiler-free projection for the bounded ordinary source-Term family. */
 object ScalametaTermProjection:
   private enum BinderKind:
-    case Lambda1, P2LocalVal
+    case Lambda1, P2LocalVal, LocalDefMethod, LocalDefParameter
 
   private final case class ActiveBinder(
       name: String,
@@ -101,7 +104,13 @@ object ScalametaTermProjection:
       term: Term
   ): Either[NeutralProjectionError, ProjectedTermShape] =
     projectShape(term, Nil, new ProjectionState)
-      .map(ProjectedTermShape(_, truthfulSpan(term)))
+      .flatMap(shape =>
+        SourceOwnedLocalDefAdmission
+          .validate(shape)
+          .left
+          .map(localDefAdmissionError)
+          .map(_ => ProjectedTermShape(shape, truthfulSpan(term)))
+      )
 
   private def projectShape(
       term: Term,
@@ -218,6 +227,8 @@ object ScalametaTermProjection:
         )
       case (definition: Defn.Val) :: (result: Term) :: Nil =>
         projectP2LocalVal(definition, result, scope, state)
+      case (definition: Defn.Def) :: (result: Term) :: Nil =>
+        projectSourceOwnedLocalDef(definition, result, scope, state)
       case (_: Defn.Var) :: (_: Term) :: Nil =>
         Left(
           error(
@@ -242,8 +253,8 @@ object ScalametaTermProjection:
       case stats if stats.exists(_.isInstanceOf[Defn.Def]) =>
         Left(
           error(
-            "NEUTRAL_P2_LOCAL_DEF_UNSUPPORTED",
-            P2LocalValDiagnosticMessages.LocalDef
+            "NEUTRAL_LOCAL_DEF_EXACTLY_ONE_UNSUPPORTED",
+            LocalDefDiagnosticMessages.ExactlyOne
           )
         )
       case stats =>
@@ -256,6 +267,210 @@ object ScalametaTermProjection:
               result <- projectShape(terms.last, scope, state)
             yield TermShape.Block(prefix, result)
         }
+
+  private def projectSourceOwnedLocalDef(
+      definition: Defn.Def,
+      result: Term,
+      scope: List[ActiveBinder],
+      state: ProjectionState
+  ): Either[NeutralProjectionError, TermShape] =
+    for
+      _ <- require(
+        definition.mods.isEmpty,
+        "NEUTRAL_LOCAL_DEF_MODIFIERS_UNSUPPORTED",
+        LocalDefDiagnosticMessages.Modifiers
+      )
+      methodName <- validateSourceName(
+        definition.name.value,
+        "NEUTRAL_LOCAL_DEF_NAME_UNSUPPORTED",
+        "source-owned local-def method names"
+      )
+      group <- exactlyOne(
+        definition.paramClauseGroups,
+        "NEUTRAL_LOCAL_DEF_PARAMETER_CLAUSE_UNSUPPORTED",
+        LocalDefDiagnosticMessages.ParameterClause
+      )
+      _ <- require(
+        group.tparamClause.values.isEmpty,
+        "NEUTRAL_LOCAL_DEF_TYPE_PARAMETERS_UNSUPPORTED",
+        LocalDefDiagnosticMessages.TypeParameters
+      )
+      parameterClause <- exactlyOne(
+        group.paramClauses,
+        "NEUTRAL_LOCAL_DEF_PARAMETER_CLAUSE_UNSUPPORTED",
+        LocalDefDiagnosticMessages.ParameterClause
+      )
+      _ <- require(
+        parameterClause.mod.isEmpty,
+        "NEUTRAL_LOCAL_DEF_PARAMETER_CLAUSE_UNSUPPORTED",
+        LocalDefDiagnosticMessages.ParameterClause
+      )
+      parameter <- exactlyOne(
+        parameterClause.values,
+        "NEUTRAL_LOCAL_DEF_PARAMETER_CLAUSE_UNSUPPORTED",
+        LocalDefDiagnosticMessages.ParameterClause
+      )
+      _ <- require(
+        parameter.mods.isEmpty && parameter.default.isEmpty,
+        "NEUTRAL_LOCAL_DEF_PARAMETER_CLAUSE_UNSUPPORTED",
+        LocalDefDiagnosticMessages.ParameterClause
+      )
+      parameterName <- validateSourceName(
+        parameter.name.value,
+        "NEUTRAL_LOCAL_DEF_NAME_UNSUPPORTED",
+        "source-owned local-def parameter names"
+      )
+      parameterType <- parameter.decltpe
+        .toRight(
+          error(
+            "NEUTRAL_LOCAL_DEF_PARAMETER_TYPE_REQUIRED",
+            LocalDefDiagnosticMessages.ExplicitTypes
+          )
+        )
+        .flatMap(
+          projectLocalDefType(
+            _,
+            "NEUTRAL_LOCAL_DEF_PARAMETER_TYPE_UNSUPPORTED"
+          )
+        )
+      resultType <- definition.decltpe
+        .toRight(
+          error(
+            "NEUTRAL_LOCAL_DEF_RESULT_TYPE_REQUIRED",
+            LocalDefDiagnosticMessages.ExplicitTypes
+          )
+        )
+        .flatMap(
+          projectLocalDefType(
+            _,
+            "NEUTRAL_LOCAL_DEF_RESULT_TYPE_UNSUPPORTED"
+          )
+        )
+      _ <- require(
+        parameterType == resultType,
+        "NEUTRAL_LOCAL_DEF_INCOMPATIBLE_TYPES_UNSUPPORTED",
+        LocalDefDiagnosticMessages.IncompatibleResultType
+      )
+      methodBinder = ActiveBinder(
+        methodName,
+        state.allocateBinder(),
+        BinderKind.LocalDefMethod
+      )
+      parameterBinder = ActiveBinder(
+        parameterName,
+        state.allocateBinder(),
+        BinderKind.LocalDefParameter
+      )
+      body <- projectLocalDefBody(
+        definition.body,
+        methodBinder,
+        parameterBinder,
+        scope,
+        state
+      )
+      resultShape <- projectLocalDefResult(
+        result,
+        methodBinder,
+        scope,
+        state
+      )
+    yield TermShape.Block(
+      List(
+        BlockStatement.LocalDef(
+          methodBinder.id,
+          methodName,
+          parameterBinder.id,
+          parameterName,
+          parameterType,
+          resultType,
+          body
+        )
+      ),
+      resultShape
+    )
+
+  private def projectLocalDefType(
+      sourceType: Type,
+      unsupportedCode: String
+  ): Either[NeutralProjectionError, TypeShape] =
+    val normalized = sourceType match
+      case name: Type.Name =>
+        name.value match
+          case "Int" | "String" | "Boolean" => Some(name.value)
+          case _ => None
+      case selected: Type.Select =>
+        (termPath(selected.qual), selected.name.value) match
+          case (Some(List("scala")), "Int") => Some("Int")
+          case (Some(List("scala")), "String") => Some("String")
+          case (Some(List("scala")), "Boolean") => Some("Boolean")
+          case _ => None
+      case _ => None
+
+    normalized
+      .map(name => TypeShape.Identifier(name))
+      .toRight(error(unsupportedCode, LocalDefDiagnosticMessages.UnsupportedTypes))
+
+  private def projectLocalDefBody(
+      body: Term,
+      methodBinder: ActiveBinder,
+      parameterBinder: ActiveBinder,
+      scope: List[ActiveBinder],
+      state: ProjectionState
+  ): Either[NeutralProjectionError, TermShape] =
+    body match
+      case name: Term.Name if name.value == parameterBinder.name =>
+        projectShape(name, parameterBinder :: scope, state).flatMap {
+          case reference @ TermShape.BoundReference(id, _)
+              if id == parameterBinder.id => Right(reference)
+          case _ =>
+            Left(
+              error(
+                "NEUTRAL_LOCAL_DEF_BODY_UNSUPPORTED",
+                LocalDefDiagnosticMessages.Body
+              )
+            )
+        }
+      case name: Term.Name if name.value == methodBinder.name =>
+        Left(
+          error(
+            "NEUTRAL_LOCAL_DEF_RECURSION_UNSUPPORTED",
+            LocalDefDiagnosticMessages.Body
+          )
+        )
+      case _ =>
+        Left(
+          error(
+            "NEUTRAL_LOCAL_DEF_BODY_UNSUPPORTED",
+            LocalDefDiagnosticMessages.Body
+          )
+        )
+
+  private def projectLocalDefResult(
+      result: Term,
+      methodBinder: ActiveBinder,
+      scope: List[ActiveBinder],
+      state: ProjectionState
+  ): Either[NeutralProjectionError, TermShape] =
+    result match
+      case name: Term.Name if name.value == methodBinder.name =>
+        projectShape(name, methodBinder :: scope, state).flatMap {
+          case reference @ TermShape.BoundReference(id, _)
+              if id == methodBinder.id => Right(reference)
+          case _ =>
+            Left(
+              error(
+                "NEUTRAL_LOCAL_DEF_RESULT_UNSUPPORTED",
+                "Source-owned local def final result must be exactly its method reference."
+              )
+            )
+        }
+      case _ =>
+        Left(
+          error(
+            "NEUTRAL_LOCAL_DEF_RESULT_UNSUPPORTED",
+            "Source-owned local def final result must be exactly its method reference."
+          )
+        )
 
   private def projectP2LocalVal(
       definition: Defn.Val,
@@ -553,6 +768,14 @@ object ScalametaTermProjection:
           violation.message
         )
 
+  private def localDefAdmissionError(
+      violation: SourceOwnedLocalDefAdmission.Violation
+  ): NeutralProjectionError =
+    error(
+      "NEUTRAL_LOCAL_DEF_SECOND_OR_NESTED_UNSUPPORTED",
+      violation.message
+    )
+
   private def mapP2ChildFailure[A](
       projection: Either[NeutralProjectionError, A],
       code: String,
@@ -620,6 +843,15 @@ object ScalametaTermProjection:
       detail: String
   ): Either[NeutralProjectionError, Unit] =
     Either.cond(condition, (), error(code, detail))
+
+  private def exactlyOne[A](
+      values: List[A],
+      code: String,
+      detail: String
+  ): Either[NeutralProjectionError, A] =
+    values match
+      case value :: Nil => Right(value)
+      case _ => Left(error(code, detail))
 
   private def error(code: String, detail: String): NeutralProjectionError =
     NeutralProjectionError(code, detail)

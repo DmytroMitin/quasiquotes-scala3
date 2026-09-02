@@ -188,7 +188,7 @@ final class ScalametaP2LocalValProjectionTest extends munit.FunSuite:
         "NEUTRAL_P2_EXACTLY_ONE_LOCAL_VAL_UNSUPPORTED",
       parsed("{ 0; val x: Int = 1; x }") ->
         "NEUTRAL_P2_EXACTLY_ONE_LOCAL_VAL_UNSUPPORTED",
-      parsed("{ def f = 1; f }") -> "NEUTRAL_P2_LOCAL_DEF_UNSUPPORTED",
+      parsed("{ def f = 1; f }") -> "NEUTRAL_LOCAL_DEF_PARAMETER_CLAUSE_UNSUPPORTED",
       parsed("{ import scala.util.Try; result }") -> "NEUTRAL_BLOCK_STATEMENT_UNSUPPORTED"
     )
 
