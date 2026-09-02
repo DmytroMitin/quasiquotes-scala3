@@ -304,7 +304,6 @@ final class ScalametaTermProjectionTest extends munit.FunSuite:
   test("rejects every representative non-admitted Term family deterministically"):
     val unsupported = List[(Term, String)](
       q"throw boom" -> "Term.Throw",
-      q"(1: Int)" -> "Term.Ascribe",
       Lit.Unit() -> "Lit.Unit"
     )
 

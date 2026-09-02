@@ -150,6 +150,14 @@ object ScalametaTermProjection:
         )
       case fresh: Term.New =>
         projectNew(fresh, scope, state)
+      case ascription: Term.Ascribe =>
+        for
+          expression <- projectShape(ascription.expr, scope, state)
+          projectedType <- ScalametaTypeNormalFormProjection.project(ascription.tpe)
+        yield TermShape.Typed(
+          expression,
+          TermShapeTraversal.renderNormalForm(projectedType.normalForm)
+        )
       case interpolation: Term.Interpolate =>
         projectInterpolation(interpolation, scope, state)
       case Lit.Int(value) =>
