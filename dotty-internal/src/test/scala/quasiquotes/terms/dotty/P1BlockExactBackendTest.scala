@@ -66,11 +66,7 @@ class P1BlockExactBackendTest extends munit.FunSuite:
       TermShape.Block(List(local), TermShape.Literal("1")) -> "prefix entry 0 is LocalVal",
       TermShape.Block(
         List(
-          TermShape.InterpolatedString(
-            "s",
-            List("", ""),
-            List(TermShape.Literal("1"))
-          )
+          TermShape.Typed(TermShape.Literal("1"), "Int")
         ),
         TermShape.Literal("1")
       ) ->

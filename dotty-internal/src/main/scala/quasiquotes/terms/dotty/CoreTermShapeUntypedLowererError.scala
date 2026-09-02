@@ -61,6 +61,26 @@ private[quasiquotes] object CoreTermShapeUntypedLowererError:
     def message: String =
       s"Invalid bounded exact-backend unary operator `${String.valueOf(operator)}`: expected one of +, -, !, or ~."
 
+  final case class UnsupportedInterpolationPrefix(prefix: String)
+      extends CoreTermShapeUntypedLowererError:
+    def message: String =
+      s"Unsupported bounded exact-backend interpolation prefix `$prefix`: expected exactly standard `s`."
+
+  final case class MalformedInterpolation(parts: Int, arguments: Int)
+      extends CoreTermShapeUntypedLowererError:
+    def message: String =
+      s"Malformed bounded exact-backend interpolation: parts=$parts arguments=$arguments; expected parts == arguments + 1 and non-null collections."
+
+  final case class NullInterpolationPart(index: Int)
+      extends CoreTermShapeUntypedLowererError:
+    def message: String =
+      s"Malformed bounded exact-backend interpolation: part $index is null."
+
+  final case class NullInterpolationArgument(index: Int)
+      extends CoreTermShapeUntypedLowererError:
+    def message: String =
+      s"Malformed bounded exact-backend interpolation: argument $index is null."
+
   case object MissingTupleElements extends CoreTermShapeUntypedLowererError:
     def message: String =
       "Cannot lower a bounded exact-backend Tuple with a missing element list."

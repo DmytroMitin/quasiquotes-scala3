@@ -161,6 +161,8 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
               rawOperand
             )
           )
+      case Some(TermShape.InterpolatedString(prefix, parts, arguments)) =>
+        lowerInterpolation(prefix, parts, arguments)
       case Some(TermShape.Tuple(elements)) =>
         Option(elements) match
           case None => Left(MissingTupleElements)
@@ -195,6 +197,59 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
       rawNew = untpd.New(rawType)
       rawConstructor = untpd.Select(rawNew, termName("<init>"))
     yield untpd.Apply(rawConstructor, rawArguments)
+
+  private def lowerInterpolation(
+      prefix: String,
+      parts: List[String],
+      arguments: List[TermShape]
+  )(using SourceFile): Either[CoreTermShapeUntypedLowererError, untpd.Tree] =
+    for
+      _ <- validateInterpolation(prefix, parts, arguments)
+      rawArguments <- traverse(arguments)(lowerAdmitted)
+      rawSegments = parts.init
+        .zip(arguments)
+        .zip(rawArguments)
+        .map { case ((part, shape), rawArgument) =>
+          val encoded = StandardSInterpolationEncoding.encodePart(part)
+          val literal = untpd.Literal(Constant(encoded.rawLiteralValue))
+          val argument =
+            if StandardSInterpolationEncoding.isDirectArgument(shape) then
+              rawArgument
+            else untpd.Block(Nil, rawArgument)
+          untpd.Thicket(literal :: argument :: Nil)
+        } :+
+        untpd.Literal(
+          Constant(
+            StandardSInterpolationEncoding
+              .encodePart(parts.last)
+              .rawLiteralValue
+          )
+        )
+    yield untpd.InterpolatedString(termName(prefix), rawSegments)
+
+  private def validateInterpolation(
+      prefix: String,
+      parts: List[String],
+      arguments: List[TermShape]
+  ): Either[CoreTermShapeUntypedLowererError, Unit] =
+    if prefix != "s" then
+      Left(UnsupportedInterpolationPrefix(String.valueOf(prefix)))
+    else if parts == null || arguments == null then
+      Left(
+        MalformedInterpolation(
+          Option(parts).fold(-1)(_.size),
+          Option(arguments).fold(-1)(_.size)
+        )
+      )
+    else if parts.size != arguments.size + 1 then
+      Left(MalformedInterpolation(parts.size, arguments.size))
+    else
+      parts.zipWithIndex.collectFirst { case (null, index) => index } match
+        case Some(index) => Left(NullInterpolationPart(index))
+        case None =>
+          arguments.zipWithIndex.collectFirst { case (null, index) => index } match
+            case Some(index) => Left(NullInterpolationArgument(index))
+            case None => Right(())
 
   private def validateConstructorArguments(
       arguments: List[TermShape]
@@ -307,6 +362,10 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
       Left(SourceFreeInvariantViolation(nodeKind, "the tree contains TypedSplice."))
     else
       tree match
+        case untpd.InterpolatedString(_, segments) =>
+          traverse(segments)(verifySourceFree).map(_ => ())
+        case untpd.Thicket(trees) =>
+          traverse(trees)(verifySourceFree).map(_ => ())
         case untpd.Select(qualifier, _) => verifySourceFree(qualifier)
         case fresh: untpd.New => verifySourceFree(fresh.tpt)
         case untpd.Apply(function, arguments) =>
