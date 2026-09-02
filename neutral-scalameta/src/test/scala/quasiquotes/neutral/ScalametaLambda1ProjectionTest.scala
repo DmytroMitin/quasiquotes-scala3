@@ -133,7 +133,7 @@ final class ScalametaLambda1ProjectionTest extends munit.FunSuite:
       modified -> "NEUTRAL_LAMBDA_PARAMETER_MODIFIERS_UNSUPPORTED",
       parsed("(x: List[Int]) => x") -> "NEUTRAL_LAMBDA_PARAMETER_TYPE_UNSUPPORTED",
       parsed("(x: custom.Type) => x") -> "NEUTRAL_LAMBDA_PARAMETER_TYPE_UNSUPPORTED",
-      parsed("(x: Int) => new java.lang.StringBuilder(16)") -> "NEUTRAL_TERM_UNSUPPORTED"
+      parsed("(x: Int) => (x match { case _ => 1 })") -> "NEUTRAL_TERM_UNSUPPORTED"
     )
 
     cases.foreach { (term, expectedCode) =>

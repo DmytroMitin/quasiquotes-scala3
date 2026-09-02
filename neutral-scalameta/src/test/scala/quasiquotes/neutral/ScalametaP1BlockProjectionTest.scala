@@ -165,11 +165,11 @@ final class ScalametaP1BlockProjectionTest extends munit.FunSuite:
 
   test("propagates unsupported children and the N004 nested-lambda boundary"):
     assertErrorCode(
-      parsed("{ new java.lang.StringBuilder(16); result }"),
+      parsed("{ value match { case _ => 1 }; result }"),
       "NEUTRAL_TERM_UNSUPPORTED"
     )
     assertErrorCode(
-      parsed("{ first(); new java.lang.StringBuilder(16) }"),
+      parsed("{ first(); value match { case _ => 1 } }"),
       "NEUTRAL_TERM_UNSUPPORTED"
     )
     assertErrorCode(

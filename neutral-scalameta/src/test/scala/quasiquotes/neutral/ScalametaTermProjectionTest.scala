@@ -119,7 +119,7 @@ final class ScalametaTermProjectionTest extends munit.FunSuite:
       TermShape.Unary("-", TermShape.Literal("1"))
     )
     assertErrorCode(
-      Term.ApplyUnary(Term.Name("!"), q"new java.lang.StringBuilder(16)"),
+      Term.ApplyUnary(Term.Name("!"), q"value match { case _ => 1 }"),
       "NEUTRAL_TERM_UNSUPPORTED"
     )
 
@@ -303,7 +303,7 @@ final class ScalametaTermProjectionTest extends munit.FunSuite:
 
   test("rejects every representative non-admitted Term family deterministically"):
     val unsupported = List[(Term, String)](
-      q"new java.lang.StringBuilder(16)" -> "Term.New",
+      q"throw boom" -> "Term.Throw",
       q"(1: Int)" -> "Term.Ascribe",
       Input.String("s\"value=$f\"").parse[Term].get -> "Term.Interpolate",
       Lit.Unit() -> "Lit.Unit"
@@ -389,11 +389,11 @@ final class ScalametaTermProjectionTest extends munit.FunSuite:
 
   test("propagates a nested unsupported child without manufacturing TermShape.Unsupported"):
     assertEquals(
-      ScalametaTermProjection.project(q"f(new java.lang.StringBuilder(16))"),
+      ScalametaTermProjection.project(q"f(value match { case _ => 1 })"),
       Left(
         NeutralProjectionError(
           "NEUTRAL_TERM_UNSUPPORTED",
-          "unsupported Scalameta term node: Term.New."
+          "unsupported Scalameta term node: Term.Match."
         )
       )
     )

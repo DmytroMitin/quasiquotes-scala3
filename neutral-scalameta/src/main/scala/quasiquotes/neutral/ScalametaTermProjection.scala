@@ -3,6 +3,7 @@ package quasiquotes.neutral
 import _root_.quasiquotes.parser.{
   BinderId,
   BlockStatement,
+  ConstructorNamePolicy,
   LocalDefDiagnosticMessages,
   P2LocalValAdmission,
   P2LocalValDiagnosticMessages,
@@ -139,6 +140,15 @@ object ScalametaTermProjection:
         projectLambda1(function, scope, state)
       case block: Term.Block =>
         projectBlock(block, scope, state)
+      case _: Term.NewAnonymous =>
+        Left(
+          error(
+            "NEUTRAL_NEW_ANONYMOUS_UNSUPPORTED",
+            "constructor-new projection does not admit anonymous templates."
+          )
+        )
+      case fresh: Term.New =>
+        projectNew(fresh, scope, state)
       case Lit.Int(value) =>
         Right(TermShape.Literal(value.toString))
       case Lit.String(value) =>
@@ -608,6 +618,93 @@ object ScalametaTermProjection:
       function <- projectShape(application.fun, scope, state)
       arguments <- traverse(application.argClause.values)(projectApplyArgument(_, scope, state))
     yield TermShape.Apply(function, arguments)
+
+  private final case class ConstructorSegment(
+      value: String,
+      tokenText: Option[String]
+  )
+
+  private def projectNew(
+      fresh: Term.New,
+      scope: List[ActiveBinder],
+      state: ProjectionState
+  ): Either[NeutralProjectionError, TermShape] =
+    for
+      segments <- constructorTypeSegments(fresh.init.tpe)
+      _ <- require(
+        segments.forall(segment => segment.tokenText.forall(_ == segment.value)),
+        "NEUTRAL_NEW_CONSTRUCTOR_NAME_UNSUPPORTED",
+        "constructor names must use unquoted plain identifier segments."
+      )
+      constructorName <- ConstructorNamePolicy
+        .validate(segments.map(_.value).mkString("."))
+        .left
+        .map(detail => error("NEUTRAL_NEW_CONSTRUCTOR_NAME_UNSUPPORTED", detail))
+      argumentClause <- exactlyOne(
+        fresh.init.argClauses.toList,
+        "NEUTRAL_NEW_ARGUMENT_LIST_UNSUPPORTED",
+        "constructor-new projection requires exactly one ordinary positional argument list."
+      )
+      _ <- require(
+        argumentClause.mod.isEmpty,
+        "NEUTRAL_NEW_ARGUMENT_LIST_UNSUPPORTED",
+        "constructor-new projection requires exactly one ordinary positional argument list."
+      )
+      arguments <- traverse(argumentClause.values)(projectNewArgument(_, scope, state))
+    yield TermShape.New(constructorName, arguments)
+
+  private def constructorTypeSegments(
+      constructorType: Type
+  ): Either[NeutralProjectionError, List[ConstructorSegment]] =
+    constructorType match
+      case name: Type.Name => Right(ConstructorSegment(name.value, nameTokenText(name)) :: Nil)
+      case select: Type.Select =>
+        constructorQualifierSegments(select.qual)
+          .map(_ :+ ConstructorSegment(select.name.value, nameTokenText(select.name)))
+      case _ =>
+        Left(
+          error(
+            "NEUTRAL_NEW_CONSTRUCTOR_TYPE_UNSUPPORTED",
+            "constructor-new projection admits only structural Type.Name/Type.Select paths without type arguments."
+          )
+        )
+
+  private def constructorQualifierSegments(
+      qualifier: Term
+  ): Either[NeutralProjectionError, List[ConstructorSegment]] =
+    qualifier match
+      case name: Term.Name =>
+        Right(ConstructorSegment(name.value, nameTokenText(name)) :: Nil)
+      case select: Term.Select =>
+        constructorQualifierSegments(select.qual)
+          .map(_ :+ ConstructorSegment(select.name.value, nameTokenText(select.name)))
+      case _ =>
+        Left(
+          error(
+            "NEUTRAL_NEW_CONSTRUCTOR_TYPE_UNSUPPORTED",
+            "constructor-new projection admits only structural Type.Name/Type.Select paths without type arguments."
+          )
+        )
+
+  private def nameTokenText(name: Name): Option[String] =
+    name.tokens.toList match
+      case Nil => None
+      case tokens => Some(tokens.map(_.text).mkString)
+
+  private def projectNewArgument(
+      argument: Term,
+      scope: List[ActiveBinder],
+      state: ProjectionState
+  ): Either[NeutralProjectionError, TermShape] =
+    argument match
+      case _: Term.Assign | _: Term.Repeated =>
+        Left(
+          error(
+            "NEUTRAL_NEW_ARGUMENT_UNSUPPORTED",
+            s"constructor-new arguments must be positional Terms, found ${argument.productPrefix}."
+          )
+        )
+      case other => projectShape(other, scope, state)
 
   private def projectApplyArgument(
       argument: Term,

@@ -180,9 +180,9 @@ final class ScalametaP2LocalValProjectionTest extends munit.FunSuite:
       modified -> "NEUTRAL_P2_MODIFIERS_UNSUPPORTED",
       parsed("{ val x: Map[Int, String] = source; x }") ->
         "NEUTRAL_P2_DECLARED_TYPE_UNSUPPORTED",
-      parsed("{ val x: Int = new java.lang.StringBuilder(16); x }") ->
+      parsed("{ val x: Int = value match { case _ => 1 }; x }") ->
         "NEUTRAL_P2_INITIALIZER_UNSUPPORTED",
-      parsed("{ val x: Int = 1; new java.lang.StringBuilder(16) }") ->
+      parsed("{ val x: Int = 1; value match { case _ => 1 } }") ->
         "NEUTRAL_P2_RESULT_UNSUPPORTED",
       parsed("{ val x: Int = 1; val y: Int = 2; y }") ->
         "NEUTRAL_P2_EXACTLY_ONE_LOCAL_VAL_UNSUPPORTED",
