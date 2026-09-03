@@ -94,6 +94,21 @@ final class ScalametaP1BlockAuthoringTest extends munit.FunSuite:
     assertNotEquals(original, movedResult)
     List(original, swapped, movedResult).foreach(shape => assertRoundTrip(shape, author(shape)))
 
+  test("recursively authors N019 interpolation in P1 prefix and result positions"):
+    val interpolation = TermShape.InterpolatedString(
+      "s",
+      List("value=", ""),
+      List(TermShape.Identifier("x", false))
+    )
+    val shape = block(
+      List(interpolation),
+      TermShape.InterpolatedString("s", List("done"), Nil)
+    )
+
+    val authored = author(shape).asInstanceOf[Term.Block]
+    assertRoundTrip(shape, authored)
+    assert(authored.stats.forall(_.isInstanceOf[Term.Interpolate]))
+
   test("rejects LocalVal and LocalDef prefixes through the family boundary"):
     val localVal = BlockStatement.LocalVal(
       BinderId(0),
@@ -128,8 +143,7 @@ final class ScalametaP1BlockAuthoringTest extends munit.FunSuite:
     val excluded = List[TermShape](
       lambda,
       TermShape.BoundReference(BinderId(4), "x"),
-      TermShape.Typed(TermShape.Literal("1"), "Int"),
-      TermShape.InterpolatedString("s", List("", ""), List(ident("x")))
+      TermShape.Typed(TermShape.Literal("1"), "Int")
     )
 
     excluded.foreach(child =>

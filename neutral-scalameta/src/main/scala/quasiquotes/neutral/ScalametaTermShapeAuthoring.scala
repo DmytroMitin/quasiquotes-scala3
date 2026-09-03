@@ -6,7 +6,7 @@ import scala.annotation.nowarn
 import scala.meta.*
 import scala.util.control.NonFatal
 
-/** Direct structural authoring for the bounded binder-free P0/P1 and constructor TermShape family. */
+/** Direct structural authoring for the bounded binder-free P0/P1, constructor, and standard-s TermShape family. */
 @nowarn("cat=deprecation")
 object ScalametaTermShapeAuthoring:
   /** Stable bounded failure for TermShape-to-Scalameta Term authoring. */
@@ -121,6 +121,30 @@ object ScalametaTermShapeAuthoring:
               Term.If(authoredCondition, authoredThen, authoredElse)
             )
           yield authored
+        case TermShape.InterpolatedString(prefix, parts, arguments) =>
+          for
+            _ <- require(
+              Option(prefix).contains("s"),
+              "standard interpolation authoring admits exactly the s prefix."
+            )
+            presentParts <- Option(parts)
+              .toRight(structureError("interpolation part lists must be present."))
+            presentArguments <- Option(arguments)
+              .toRight(structureError("interpolation argument lists must be present."))
+            _ <- require(
+              presentParts.size == presentArguments.size + 1,
+              "interpolation authoring requires one more part than argument."
+            )
+            encodedParts <- traverse(presentParts)(encodeStandardInterpolationPart)
+            authoredArguments <- traverse(presentArguments)(authorInterpolationArgument)
+            authored <- construct("standard s interpolation")(
+              Term.Interpolate(
+                Term.Name("s"),
+                encodedParts.map(Lit.String(_)),
+                authoredArguments
+              )
+            )
+          yield authored
         case TermShape.Block(statements, result) =>
           for
             authoredStatements <- traverse(statements)(authorBlockStatement)
@@ -133,7 +157,7 @@ object ScalametaTermShapeAuthoring:
           Left(
             error(
               "NEUTRAL_TERM_AUTHORING_FAMILY_UNSUPPORTED",
-              "this TermShape family is outside binder-free N013/N014/N015 authoring."
+              "this TermShape family is outside binder-free N013-N015/N019 authoring."
             )
           )
       }
@@ -151,6 +175,15 @@ object ScalametaTermShapeAuthoring:
             )
           )
       }
+
+  private def authorInterpolationArgument(shape: TermShape): Either[Error, Term] =
+    authorPresent(shape).flatMap {
+      case block: Term.Block =>
+        construct("standard s interpolation block argument wrapper")(
+          Term.Block(List(block))
+        )
+      case other => Right(other)
+    }
 
   private def authorLiteral(value: String): Either[Error, Term] =
     Option(value)
@@ -183,6 +216,24 @@ object ScalametaTermShapeAuthoring:
             )
           )
       }
+
+  private def encodeStandardInterpolationPart(value: String): Either[Error, String] =
+    Option(value)
+      .toRight(structureError("interpolation semantic parts must be present."))
+      .map(
+        _.flatMap {
+          case '\\' => "\\\\"
+          case '"' => "\\u0022"
+          case '\n' => "\\n"
+          case '\r' => "\\r"
+          case '\t' => "\\t"
+          case '\b' => "\\b"
+          case '\f' => "\\f"
+          case character if character < ' ' || character == '\u007f' =>
+            f"\\u${character.toInt}%04x"
+          case character => character.toString
+        }
+      )
 
   private def isCanonicalDecimal(value: String): Boolean =
     val firstDigit = if value.startsWith("-") then 1 else 0

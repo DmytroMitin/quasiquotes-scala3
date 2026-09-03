@@ -55,6 +55,18 @@ final class ScalametaConstructorNewAuthoringTest extends munit.FunSuite:
     assert(allTrees(authored).forall(_.pos == Position.None))
     authored.init.argClauses.foreach(clause => assertEquals(clause.pos, Position.None))
 
+  test("recursively authors N019 interpolation inside a New argument"):
+    val interpolation = TermShape.InterpolatedString(
+      "s",
+      List("value=", ""),
+      List(free)
+    )
+    val shape = TermShape.New("synthetic.unresolved.Widget", List(interpolation))
+
+    val authored = author(shape).asInstanceOf[Term.New]
+    assertRoundTrip(shape, authored)
+    assert(authored.init.argClauses.head.values.head.isInstanceOf[Term.Interpolate])
+
   test("rejects every malformed constructor spelling through one bounded category"):
     List(
       null,
@@ -85,7 +97,6 @@ final class ScalametaConstructorNewAuthoringTest extends munit.FunSuite:
   test("retains child-family failures and rejects a malformed nested constructor"):
     List(
       TermShape.Typed(free, "Int"),
-      TermShape.InterpolatedString("s", List("", ""), List(free)),
       TermShape.Parenthesized(free)
     ).foreach(child =>
       assertErrorCode(
