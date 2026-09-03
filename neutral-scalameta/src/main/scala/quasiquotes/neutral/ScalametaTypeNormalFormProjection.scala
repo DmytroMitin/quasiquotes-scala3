@@ -12,20 +12,27 @@ object ScalametaTypeNormalFormProjection:
   def project(
       sourceType: Type
   ): Either[NeutralProjectionError, ProjectedTypeNormalForm] =
-    Option(sourceType)
-      .toRight(error("NEUTRAL_TYPE_MISSING", "the Scalameta type must be present."))
-      .flatMap(projectPresent)
+    projectValidated(sourceType).map { (shape, normalForm) =>
+      ProjectedTypeNormalForm(normalForm, truthfulSpan(sourceType))
+    }
 
-  private def projectPresent(
+  private[quasiquotes] def projectValidatedShape(
       sourceType: Type
-  ): Either[NeutralProjectionError, ProjectedTypeNormalForm] =
+  ): Either[NeutralProjectionError, TypeShape] =
+    projectValidated(sourceType).map(_._1)
+
+  private def projectValidated(
+      sourceType: Type
+  ): Either[NeutralProjectionError, (TypeShape, TypeNormalForm)] =
     for
-      shape <- projectShape(sourceType)
+      present <- Option(sourceType)
+        .toRight(error("NEUTRAL_TYPE_MISSING", "the Scalameta type must be present."))
+      shape <- projectShape(present)
       normalForm <- TypeNormalForm
         .fromShape(shape)
         .left
         .map(problem => error("NEUTRAL_TYPE_NORMAL_FORM_REJECTED", problem.message))
-    yield ProjectedTypeNormalForm(normalForm, truthfulSpan(sourceType))
+    yield shape -> normalForm
 
   private def projectShape(
       sourceType: Type
