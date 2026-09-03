@@ -205,6 +205,92 @@ final class ScalametaStandardSInterpolationProjectionTest extends munit.FunSuite
       )
     )
 
+  test("recursively projects direct and one-Term-braced ordinary nested interpolation"):
+    val inner = Term.Interpolate(
+      Term.Name("s"),
+      List(Lit.String("inner=\\\\n:"), Lit.String("")),
+      List(Term.Name("x"))
+    )
+    val expectedInner = TermShape.InterpolatedString(
+      "s",
+      List("inner=\\n:", ""),
+      List(TermShape.Identifier("x", isPlaceholder = false))
+    )
+    val expectedOuter = TermShape.InterpolatedString(
+      "s",
+      List("outer=", ""),
+      List(expectedInner)
+    )
+    val direct = Term.Interpolate(
+      Term.Name("s"),
+      List(Lit.String("outer="), Lit.String("")),
+      List(inner)
+    )
+    val braced = Term.Interpolate(
+      Term.Name("s"),
+      List(Lit.String("outer="), Lit.String("")),
+      List(Term.Block(List(inner)))
+    )
+
+    List(direct, braced).foreach { tree =>
+      assertEquals(
+        ScalametaTermProjection.project(tree),
+        Right(ProjectedTermShape(expectedOuter, None))
+      )
+    }
+
+  test("projects two recursive interpolation levels in order with a truthful root span"):
+    val source = "s\"outer=${s\"middle=${s\"leaf=$x\"}\"}\""
+    val expected = TermShape.InterpolatedString(
+      "s",
+      List("outer=", ""),
+      List(
+        TermShape.InterpolatedString(
+          "s",
+          List("middle=", ""),
+          List(
+            TermShape.InterpolatedString(
+              "s",
+              List("leaf=", ""),
+              List(TermShape.Identifier("x", isPlaceholder = false))
+            )
+          )
+        )
+      )
+    )
+
+    assertEquals(
+      ScalametaTermProjection.project(parsed(source)),
+      Right(ProjectedTermShape(expected, Some(NeutralSourceSpan(0, source.length))))
+    )
+
+  test("valid ordinary outer interpolation delegates invalid child policy recursively"):
+    List("raw", "f", "custom").foreach { prefix =>
+      val source = "s\"outer=${" + prefix + "\"inner\"}\""
+      assertErrorCode(parsed(source), "NEUTRAL_INTERPOLATION_PREFIX_UNSUPPORTED")
+    }
+
+    assertErrorCode(
+      parsed("s\"outer=${s\"\"\"inner\"\"\"}\""),
+      "NEUTRAL_INTERPOLATION_SURFACE_UNSUPPORTED"
+    )
+    assertErrorCode(
+      parsed("s\"\"\"outer=${s\"inner\"}\"\"\""),
+      "NEUTRAL_INTERPOLATION_SURFACE_UNSUPPORTED"
+    )
+
+    val malformedInner = Term.Interpolate(
+      Term.Name("s"),
+      List(Lit.String("\\q")),
+      Nil
+    )
+    val validOuter = Term.Interpolate(
+      Term.Name("s"),
+      List(Lit.String("outer="), Lit.String("")),
+      List(malformedInner)
+    )
+    assertErrorCode(validOuter, "NEUTRAL_INTERPOLATION_STRUCTURE_UNSUPPORTED")
+
   private val tripleQuotedSources = List(
     "s\"\"\"plain\"\"\"",
     "s\"\"\"hello $name\"\"\"",

@@ -756,10 +756,14 @@ object ScalametaTermProjection:
     yield TermShape.InterpolatedString("s", parts, arguments)
 
   private def interpolationDelimiters(interpolation: Term.Interpolate): List[String] =
-    interpolation.tokens.toList.collect {
+    val tokens = interpolation.tokens.toList
+    val start = tokens.collectFirst {
       case token: Token.Interpolation.Start => token.text
+    }
+    val end = tokens.reverse.collectFirst {
       case token: Token.Interpolation.End => token.text
     }
+    start.toList ++ end.toList
 
   private def decodeStandardInterpolationPart(
       value: String

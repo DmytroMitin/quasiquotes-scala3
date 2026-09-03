@@ -4,6 +4,7 @@ import _root_.quasiquotes.parser.TermShape
 
 import scala.annotation.nowarn
 import scala.meta.*
+import scala.meta.dialects.Scala3
 import scala.meta.tokens.Token
 
 @nowarn("cat=deprecation")
@@ -112,7 +113,7 @@ final class ScalametaStandardSInterpolationAuthoringCharacterizationTest
       assert(allTrees(tree).forall(_.pos == Position.None))
     }
 
-  test("nested interpolation exposes the N009R recursive delimiter blocker"):
+  test("nested interpolation retains descendant delimiters without blocking its ordinary root"):
     val nested = Term.Interpolate(
       Term.Name("s"),
       List(Lit.String("nested="), Lit.String("")),
@@ -128,12 +129,81 @@ final class ScalametaStandardSInterpolationAuthoringCharacterizationTest
       List(Lit.String("outer="), Lit.String("")),
       List(Term.Block(List(nested)))
     )
+    val expected = TermShape.InterpolatedString(
+      "s",
+      List("outer=", ""),
+      List(
+        TermShape.InterpolatedString(
+          "s",
+          List("nested=", ""),
+          List(TermShape.Identifier("x", isPlaceholder = false))
+        )
+      )
+    )
     List(direct, braced).foreach { tree =>
       assertEquals(delimiters(tree), List("\"", "\"", "\"", "\""))
+      assertEquals(rootDelimiters(tree), List("\"", "\""))
       assertEquals(
-        ScalametaTermProjection.project(tree).left.toOption.map(_.code),
-        Some("NEUTRAL_INTERPOLATION_SURFACE_UNSUPPORTED")
+        ScalametaTermProjection.project(tree),
+        Right(ProjectedTermShape(expected, None))
       )
+    }
+
+  test("first Start and last End identify only the current interpolation root surface"):
+    val ordinaryLeaf = Term.Interpolate(
+      Term.Name("s"),
+      List(Lit.String("leaf")),
+      Nil
+    )
+    val ordinaryDirect = Term.Interpolate(
+      Term.Name("s"),
+      List(Lit.String("outer="), Lit.String("")),
+      List(ordinaryLeaf)
+    )
+    val ordinaryBraced = Term.Interpolate(
+      Term.Name("s"),
+      List(Lit.String("outer="), Lit.String("")),
+      List(Term.Block(List(ordinaryLeaf)))
+    )
+    val ordinaryTwoLevels = Term.Interpolate(
+      Term.Name("s"),
+      List(Lit.String("top="), Lit.String("")),
+      List(
+        Term.Interpolate(
+          Term.Name("s"),
+          List(Lit.String("middle="), Lit.String("")),
+          List(ordinaryLeaf)
+        )
+      )
+    )
+    val tripleOuter = parsedInterpolation("s\"\"\"outer=${s\"inner\"}\"\"\"")
+    val tripleChild = parsedInterpolation("s\"outer=${s\"\"\"inner\"\"\"}\"")
+    val neighboringChildren = List("raw", "f", "custom").map { prefix =>
+      parsedInterpolation(s"s\"outer=$${${prefix}\"inner\"}\"")
+    }
+
+    assertEquals(delimiters(ordinaryLeaf), List("\"", "\""))
+    assertEquals(rootDelimiters(ordinaryLeaf), List("\"", "\""))
+
+    List(ordinaryDirect, ordinaryBraced).foreach { tree =>
+      assertEquals(delimiters(tree), List("\"", "\"", "\"", "\""))
+      assertEquals(rootDelimiters(tree), List("\"", "\""))
+    }
+
+    assertEquals(
+      delimiters(ordinaryTwoLevels),
+      List("\"", "\"", "\"", "\"", "\"", "\"")
+    )
+    assertEquals(rootDelimiters(ordinaryTwoLevels), List("\"", "\""))
+
+    assertEquals(delimiters(tripleOuter), List("\"\"\"", "\"", "\"", "\"\"\""))
+    assertEquals(rootDelimiters(tripleOuter), List("\"\"\"", "\"\"\""))
+    assertEquals(delimiters(tripleChild), List("\"", "\"\"\"", "\"\"\"", "\""))
+    assertEquals(rootDelimiters(tripleChild), List("\"", "\""))
+
+    neighboringChildren.foreach { tree =>
+      assertEquals(delimiters(tree), List("\"", "\"", "\"", "\""))
+      assertEquals(rootDelimiters(tree), List("\"", "\""))
     }
 
   private def encodeCandidate(value: String): String =
@@ -155,6 +225,19 @@ final class ScalametaStandardSInterpolationAuthoringCharacterizationTest
       case token: Token.Interpolation.Start => token.text
       case token: Token.Interpolation.End => token.text
     }
+
+  private def rootDelimiters(interpolation: Term.Interpolate): List[String] =
+    val tokens = interpolation.tokens.toList
+    val start = tokens.collectFirst { case token: Token.Interpolation.Start => token.text }
+    val end = tokens.reverse.collectFirst {
+      case token: Token.Interpolation.End => token.text
+    }
+    start.toList ++ end.toList
+
+  private def parsedInterpolation(source: String): Term.Interpolate =
+    Input.String(source).parse[Term].get match
+      case interpolation: Term.Interpolate => interpolation
+      case other => fail(s"expected Term.Interpolate, found ${other.productPrefix}")
 
   private def allTrees(root: Tree): List[Tree] =
     root :: root.children.toList.flatMap(allTrees)
