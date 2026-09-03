@@ -129,12 +129,14 @@ The project also owns one bounded semantic-value-to-Scalameta reverse route:
 for the accepted binder-free ordinary family (literals, identifiers,
 selections, one-list Apply, infix, unary, tuples, and explicit `if`), the
 fully-qualified one-list `new` family, transparent P0, and binder-free P1
-blocks. It preserves ordered block children and round-trips exactly through
-`ScalametaTermProjection`; it reconstructs no source position, token spelling,
-comment, or child identity. P2 local values, P3 local definitions, Lambda1 and
-other binder-bearing forms, ascription, and standard interpolation remain
-outside this authoring surface. The interpolation investigation is an
-accepted blocked feasibility result with no production widening.
+blocks. It also authors bounded standard-`s` interpolation, including recursive
+admitted arguments and nested standard-`s` values, by constructing fresh direct
+`Term.Interpolate` nodes and requiring exact semantic round trip through
+`ScalametaTermProjection`. It preserves ordered children but reconstructs no
+source position, original token spelling, comment, or child identity. P2 local
+values, P3 local definitions, Lambda1 and other binder-bearing forms, and
+ascription remain outside this authoring surface. Raw, `f`, custom, and
+triple-quoted interpolation remain excluded.
 
 ## Bounded validated projection
 

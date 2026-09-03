@@ -414,8 +414,9 @@ P0/binder-free P1 overlap with core `TermShape` and direct source-free raw
 construction. Typed Lambda1, P2, and P3 projected shapes stop at the direct
 lowerer's unsupported-shape boundary. The richer Term backend separately
 admits the bounded one-local-val P2 shape when completed declared-Type sidecars
-are available, in source-free and generated-origin modes; P3 remains rejected.
-It is not a general Term bridge. See the
+are available, in source-free and generated-origin modes, and the bounded P3
+local identity-method shape when completed parameter/result-Type sidecars are
+available. It is not a general Term bridge. See the
 [Dotty-internal exact backend](DOTTY_INTERNAL_BACKEND.md).
 
 ## Exact-version `Quotes` and Dotty-internal interoperability

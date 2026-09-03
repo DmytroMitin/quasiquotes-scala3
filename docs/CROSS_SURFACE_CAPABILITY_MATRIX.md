@@ -16,7 +16,9 @@ Status vocabulary:
 
 The axes are:
 
-- **Q construct/match** — the default current-Dotty public syntax;
+- **Q construct/match** — the default current-Dotty public quasiquote syntax
+  and typed-facing surface; a public compiler-free Core constructor is not by
+  itself a Q-syntax capability;
 - **typed Scalameta construct/match** — the unpublished opt-in typed frontend;
 - **N project** — compiler-free `scala.meta` AST to project semantic values;
 - **N author** — project semantic values to compiler-free `scala.meta` ASTs;
@@ -30,12 +32,12 @@ The axes are:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Literal / identifier | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `INTERNAL` | `NOT_APPLICABLE` |
 | Selection | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `INTERNAL` | `NOT_APPLICABLE` |
-| Ordinary Apply | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `INTERNAL` | `BOUNDED` — selected existing method-body replacement families only |
+| Ordinary Apply | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `INTERNAL` | `INTERNAL` — one selected existing Apply in a direct parameterless method body; bounded leaf or direct-identifier Apply argument replacement only |
 | Infix | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` | `NOT_APPLICABLE` |
 | Unary | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` | `NOT_APPLICABLE` |
 | Tuple | `BOUNDED` — arity 2 through 22 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` | `NOT_APPLICABLE` |
 | `if` with explicit `else` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `INTERNAL` | `NOT_APPLICABLE` |
-| Standard `s` interpolation | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `INTERNAL` | `NOT_APPLICABLE` |
+| Standard `s` interpolation | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — fresh `Position.None` standard-`s` AST with exact semantic round trip | `INTERNAL` | `NOT_APPLICABLE` |
 | Type ascription | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `INTERNAL` | `NOT_APPLICABLE` |
 | Lambda1 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `INTERNAL` — completed parameter-Type sidecar required | `NOT_APPLICABLE` |
 | Fixed one-list `new` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` | `NOT_APPLICABLE` |
@@ -44,8 +46,8 @@ The axes are:
 | Source-owned local identity method (P3) | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` | `NOT_YET` | `INTERNAL` — requires completed-Type sidecars | `NOT_APPLICABLE` |
 | Rank-2 Term arguments in Apply / one-list New | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` — the sequence is expanded before exact lowering | `NOT_APPLICABLE` |
 | Rank-3 Term sequence | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
-| Dynamic selected-member construction | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
-| Existing selected-Apply argument replacement | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `BOUNDED` — one existing leaf argument selected by exact identity; replacement is one source-free leaf or one direct-identifier Apply with one to three leaf arguments; function and untouched arguments retain identity |
+| Dynamic selected-member construction | `BOUNDED` | `NOT_YET` | `BOUNDED` — validated `SelectedMemberName` in one explicit receiver-selection name field; unique accessible member only | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
+| Existing selected-Apply argument replacement | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `INTERNAL` — one existing leaf argument selected by exact identity in a direct parameterless method; replacement is one source-free leaf or one direct-identifier Apply with one to three leaf arguments; function and untouched arguments retain identity |
 
 ## Types
 
@@ -63,14 +65,14 @@ The axes are:
 | Family | Q construct | Q match | typed Scalameta construct | typed Scalameta match | N project | N author | U-D fresh lower | U-U existing rewrite |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Immutable `val` | `INTERNAL` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` | `NOT_APPLICABLE` |
-| Parameterless ordinary `def` | `INTERNAL` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` | `NOT_APPLICABLE` |
-| One ordinary parameter | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` — no general Definition projector | `NOT_YET` | `INTERNAL` | `BOUNDED` — existing method-body replacement only |
-| Exactly two ordinary parameters | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` — no general ordinary-Definition projector | `NOT_YET` | `INTERNAL` | `BOUNDED` — existing method-body replacement only |
-| Parameter-sequence capture | `NOT_APPLICABLE` | `NOT_YET` — feasibility and additive carrier direction accepted; productionization pending | `NOT_APPLICABLE` | `NOT_YET` — feasibility only | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` | `NOT_APPLICABLE` |
-| Contextual method | `BOUNDED` — compiler-free construction contract | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` — specialized projector | `NOT_YET` | `INTERNAL` | `NOT_APPLICABLE` |
+| Parameterless ordinary `def` | `INTERNAL` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` | `INTERNAL` — exact direct parameterless method-body replacement only; header and surrounding children retain the bounded identity/provenance contract |
+| One ordinary parameter | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` — no general Definition projector | `NOT_YET` | `INTERNAL` | `NOT_YET` — the current existing-tree rewriter rejects parameter clauses |
+| Exactly two ordinary parameters | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` — no general ordinary-Definition projector | `NOT_YET` | `INTERNAL` | `NOT_YET` — the current existing-tree rewriter rejects parameter clauses |
+| Parameter-sequence capture | `NOT_APPLICABLE` | `BOUNDED` — one static ordinary parameter clause with 0 through 5 parameters plus one RHS capture | `NOT_APPLICABLE` | `BOUNDED` — same ranked `dqq` slice and original reflected captures | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` | `NOT_APPLICABLE` |
+| Contextual method | `NOT_YET` — a public Core programmatic constructor exists, but no Q quasiquote syntax | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` — specialized projector | `NOT_YET` | `INTERNAL` | `NOT_YET` — the current existing-tree rewriter rejects parameter clauses |
 | Bounded refined Type alias | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — specialized projector | `INTERNAL` — specialized authoring | `INTERNAL` | `NOT_APPLICABLE` |
-| Class / trait / object | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — selected exact class-generation plans only | `NOT_APPLICABLE` |
-| Anonymous implementation | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — specialized instance-factory projection | `NOT_YET` | `NOT_YET` — semantic plan accepted, exact lowering not routed | `NOT_APPLICABLE` |
+| Class / trait / object | `NOT_YET` | `NOT_YET` | `NOT_YET` — a separate internal public-reflection class plan is not typed-Scalameta syntax | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` — no fresh raw class/trait/object lowerer; typed-reflection generation is a different surface | `NOT_APPLICABLE` |
+| Anonymous implementation | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — specialized instance-factory projection | `NOT_YET` | `NOT_YET` — the specialized neutral semantic plan has no accepted exact lowering | `NOT_APPLICABLE` |
 
 Specialized neutral Definition projectors are evidence for their named shapes;
 they are not a reusable `scala.meta.Stat -> Definition` boundary. A general
@@ -91,11 +93,13 @@ Scalameta Definition-to-exact-tree public bridge therefore remains `NOT_YET`.
 | Whole or sequence Definition splice | `NOT_YET` | No public Definition-rank carrier |
 | Symbol splice | `NOT_APPLICABLE` | Symbols are not public splice payloads in this model |
 
-Rank 2 currently means Term sequences only, in bounded Apply and one-list New
-argument positions. Rank 3 is not implemented. Type and Definition sequences
-are not production capabilities. A Definition parameter-sequence direction has
-accepted feasibility evidence but is not yet a production matcher. Symbol
-splicing is not planned as source syntax.
+Rank 2 currently includes Term sequences in bounded Apply and one-list New
+argument positions and Definition parameter-sequence matching in one static
+ordinary `dqq` clause. The Definition matcher captures the original ordered
+`Seq[ValDef]` plus RHS; it is not construction-side parameter splicing or a
+sequence of whole Definitions. Rank 3 is not implemented. Type sequences and
+whole-Definition sequences are not production capabilities. Symbol splicing is
+not planned as source syntax.
 
 The user-facing Q syntax view remains the
 [syntax support matrix](SYNTAX_SUPPORT_MATRIX.md). Detailed caveats remain in

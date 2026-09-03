@@ -175,7 +175,8 @@ rewrite directions.
   without `Quotes`, compiler implementation dependencies, staging, SemanticDB,
   or exact trees. Its bounded `ScalametaTermShapeAuthoring` reverse direction
   creates fresh `Position.None` Scalameta Terms for binder-free ordinary terms,
-  fully-qualified `new`, and binder-free P1 blocks; P2/P3 binder authoring and
+  fully-qualified `new`, binder-free P1 blocks, and standard-`s`
+  interpolation with exact semantic round trip; P2/P3 binder authoring and
   source-provenance reconstruction remain outside.
 - `hybridScalametaFrontend` is a remotely unpublished, compiler-coupled side-by-side
   experiment. It contains explicit typed Term, Type, and bounded Definition

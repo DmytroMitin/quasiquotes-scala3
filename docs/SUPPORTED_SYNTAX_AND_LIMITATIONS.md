@@ -57,12 +57,13 @@ compiler-version policy, source positions, owners, placement, and lifecycle.
 | Whole or sequence Definition splice | `NOT_YET` | No Definition-rank carrier |
 | Symbol splice | `NOT_APPLICABLE` | Symbols are not public splice payloads |
 
-Rank 2 currently means Term sequences only in bounded Apply and one-list New
-argument positions. Rank 3 is not implemented. Type and Definition sequences
-are not production capabilities. Accepted feasibility and API-direction
-evidence for Definition parameter-sequence capture does not widen this
-published boundary; production matching remains `NOT_YET`. Symbol splicing is
-not planned as source syntax.
+Rank 2 currently includes Term sequences in bounded Apply and one-list New
+argument positions plus one Definition parameter-sequence capture in a static
+ordinary `dqq` clause. That matcher returns the original ordered
+`Seq[q.reflect.ValDef]` and RHS `Term` for 0 through 5 parameters; it does not
+add construction-side parameter splicing or whole-Definition sequences. Rank 3
+is not implemented. Type sequences and whole-Definition sequences are not
+production capabilities. Symbol splicing is not planned as source syntax.
 
 Currently exercised areas include:
 
@@ -105,8 +106,8 @@ Important limitations:
   result; P2 admits exactly one simple explicitly typed eager immutable local
   `val`; the whole tree admits at most one P2 binder and rejects P2/Lambda1
   same-name source shadowing; inferred, mutable, lazy, pattern,
-  multiple/recursive values,
-  local `def` (P3), imports, other definitions, and unrelated statement
+  multiple/recursive values, local definitions beyond the one admitted P3
+  identity-method shape, imports, other definitions, and unrelated statement
   families remain excluded;
 - compiler-internal behavior is exact-version-sensitive;
 - public definition construction is intentionally narrow;
@@ -115,6 +116,11 @@ Important limitations:
   syntax is bounded to one ordinary clause, standalone Int/String/Boolean
   Types, and a literal body selecting either binder; the exact internal
   definition backends remain package-private;
+- public static `dqq` additionally admits exactly one ordinary
+  parameter-sequence capture in `def collect(..$params): Int = $body`, with 0
+  through 5 target parameters and original `ValDef`/RHS identity; multiple
+  clauses, rank 3, other capture positions, contextual/default/erased
+  parameters, and construction-side parameter splicing remain unsupported;
 - interpolation and type support expands incrementally, so unsupported shapes
   return explicit errors rather than falling back to unchecked trees;
 - runtime-length Term construction is deliberately bounded: exactly one
