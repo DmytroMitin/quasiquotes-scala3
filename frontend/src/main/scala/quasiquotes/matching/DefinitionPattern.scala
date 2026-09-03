@@ -99,6 +99,11 @@ final class SingleParameterDefinitionPattern private[matching] (
       parameter.symbol.owner == target.symbol
 
 object DefinitionPattern:
+  private[matching] enum StaticPatternKind:
+    case SingleParameter
+    case ExactTwo
+    case RankedParameterSequence
+
   private final case class ParsedPattern(
       methodName: String,
       parameterName: String,
@@ -147,13 +152,32 @@ object DefinitionPattern:
       case Right(pattern) => pattern
       case Left(message) => abort(message)
 
+  private[matching] def rankedParameterSequenceExtractor(
+      sc: StringContext
+  )(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (Seq[q.reflect.ValDef], q.reflect.Term)
+  ] =
+    def abort(message: String): Nothing =
+      q.reflect.report.errorAndAbort(s"$InvalidDqqPrefix $message")
+
+    val parts = Option(sc).flatMap(value => Option(value.parts)).map(_.toList)
+    parts match
+      case Some(values) if isExactRankedParameterSequence(values) =>
+        RankedDefinitionPatternExtractorFactory.exactCollect
+      case Some(values) =>
+        abort(rankedParameterSequenceDiagnostic(values))
+      case None => abort("StringContext must not be null.")
+
   private[matching] def classifyStaticParts(
       parts: List[String]
-  ): Either[String, Int] =
+  ): Either[String, StaticPatternKind] =
     if parts == null || parts.isEmpty then
       Left("StringContext must contain exactly two literal parts.")
     else if parts.exists(_ == null) then
       Left("StringContext literal parts must not be null.")
+    else if isExactRankedParameterSequence(parts) then
+      Right(StaticPatternKind.RankedParameterSequence)
     else
       RankedPatternSource
         .unsupportedFamilyRankDiagnostic(parts, "Definition")
@@ -164,12 +188,31 @@ object DefinitionPattern:
           else
             val source = parts.head + "$body" + parts.last
             singleParameter(source) match
-              case Right(_) => Right(1)
+              case Right(_) => Right(StaticPatternKind.SingleParameter)
               case Left(_) =>
                 DefinitionPatternExtractor.compileExactTwo(source) match
-                  case Right(_) => Right(2)
+                  case Right(_) => Right(StaticPatternKind.ExactTwo)
                   case Left(message) => Left(message)
         }
+
+  private def isExactRankedParameterSequence(parts: List[String]): Boolean =
+    parts match
+      case List(prefix, between, suffix) =>
+        prefix.matches("(?s)\\s*def\\s+collect\\s*\\(\\s*\\.\\.\\s*") &&
+          between.matches("(?s)\\s*\\)\\s*:\\s*Int\\s*=\\s*") &&
+          suffix.trim.isEmpty
+      case _ => false
+
+  private def rankedParameterSequenceDiagnostic(parts: List[String]): String =
+    val literal = parts.mkString("<capture>")
+    if literal.contains("...") then
+      "rank-3 captures are not supported for Definition patterns"
+    else if parts.count(_.contains("..")) > 1 then
+      "only one rank-2 parameter-sequence capture is supported for Definition patterns"
+    else if parts.exists(_.contains("..")) then
+      "rank-2 capture is supported only as the complete immediate parameter list in `def collect(..$params): Int = $body`"
+    else
+      "expected exactly `def collect(..$params): Int = $body`"
 
   private def validateParts(sc: StringContext): Either[String, List[String]] =
     if sc == null then Left("StringContext must not be null.")
@@ -178,7 +221,10 @@ object DefinitionPattern:
       if rawParts == null then Left("StringContext must contain exactly two literal parts.")
       else
         val parts = rawParts.toList
-        classifyStaticParts(parts).map(_ => parts)
+        classifyStaticParts(parts).flatMap {
+          case StaticPatternKind.ExactTwo => Right(parts)
+          case _ => Left("Invalid exact-two definition pattern.")
+        }
 
   /** JVM-linkage bridge for callers compiled against the pre-Q012R extension.
     * New source calls use the transparent inline structural selector.

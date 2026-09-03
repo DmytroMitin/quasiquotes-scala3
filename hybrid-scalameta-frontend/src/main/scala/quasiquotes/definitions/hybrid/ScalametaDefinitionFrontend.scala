@@ -21,6 +21,11 @@ import _root_.quasiquotes.types.TypeNormalForm
 import _root_.quasiquotes.types.hybrid.ScalametaTypeFrontend
 
 private[quasiquotes] object ScalametaDefinitionFrontend:
+  enum PatternKind:
+    case SingleParameter
+    case ExactTwo
+    case RankedParameterSequence
+
   final case class Failure(
       category: String,
       start: Int,
@@ -61,6 +66,11 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
       secondParameterName: DefinitionName,
       secondParameterType: TypeNormalForm,
       resultType: TypeNormalForm,
+      bodySentinel: String
+  )
+
+  final case class RankedPatternProjection(
+      parameterSentinel: String,
       bodySentinel: String
   )
 
@@ -115,10 +125,25 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
           )
         )
 
-  def classifyPatternParts(parts: Seq[String]): Either[Failure, Int] =
+  def classifyPatternParts(parts: Seq[String]): Either[Failure, PatternKind] =
     projectPattern(parts) match
-      case Right(_) => Right(1)
-      case Left(_) => projectExactTwoPattern(parts).map(_ => 2)
+      case Right(_) => Right(PatternKind.SingleParameter)
+      case Left(_) =>
+        projectExactTwoPattern(parts) match
+          case Right(_) => Right(PatternKind.ExactTwo)
+          case Left(exactTwoFailure) =>
+            RankedPatternSource.unsupportedFamilyRankDiagnostic(parts, "Definition") match
+              case Some(detail) =>
+                projectRankedPattern(parts) match
+                  case Right(_) => Right(PatternKind.RankedParameterSequence)
+                  case Left(_) =>
+                    Left(Failure("DEFINITION_PATTERN_RANK_UNSUPPORTED", 0, 0, detail))
+              case None => Left(exactTwoFailure)
+
+  def compileRankedPattern(
+      parts: Seq[String]
+  ): Either[Failure, RankedPatternProjection] =
+    projectRankedPattern(parts)
 
   def compileExactTwoPattern(
       parts: Seq[String]
@@ -329,6 +354,66 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
       resultType,
       bodySentinel
     )
+
+  private[quasiquotes] def projectRankedPattern(
+      parts: Seq[String]
+  ): Either[Failure, RankedPatternProjection] =
+    for
+      checkedParts <- checkedParts(
+        parts,
+        3,
+        "one complete parameter-sequence capture and one complete-body capture"
+      )
+      _ <- require(
+        isExactRankedParameterSequence(checkedParts),
+        checkedParts.mkString.length,
+        "DEFINITION_PATTERN_RANK_UNSUPPORTED",
+        "rank-2 capture is supported only as `def collect(..$params): Int = $body`."
+      )
+      _ <- exactSourceGuard(checkedParts)
+      literalSource = checkedParts.mkString
+      parameterSentinel = freshIndexed(
+        "__qq_scmeta_definition_parameter_",
+        literalSource,
+        Set.empty
+      )
+      bodySentinel = freshIndexed(
+        "__qq_scmeta_definition_body_",
+        literalSource,
+        Set(parameterSentinel)
+      )
+      markerOffset = checkedParts.head.lastIndexOf("..")
+      source =
+        checkedParts.head.substring(0, markerOffset) +
+          s"$parameterSentinel: Int" + checkedParts(1) + bodySentinel + checkedParts(2)
+      definition <- parseDefinition(source)
+      projection <- projectCommon(definition, source.length)
+      _ <- require(
+        projection.methodName.decoded == "collect" &&
+          projection.parameterName.decoded == parameterSentinel &&
+          projection.parameterTypeSource == "Int" &&
+          projection.resultTypeSource == "Int",
+        source.length,
+        "DEFINITION_PATTERN_RANK_UNSUPPORTED",
+        "the ranked template must keep the fixed collect name and Int result Type."
+      )
+      _ <- projection.body match
+        case value: Term.Name if value.value == bodySentinel => Right(())
+        case _ =>
+          unsupported(
+            source.length,
+            "COMPLETE_BODY_CAPTURE_REQUIRED",
+            "the body capture must occupy the complete Definition right-hand side."
+          )
+    yield RankedPatternProjection(parameterSentinel, bodySentinel)
+
+  private def isExactRankedParameterSequence(parts: Vector[String]): Boolean =
+    parts match
+      case Vector(prefix, between, suffix) =>
+        prefix.matches("(?s)\\s*def\\s+collect\\s*\\(\\s*\\.\\.\\s*") &&
+          between.matches("(?s)\\s*\\)\\s*:\\s*Int\\s*=\\s*") &&
+          suffix.trim.isEmpty
+      case _ => false
 
   private final case class CommonProjection(
       methodName: DefinitionName,

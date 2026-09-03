@@ -5,6 +5,8 @@ import scala.quoted.Quotes
 
 import quasiquotes.matching.{
   DefinitionPatternExtractor,
+  RankedDefinitionPatternExtractor,
+  RankedDefinitionPatternExtractorFactory,
   SingleParameterDefinitionPattern,
   TermMatcher
 }
@@ -104,6 +106,23 @@ object ScalametaQuasiPattern:
       )
     ScalametaDefinitionFrontend.compileExactTwoPattern(context.parts) match
       case Right(pattern) => pattern
+      case Left(failure) =>
+        q.reflect.report.errorAndAbort(
+          s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"
+        )
+
+  private[scalameta] def rankedParameterSequenceExtractor(
+      context: StringContext
+  )(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (Seq[q.reflect.ValDef], q.reflect.Term)
+  ] =
+    if context == null then
+      q.reflect.report.errorAndAbort(
+        "Invalid Scalameta dqq definition-pattern template: StringContext must not be null."
+      )
+    ScalametaDefinitionFrontend.compileRankedPattern(context.parts) match
+      case Right(_) => RankedDefinitionPatternExtractorFactory.exactCollect
       case Left(failure) =>
         q.reflect.report.errorAndAbort(
           s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"

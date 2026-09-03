@@ -18,15 +18,12 @@ private[matching] object DefinitionPatternMacro:
         '{ DefinitionPattern.singleParameterExtractor($context)(using $callerQuotes) }
       case Some(parts) =>
         DefinitionPattern.classifyStaticParts(parts) match
-          case Right(1) =>
+          case Right(DefinitionPattern.StaticPatternKind.SingleParameter) =>
             '{ DefinitionPattern.singleParameterExtractor($context)(using $callerQuotes) }
-          case Right(2) =>
+          case Right(DefinitionPattern.StaticPatternKind.ExactTwo) =>
             '{ DefinitionPattern.twoParameterExtractor($context)(using $callerQuotes) }
-          case Right(other) =>
-            quotes.reflect.report.errorAndAbort(
-              s"Invalid dqq definition-pattern template: unsupported Definition arity $other.",
-              context
-            )
+          case Right(DefinitionPattern.StaticPatternKind.RankedParameterSequence) =>
+            '{ DefinitionPattern.rankedParameterSequenceExtractor($context)(using $callerQuotes) }
           case Left(detail) =>
             quotes.reflect.report.errorAndAbort(
               s"Invalid dqq definition-pattern template: $detail",

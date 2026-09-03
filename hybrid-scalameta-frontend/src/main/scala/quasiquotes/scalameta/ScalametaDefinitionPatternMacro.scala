@@ -20,15 +20,12 @@ private[scalameta] object ScalametaDefinitionPatternMacro:
         '{ ScalametaQuasiPattern.singleParameterExtractor($context)(using $callerQuotes) }
       case Some(parts) =>
         ScalametaDefinitionFrontend.classifyPatternParts(parts) match
-          case Right(1) =>
+          case Right(ScalametaDefinitionFrontend.PatternKind.SingleParameter) =>
             '{ ScalametaQuasiPattern.singleParameterExtractor($context)(using $callerQuotes) }
-          case Right(2) =>
+          case Right(ScalametaDefinitionFrontend.PatternKind.ExactTwo) =>
             '{ ScalametaQuasiPattern.exactTwoExtractor($context)(using $callerQuotes) }
-          case Right(other) =>
-            quotes.reflect.report.errorAndAbort(
-              s"Invalid Scalameta dqq definition-pattern template: unsupported Definition arity $other.",
-              context
-            )
+          case Right(ScalametaDefinitionFrontend.PatternKind.RankedParameterSequence) =>
+            '{ ScalametaQuasiPattern.rankedParameterSequenceExtractor($context)(using $callerQuotes) }
           case Left(failure) =>
             quotes.reflect.report.errorAndAbort(
               s"Invalid Scalameta dqq definition-pattern template: ${failure.message}",
