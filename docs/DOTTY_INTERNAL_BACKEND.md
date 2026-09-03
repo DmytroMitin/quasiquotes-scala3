@@ -90,8 +90,12 @@ and carry no stable compatibility promise:
   preserve untouched raw objects by identity, and attribute fresh replacement
   nodes to truthful transformation sites. The selected-member Apply slice is
   limited to a direct `Ident` qualifier, a term-name member, and one to three
-  leaf arguments. These paths are not D-style new-syntax lowering and are not
-  public APIs.
+  leaf arguments. Its granular path selects one existing leaf argument by exact
+  identity and replaces it with either one source-free leaf or one bounded
+  direct-`Ident` Apply whose one to three arguments are direct leaves. The
+  preserved function and untouched arguments retain exact identity; every
+  fresh node in the child-bearing replacement receives the old argument site.
+  These paths are not D-style new-syntax lowering and are not public APIs.
 - `ConstructedDefinitionUntypedBackend` and
   `PublicContextualMethodUntypedBackend` construct bounded raw definitions.
 - `ScopedContextualMethodUntypedLowerer` and its generated-origin adapter own
