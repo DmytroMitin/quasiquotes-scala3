@@ -393,6 +393,10 @@ def durable_documentation_findings(root: Path) -> list[str]:
     scalameta_experiment = (
         root / "docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md"
     ).read_text(encoding="utf-8")
+    syntax_limitations = (
+        root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+    ).read_text(encoding="utf-8")
+    compatibility = (root / "docs/COMPATIBILITY.md").read_text(encoding="utf-8")
     north_star = (root / "docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md").read_text(
         encoding="utf-8"
     )
@@ -411,6 +415,24 @@ def durable_documentation_findings(root: Path) -> list[str]:
         findings.append("why-quasiquotes missing north-star document link")
     if "(ARCHITECTURE.md)" not in scalameta_experiment:
         findings.append("Scalameta experiment missing canonical architecture link")
+    q012rr_documentation_tokens = (
+        "SingleParameterDefinitionPattern",
+        "DefinitionPatternExtractor",
+        "dynamic/non-static",
+    )
+    if any(token not in readme for token in q012rr_documentation_tokens) or any(
+        token not in syntax_limitations for token in q012rr_documentation_tokens
+    ) or any(token not in readme for token in ("dqq2", "dqq3", "dqq4")):
+        findings.append("Q012RR definition-pattern documentation contract is absent")
+    q012rr_compatibility_tokens = (
+        "transparent-inline selector",
+        "historical erased JVM descriptor",
+        "source-hidden bridge",
+        "experimental 0.x-minor-class change",
+    )
+    normalized_compatibility = " ".join(compatibility.split())
+    if any(token not in normalized_compatibility for token in q012rr_compatibility_tokens):
+        findings.append("Q012RR dqq compatibility accounting is absent")
     for marker in NORTH_STAR_STATUS_MARKERS:
         if marker not in north_star:
             findings.append(f"north-star document missing status marker: {marker}")

@@ -27,10 +27,14 @@ Definition lowerer. Matching places one collision-free sentinel in the
 complete RHS and creates the existing `SingleParameterDefinitionPattern` from
 validated names and `TypeNormalForm` values. The route neither prints/reparses
 through the handwritten Definition parser nor uses the neutral or exact
-Definition backends.
+Definition backends. Accepted single-parameter construction passes complete
+Tuple2/Tuple3, Function1/Function2, and current-policy nested
+`List`/`Option`/`Either` `TypeNormalForm` values through the bounded
+package-private Definition seam; it does not widen public `CompletedType`.
+Typed-Scalameta exact-two `dqr`/`dqq` remains separate pending work.
 
 The supported overlapping slice is checked differentially against the
-current-Dotty reference implementation on Scala 3.3.8 and 3.8.4. Type coverage
+current-Dotty reference implementation on Scala 3.3.8, 3.8.4, and final 3.9.0. Type coverage
 includes names, recursive fixed `List`/`Option`/`Either`, Tuple2/Tuple3,
 Function1/Function2, ordered reflected holes and captures, programmatic
 repeated holes, mismatches, and controlled failures. Successful captures are
@@ -116,6 +120,7 @@ rescues the other.
 
 The same hosts expose bounded `dqr`/`dqq` for the exact current-Dotty
 single-parameter identity-Definition overlap. They preserve the current typed
-owner/binder and original RHS capture contracts. Direct Scalameta definition
-quasiquotes in the neutral module remain source AST authoring, not reflected
-Definition construction or placement.
+owner/binder, complete `TypeNormalForm`, and original RHS capture contracts.
+They do not yet expose current-Dotty exact-two Definition parity. Direct
+Scalameta definition quasiquotes in the neutral module remain source AST
+authoring, not reflected Definition construction or placement.

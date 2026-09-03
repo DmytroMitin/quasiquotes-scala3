@@ -22,6 +22,13 @@ source/API-shape evidence, not a binary guarantee. The
 separately records bounded source, JVM-linkage, and TASTy tests against real
 Maven Central `0.2.0` artifacts.
 
+The accepted current source also replaces the public Scala/TASTy declaration
+of `dqq` with a same-spelling transparent-inline selector for scalable
+structural specialization. That is a new experimental 0.x-minor-class change
+when released even though a source-hidden bridge preserves the old erased JVM
+descriptor on all three required compiler lines. The distinction is explicit:
+JVM linkage evidence does not imply Scala source or TASTy compatibility.
+
 ## Module-specific compatibility
 
 - `core` uses `_3`, stays compiler-free, and makes no compatibility promise

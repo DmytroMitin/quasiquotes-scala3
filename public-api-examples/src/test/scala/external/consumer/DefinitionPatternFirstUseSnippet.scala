@@ -5,6 +5,7 @@ import scala.quoted.*
 
 import quasiquotes.matching.{
   DefinitionPattern,
+  DefinitionPatternExtractor,
   SingleParameterDefinitionMatch
 }
 import quasiquotes.matching.DefinitionPattern.*
@@ -25,6 +26,20 @@ object DefinitionPatternFirstUseSnippet:
   ): Option[q.reflect.Term] =
     target match
       case dqq"def boundedIdentity(value: Int): Int = $body" =>
+        val originalBody: q.reflect.Term = body
+        Some(originalBody)
+      case _ => None
+
+  def exactTwoPattern(using q: Quotes): DefinitionPatternExtractor =
+    DefinitionPattern.dqq(
+      StringContext("def choose(left: Int, right: String): String = ", "")
+    )(using q)
+
+  def captureExactTwoBody(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[q.reflect.Term] =
+    target match
+      case dqq"def choose(left: Int, right: String): String = $body" =>
         val originalBody: q.reflect.Term = body
         Some(originalBody)
       case _ => None

@@ -59,7 +59,21 @@ Its result is a caller-owned `DefDef` under the current `Symbol.spliceOwner`,
 tested only for immediate same-Quotes local-block placement. It is not a binary
 or semantic promise across compiler lines, a detached-tree format, or a general
 owner/placement API. The package-private pre-existing definition parser and
-exact internal backends retain their separate contracts.
+exact internal backends retain their separate contracts. Its variadic signature
+is unchanged while current-Dotty semantics additionally admit the bounded
+exact-two ordinary-parameter Int/String/Boolean slice; that is a semantic
+widening, not general N-parameter Definition parity.
+
+The public Scala/TASTy `dqq` declaration changes from the concrete exact-one
+return to a same-spelling transparent-inline selector so static structural
+templates can specialize to scalable `DefinitionPatternExtractor`. Static
+exact-one use retains `SingleParameterDefinitionPattern`, and dynamic/non-static
+use retains the historical exact-one fallback. This replacement is an
+experimental 0.x-minor-class change when eventually released: source/TASTy
+consumers must be recompiled and reviewed. Independently, the historical erased
+JVM descriptor returning `SingleParameterDefinitionPattern` is preserved on
+Scala 3.3.8, 3.8.4, and 3.9.0 by a source-hidden bridge. JVM-linkage preservation
+does not erase the Scala/TASTy API-shape change.
 
 The neutral experiment uses the imported standard `Scala3` dialect singleton
 for compile-time quasiquotes. Explicit parser calls select `Scala38` or

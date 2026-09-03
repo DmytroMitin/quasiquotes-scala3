@@ -47,6 +47,10 @@ class PublicDocsCheckTest(unittest.TestCase):
             f"| Definition construction | `dqr\"def id(x: $parameterType): $resultType = x\"` | {dqr_status} | `DefinitionConstruction.*` | Public bounded compiler-free API |\n"
             "| Definition pattern matching | `case dqq\"def id(x: Int): Int = $body\"` | Public now, exact bounded shape | `DefinitionPattern.singleParameter(...)` | Public now, exact bounded shape |\n"
             "<!-- public-surface-table:end -->\n\n"
+            "Static exact-one `dqq` returns `SingleParameterDefinitionPattern`; "
+            "static structural templates return `DefinitionPatternExtractor`; "
+            "dynamic/non-static `dqq` retains the single-parameter fallback. "
+            "There is no `dqq2`, `dqq3`, or `dqq4` public API.\n\n"
             "The machine-readable [0.2.0 public API baseline](docs/api-baselines/0.2.0.tsv)\n"
             f"contains {readme_core_count} core and {readme_frontend_count} frontend Scaladoc-visible entries.\n",
             encoding="utf-8",
@@ -110,10 +114,22 @@ class PublicDocsCheckTest(unittest.TestCase):
         )
         (docs / "SUPPORTED_SYNTAX_AND_LIMITATIONS.md").write_text(
             "# Supported syntax and limitations\n\n"
+            "Same-spelling `dqq` uses structural specialization. Static exact-one "
+            "templates retain `SingleParameterDefinitionPattern`; static structural "
+            "templates use scalable `DefinitionPatternExtractor`; dynamic/non-static "
+            "calls retain the single-parameter fallback.\n\n"
             "## Bounded term-pattern extractor\n\n"
             "Scalar slots bind `q.reflect.Term`; exactly one direct sequence slot in ordinary "
             "`Apply.arguments` or fixed one-list `New.arguments` binds "
             "`Seq[q.reflect.Term]`.\n",
+            encoding="utf-8",
+        )
+        (docs / "COMPATIBILITY.md").write_text(
+            "# Compatibility\n\n"
+            "The Scala/TASTy `dqq` declaration is now a transparent-inline selector. "
+            "The historical erased JVM descriptor returning "
+            "`SingleParameterDefinitionPattern` is preserved by a source-hidden bridge. "
+            "The selector replacement is a new experimental 0.x-minor-class change.\n",
             encoding="utf-8",
         )
         baselines = docs / "api-baselines"
@@ -356,6 +372,39 @@ class PublicDocsCheckTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn("surface row mismatch", result.stderr)
+
+    def test_rejects_stale_one_parameter_only_dqq_documentation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            readme = root / "README.md"
+            readme.write_text(
+                readme.read_text(encoding="utf-8").replace(
+                    "static structural templates return `DefinitionPatternExtractor`; ",
+                    "static structural templates are undocumented; ",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("Q012RR definition-pattern documentation contract", result.stderr)
+
+    def test_rejects_missing_dqq_jvm_and_tasty_compatibility_accounting(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            compatibility = root / "docs/COMPATIBILITY.md"
+            compatibility.write_text(
+                "# Compatibility\n\nDefinition compatibility is undocumented.\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("Q012RR dqq compatibility accounting", result.stderr)
 
     def test_rejects_missing_related_project_link(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

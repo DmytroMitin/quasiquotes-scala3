@@ -75,11 +75,23 @@ and carry no stable compatibility promise:
 - `ConstructedTermUntypedBackend` and `CompletedTypeUntypedLowerer` lower the
   admitted compiler-free Term/Type models to source-free raw trees. The richer
   Term backend also accepts binder-free P1 blocks with deterministic
-  left-to-right sidecar consumption and one bounded P2 local-val block. P2
-  consumes its completed declared-Type sidecar before initializer sidecars,
-  installs the existing BinderId only after the initializer, and restores the
-  incoming scope at Block exit. Its generated-origin adapter emits the same
-  parser-equivalent positioned P2 topology.
+  left-to-right sidecar consumption, one bounded P2 local-val block, and one
+  bounded P3 local identity-method block. P2 consumes its completed declared-
+  Type sidecar before initializer sidecars, installs the existing BinderId only
+  after the initializer, and restores the incoming scope at Block exit. P3
+  consumes authoritative completed parameter/result Types, gives the body the
+  parameter binder but not the method binder, gives the following result the
+  method binder but not the parameter binder, and restores the incoming scope.
+  Its generated-origin adapter emits parser-equivalent positioned P2 and P3
+  topology; the narrower direct lowerer still rejects both.
+- `ExistingUntpdMethodBodyRewriter` and its origin adapter are the distinct
+  U-style existing-tree direction. The internal `adapt`, `adaptApply`, and
+  `adaptSelectedApply` paths rebuild only bounded method-body/container shapes,
+  preserve untouched raw objects by identity, and attribute fresh replacement
+  nodes to truthful transformation sites. The selected-member Apply slice is
+  limited to a direct `Ident` qualifier, a term-name member, and one to three
+  leaf arguments. These paths are not D-style new-syntax lowering and are not
+  public APIs.
 - `ConstructedDefinitionUntypedBackend` and
   `PublicContextualMethodUntypedBackend` construct bounded raw definitions.
 - `ScopedContextualMethodUntypedLowerer` and its generated-origin adapter own
@@ -148,12 +160,12 @@ P1 families through core `TermShape`.
 Typed Scalameta Term traversal instead belongs to the separate unpublished
 `hybridScalametaFrontend` and returns caller-owned `q.reflect.Term`.
 
-This exact support is bounded to new source-free D construction from
-project-owned `TermShape`. It does not preserve input raw-tree identity,
-implement U matching/reconstruction, or introduce a cross-surface capability
-layer. `new`, interpolation, ascription, Lambda1 in the direct lowerer, P2
-statement binders in the direct lowerer, local definitions, and other raw Term
-families remain explicit separate slices. The richer backend's P2 support does
-not widen the direct lowerer because the latter has no authoritative completed
-Type sidecar. None of the
+The direct-lowerer support is bounded to new source-free D construction from
+project-owned `TermShape`; the separate U rewriter above owns limited existing-
+tree identity/reconstruction semantics. Neither direction introduces a cross-
+surface capability layer. `new`, interpolation, ascription, Lambda1 in the
+direct lowerer, P2/P3 statement binders in the direct lowerer, and other raw
+Term families remain explicit separate slices. The richer backend's P2/P3
+support does not widen the direct lowerer because the latter has no
+authoritative completed-Type sidecars. None of the
 definition-specific bridges widens that boundary.

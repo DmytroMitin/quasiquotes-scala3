@@ -84,9 +84,12 @@ encoded by recursive `TermShape.Infix` structure.
   argument and qualifier positions. Lambda1 and P2 are not admitted by this
   direct lowerer. The separate richer `ConstructedTermUntypedBackend` accepts
   one admitted P2 local-val block using completed declared-Type sidecars and
-  existing BinderId scope, in source-free and generated-origin modes; P3/local
-  definitions remain rejected. This is not a general raw-tree API and does not
-  perform U-style identity-preserving rewriting of existing raw trees.
+  existing BinderId scope, in source-free and generated-origin modes. It also
+  accepts one bounded P3 local identity-method block using completed
+  parameter/result Type sidecars and distinct parameter/method BinderId scopes,
+  again in source-free and generated-origin modes. This is not a general
+  raw-tree API and does not perform U-style identity-preserving rewriting of
+  existing raw trees.
 - the aggregate and example projects publish no production artifacts.
 
 Only a Scalameta parse failure may select the current parser inside the hybrid
@@ -107,6 +110,14 @@ The additive `quasiquotes.Quasiquotes` and
 `quasiquotes.scalameta.Quasiquotes` objects are direct-export import façades for
 the six established `qr`/`qq`/`tqr`/`tqq`/`dqr`/`dqq` families. They do not add
 a third semantic route, and every original host remains supported.
+
+Current-Dotty Definition matching uses one same-spelling transparent-inline
+`dqq` selector. Static exact-one templates specialize to the legacy
+`SingleParameterDefinitionPattern`; static structural exact-two templates
+specialize to scalable `DefinitionPatternExtractor`; dynamic/non-static calls
+retain the exact-one fallback. Parameter count stays template structure rather
+than a public `dqqN` family. Typed Scalameta remains at its accepted exact-one
+Definition overlap until separate exact-two parity work is accepted.
 
 For the accepted no-hole non-binder overlap, shared differential behavior
 is the consolidation boundary. The neutral projector is a compiler-free
@@ -215,13 +226,16 @@ Dotty subtree identity and adds no opaque raw sidecar. Nested Apply lists, Type
 application, contextual clauses, simple/import-relative or type-applied
 constructors, multiple constructor lists, named/star arguments, anonymous
 templates, and broader statement/binder forms remain outside the neutral
-contract. The direct
+contract. The bounded reverse `ScalametaTermShapeAuthoring` route constructs
+fresh `Position.None` Scalameta Terms for the binder-free ordinary family,
+fully-qualified `new`, and binder-free P1 blocks; it deliberately excludes
+P2/P3 binder authoring and source-provenance reconstruction. The direct
 exact backend accepts the non-binder family above plus transparent P0 and
 binder-free P1 blocks; a direct Apply in function position is rejected as a
 second argument list, while Apply remains valid in argument and qualifier
 positions. Lambda1, P2, and P3 do not cross this direct edge; P2 and P3 remain
-outside the direct lowerer. The richer exact path admits the bounded P2 shape
-only when completed Type sidecars are present, while P3 remains rejected. The
+outside the direct lowerer. The richer exact path admits bounded P2 and P3
+shapes only when their authoritative completed-Type sidecars are present. The
 typed Scalameta frontend remains direct and is not refactored through this
 projector.
 

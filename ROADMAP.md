@@ -42,9 +42,13 @@ delivery chronology.
   declared-Type sidecar before initializer sidecars, lowers the initializer in
   the incoming scope, installs the existing BinderId only for later block
   children, restores the incoming scope at exit, and supports both source-free
-  and generated-origin parser-equivalent raw trees. The direct Core lowerer
-  still rejects P2 because it has no authoritative completed Type sidecar;
-  P3/local definitions remain outside both Term backends.
+  and generated-origin parser-equivalent raw trees. Preserve the accepted
+  bounded P3 closure in that same richer backend: one local identity method
+  consumes authoritative parameter/result completed-Type sidecars, installs
+  parameter and method binders in their distinct scopes, restores the incoming
+  environment, and emits source-free or generated-origin parser-equivalent raw
+  trees. The direct Core lowerer still rejects P2 and P3 because it has no
+  authoritative completed-Type sidecars.
 
 - Preserve one semantic architecture: source frontends project into the
   project-owned compiler-free model in `core`, followed by backend-specific
@@ -57,6 +61,12 @@ delivery chronology.
   isolated from compiler implementation, staging, and SemanticDB dependencies.
   Use direct Scalameta authoring until a genuinely reusable façade can delegate
   upstream macros without forwarding or duplicating them.
+- Preserve bounded neutral reverse authoring through
+  `ScalametaTermShapeAuthoring`: fresh `Position.None` Scalameta Terms for the
+  accepted binder-free ordinary family, fully-qualified `new`, and binder-free
+  P1 blocks, with exact project-shape round trips. Keep P2/P3 binders,
+  interpolation, typed parentheses, and source-provenance reconstruction out of
+  this authoring surface.
 - Keep the compiler-coupled `hybridScalametaFrontend` experiment unpublished
   and side by side with the current engine. Its admitted typed Term, Type, and
   bounded Definition slices expand only through differential tests,
@@ -110,6 +120,15 @@ delivery chronology.
 - Preserve the bounded compiler-free one-ordinary-parameter definition core,
   core-only public identity-method first use, and unpublished exact backend
   without implying a general source adapter or placement policy.
+- Preserve the accepted same-spelling current-Dotty Definition pattern
+  direction: static exact-one `dqq` retains
+  `SingleParameterDefinitionPattern`, static structural exact-two `dqq` uses
+  scalable `DefinitionPatternExtractor`, and dynamic/non-static calls retain
+  the historical exact-one fallback. Do not introduce `dqq2`/`dqq3`/`dqq4` or
+  arity-numbered public pattern carriers. Keep the current exact-two `dqr`
+  slice bounded to one ordinary clause, standalone `Int`/`String`/`Boolean`
+  types, and a literal body selecting either binder under the unchanged
+  variadic signature.
 - Maintain end-to-end recursive `List`/`Option` and binary `Either` support
   without turning fixed constructor admission into a general type resolver.
 - Preserve a deterministic clean aggregate build and external-package examples.
@@ -168,10 +187,14 @@ Typed Scalameta `dqr`/`dqq` are implemented in the unpublished opt-in hybrid
 frontend for the exact current-Dotty one-ordinary-parameter identity-Definition
 overlap. Construction delegates to the same typed owner/binder lowerer and
 matching delegates to the same `SingleParameterDefinitionPattern`; successful
-matching returns the caller's original reflected RHS. They are not aliases for
-neutral upstream Scalameta `q` definition AST authoring, and they are not the
-exact pre-typer bridge in `dottyInternal`. Parity between typed frontends remains
-required only for their overlapping advertised slices, not in lock-step.
+matching returns the caller's original reflected RHS. Accepted single-parameter
+construction includes structured Tuple2/Tuple3, Function1/Function2, and
+current-policy nested `List`/`Option`/`Either` combinations through complete
+`TypeNormalForm`; it does not widen public `CompletedType`. Exact-two typed-
+Scalameta `dqr`/`dqq` remains separate pending work. These APIs are not aliases
+for neutral upstream Scalameta `q` definition AST authoring, and they are not
+the exact pre-typer bridge in `dottyInternal`. Parity between typed frontends
+remains required only for their overlapping advertised slices, not in lock-step.
 
 ### Additive import façade
 
@@ -190,9 +213,12 @@ import quasiquotes.scalameta.Quasiquotes.{qr, qq, tqr, tqq, dqr, dqq}
 The typed Definition surface is included in that façade too. Both objects
 are direct exports over the existing hosts, preserve exact transparent-inline
 and ranked typing, and add no semantic wrapper. Current public package imports
-remain supported; no deep package move or deprecation is selected. The exact
-accepted API delta is additive: standard 676 to 677 rows and hybrid 42 to 43
-search rows, with one object addition and zero removals in each inventory.
+remain supported; no deep package move or deprecation is selected. At that
+umbrella-facade task's historical checkpoint, the exact accepted API delta was
+additive: standard 676 to 677 rows and hybrid 42 to 43 search rows, with one
+object addition and zero removals in each inventory. The current programme
+inventory is the later Q012RR/Q013 679-row / 661-group standard surface and the
+unchanged 43-row hybrid surface recorded above.
 
 ## North-star source-like generation
 

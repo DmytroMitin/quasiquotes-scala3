@@ -54,8 +54,10 @@ Important limitations:
 - compiler-internal behavior is exact-version-sensitive;
 - public definition construction is intentionally narrow;
 - public `dqr` has no recoverable source carrier, parameter-span projection, or
-  arithmetic/literal/general-expression body builder; exact-two syntax and the
-  exact internal definition backends remain package-private;
+  arithmetic/literal/general-expression body builder; current-Dotty exact-two
+  syntax is bounded to one ordinary clause, standalone Int/String/Boolean
+  Types, and a literal body selecting either binder; the exact internal
+  definition backends remain package-private;
 - interpolation and type support expands incrementally, so unsupported shapes
   return explicit errors rather than falling back to unchecked trees;
 - runtime-length Term construction is deliberately bounded: exactly one
@@ -313,25 +315,30 @@ val definition: q.reflect.DefDef =
   dqr"def id(x: $parameterType): $resultType = x"
 ```
 
-Both holes are caller-owned `q.reflect.TypeRepr` values inspected through the
-bounded neutral `TypeNormalForm`; their normalized forms must be equal. The
-literal method and parameter names are validated ordinary identifiers, and the
-literal body must name that parameter exactly. The same private binder-aware
-single-parameter core validates this identity contract before public Quotes
-lowering creates `MethodType`, a method symbol under `Symbol.spliceOwner`, its
-owned parameter symbol, and a body reference to that exact parameter symbol.
+Both holes in this legacy one-parameter form are caller-owned
+`q.reflect.TypeRepr` values inspected through the bounded neutral
+`TypeNormalForm`; their normalized forms must be equal. The literal method and
+parameter names are validated ordinary identifiers, and the literal body must
+name that parameter exactly. Current-Dotty additionally accepts one bounded
+exact-two ordinary-parameter form with three `TypeRepr` holes and a literal
+body selecting either declared binder. That exact-two slice is limited to
+standalone `Int`, `String`, and `Boolean`; the public variadic `dqr` signature
+is unchanged. Both forms create a method under `Symbol.spliceOwner`, ordered
+method-owned parameter symbols, and a body reference to the selected symbol.
 
 The returned `DefDef` is caller-owned and supports only immediate placement in
 a local `Block` produced by the same macro invocation. It is not detached or
 portable across Quotes universes and provides no arbitrary owner/member/class/
 package placement, subtree reownership, or owner repair. There are no name,
 body, sequence, whole-definition, type-parameter, contextual-parameter,
-multi-clause, multi-parameter, or exact-two construction holes.
+multi-clause, three-or-more-parameter, Tuple/Function exact-two, fixed-applied
+exact-two, or general N-parameter construction holes.
 All rejected templates owned by this surface abort with
 `Invalid dqr definition template:`; there is no successful source-evidence
 wrapper.
 
-The public definition matcher may be used through the bounded extractor:
+The public definition matcher uses the same-spelling `dqq` direction. Static
+exact-one syntax retains precise `SingleParameterDefinitionPattern` typing:
 
 ```scala
 target match
@@ -355,19 +362,37 @@ type, sequence, repeated, fragment, whole-definition, type-parameter,
 contextual, default, varargs, extra-parameter, and extra-clause forms are not
 admitted.
 
-`matchDefinition` and the `dqq` extractor accept a caller-owned
-`q.reflect.DefDef` with one ordinary parameter. They check the exact names,
-bounded type normal forms, RHS presence, and the method/parameter symbol-owner
-relationship. A target difference or an unsupported target type returns
-`None`; in a `dqq` match this falls through normally. On success, `dqq`
-captures exactly `target.rhs.get`; the programmatic result additionally exposes
-the exact original `parameter.tpt.tpe` and `target.returnTpt.tpe`. The captured
-body is unconstrained and may contain bound or free references, so it remains
-owner-sensitive and must not be treated as a detached tree. No symbols or
-owners are exposed, and the matcher performs no construction, owner mutation,
-or reparenting. This is not general definition matching: there are no name,
-type, partial-body, sequence, whole-definition, multi-parameter, contextual,
-default, varargs, type-parameter, or multi-clause captures.
+A static structural exact-two template instead specializes to the scalable
+`DefinitionPatternExtractor`:
+
+```scala
+target match
+  case dqq"def choose(left: Int, right: String): String = $body" =>
+    val originalBody: q.reflect.Term = body
+  case _ => ()
+```
+
+`DefinitionPatternExtractor` represents private clause/parameter structure; it
+is not an arity-numbered public family. There is no public `dqq2`, `dqq3`, or
+`dqq4` API and no public `TwoParameterDefinitionPattern`. A dynamic/non-static
+`dqq` call retains the truthful historical single-parameter fallback. Typed-
+Scalameta matching remains exact-one until separate accepted evidence widens
+it.
+
+`matchDefinition` and static exact-one `dqq` accept a caller-owned
+`q.reflect.DefDef` with one ordinary parameter. Static exact-two `dqq` accepts
+the bounded two-ordinary-parameter structure. They check exact names, bounded
+type normal forms, RHS presence, ordered parameter clauses, and method/
+parameter symbol ownership. A target difference or unsupported target type
+returns `None`; in a `dqq` match this falls through normally. On success, both
+static forms capture exactly `target.rhs.get`; the exact-one programmatic result
+additionally exposes the exact original parameter and result `TypeRepr` values.
+The captured body may contain bound or free references, so it remains owner-
+sensitive and must not be treated as a detached tree. No symbols or owners are
+exposed, and the matcher performs no construction, owner mutation, or
+reparenting. This is not general definition matching: there are no name, type,
+partial-body, sequence, whole-definition, contextual, default, varargs,
+type-parameter, extra-clause, or general-N captures.
 
 The public compiler-free first-use surface admits the identity-like subset:
 

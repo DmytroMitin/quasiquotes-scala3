@@ -106,12 +106,16 @@ order. The same imports retain the recoverable neutral functions
 slots are distinct ordinal positions, while named and repeated-hole semantics
 remain available through the programmatic API. `DefinitionConstruction.*` is
 bounded compiler-free semantic construction/projection. The public `dqr`
-interpolator is a separate caller-owned Quotes surface: it admits exactly one
-ordinary parameter, two equal supported `TypeRepr` splices, and a literal body
-that names that parameter. It returns a `DefDef` owned by the current
-`Symbol.spliceOwner` for immediate placement in the same macro-generated local
-block. It is not a detached tree, body-hole API, or general owner/placement
-facility.
+interpolator is a separate caller-owned Quotes surface. Its original
+single-parameter shape admits two supported `TypeRepr` splices and a literal
+body naming that parameter; accepted current-Dotty semantics also admit one
+bounded exact-two ordinary-parameter clause with three `TypeRepr` splices and
+a literal body selecting either generated binder. The exact-two slice is
+currently limited to standalone `Int`, `String`, and `Boolean`; it is not
+N-parameter Definition parity. The unchanged variadic signature returns a
+`DefDef` owned by the current `Symbol.spliceOwner` for immediate placement in
+the same macro-generated local block. It is not a detached tree, body-hole API,
+or general owner/placement facility.
 
 Two additive umbrella façades are public in the current source snapshot:
 
@@ -125,13 +129,20 @@ families respectively; they do not duplicate parsing, matching, lowering, or
 reflection semantics. Every original domain-specific import above remains
 supported.
 
-The public `dqq` extractor and programmatic
-`DefinitionPattern.singleParameter(...)` matcher admit one fixed ordinary
-method name, one fixed ordinary parameter and fixed bounded parameter/result
-types, with `$body` as the complete RHS. A valid pattern returns `None` for an
-ordinary target mismatch and captures the caller's exact original RHS
-`q.reflect.Term` on success. The programmatic result additionally preserves
-the original reflected parameter and result types.
+The public Definition-pattern direction uses the same spelling, `dqq`, as
+template structure grows. A static exact-one template retains the precise
+legacy `SingleParameterDefinitionPattern` result. A static structural
+exact-two template specializes to the scalable `DefinitionPatternExtractor`,
+while a dynamic/non-static `dqq` call retains the truthful historical
+single-parameter fallback. `DefinitionPatternExtractor` represents structural
+clauses and parameters rather than an arity-numbered public family: there is no
+public `dqq2`, `dqq3`, or `dqq4` API and no public
+`TwoParameterDefinitionPattern`. Both admitted static forms capture the
+caller's exact original RHS `q.reflect.Term`; ordinary mismatch falls through.
+The separate `DefinitionPattern.singleParameter(...)` programmatic matcher
+remains exact-one and additionally preserves the original reflected parameter
+and result types. Typed-Scalameta `dqq` remains at its accepted exact-one slice;
+exact-two typed-Scalameta parity is separate work.
 
 See the [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md) for the current
 construct/match boundary and its deliberate limits.
@@ -157,7 +168,10 @@ construct/match boundary and its deliberate limits.
   structural projection into the existing validated IR, including the accepted
   fully-qualified, non-generic, one-positional-list constructor/New family,
   without `Quotes`, compiler implementation dependencies, staging, SemanticDB,
-  or exact trees.
+  or exact trees. Its bounded `ScalametaTermShapeAuthoring` reverse direction
+  creates fresh `Position.None` Scalameta Terms for binder-free ordinary terms,
+  fully-qualified `new`, and binder-free P1 blocks; P2/P3 binder authoring and
+  source-provenance reconstruction remain outside.
 - `hybridScalametaFrontend` is a remotely unpublished, compiler-coupled side-by-side
   experiment. It contains explicit typed Term, Type, and bounded Definition
   opt-in APIs in `quasiquotes.scalameta`. They parse public Scalameta ASTs,
@@ -175,8 +189,9 @@ construct/match boundary and its deliberate limits.
   bounded AUXify self abstract-Type-member lowering, delegated forwarding, and
   the bounded AUXify-039 Type alias. Its richer package-private Term backend
   also accepts the bounded one-local-val P2 block when authoritative completed
-  Type sidecars are available; the narrower direct Core lowerer remains
-  intentionally closed to P2.
+  Type sidecars are available and the bounded P3 local-identity-definition block
+  when authoritative parameter/result completed-Type sidecars are available.
+  The narrower direct Core lowerer remains intentionally closed to P2 and P3.
   Its source is present for review and testing, and its artifact remains
   remotely unpublished. The candidate `0.3.0` topology can stage it only in
   explicit expanded-release mode; consumers must match the exact Scala
@@ -262,6 +277,10 @@ root, unpublished experimental `neutralScalameta`, unpublished
 internals. It is generated from packaged Scaladoc search metadata for
 deterministic source/API-shape diffing; it is neither human API documentation
 nor binary, TASTy, overload-resolution, or semantic compatibility proof.
+The controller-accepted current standard candidate inventory is 679 rows / 661
+groups, while the unpublished typed-Scalameta inventory remains 43 rows. These
+development counts do not alter the immutable `0.2.0` baseline or imply a
+remote `0.3.0` release.
 
 The structural type subset includes recursively nested `List` and `Option`
 applications plus binary `Either`, including patterns, construction, quoted

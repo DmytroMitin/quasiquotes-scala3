@@ -282,10 +282,12 @@ fail closed.
 
 ## Reflected definition interpolation
 
-Inside an active macro `Quotes`, `dqr` constructs exactly one caller-owned
-single-parameter identity-like `DefDef`. The result is immediately inserted in
-the same macro-generated local block; it is not portable to another `Quotes`
-universe or arbitrary owner.
+Inside an active macro `Quotes`, `dqr` constructs one caller-owned bounded
+`DefDef`. The legacy shape has one ordinary parameter; the additional
+current-Dotty slice has exactly two ordinary parameters and a literal body that
+selects either binder. Both use the unchanged variadic signature and are
+immediately inserted in the same macro-generated local block; neither result is
+portable to another `Quotes` universe or arbitrary owner.
 
 <!-- snippet:dqr-first-use:start -->
 ```scala
@@ -295,6 +297,9 @@ import quasiquotes.construct.Quasiquotes.*
 
 object DqrFirstUseSnippet:
   inline def identity(value: Int): Int = ${ identityImpl('value) }
+
+  inline def selectRight(left: Int, right: String): String =
+    ${ selectRightImpl('left, 'right) }
 
   private def identityImpl(value: Expr[Int])(using q: Quotes): Expr[Int] =
     import q.reflect.*
@@ -319,14 +324,44 @@ object DqrFirstUseSnippet:
       List(definition),
       Apply(Ref(method), List(value.asTerm))
     ).asExprOf[Int]
+
+  private def selectRightImpl(
+      left: Expr[Int],
+      right: Expr[String]
+  )(using q: Quotes): Expr[String] =
+    import q.reflect.*
+
+    val leftType: q.reflect.TypeRepr = TypeRepr.of[Int]
+    val rightType: q.reflect.TypeRepr = TypeRepr.of[String]
+    val definition: q.reflect.DefDef =
+      dqr"def selectRight(left: $leftType, right: $rightType): $rightType = right"
+
+    val method = definition.symbol
+    val parameters = method.paramSymss.flatten
+    val exactOwnerAndBinder =
+      method.owner == Symbol.spliceOwner &&
+        parameters.size == 2 &&
+        parameters.forall(_.owner == method) &&
+        definition.rhs.exists(_.symbol == parameters(1))
+
+    if !exactOwnerAndBinder then
+      report.errorAndAbort("external exact-two dqr owner/binder proof failed")
+
+    Block(
+      List(definition),
+      Apply(Ref(method), List(left.asTerm, right.asTerm))
+    ).asExprOf[String]
 ```
 <!-- snippet:dqr-first-use:end -->
 
-The two holes must be supported caller-owned `q.reflect.TypeRepr` values with
-equal bounded normal forms. The method and parameter names are literal ordinary
-identifiers, and the body must be the literal declared parameter. Body, name,
-sequence, whole-definition, contextual, type-parameter, multi-parameter, and
-multi-clause forms are rejected with `Invalid dqr definition template:`.
+For the one-parameter form, the two holes must be supported caller-owned
+`q.reflect.TypeRepr` values with equal bounded normal forms. The exact-two form
+uses three holes for first-parameter, second-parameter, and result Types; its
+accepted semantic slice is currently standalone `Int`, `String`, or `Boolean`,
+and the literal RHS must select either declared parameter. Method and parameter
+names are literal ordinary identifiers. Body/name holes, sequence or whole-
+definition holes, contextual/type parameters, extra clauses, and more than two
+ordinary parameters are rejected with `Invalid dqr definition template:`.
 
 ## Programmatic definition matching
 
@@ -342,6 +377,7 @@ import scala.quoted.*
 
 import quasiquotes.matching.{
   DefinitionPattern,
+  DefinitionPatternExtractor,
   SingleParameterDefinitionMatch
 }
 import quasiquotes.matching.DefinitionPattern.*
@@ -362,6 +398,20 @@ object DefinitionPatternFirstUseSnippet:
   ): Option[q.reflect.Term] =
     target match
       case dqq"def boundedIdentity(value: Int): Int = $body" =>
+        val originalBody: q.reflect.Term = body
+        Some(originalBody)
+      case _ => None
+
+  def exactTwoPattern(using q: Quotes): DefinitionPatternExtractor =
+    DefinitionPattern.dqq(
+      StringContext("def choose(left: Int, right: String): String = ", "")
+    )(using q)
+
+  def captureExactTwoBody(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[q.reflect.Term] =
+    target match
+      case dqq"def choose(left: Int, right: String): String = $body" =>
         val originalBody: q.reflect.Term = body
         Some(originalBody)
       case _ => None
@@ -392,12 +442,16 @@ object DefinitionPatternFirstUseSnippet:
 ```
 <!-- snippet:definition-pattern-first-use:end -->
 
-The matcher source must have exactly the form
-`def name(parameter: FixedType): FixedResultType = $body`. Parameter and result
-types may differ. The compiled external fixture exercises both current `dqr`
-output and an independently authored definition. `dqq` accepts the same exact
-grammar in interpolated pattern syntax and captures only the complete original
-RHS `Term`; ordinary target mismatches fall through to the next pattern case.
+The recoverable programmatic matcher remains exactly
+`def name(parameter: FixedType): FixedResultType = $body`; its parameter and
+result types may differ. Interpolated `dqq` uses one scalable spelling: a static
+exact-one template has precise `SingleParameterDefinitionPattern` type, while a
+static structural exact-two template has `DefinitionPatternExtractor` type.
+Dynamic/non-static calls retain the exact-one fallback. The compiled external
+fixture exercises current `dqr`, an independently authored definition, and the
+static exact-two extractor. Both static forms capture only the complete original
+RHS `Term`, and ordinary target mismatches fall through. There is no public
+`dqq2`/`dqq3`/`dqq4` or arity-numbered pattern carrier.
 
 ## Lambda1 construction and matching
 

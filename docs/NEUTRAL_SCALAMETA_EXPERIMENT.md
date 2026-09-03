@@ -124,6 +124,18 @@ of `q` or `t` is rejected by Scalameta's macro guard because those methods must
 be invoked as string interpolators. The module therefore does not claim a thin
 `n*` façade; direct Scalameta authoring remains the admitted mechanism.
 
+The project also owns one bounded semantic-value-to-Scalameta reverse route:
+`ScalametaTermShapeAuthoring.author`. It creates fresh `Position.None` Terms
+for the accepted binder-free ordinary family (literals, identifiers,
+selections, one-list Apply, infix, unary, tuples, and explicit `if`), the
+fully-qualified one-list `new` family, transparent P0, and binder-free P1
+blocks. It preserves ordered block children and round-trips exactly through
+`ScalametaTermProjection`; it reconstructs no source position, token spelling,
+comment, or child identity. P2 local values, P3 local definitions, Lambda1 and
+other binder-bearing forms, ascription, and standard interpolation remain
+outside this authoring surface. The N016 interpolation investigation is an
+accepted blocked feasibility result with no production widening.
+
 ## Bounded validated projection
 
 `ScalametaContextualMethodProjection.project` structurally admits exactly one
@@ -186,7 +198,11 @@ as multiple lists; Apply remains recursively valid in ordinary argument and
 qualifier positions. Lambda1, P2, and P3 are outside this direct edge; P2 and
 P3 also remain rejected by the direct lowerer. The richer exact Term backend
 separately admits the bounded P2 shape using authoritative completed declared-
-Type sidecars and existing BinderId scope; P3 remains rejected.
+Type sidecars and existing BinderId scope. The richer backend also admits the
+bounded P3 local identity-method shape using authoritative completed parameter/
+result Type sidecars, distinct parameter/method BinderId scopes, exact scope
+restoration, and source-free or generated-origin parser-equivalent trees. P3
+remains rejected only by the narrower direct lowerer.
 
 The separate definition route reuses the existing validated-IR and
 generated-origin adapters to produce a positioned `untpd.DefDef`. Reverse

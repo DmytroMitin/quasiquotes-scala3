@@ -243,6 +243,7 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
 
   test("public dqr builds an owner-correct local identity method outside quasiquotes packages"):
     assertEquals(DqrFirstUseSnippet.identity(42), 42)
+    assertEquals(DqrFirstUseSnippet.selectRight(1, "two"), "two")
     assertEquals(DqrSelectiveImportSnippet.identity(41), 41)
 
   test("public single-parameter definition pattern preserves exact caller-owned trees"):
