@@ -4,8 +4,65 @@ The implementation is a structural research subset, not a complete Scala 3
 quasiquote system.
 
 For a compact phase-neutral overview across terms, types, and definitions, see
-the [syntax support matrix](SYNTAX_SUPPORT_MATRIX.md). This document provides
-the detailed semantic and diagnostic caveats behind that table.
+the [syntax support matrix](SYNTAX_SUPPORT_MATRIX.md). That table is the
+user-facing Q syntax view. The
+[cross-surface capability matrix](CROSS_SURFACE_CAPABILITY_MATRIX.md) reports
+the typed-Scalameta, neutral, fresh exact-lowering, and existing-tree rewrite
+directions independently. This document provides the detailed semantic and
+diagnostic caveats behind those tables.
+
+## How to read the surfaces
+
+Construction and matching are separate capabilities. Construction produces a
+new semantic or reflected value from a template; matching inspects a
+caller-owned value and may return its original captured subtrees. Support in
+one direction never implies support in the other.
+
+Important current asymmetries include construction-only dynamic selected-member
+names, construction-only reflected complete constructor Types, and the
+construction-only source-owned local identity method. Broader Definition and
+class families may have internal semantic or lowering components without a
+corresponding public constructor or matcher.
+
+The default current-Dotty frontend and the unpublished typed-Scalameta
+frontend are also separate. They share the project semantic model and must
+agree on their advertised overlap, but only a Scalameta parse failure may
+select current-parser fallback. A Scalameta semantic or lowering failure is
+terminal.
+
+The Q, N, and U labels describe direction rather than maturity:
+
+- Q is user-facing typed construction and matching in an active `Quotes`;
+- N is compiler-free projection from Scalameta or authoring back to Scalameta;
+- U-D creates a fresh exact compiler tree behind an exact-version internal boundary;
+- U-U rewrites an admitted part of an existing exact compiler tree while
+  preserving the stated identity and provenance contract.
+
+These directions do not compose merely because their input/output types look
+adjacent. A public composition must separately own admission, diagnostics,
+compiler-version policy, source positions, owners, placement, and lifecycle.
+
+## Composition table
+
+| Composition | Current status | Boundary |
+| --- | --- | --- |
+| `Term` -> `qr` scalar position | `BOUNDED` | Caller-owned reflected Term in an admitted scalar slot |
+| `Seq[Term]` -> `qr` arguments | `BOUNDED` | Exactly one rank-2 carrier in an admitted Apply or one-list New argument list |
+| `TypeRepr` / `tqr` -> `tqr` Type position | `BOUNDED` | Complete reflected Type positions only |
+| `TypeRepr` / `tqr` -> `qr` constructor Type | `BOUNDED` | Complete Type of one admitted one-list `new` |
+| `TypeRepr` / `tqr` -> Definition parameter/result | `BOUNDED` | One-parameter and exact-two Definition shapes only |
+| `TypeRepr` / `tqr` -> `dqr` | `BOUNDED` | Complete declared-Type fields only |
+| `dqq` captured body -> Term APIs | `BOUNDED` | Original owner-sensitive RHS in the same Quotes universe |
+| Constructed external `DefDef` -> `qr` statement | `NOT_YET` | No public placement/reownership contract |
+| Whole or sequence Definition splice | `NOT_YET` | No Definition-rank carrier |
+| Symbol splice | `NOT_APPLICABLE` | Symbols are not public splice payloads |
+
+Rank 2 currently means Term sequences only in bounded Apply and one-list New
+argument positions. Rank 3 is not implemented. Type and Definition sequences
+are not production capabilities. Accepted feasibility and API-direction
+evidence for Definition parameter-sequence capture does not widen this
+published boundary; production matching remains `NOT_YET`. Symbol splicing is
+not planned as source syntax.
 
 Currently exercised areas include:
 
@@ -376,8 +433,9 @@ target match
 is not an arity-numbered public family. There is no public `dqq2`, `dqq3`, or
 `dqq4` API and no public `TwoParameterDefinitionPattern`. A dynamic/non-static
 `dqq` call retains the truthful historical single-parameter fallback. Typed-
-Scalameta matching remains exact-one until separate accepted evidence widens
-it.
+Scalameta `dqq` preserves the same accepted static exact-one/exact-two selector
+split and dynamic exact-one fallback. Its exact-two matcher returns the same
+caller-owned RHS and does not route through the neutral Definition projectors.
 
 `matchDefinition` and static exact-one `dqq` accept a caller-owned
 `q.reflect.DefDef` with one ordinary parameter. Static exact-two `dqq` accepts

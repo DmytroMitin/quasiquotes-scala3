@@ -16,7 +16,7 @@ private[quasiquotes] final case class ScopedContextualMethodRawError(
 ) derives CanEqual:
   def message: String = s"$code: $detail"
 
-/** Parser-free raw lowering for the validated Phase-134 internal plan. */
+/** Parser-free raw lowering for the validated scoped contextual-method plan. */
 private[quasiquotes] object ScopedContextualMethodUntypedLowerer:
   import ScopedType.*
 

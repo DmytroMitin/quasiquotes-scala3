@@ -133,7 +133,7 @@ blocks. It preserves ordered block children and round-trips exactly through
 `ScalametaTermProjection`; it reconstructs no source position, token spelling,
 comment, or child identity. P2 local values, P3 local definitions, Lambda1 and
 other binder-bearing forms, ascription, and standard interpolation remain
-outside this authoring surface. The N016 interpolation investigation is an
+outside this authoring surface. The interpolation investigation is an
 accepted blocked feasibility result with no production widening.
 
 ## Bounded validated projection
@@ -212,7 +212,7 @@ definition shape and deliberately returns `Position.None`.
 Reverse projection cannot truthfully reconstruct source tokens, comments,
 formatting, exact offsets, or compiler-normalized distinctions. Unsupported raw
 forms fail explicitly. Exact trees never appear in the neutral module's API.
-The Term route likewise does not carry Phase-140 Scalameta offsets through the
+The Term route likewise does not carry Scalameta offsets through the
 core value, fabricate source, or publish a `scala.meta.Term -> untpd.Tree` API.
 It constructs new D syntax from project-owned semantics; it does not absorb the
 separate U experiment for identity-preserving structural rewrites over existing

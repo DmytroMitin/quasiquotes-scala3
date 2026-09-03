@@ -16,7 +16,7 @@ virtual source name:
 
 - the legacy one-unbounded-Type-parameter, one-`using`-parameter contextual
   method, such as `def apply[A](using inst: Show[A]): Show[A] = inst`;
-- the bounded AUXify-037 method with exactly two upper-bounded Type
+- the bounded `Add.Out` method with exactly two upper-bounded Type
   parameters, an ordered applied contextual Type, one direct contextual-binder
   selected-Type refinement alias, and the contextual binder as its body:
 

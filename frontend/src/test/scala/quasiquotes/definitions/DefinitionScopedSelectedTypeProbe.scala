@@ -48,7 +48,7 @@ private[definitions] object DefinitionScopedSelectedTypeProbe:
 
     val definitions = discovered.toList.map(value => value.name -> value).toMap
     def definition(name: String): DefDef =
-      definitions.getOrElse(name, report.errorAndAbort(s"Missing phase-126 probe definition `$name`."))
+      definitions.getOrElse(name, report.errorAndAbort(s"Missing selected-Type probe definition `$name`."))
 
     def selectedTarget(value: DefDef): TypeRef =
       value.returnTpt.tpe match

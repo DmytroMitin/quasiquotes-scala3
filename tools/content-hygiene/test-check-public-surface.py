@@ -118,6 +118,95 @@ class PublicSurfaceHygieneTest(unittest.TestCase):
             result.stderr,
         )
 
+    def test_rejects_controller_task_and_lane_message_ids_in_public_narrative(self) -> None:
+        result = self.run_checker(
+            {
+                "README.md": (
+                    "Q012RR widened the selector after U001. "
+                    "The details arrived in Q-C-0010.\n"
+                )
+            }
+        )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("PRIVATE_CONTROLLER_TASK_ID\tREADME.md:1", result.stderr)
+        self.assertIn("PRIVATE_LANE_MESSAGE_ID\tREADME.md:1", result.stderr)
+
+    def test_rejects_spaced_and_hyphenated_prompt_phase_chronology(self) -> None:
+        result = self.run_checker(
+            {
+                "README.md": (
+                    "Prompt-141 was followed by Phase-141.\n"
+                )
+            }
+        )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("PRIVATE_DELIVERY_CHRONOLOGY\tREADME.md:1", result.stderr)
+
+    def test_rejects_numbered_peer_mailbox_identities(self) -> None:
+        result = self.run_checker(
+            {
+                "docs/PEER.md": (
+                    "AUXify-039 consumed input 039 and answered request 043.\n"
+                )
+            }
+        )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("PRIVATE_PEER_REQUEST_ID\tdocs/PEER.md:1", result.stderr)
+        self.assertIn("PRIVATE_PEER_MAILBOX_ID\tdocs/PEER.md:1", result.stderr)
+
+    def test_rejects_plural_numbered_peer_mailbox_identity(self) -> None:
+        result = self.run_checker(
+            {"docs/PEER.md": "Inputs 039 and 043 remain separate.\n"}
+        )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("PRIVATE_PEER_MAILBOX_ID\tdocs/PEER.md:1", result.stderr)
+
+    def test_rejects_private_control_repository_and_paths(self) -> None:
+        result = self.run_checker(
+            {
+                "docs/INTERNAL.md": (
+                    "See quasiquotes-scala3-control, coordination/state/C.md, "
+                    "coordination/messages/to-c/, prompts/c/task.md, and "
+                    "reviews/q/result.md.\n"
+                )
+            }
+        )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("PRIVATE_CONTROL_REFERENCE\tdocs/INTERNAL.md:1", result.stderr)
+
+    def test_rejects_private_id_bearing_public_filename(self) -> None:
+        result = self.run_checker(
+            {
+                "docs/AUXIFY039_TYPE_ALIAS_PEER_BRIDGE.md": (
+                    "# Type alias bridge\n"
+                )
+            }
+        )
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(
+            "PRIVATE_IDENTIFIER_FILENAME\tdocs/AUXIFY039_TYPE_ALIAS_PEER_BRIDGE.md:1",
+            result.stderr,
+        )
+
+    def test_accepts_semantic_numbers_versions_and_north_star_labels(self) -> None:
+        result = self.run_checker(
+            {
+                "README.md": (
+                    "North-star N1/N2/N3/N4/N5 uses Tuple2 and Function2 on "
+                    "Scala 3.3.8, 3.8.4, and 3.9.0 with API version 0.3.0.\n"
+                )
+            }
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "PUBLIC_CONTENT_AND_WORKFLOW_HYGIENE_PASS\n")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

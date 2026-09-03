@@ -19,19 +19,21 @@ universe. Term matching projects into the existing project-owned
 Neither route prints a Scalameta tree for normal reparsing and neither creates
 a second semantic model.
 
-For the bounded Definition overlap, Scalameta admits exactly one ordinary
-fixed-name method with one ordinary fixed-name parameter. Construction places
-two collision-free placeholders only in the complete declared-Type fields and
-then forwards the original `TypeRepr` objects to the existing current-Dotty
+For the bounded Definition overlap, Scalameta admits a fixed-name method with
+either one or exactly two ordinary fixed-name parameters. Construction places
+collision-free placeholders only in complete declared-Type fields and then
+forwards the original `TypeRepr` objects to the corresponding current-Dotty
 Definition lowerer. Matching places one collision-free sentinel in the
-complete RHS and creates the existing `SingleParameterDefinitionPattern` from
-validated names and `TypeNormalForm` values. The route neither prints/reparses
+complete RHS and creates `SingleParameterDefinitionPattern` or
+`DefinitionPatternExtractor` from validated names and `TypeNormalForm` values.
+The route neither prints/reparses
 through the handwritten Definition parser nor uses the neutral or exact
 Definition backends. Accepted single-parameter construction passes complete
 Tuple2/Tuple3, Function1/Function2, and current-policy nested
 `List`/`Option`/`Either` `TypeNormalForm` values through the bounded
 package-private Definition seam; it does not widen public `CompletedType`.
-Typed-Scalameta exact-two `dqr`/`dqq` remains separate pending work.
+Exact-two is deliberately narrower: one ordinary clause, standalone
+`Int`/`String`/`Boolean` Types, and a body selecting either declared binder.
 
 The supported overlapping slice is checked differentially against the
 current-Dotty reference implementation on Scala 3.3.8, 3.8.4, and final 3.9.0. Type coverage
@@ -119,8 +121,8 @@ promise that arbitrary future syntax can be mixed or that one route silently
 rescues the other.
 
 The same hosts expose bounded `dqr`/`dqq` for the exact current-Dotty
-single-parameter identity-Definition overlap. They preserve the current typed
-owner/binder, complete `TypeNormalForm`, and original RHS capture contracts.
-They do not yet expose current-Dotty exact-two Definition parity. Direct
+single-parameter and exact-two identity-Definition overlap. They preserve the
+current typed owner/binder, complete `TypeNormalForm`, selector specialization,
+dynamic exact-one fallback, and original RHS capture contracts. Direct
 Scalameta definition quasiquotes in the neutral module remain source AST
 authoring, not reflected Definition construction or placement.

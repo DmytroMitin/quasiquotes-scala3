@@ -141,11 +141,16 @@ public `dqq2`, `dqq3`, or `dqq4` API and no public
 caller's exact original RHS `q.reflect.Term`; ordinary mismatch falls through.
 The separate `DefinitionPattern.singleParameter(...)` programmatic matcher
 remains exact-one and additionally preserves the original reflected parameter
-and result types. Typed-Scalameta `dqq` remains at its accepted exact-one slice;
-exact-two typed-Scalameta parity is separate work.
+and result types. Typed-Scalameta `dqq` has the same accepted static
+exact-one/exact-two selector split and the same dynamic exact-one fallback.
+Its exact-two slice preserves the same bounded structure and caller-owned RHS
+identity without routing through the neutral Definition projectors.
 
-See the [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md) for the current
-construct/match boundary and its deliberate limits.
+See the [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md) for the
+user-facing construct/match boundary and the
+[cross-surface capability matrix](docs/CROSS_SURFACE_CAPABILITY_MATRIX.md) for
+the independent Q, typed-Scalameta, neutral, fresh-lowering, and existing-tree
+rewrite directions.
 
 ## Related projects
 
@@ -180,14 +185,14 @@ construct/match boundary and its deliberate limits.
   as fallback; semantic or lowering failures remain fail-closed.
   Public `qr`/`qq` and `tqr`/`tqq` defaults and published dependencies do not
   change.
-  Its typed `dqr`/`dqq` reuse the current-Dotty one-ordinary-parameter
-  Definition lowerer and matcher for their exact overlapping slice; neutral
+  Its typed `dqr`/`dqq` reuse the current-Dotty one-ordinary-parameter and
+  exact-two Definition lowerers and matchers for their overlapping slices; neutral
   Scalameta definition authoring and typed reflected Definition placement
   remain distinct contracts.
 - `dottyInternal` contains exact-compiler internal adapters and four narrow
   experimental foreign-package peer bridges: contextual-method lowering,
   bounded AUXify self abstract-Type-member lowering, delegated forwarding, and
-  the bounded AUXify-039 Type alias. Its richer package-private Term backend
+  the bounded three-parameter refined Type alias. Its richer package-private Term backend
   also accepts the bounded one-local-val P2 block when authoritative completed
   Type sidecars are available and the bounded P3 local-identity-definition block
   when authoritative parameter/result completed-Type sidecars are available.
@@ -278,7 +283,9 @@ internals. It is generated from packaged Scaladoc search metadata for
 deterministic source/API-shape diffing; it is neither human API documentation
 nor binary, TASTy, overload-resolution, or semantic compatibility proof.
 The controller-accepted current standard candidate inventory is 679 rows / 661
-groups, while the unpublished typed-Scalameta inventory remains 43 rows. These
+groups, while the unpublished typed-Scalameta inventory remains 43 rows / 43
+groups. The typed exact-two selector replaces one source signature while
+retaining its historical erased JVM descriptor through a source-hidden bridge. These
 development counts do not alter the immutable `0.2.0` baseline or imply a
 remote `0.3.0` release.
 

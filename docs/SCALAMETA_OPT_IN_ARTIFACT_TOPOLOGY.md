@@ -34,13 +34,14 @@ The typed coordinate exposes only `quasiquotes.scalameta`:
 - ordered extractor results that preserve original caller-owned reflected
   subtrees.
 
-The typed Scalameta `dqr`/`dqq` surface is limited to the exact current-Dotty
-single-parameter identity-Definition overlap. It reuses the same typed
-owner/binder lowerer, complete `TypeNormalForm` seam, and
-`SingleParameterDefinitionPattern`; accepted construction includes the bounded
-Tuple/Function and nested applications documented for Q013 without widening
-public `CompletedType`. It does not yet expose exact-two `dqr`/`dqq`, and it
-does not route through the neutral contextual-method projector. That neutral
+The typed Scalameta `dqr`/`dqq` surface covers the exact current-Dotty
+single-parameter and exact-two identity-Definition overlap. It reuses the
+corresponding typed owner/binder lowerers, complete `TypeNormalForm` seam, and
+single/scalable pattern carriers; accepted single-parameter construction includes the bounded
+Tuple/Function and nested applications without widening
+public `CompletedType`. Exact-two remains limited to one ordinary clause,
+standalone `Int`/`String`/`Boolean` Types, and a literal body selecting either
+binder. It does not route through the neutral contextual-method projector. That neutral
 route and the exact `dottyInternal` pre-typer bridge remain separate contracts
 with different outputs and placement semantics.
 

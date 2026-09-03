@@ -50,4 +50,4 @@ AUXify coordinate proof and source-built Macro-Paradise callback proof use
 Scala 3.8.4. The Macro-Paradise callback is source-built and unreleased; no
 stable published coordinate for this integration is claimed. The sibling
 [contextual-method bridge](EXPERIMENTAL_CONTEXTUAL_METHOD_PEER_BRIDGE.md)
-continues to own the legacy and AUXify-037 `untpd.DefDef` families.
+continues to own the legacy and bounded `Add.Out` `untpd.DefDef` families.

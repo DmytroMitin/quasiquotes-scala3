@@ -2,6 +2,9 @@
 
 This is a project-specific map of tested support. It is not a compatibility
 claim with Scala 2 quasiquotes, Scalameta, or the complete Scala grammar.
+It is the user-facing Q syntax view. The independent typed-Scalameta, neutral,
+fresh exact-lowering, and existing-tree rewrite directions are documented in
+the [cross-surface capability matrix](CROSS_SURFACE_CAPABILITY_MATRIX.md).
 
 Status vocabulary:
 
@@ -93,7 +96,7 @@ read-only projections plus one exact caller-owned reflected interpolator.
 | Exactly two ordinary parameters | `def first(x: Int, y: String): Int = x` | Yes | Yes | Internal exact source-free and generated-origin modes | `BOUNDED`; one ordered list, distinct names, binder-aware bounded body |
 | Public reflected definition interpolation | `dqr"def id(x: $parameterType): $resultType = x"`; `dqr"def choose(x: $leftType, y: $rightType): $resultType = y"` | Binder-aware bounded core validation | Yes, caller-owned `DefDef` | Public Quotes lowering only | `BOUNDED`; unchanged variadic signature; exact-one keeps two equal supported `TypeRepr` slots; current-Dotty exact-two has three standalone Int/String/Boolean slots and a literal body selecting either ordered binder; immediate same-Quotes local placement; no general N-parameter parity |
 | Programmatic single-parameter definition matching | `DefinitionPattern.singleParameter("def id(x: Int): Int = $body")` | Private neutral comparison keys only | Yes | Public Quotes inspection | `BOUNDED`; fixed ordinary names/types, complete RHS capture, mismatch is `None`, original reflected values preserved |
-| Definition pattern interpolation | `case dqq"def id(x: Int): Int = $body"`; `case dqq"def choose(x: Int, y: String): String = $body"` | Private neutral comparison keys only | Yes, caller-owned RHS `Term` | Public Quotes inspection | `BOUNDED`; one same-spelling transparent-inline selector; static exact one -> `SingleParameterDefinitionPattern`; static structural exact two -> scalable `DefinitionPatternExtractor`; dynamic/non-static -> exact-one fallback; no `dqq2`/`dqq3`/`dqq4` or arity-numbered carrier; typed-Scalameta exact-two remains separate |
+| Definition pattern interpolation | `case dqq"def id(x: Int): Int = $body"`; `case dqq"def choose(x: Int, y: String): String = $body"` | Private neutral comparison keys only | Yes, caller-owned RHS `Term` | Public Quotes inspection | `BOUNDED`; one same-spelling transparent-inline selector; static exact one -> `SingleParameterDefinitionPattern`; static structural exact two -> scalable `DefinitionPatternExtractor`; dynamic/non-static -> exact-one fallback; no `dqq2`/`dqq3`/`dqq4` or arity-numbered carrier; typed-Scalameta preserves the same bounded selector split |
 | Curried/contextual methods, defaults, varargs, multiple clauses, general arity | broader methods | No | No | No | `NOT_YET`; no general method-definition claim |
 
 ## Comparison references

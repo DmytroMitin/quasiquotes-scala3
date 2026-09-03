@@ -5,7 +5,7 @@ import scala.meta.dialects.Scala3
 
 import _root_.quasiquotes.parser.TermShape
 
-/** Test-only Phase-131 probe. This is not a production projector API. */
+/** Test-only neutral Term projection probe. This is not a production projector API. */
 final class ScalametaTermProjectionDesignProbeTest extends munit.FunSuite:
   test("literal infix projection reaches the existing public TermShape"):
     val source = q"1 + 1"

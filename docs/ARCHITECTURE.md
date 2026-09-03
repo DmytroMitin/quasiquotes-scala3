@@ -111,13 +111,14 @@ The additive `quasiquotes.Quasiquotes` and
 the six established `qr`/`qq`/`tqr`/`tqq`/`dqr`/`dqq` families. They do not add
 a third semantic route, and every original host remains supported.
 
-Current-Dotty Definition matching uses one same-spelling transparent-inline
+Current-Dotty and typed-Scalameta Definition matching each use one same-spelling transparent-inline
 `dqq` selector. Static exact-one templates specialize to the legacy
 `SingleParameterDefinitionPattern`; static structural exact-two templates
 specialize to scalable `DefinitionPatternExtractor`; dynamic/non-static calls
 retain the exact-one fallback. Parameter count stays template structure rather
-than a public `dqqN` family. Typed Scalameta remains at its accepted exact-one
-Definition overlap until separate exact-two parity work is accepted.
+than a public `dqqN` family. The typed-Scalameta route preserves the same
+accepted exact-two structure and caller-owned RHS identity through its direct
+typed frontend; it does not route through a neutral Definition projector.
 
 For the accepted no-hole non-binder overlap, shared differential behavior
 is the consolidation boundary. The neutral projector is a compiler-free
@@ -162,6 +163,11 @@ Direct `TypeRepr` transport makes `tqr` to `qr` stacking a tested current
 behavior.
 The typed Scalameta route implements the same overlap and treats reflected-Type
 admission or lowering failure as terminal rather than a fallback trigger.
+
+These frontend, neutral, and exact-tree directions are intentionally reported
+independently in the
+[cross-surface capability matrix](CROSS_SURFACE_CAPABILITY_MATRIX.md). A
+supported cell on one axis does not imply a public composition across axes.
 
 Definition composition has two ownership classes. A source-owned local
 `def` written inside `qr` is implemented for one ordinary parameter, a body
@@ -257,15 +263,15 @@ and uses `DelegatedForwardingMethodPeerBridge` to obtain a positioned
 owns source inspection, companion lifecycle, placement, conflict policy, and
 rollback. This operation is not a general method or Term bridge.
 
-The bounded AUXify-039 alias path accepts one already-authored Scalameta
+The bounded Type-alias path accepts one already-authored Scalameta
 `Defn.Type` plus explicit alias, three parameter, three bound, target, and
 refinement-member expectations. `ScalametaAuxTypeAliasProjection` produces the
 three-binder `AuxTypeAliasPlan`; one private identity-preserving adapter copies
-those binder identities into the accepted U001 input, and
+those binder identities into the exact backend input, and
 `AuxTypeAliasPeerBridge` returns a positioned 18-node `untpd.TypeDef`. AUXify
 owns fresh-name derivation and authoring. Macro-Paradise retains all lifecycle,
 admission, companion, placement, conflict, rollback, and typing policy. See the
-[AUXify-039 bridge contract](AUXIFY039_TYPE_ALIAS_PEER_BRIDGE.md).
+[Type-alias bridge contract](TYPE_ALIAS_PEER_BRIDGE.md).
 
 Macro-Paradise remains an exact compiler plugin. It owns plugin lifecycle,
 placement, companion merge, insertion, rollback, and typing, and does not take

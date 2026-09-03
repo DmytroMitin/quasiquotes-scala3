@@ -47,7 +47,8 @@ The result remains
 released 618-row file, and the 679-row candidate remains generated evidence
 until an actual `0.3.0` release.
 
-Against the last accepted pre-Q012RR development baseline, Q012RR moved
+Against the preceding accepted development baseline, the scalable Definition
+pattern-extractor change moved
 677 rows / 659 groups to 679 rows / 661 groups: two groups and three signatures
 were added, no group was removed, and one signature was replaced. The accepted
 current inventory SHA-256 is
@@ -56,12 +57,14 @@ The additions are the scalable `DefinitionPatternExtractor` class and its
 `unapply`; the replacement is the public Scala/TASTy `dqq` declaration with a
 transparent-inline selector shape. The historical erased JVM descriptor is
 preserved separately by a source-hidden bridge on Scala 3.3.8, 3.8.4, and
-3.9.0. Q013 adds semantic Tuple/Function single-parameter construction breadth
+3.9.0. The current surface also adds semantic Tuple/Function single-parameter construction breadth
 without changing these rows or groups.
 
-The unpublished hybrid typed-Scalameta inventory remains byte-identical at 43
-rows; its Scala-3.8.4 Javadoc JAR SHA-256 is
-`faa5e8023dc505d32960ffc845004e8d586029b374bd7e90518ad3845b5537bd`.
+The unpublished hybrid typed-Scalameta inventory remains 43 rows / 43 symbol
+groups. Exact-two Definition parity replaces one Scala/TASTy selector signature
+without adding or removing a symbol group. The historical erased JVM descriptor
+is retained by a source-hidden bridge. This is no standard `core`/`frontend`
+inventory delta.
 
 The standard inventory deliberately excludes the unpublished, full-crossed
 `dottyInternal` artifact, so it cannot describe that module's foreign-package

@@ -13,12 +13,12 @@ compiler context.
 Four definition-specific production objects in this module are intentionally
 exposed to foreign packages. `ContextualMethodPeerBridge` accepts either the
 legacy single-unbounded-parameter contextual method or the exact bounded
-two-parameter AUXify-037 `Add.Out` method. The separate
-`SelfAbstractTypeMemberPeerBridge` accepts only the bounded AUXify-046 abstract
+two-parameter bounded `Add.Out` method. The separate
+`SelfAbstractTypeMemberPeerBridge` accepts only the bounded self-Type abstract
 member family. `DelegatedForwardingMethodPeerBridge` accepts only the exact
-AUXify-043 one-type-parameter, ordinary-parameter, final-using-parameter
+one-type-parameter, ordinary-parameter, final-using-parameter
 forwarder whose body calls the contextual instance with the ordinary argument.
-`AuxTypeAliasPeerBridge` accepts only the exact AUXify-039 three-parameter,
+`AuxTypeAliasPeerBridge` accepts only the exact three-parameter,
 two-target-reference, one-refinement-alias family. All four require a virtual
 source name and return a categorized
 failure or a positioned tree with deterministic generated source and the
@@ -55,8 +55,8 @@ The second operation is documented separately on the
 [self abstract-Type-member bridge page](SELF_ABSTRACT_TYPE_MEMBER_PEER_BRIDGE.md).
 The 043 operation is documented on the
 [delegated forwarding-method bridge page](DELEGATED_FORWARDING_METHOD_PEER_BRIDGE.md).
-The 039 operation is documented on the
-[AUXify-039 Type-alias bridge page](AUXIFY039_TYPE_ALIAS_PEER_BRIDGE.md).
+The bounded Type-alias operation is documented on the
+[Type-alias bridge page](TYPE_ALIAS_PEER_BRIDGE.md).
 
 ## Internal module inventory
 
@@ -95,16 +95,16 @@ and carry no stable compatibility promise:
 - `ConstructedDefinitionUntypedBackend` and
   `PublicContextualMethodUntypedBackend` construct bounded raw definitions.
 - `ScopedContextualMethodUntypedLowerer` and its generated-origin adapter own
-  only the exact AUXify-037 two-binder/refinement raw shape.
+  only the exact bounded two-binder/refinement raw shape.
 - `SelfAbstractTypeMemberUntypedLowerer` and its generated-origin adapter own
-  only the exact AUXify-046 nine-node `untpd.TypeDef` shape.
+  only the exact self-Type-member nine-node `untpd.TypeDef` shape.
 - `DelegatedForwardingMethodUntypedLowerer` and its generated-origin adapter
-  own only the exact AUXify-043 14-node `untpd.DefDef` shape and its complete
+  own only the exact delegated-forwarding 14-node `untpd.DefDef` shape and its complete
   generated-source position layout.
 - `AuxTypeAliasUntypedLowerer` and its generated-origin adapter own only the
-  exact AUXify-039 18-node `untpd.TypeDef` shape. The private
-  `AuxTypeAliasPlanUntypedInputAdapter` copies N001 BinderIds and spellings into
-  U001 input without allocating or inferring identities.
+  exact bounded refined-alias 18-node `untpd.TypeDef` shape. The private
+  `AuxTypeAliasPlanUntypedInputAdapter` copies plan BinderIds and spellings into
+  the backend input without allocating or inferring identities.
 - `ScalametaContextualMethodBackend` is an internal bounded forward/reverse
   adapter for the contextual-method shape.
 - the generated-origin adapters, result carriers, fragment planner,

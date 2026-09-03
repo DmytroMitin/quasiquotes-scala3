@@ -11,15 +11,53 @@ from pathlib import Path
 
 
 TEXT_SUFFIXES = {".md", ".txt", ".yml", ".yaml", ".scala"}
+PUBLIC_NARRATIVE_SUFFIXES = {".md", ".txt"}
 CHRONOLOGY_PATTERNS = (
-    re.compile(r"\bPrompt\s+[0-9]+(?:\.[0-9]+)?\b", re.IGNORECASE),
-    re.compile(r"\bPhase\s+[0-9]+[A-Za-z0-9]*\b", re.IGNORECASE),
+    re.compile(r"\bPrompt(?:\s+|-)\d+(?:\.\d+)?\b", re.IGNORECASE),
+    re.compile(r"\bPhase(?:\s+|-)\d+[A-Za-z0-9]*\b", re.IGNORECASE),
     re.compile(
         r"\b(?:con" r"troller|control-repository)\s+(?:chronology|hand" r"off|schedule)",
         re.IGNORECASE,
     ),
-    re.compile(r"\bre" r"views/[0-9]", re.IGNORECASE),
-    re.compile(r"\bquasiquotes-scala3-" r"control\b", re.IGNORECASE),
+)
+PRIVATE_NARRATIVE_PATTERNS = (
+    (
+        "PRIVATE_CONTROLLER_TASK_ID",
+        re.compile(r"\b[QNUC]\d{3}[A-Z]*\b", re.IGNORECASE),
+    ),
+    (
+        "PRIVATE_LANE_MESSAGE_ID",
+        re.compile(r"\b[QNUC]-[QNUC]-\d{4}\b", re.IGNORECASE),
+    ),
+    (
+        "PRIVATE_PEER_MAILBOX_ID",
+        re.compile(r"\b(?:inputs?|requests?)\s+\d{3}\b", re.IGNORECASE),
+    ),
+    (
+        "PRIVATE_PEER_REQUEST_ID",
+        re.compile(
+            r"\b(?:AUXify|Macro-Paradise|Quasiquotes)-\d{3}\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "PRIVATE_CONTROL_REFERENCE",
+        re.compile(
+            r"\bquasiquotes-scala3-control\b|"
+            r"\bcoordination/(?:state|messages)(?:/|\b)|"
+            r"(?:^|[\s`])(?:prompts|reviews)/",
+            re.IGNORECASE,
+        ),
+    ),
+)
+PRIVATE_IDENTIFIER_FILENAME_PATTERN = re.compile(
+    r"(?:^|[/_.-])(?:"
+    r"[QNUC]\d{3}[A-Z]*|"
+    r"AUXIFY[-_]?\d{3}|"
+    r"(?:PROMPT|PHASE)[-_]?\d+|"
+    r"(?:INPUT|REQUEST)[-_]?\d{3}"
+    r")(?=[/_.-]|$)",
+    re.IGNORECASE,
 )
 STALE_SECURITY_PATTERN = re.compile(
     r"private\s+security(?:-reporting)?\s+channel.{0,300}?"
@@ -75,6 +113,11 @@ def audit(root: Path) -> list[Finding]:
     for path in tracked_text_files(root):
         relative = path.relative_to(root).as_posix()
         text = path.read_text(errors="replace")
+        if (
+            path.suffix.lower() in PUBLIC_NARRATIVE_SUFFIXES
+            and PRIVATE_IDENTIFIER_FILENAME_PATTERN.search(relative)
+        ):
+            findings.append(Finding(relative, 1, "PRIVATE_IDENTIFIER_FILENAME"))
         if relative.startswith(".github/workflows/") and not READ_ONLY_PERMISSION_PATTERN.search(text):
             findings.append(
                 Finding(relative, 1, "WORKFLOW_READ_ONLY_PERMISSION_MISSING")
@@ -87,6 +130,10 @@ def audit(root: Path) -> list[Finding]:
         for number, line in enumerate(text.splitlines(), start=1):
             if any(pattern.search(line) for pattern in CHRONOLOGY_PATTERNS):
                 findings.append(Finding(relative, number, "PRIVATE_DELIVERY_CHRONOLOGY"))
+            if path.suffix.lower() in PUBLIC_NARRATIVE_SUFFIXES:
+                for code, pattern in PRIVATE_NARRATIVE_PATTERNS:
+                    if pattern.search(line):
+                        findings.append(Finding(relative, number, code))
             if relative.startswith(".github/"):
                 action = ACTION_PATTERN.search(line)
                 if action and not IMMUTABLE_SHA_PATTERN.fullmatch(action.group(2)):

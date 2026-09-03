@@ -15,7 +15,7 @@ private[quasiquotes] final case class ScopedContextualMethodGeneratedOriginError
 ) derives CanEqual:
   def message: String = s"$code: $detail"
 
-/** Complete generated-origin positioning for the exact Phase-134 raw shape. */
+/** Complete generated-origin positioning for the exact scoped contextual-method raw shape. */
 private[quasiquotes] object ScopedContextualMethodGeneratedOriginAdapter:
   import ScopedType.*
 

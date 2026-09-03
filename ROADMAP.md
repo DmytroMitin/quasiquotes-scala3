@@ -5,14 +5,14 @@ delivery chronology.
 
 ## Current
 
-- Preserve the Phase-142 typed integer/infix overlap decision: current-Dotty
+- Preserve the typed integer/infix overlap decision: current-Dotty
   `qr`/`qq`, opt-in typed Scalameta `qr`/`qq`, programmatic `TermFrontend`, the
   neutral projector, and the current parser agree on the fixed no-hole
   arithmetic/comparison family across Scala 3.3.8, 3.8.4, and final 3.9.0.
   Keep direct typed Scalameta AST-to-reflection lowering and share the
   differential parity contract; do not route it through the narrower neutral
   projector or add a core-to-typed lowerer merely for symmetry.
-- Preserve the Phase-131 representation boundary: public `Expr` and
+- Preserve the representation boundary: public `Expr` and
   `quotes.reflect.Term` APIs are distinct from exact `tpd`/`untpd` internals,
   while Scalameta and the compiler-free core form a separate neutral axis.
   `dottyInternal` remains an unpublished exact backend, not a generic raw-tree
@@ -76,8 +76,8 @@ delivery chronology.
 - Keep `dottyInternal` source visible but its artifact unpublished. Retain only
   definition-specific exact-version bridges for tightly coupled foreign-package
   peers. `ContextualMethodPeerBridge` admits the unchanged legacy `Show[A]`
-  method and complete AUXify-037 `Add.Out` method.
-  `SelfAbstractTypeMemberPeerBridge` admits only the coherent AUXify-046
+  method and complete bounded `Add.Out` method.
+  `SelfAbstractTypeMemberPeerBridge` admits only the coherent bounded
   bounded abstract member; neither is a generic raw-tree API.
 - Preserve Apache-2.0 POM and JAR metadata for intended `core` and `frontend`
   distributions.
@@ -129,6 +129,11 @@ delivery chronology.
   slice bounded to one ordinary clause, standalone `Int`/`String`/`Boolean`
   types, and a literal body selecting either binder under the unchanged
   variadic signature.
+- Preserve typed-Scalameta parity for that same bounded Definition slice:
+  static exact-one and exact-two templates select their corresponding pattern
+  carriers, dynamic/non-static matching retains the exact-one fallback, and
+  successful matches expose the caller's original RHS. This is frontend parity,
+  not a general neutral Definition projection or exact-tree placement API.
 - Maintain end-to-end recursive `List`/`Option` and binary `Either` support
   without turning fixed constructor admission into a general type resolver.
 - Preserve a deterministic clean aggregate build and external-package examples.
@@ -184,17 +189,48 @@ are different source categories.
 ### Typed Scalameta Definitions
 
 Typed Scalameta `dqr`/`dqq` are implemented in the unpublished opt-in hybrid
-frontend for the exact current-Dotty one-ordinary-parameter identity-Definition
-overlap. Construction delegates to the same typed owner/binder lowerer and
-matching delegates to the same `SingleParameterDefinitionPattern`; successful
-matching returns the caller's original reflected RHS. Accepted single-parameter
+frontend for the exact current-Dotty one-ordinary-parameter and exact-two
+identity-Definition overlap. Construction delegates to the corresponding typed
+owner/binder lowerer. Matching uses `SingleParameterDefinitionPattern` for
+static exact-one syntax and `DefinitionPatternExtractor` for static exact-two
+syntax, with the same dynamic exact-one fallback; successful matching returns
+the caller's original reflected RHS. Accepted single-parameter
 construction includes structured Tuple2/Tuple3, Function1/Function2, and
 current-policy nested `List`/`Option`/`Either` combinations through complete
-`TypeNormalForm`; it does not widen public `CompletedType`. Exact-two typed-
-Scalameta `dqr`/`dqq` remains separate pending work. These APIs are not aliases
+`TypeNormalForm`; it does not widen public `CompletedType`. Exact-two remains
+limited to one ordinary clause, standalone `Int`/`String`/`Boolean` Types, and
+a body selecting either declared binder. These APIs are not aliases
 for neutral upstream Scalameta `q` definition AST authoring, and they are not
 the exact pre-typer bridge in `dottyInternal`. Parity between typed frontends
 remains required only for their overlapping advertised slices, not in lock-step.
+
+### Product-level Definition ladder
+
+Definition work proceeds by semantic ownership rather than syntax breadth:
+
+1. immutable typed value;
+2. parameterless ordinary method;
+3. one ordinary-parameter method;
+4. exact-two ordinary-parameter method;
+5. simple Type alias;
+6. broader clauses, Types, and bodies;
+7. class, trait, and object construction only after a reusable owner/member model exists.
+
+A future neutral API may take the conceptual shape
+`ScalametaDefinitionProjection.project(stat)`, but that spelling is illustrative,
+not a locked public name. The next implementation step is a reusable neutral
+Definition projection model; specialized contextual-method, Type-alias, and
+instance-factory projectors do not substitute for it.
+
+The existing neutral Term and Type projectors can each compose with an existing
+internal exact lowerer for their admitted non-binder families. They are ready
+for separate bounded public façade and diagnostic-design tasks. No such public
+API is declared here, and a general Scalameta Definition-to-exact-tree bridge
+waits on the reusable neutral Definition projection step.
+
+Publication policy remains a separate successor task: it must decide stable
+coordinates, supported compiler lanes, compatibility evidence, and release
+gates without changing semantic admission merely to make publication easier.
 
 ### Additive import façade
 
@@ -217,7 +253,7 @@ remain supported; no deep package move or deprecation is selected. At that
 umbrella-facade task's historical checkpoint, the exact accepted API delta was
 additive: standard 676 to 677 rows and hybrid 42 to 43 search rows, with one
 object addition and zero removals in each inventory. The current programme
-inventory is the later Q012RR/Q013 679-row / 661-group standard surface and the
+inventory is the current 679-row / 661-group standard surface and the
 unchanged 43-row hybrid surface recorded above.
 
 ## North-star source-like generation
@@ -247,9 +283,10 @@ definition/class support remain independent later work. The
 [typed sequence Term splice contract](docs/TYPED_SEQUENCE_TERM_SPLICE_DESIGN.md)
 ships `..$args` plus a dedicated caller-universe carrier for one bounded
 Apply/one-list-New construction gate. The
-bounded AUXify-037 and AUXify-046 bridges and their
-foreign-package consumer proofs are complete. Inputs 039, 041, 043, and 045
-remain separate peer-oriented lanes; 046 did not implement or widen them.
+bounded contextual-method and self abstract-Type-member bridges and their
+foreign-package consumer proofs are complete. Type-alias, instance-factory,
+delegated-forwarding, and anonymous-implementation work remain separate
+peer-oriented lanes; the self abstract-Type-member bridge did not widen them.
 External `DefDef` statement splicing is not selected merely for symmetry.
 After the two completed typed/public rotation slots, the selected neutral/core
 gate expands `ScalametaTermProjection` from the original integer/infix family

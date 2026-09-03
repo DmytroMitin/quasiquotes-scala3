@@ -186,7 +186,7 @@ projection remain in `dottyInternal`. See the
 [neutral Scalameta experiment](NEUTRAL_SCALAMETA_EXPERIMENT.md).
 
 The separate package-private `ScalametaDelegatedForwardingMethodProjection`
-admits the exact AUXify-043 forwarding definition into a compiler-free plan
+admits the exact delegated forwarding definition into a compiler-free plan
 with one type binder and two role-specific term binders. Its exact-version
 backend constructs and positions one `untpd.DefDef`; it does not expose a
 general Scalameta-definition conversion.
@@ -408,7 +408,7 @@ untpd.Tree
 
 The current production endpoints of this second route are the bounded
 contextual-method, self abstract-Type-member, delegated-forwarding-method, and
-AUXify-039 Type-alias bridges plus the package-private Core Term backend. The
+bounded Type-alias bridge plus the package-private Core Term backend. The
 latter composes the projector's accepted non-binder and transparent
 P0/binder-free P1 overlap with core `TermShape` and direct source-free raw
 construction. Typed Lambda1, P2, and P3 projected shapes stop at the direct
