@@ -1,9 +1,13 @@
 package quasiquotes.scalameta
 
+import scala.annotation.targetName
 import scala.quoted.Quotes
 
-import quasiquotes.matching.TermMatcher
-import quasiquotes.matching.SingleParameterDefinitionPattern
+import quasiquotes.matching.{
+  DefinitionPatternExtractor,
+  SingleParameterDefinitionPattern,
+  TermMatcher
+}
 import quasiquotes.definitions.hybrid.ScalametaDefinitionFrontend
 
 /** Bounded extractor for ordered captures from the opt-in pattern frontend. */
@@ -77,10 +81,43 @@ object ScalametaQuasiPattern:
               .map(_.captures)
           )
 
-    def dqq(using q: Quotes): SingleParameterDefinitionPattern =
-      ScalametaDefinitionFrontend.compilePattern(context.parts) match
-        case Right(pattern) => pattern
-        case Left(failure) =>
-          q.reflect.report.errorAndAbort(
-            s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"
-          )
+  private[scalameta] def singleParameterExtractor(
+      context: StringContext
+  )(using q: Quotes): SingleParameterDefinitionPattern =
+    if context == null then
+      q.reflect.report.errorAndAbort(
+        "Invalid Scalameta dqq definition-pattern template: StringContext must not be null."
+      )
+    ScalametaDefinitionFrontend.compilePattern(context.parts) match
+      case Right(pattern) => pattern
+      case Left(failure) =>
+        q.reflect.report.errorAndAbort(
+          s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"
+        )
+
+  private[scalameta] def exactTwoExtractor(
+      context: StringContext
+  )(using q: Quotes): DefinitionPatternExtractor =
+    if context == null then
+      q.reflect.report.errorAndAbort(
+        "Invalid Scalameta dqq definition-pattern template: StringContext must not be null."
+      )
+    ScalametaDefinitionFrontend.compileExactTwoPattern(context.parts) match
+      case Right(pattern) => pattern
+      case Left(failure) =>
+        q.reflect.report.errorAndAbort(
+          s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"
+        )
+
+  /** JVM-linkage bridge for callers compiled against the pre-Q014 extension.
+    * New source calls use the transparent inline structural selector.
+    */
+  @targetName("dqq")
+  private[scalameta] def dqqLegacy(
+      context: StringContext
+  )(using q: Quotes): SingleParameterDefinitionPattern =
+    singleParameterExtractor(context)
+
+  extension (inline context: StringContext)
+    transparent inline def dqq(using q: Quotes) =
+      ${ ScalametaDefinitionPatternMacro.extractor('context, 'q) }

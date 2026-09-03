@@ -82,6 +82,23 @@ private[matching] object DefinitionPatternExtractor:
     "Invalid exact-two definition pattern; expected one ordinary method with two distinct parameters, standalone Int/String/Boolean types, and `$body` as the complete right-hand side."
   private val AdmittedTypes = Set("Int", "String", "Boolean")
 
+  private[matching] def structured(
+      methodName: String,
+      parameterClauses: Vector[Vector[(String, TypeNormalForm)]],
+      resultType: TypeNormalForm
+  ): DefinitionPatternExtractor =
+    new DefinitionPatternExtractor(
+      StructuralSpec(
+        methodName,
+        parameterClauses.map(parameters =>
+          ParameterClauseSpec(
+            parameters.map((name, parameterType) => ParameterSpec(name, parameterType))
+          )
+        ),
+        resultType
+      )
+    )
+
   def compileExactTwo(source: String): Either[String, DefinitionPatternExtractor] =
     if source == null then Left("Definition pattern source must not be null.")
     else
@@ -99,19 +116,15 @@ private[matching] object DefinitionPatternExtractor:
       firstType <- admittedType(parsed.firstParameterTypeSource)
       secondType <- admittedType(parsed.secondParameterTypeSource)
       resultType <- admittedType(parsed.resultTypeSource)
-    yield new DefinitionPatternExtractor(
-      StructuralSpec(
-        methodName.decoded,
+    yield structured(
+      methodName.decoded,
+      Vector(
         Vector(
-          ParameterClauseSpec(
-            Vector(
-              ParameterSpec(firstName.decoded, firstType),
-              ParameterSpec(secondName.decoded, secondType)
-            )
-          )
-        ),
-        resultType
-      )
+          (firstName.decoded, firstType),
+          (secondName.decoded, secondType)
+        )
+      ),
+      resultType
     )
 
   private def name(source: String): Either[String, DefinitionName] =

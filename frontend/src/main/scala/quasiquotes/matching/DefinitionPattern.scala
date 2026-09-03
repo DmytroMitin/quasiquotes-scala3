@@ -216,6 +216,17 @@ object DefinitionPattern:
       resultType
     )
 
+  private[quasiquotes] def structured(
+      methodName: DefinitionName,
+      parameterClauses: Vector[Vector[(DefinitionName, TypeNormalForm)]],
+      resultType: TypeNormalForm
+  ): DefinitionPatternExtractor =
+    DefinitionPatternExtractor.structured(
+      methodName.decoded,
+      parameterClauses.map(_.map((name, parameterType) => (name.decoded, parameterType))),
+      resultType
+    )
+
   private def compile(
       source: String
   ): Either[DefinitionPatternError, SingleParameterDefinitionPattern] =

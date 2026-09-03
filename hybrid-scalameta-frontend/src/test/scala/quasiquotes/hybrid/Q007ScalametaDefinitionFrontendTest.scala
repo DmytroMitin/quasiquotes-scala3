@@ -224,6 +224,9 @@ class Q007ScalametaDefinitionFrontendTest extends munit.FunSuite:
         catch
           case error: Throwable => Option(error.getMessage).getOrElse(error.getClass.getName)
 
+      def dynamicDqq(context: StringContext) =
+        quasiquotes.scalameta.ScalametaQuasiPattern.dqq(context)(using q)
+
       val intType = TypeRepr.of[Int]
       val malformed = abortMessage(
         quasiquotes.scalameta.ScalametaQuasiquotes.dqr(
@@ -231,14 +234,10 @@ class Q007ScalametaDefinitionFrontendTest extends munit.FunSuite:
         )(using q)(intType, intType)
       )
       val rank2 = abortMessage(
-        quasiquotes.scalameta.ScalametaQuasiPattern.dqq(
-          StringContext("def id(value: Int): Int = ..", "")
-        )(using q)
+        dynamicDqq(StringContext("def id(value: Int): Int = ..", ""))
       )
       val rank3 = abortMessage(
-        quasiquotes.scalameta.ScalametaQuasiPattern.dqq(
-          StringContext("def id(value: Int): Int = ...", "")
-        )(using q)
+        dynamicDqq(StringContext("def id(value: Int): Int = ...", ""))
       )
       (malformed, rank2, rank3)
 
