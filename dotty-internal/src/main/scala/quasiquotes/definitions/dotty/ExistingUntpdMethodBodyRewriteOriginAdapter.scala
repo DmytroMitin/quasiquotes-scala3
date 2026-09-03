@@ -73,6 +73,34 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
           )
         )
 
+  /** Attributes one direct-Ident-qualified selected Apply and 1..3 leaf arguments
+    * uniformly to the replaced RHS site.
+    */
+  def adaptSelectedApply(
+      structural: ExistingUntpdMethodBodyRewriter.Result
+  )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, Result] =
+    try
+      Option(structural)
+        .toRight(error("RESULT_REQUIRED", "the U002 structural result was null."))
+        .flatMap(validateSelectedApplyReplacement)
+        .flatMap(validated =>
+          validateSourceFreeInput(validated.structural).map(_ => validated)
+        )
+        .flatMap(validated =>
+          validateOriginalSites(validated.structural).map(_ => validated)
+        )
+        .flatMap(positionSelectedApply)
+    catch
+      case NonFatal(exception) =>
+        Left(
+          error(
+            "ORIGIN_ADAPTATION_FAILED",
+            Option(exception.getMessage)
+              .filter(_.nonEmpty)
+              .getOrElse(exception.getClass.getSimpleName)
+          )
+        )
+
   private def validateSourceFreeInput(
       structural: ExistingUntpdMethodBodyRewriter.Result
   )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, ExistingUntpdMethodBodyRewriter.Result] =
@@ -131,6 +159,14 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
       arguments: List[untpd.Tree]
   )
 
+  private final case class ValidatedSelectedApply(
+      structural: ExistingUntpdMethodBodyRewriter.Result,
+      replacement: untpd.Apply,
+      selection: untpd.Select,
+      qualifier: untpd.Ident,
+      arguments: List[untpd.Tree]
+  )
+
   private def validateApplyReplacement(
       structural: ExistingUntpdMethodBodyRewriter.Result
   ): Either[ExistingUntpdMethodBodyRewriteOriginError, ValidatedApply] =
@@ -178,10 +214,82 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
           )
         )
 
+  private def validateSelectedApplyReplacement(
+      structural: ExistingUntpdMethodBodyRewriter.Result
+  ): Either[ExistingUntpdMethodBodyRewriteOriginError, ValidatedSelectedApply] =
+    structural.replacementBody match
+      case replacement: untpd.Apply =>
+        if replacement.args.isEmpty || replacement.args.size > MaxApplyArguments then
+          Left(
+            error(
+              "SELECTED_APPLY_ARGUMENT_COUNT_REQUIRED",
+              s"U013 admits 1..$MaxApplyArguments selected Apply arguments; found ${replacement.args.size}."
+            )
+          )
+        else
+          replacement.fun match
+            case selection: untpd.Select =>
+              selection.qualifier match
+                case qualifier: untpd.Ident =>
+                  if Option(selection.name).forall(name => !name.isTermName) then
+                    Left(
+                      error(
+                        "SELECTED_APPLY_NAME_TERM_REQUIRED",
+                        s"U013 requires a non-null term-name selection; found ${Option(selection.name).fold("null")(_.toString)}."
+                      )
+                    )
+                  else
+                    replacement.args.find(argument =>
+                      Option(argument).forall(value =>
+                        !isAdmittedSelectedApplyLeafForValidation(value)
+                      )
+                    ) match
+                      case Some(argument) =>
+                        Left(
+                          error(
+                            "SELECTED_APPLY_ARGUMENT_LEAF_REQUIRED",
+                            s"U013 selected Apply arguments must be direct Ident, Number, or Literal leaves; found ${nodeKind(argument)}."
+                          )
+                        )
+                      case None =>
+                        Right(
+                          ValidatedSelectedApply(
+                            structural,
+                            replacement,
+                            selection,
+                            qualifier,
+                            replacement.args
+                          )
+                        )
+                case other =>
+                  Left(
+                    error(
+                      "SELECTED_APPLY_QUALIFIER_IDENT_REQUIRED",
+                      s"U013 requires one direct Ident selection qualifier; found ${nodeKind(other)}."
+                    )
+                  )
+            case other =>
+              Left(
+                error(
+                  "SELECTED_APPLY_FUNCTION_SELECT_REQUIRED",
+                  s"U013 requires one selected-member Apply function; found ${nodeKind(other)}."
+                )
+              )
+      case other =>
+        Left(
+          error(
+            "SELECTED_APPLY_REPLACEMENT_REQUIRED",
+            s"U013 requires one ordinary selected-member Apply replacement; found ${nodeKind(other)}."
+          )
+        )
+
   private def isAdmittedApplyLeaf(tree: untpd.Tree): Boolean =
     tree.isInstanceOf[untpd.Ident] ||
       tree.isInstanceOf[untpd.Number] ||
       tree.isInstanceOf[untpd.Literal]
+
+  private def isAdmittedSelectedApplyLeafForValidation(tree: untpd.Tree): Boolean =
+    isAdmittedApplyLeaf(tree) || tree.isInstanceOf[untpd.TypedSplice]
 
   private def positionSingleNode(
       structural: ExistingUntpdMethodBodyRewriter.Result
@@ -201,6 +309,24 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
     val positionedArguments = validated.arguments.map(_.cloneIn(source).withSpan(span))
     val positionedReplacement = untpd
       .Apply(positionedFunction, positionedArguments)
+      .cloneIn(source)
+      .withSpan(span)
+    positionContainers(structural, positionedReplacement)
+
+  private def positionSelectedApply(
+      validated: ValidatedSelectedApply
+  )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, Result] =
+    val structural = validated.structural
+    val source = structural.originalTarget.rhs.source
+    val span = structural.originalTarget.rhs.span
+    val positionedQualifier = validated.qualifier.cloneIn(source).withSpan(span)
+    val positionedSelection = untpd
+      .Select(positionedQualifier, validated.selection.name)
+      .cloneIn(source)
+      .withSpan(span)
+    val positionedArguments = validated.arguments.map(_.cloneIn(source).withSpan(span))
+    val positionedReplacement = untpd
+      .Apply(positionedSelection, positionedArguments)
       .cloneIn(source)
       .withSpan(span)
     positionContainers(structural, positionedReplacement)
