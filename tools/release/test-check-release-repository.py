@@ -26,7 +26,7 @@ class ReleaseRepositoryTest(unittest.TestCase):
         self.project.mkdir()
         self.license = b"Apache fixture\n"
         (self.project / "LICENSE").write_bytes(self.license)
-        self.profile = CHECKER.RELEASE_PROFILES["0.3.0-expanded"]
+        self.profile = CHECKER.RELEASE_PROFILES["0.3.0-candidate"]
         for coordinate in self.profile.coordinates:
             self.write_coordinate(coordinate)
 
@@ -78,7 +78,13 @@ class ReleaseRepositoryTest(unittest.TestCase):
     def test_exact_repository_passes(self) -> None:
         self.assertEqual(self.run_check(), [])
 
-    def test_expanded_profile_has_exact_final_lts_coordinate_set(self) -> None:
+    def test_candidate_profile_has_exact_final_lts_coordinate_set(self) -> None:
+        self.assertNotIn("0.3.0-expanded", CHECKER.RELEASE_PROFILES)
+        self.assertEqual(self.profile.name, "0.3.0-candidate")
+        self.assertEqual(
+            self.profile.pass_marker,
+            "QUASIQUOTES_RELEASE_REPOSITORY_0_3_0_CANDIDATE_PASS",
+        )
         self.assertEqual(
             {coordinate.artifact for coordinate in self.profile.coordinates},
             {

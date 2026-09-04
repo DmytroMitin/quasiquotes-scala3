@@ -1,12 +1,12 @@
 # Dotty-internal exact backend
 
-`dottyInternal` is an experimental, remotely unpublished, full-crossed module
-for exact Scala compiler operations. It is locally stageable for the selected
-Scala 3.3.8/3.8.4/3.9.0 candidate coordinates only under explicit expanded-release
-mode; Maven availability is not API stability. It follows the project's 0.x
-compatibility policy and is not a generic public `untpd` or `tpd` toolkit.
-Consumers must align with the module's full Scala compiler version and active
-compiler context.
+`dottyInternal` is an experimental, remotely unpublished, full-crossed
+production module for exact Scala compiler operations. It is normally
+publishable and locally stageable for the selected Scala 3.3.8/3.8.4/3.9.0
+candidate coordinates without a special property; Maven availability is not
+API stability. It follows the project's 0.x compatibility policy and is not a
+generic public `untpd` or `tpd` toolkit. Consumers must align with the module's
+full Scala compiler version and active compiler context.
 
 ## Current public-for-JVM-access surface
 

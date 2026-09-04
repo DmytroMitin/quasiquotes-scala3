@@ -199,8 +199,8 @@ rewrite directions.
   when authoritative parameter/result completed-Type sidecars are available.
   The narrower direct Core lowerer remains intentionally closed to P2 and P3.
   Its source is present for review and testing, and its artifact remains
-  remotely unpublished. The candidate `0.3.0` topology can stage it only in
-  explicit expanded-release mode; consumers must match the exact Scala
+  remotely unpublished. It is nevertheless a normally publishable production
+  project; consumers of any future coordinate must match the exact Scala
   compiler version.
 - `public-core-examples` and `public-api-examples` compile consumer code from
   outside the library packages.
@@ -250,13 +250,14 @@ contains `core_3` plus frontend artifacts for Scala 3.3.8 and 3.8.4 only. The
 current source tree is the unpublished development version `0.3.0-SNAPSHOT`
 and is not interchangeable with these released coordinates.
 
-The candidate `0.3.0` topology is exactly `core_3`, binary-crossed
+All five production modules are normally publishable sbt projects. The
+candidate `0.3.0` topology is exactly `core_3`, binary-crossed
 `neutral-scalameta_3`, and full-crossed `frontend`, `scalameta-frontend`, and
 `dotty-internal` for Scala 3.3.8, 3.8.4, and final 3.9.0: eleven coordinates
-total. It is enabled for local staging only by
-`-Dquasiquotes.expandedRelease=true`. All three compiler lines are required CI
-lanes, the binary-cross artifacts are built once with 3.3.8, the root/examples
-remain skipped, and no `0.3.0` coordinate is remotely released by this policy.
+total. No special property is needed to package or stage them in a task-owned
+local repository. All three compiler lines are required CI lanes, the
+binary-cross artifacts are built once with 3.3.8, the root/examples remain
+skipped, and no `0.3.0` coordinate is remotely released by this policy.
 
 See [Getting started](docs/GETTING_STARTED.md),
 [execution environments and AST representations](docs/EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md),

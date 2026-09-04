@@ -88,9 +88,9 @@ Scala 3.8.4 selects Scalameta `Scala38`; Scala 3.3.8 uses the compatible
 standard `Scala3` dialect available in Scalameta 4.17.3. Accepted source must
 also pass the active exact compiler grammar.
 
-The module remains skipped in ordinary builds and becomes publish-enabled only
-under the explicit `-Dquasiquotes.expandedRelease=true` candidate-release
-mode. It is not remotely released today. Its public experimental package is
+The module is a normally publishable production project, with no special
+property required for packaging or task-owned local staging. It is not remotely
+released today. Its public experimental package is
 limited to explicit `quasiquotes.scalameta` import hosts and the compact
 `TermFrontend`/`TypeFrontend` programmatic boundaries plus the two bounded
 Definition interpolators. Research lowerers,

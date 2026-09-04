@@ -39,13 +39,14 @@ JVM linkage evidence does not imply Scala source or TASTy compatibility.
 - `hybridScalametaFrontend` is full-crossed, explicit opt-in, experimental,
   and unpublished. Ordinary `qr`/`qq` and `tqr`/`tqq` remain current-Dotty.
 - `dottyInternal` is exact-compiler integration source and unpublished.
-- the aggregate and examples are unpublished.
+- the aggregate and examples are non-published build-only projects.
 
-The first three experimental modules above are in the candidate expanded
-`0.3.0` artifact topology for Scala 3.3.8/3.8.4/3.9.0, but remain skipped in ordinary
-builds and remotely unpublished. Candidate Maven availability would not create
-a 1.x-style stability promise; `dottyInternal` retains exact-line coupling and
-only its documented foreign-package bridges are intended consumer seams.
+The first three experimental modules above are normally publishable production
+projects in the candidate `0.3.0` artifact topology for Scala
+3.3.8/3.8.4/3.9.0, but remain remotely unpublished. Candidate Maven
+availability would not create a 1.x-style stability promise; `dottyInternal`
+retains exact-line coupling and only its documented foreign-package bridges are
+intended consumer seams.
 
 Passing required Scala 3.3.8, 3.8.4, or final 3.9.0 lanes is evidence for the
 tested revisions only. It is not a promise about later TASTy, reflection,

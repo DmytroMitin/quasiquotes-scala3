@@ -18,7 +18,7 @@ modules were not part of `0.2.0`. The release checker retains this exact
 historical contract as release set `0.2.0`; it must not be reconstructed by
 scanning arbitrary staged content.
 
-## Candidate expanded 0.3.0 artifact set
+## Candidate 0.3.0 artifact set
 
 The separately authorized future release candidate contains exactly eleven
 coordinates:
@@ -49,21 +49,20 @@ compatibility, exposes only its documented foreign-package bridges as intended
 consumer seams, and makes no stability promise for package-private/internal
 raw-tree machinery. It is not a generic public `untpd`/`tpd` toolkit.
 
-## Fail-closed publication mode
+## Normal project publishability and fail-closed release controls
 
-Ordinary sbt startup leaves `neutralScalameta`,
-`hybridScalametaFrontend`, and `dottyInternal` skipped. A release rehearsal or
-separately authorized release must opt in explicitly at JVM startup:
+`core`, `frontend`, `neutralScalameta`, `hybridScalametaFrontend`, and
+`dottyInternal` are normally publishable production projects. They need no
+special JVM property for packaging or task-owned local staging. The aggregate
+root and example projects remain publication-skipped.
 
-```text
--Dquasiquotes.expandedRelease=true
-```
-
-Only the exact value `true` enables those modules; an omitted property or
-`false` keeps them skipped, and any other value fails build loading. The root
-and examples remain skipped. `verifyScalametaArtifactTopology` validates the
-active mode as well as coordinate crossing, POM closure, packaging, licenses,
-typed-API confinement, and checkout-contamination guards.
+Normal project publishability is separate from a remote publication
+transaction. `verifyScalametaArtifactTopology` validates the production/root/
+example split as well as coordinate crossing, POM closure, packaging, licenses,
+typed-API confinement, and checkout-contamination guards. Version selection,
+the exact coordinate allowlist, developer identity, signing, terminal hosted-CI
+review, credentials, and explicit owner authorization remain independent
+fail-closed release controls.
 
 Both `publish` and `publishSigned` for `core` and `neutralScalameta` also fail
 closed unless the active Scala version is exactly 3.3.8. This prevents a newer
@@ -101,7 +100,7 @@ use a disposable `GNUPGHOME`, pass synthetic developer properties, and execute
 the dependency-safe sessions exactly once per coordinate:
 
 ```text
-sbt -Dquasiquotes.expandedRelease=true <developer-properties> -batch \
+sbt <developer-properties> -batch \
   '++3.3.8!' \
   'set ThisBuild / version := "0.3.0"' \
   'core/publishSigned' \
@@ -110,14 +109,14 @@ sbt -Dquasiquotes.expandedRelease=true <developer-properties> -batch \
   'hybridScalametaFrontend/publishSigned' \
   'dottyInternal/publishSigned'
 
-sbt -Dquasiquotes.expandedRelease=true <developer-properties> -batch \
+sbt <developer-properties> -batch \
   '++3.8.4!' \
   'set ThisBuild / version := "0.3.0"' \
   'frontend/publishSigned' \
   'hybridScalametaFrontend/publishSigned' \
   'dottyInternal/publishSigned'
 
-sbt -Dquasiquotes.expandedRelease=true <developer-properties> -batch \
+sbt <developer-properties> -batch \
   '++3.9.0!' \
   'set ThisBuild / version := "0.3.0"' \
   'frontend/publishSigned' \
@@ -129,11 +128,11 @@ Do not stage `core` or `neutralScalameta` in the second or third session: their
 binary-cross coordinates would be duplicates, and rebuilding the same `_3`
 coordinate with newer TASTy would violate the compatibility baseline.
 
-Validate the expanded result with the explicit checker profile:
+Validate the candidate result with the explicit checker profile:
 
 ```text
 python3 tools/release/check-release-repository.py PROJECT STAGING \
-  --release-set 0.3.0-expanded \
+  --release-set 0.3.0-candidate \
   --fingerprint SYNTHETIC_PUBLIC_FINGERPRINT \
   --source-identity SOURCE_ID \
   --json MANIFEST.json --markdown MANIFEST.md
@@ -153,7 +152,7 @@ Before any remote-release decision:
 1. Freeze an exact clean source commit and supported JDK/sbt/Scala matrix.
 2. Run full aggregate/module tests on required Scala 3.3.8, 3.8.4, and final
    3.9.0 lanes.
-3. Verify Core/neutral boundaries, module graph, both publication modes, all
+3. Verify Core/neutral boundaries, module graph, effective publication settings, all
    binary/source/doc packages, public examples, API inventories, released
    `0.2.0` comparison, docs/content/workflow hygiene, and first-use snippets.
 4. Resolve the eleven staged coordinates from fresh external projects without

@@ -39,11 +39,14 @@ class ReleaseConfigurationTest(unittest.TestCase):
         ):
             self.assertIn(property_name, build)
 
-    def test_expanded_modules_require_explicit_release_mode(self) -> None:
+    def test_all_production_modules_are_normally_publishable(self) -> None:
         build = (ROOT / "build.sbt").read_text()
-        self.assertIn('quasiquotes.expandedRelease', build)
-        self.assertIn('expandedReleaseEnabled', build)
+        self.assertNotIn("quasiquotes.expandedRelease", build)
+        self.assertNotIn("expandedReleaseProperty", build)
+        self.assertNotIn("expandedReleaseEnabled", build)
         for module in (
+            "core",
+            "frontend",
             "neutralScalameta",
             "dottyInternal",
             "hybridScalametaFrontend",
@@ -51,7 +54,7 @@ class ReleaseConfigurationTest(unittest.TestCase):
             start = build.index(f"lazy val {module}")
             end = build.find("\nlazy val ", start + 1)
             section = build[start:] if end < 0 else build[start:end]
-            self.assertIn("publish / skip := !expandedReleaseEnabled", section, module)
+            self.assertNotIn("publish / skip", section, module)
 
     def test_binary_cross_publication_requires_oldest_supported_line(self) -> None:
         build = (ROOT / "build.sbt").read_text()
@@ -81,6 +84,22 @@ class ReleaseConfigurationTest(unittest.TestCase):
             end = build.find("\nlazy val ", start + 1)
             section = build[start:] if end < 0 else build[start:end]
             self.assertIn("publish / skip := true", section, module)
+
+    def test_current_release_docs_do_not_restore_obsolete_publishability_gate(self) -> None:
+        current_docs = (
+            ROOT / "README.md",
+            ROOT / "docs/ARCHITECTURE.md",
+            ROOT / "docs/DOTTY_INTERNAL_BACKEND.md",
+            ROOT / "docs/EXPERIMENTAL_CONTEXTUAL_METHOD_PEER_BRIDGE.md",
+            ROOT / "docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md",
+            ROOT / "docs/RELEASE_PROCESS.md",
+            ROOT / "docs/SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md",
+            ROOT / "docs/VERSIONING_AND_STABILITY.md",
+        )
+        rendered = "\n".join(path.read_text() for path in current_docs)
+        self.assertNotIn("quasiquotes.expandedRelease", rendered)
+        self.assertNotIn("0.3.0-expanded", rendered)
+        self.assertIn("normally publishable production", rendered)
 
 
 if __name__ == "__main__":

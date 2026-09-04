@@ -24,15 +24,6 @@ lazy val munitVersion = "1.2.4"
 lazy val scalametaVersion = "4.17.3"
 lazy val supportedScalaVersions = Vector("3.3.8", "3.8.4", "3.9.0")
 lazy val binaryArtifactBuildScalaVersion = "3.3.8"
-lazy val expandedReleaseProperty = "quasiquotes.expandedRelease"
-lazy val expandedReleaseEnabled = sys.props.get(expandedReleaseProperty) match {
-  case None | Some("false") => false
-  case Some("true") => true
-  case Some(value) =>
-    sys.error(
-      s"-D$expandedReleaseProperty must be exactly true or false when supplied; found: $value"
-    )
-}
 
 lazy val verifyCoreBoundary = taskKey[Unit](
   "Verify core source, classpath, artifact, and TASTy compiler freedom"
@@ -44,7 +35,7 @@ lazy val verifyModuleGraph = taskKey[Unit](
   "Verify the selected project dependency graph and aggregate-root packaging"
 )
 lazy val verifyScalametaArtifactTopology = taskKey[Unit](
-  "Verify Scalameta coordinates, POM graph, packages, and explicit default/release publication policy"
+  "Verify candidate coordinates, POM graph, packages, and production-module publication policy"
 )
 lazy val verifyReleaseIdentity = taskKey[Unit](
   "Require explicitly supplied public developer metadata before signed staging"
@@ -234,7 +225,6 @@ lazy val neutralScalameta = (project in file("neutral-scalameta"))
     description := "Experimental compiler-free Scalameta-backed neutral quasiquotes",
     libraryDependencies +=
       "org.scalameta" %% "scalameta" % scalametaVersion,
-    publish / skip := !expandedReleaseEnabled,
     verifyNeutralScalametaBoundary := {
       val log = streams.value.log
       val forbiddenSourceTokens = Vector("scala.quoted", "dotty.tools.dotc")
@@ -342,8 +332,7 @@ lazy val dottyInternal = (project in file("dotty-internal"))
     description := "Exact-Scala-version experimental backend for tightly coupled peer integration",
     crossVersion := CrossVersion.full,
     libraryDependencies +=
-      "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
-    publish / skip := !expandedReleaseEnabled
+      "org.scala-lang" %% "scala3-compiler" % scalaVersion.value
   )
 
 lazy val hybridScalametaFrontend = (project in file("hybrid-scalameta-frontend"))
@@ -358,8 +347,7 @@ lazy val hybridScalametaFrontend = (project in file("hybrid-scalameta-frontend")
     description := "Experimental Scalameta-primary Term and Type opt-in frontend",
     crossVersion := CrossVersion.full,
     libraryDependencies +=
-      "org.scala-lang" %% "scala3-staging" % scalaVersion.value % Test,
-    publish / skip := !expandedReleaseEnabled
+      "org.scala-lang" %% "scala3-staging" % scalaVersion.value % Test
   )
 
 lazy val publicApiExamples = (project in file("public-api-examples"))
@@ -583,32 +571,25 @@ lazy val root = (project in file("."))
         sys.error("Candidate POM contamination: " + contaminated.mkString(", "))
       }
 
-      val neutralRemotelySkipped = (neutralScalameta / publish / skip).value
-      val frontendRemotelySkipped = (hybridScalametaFrontend / publish / skip).value
-      val backendRemotelySkipped = (dottyInternal / publish / skip).value
-      val expandedSkipValues = Vector(
-        "neutralScalameta" -> neutralRemotelySkipped,
-        "hybridScalametaFrontend" -> frontendRemotelySkipped,
-        "dottyInternal" -> backendRemotelySkipped
+      val productionSkipValues = Vector(
+        "core" -> (core / publish / skip).value,
+        "frontend" -> (frontend / publish / skip).value,
+        "neutralScalameta" -> (neutralScalameta / publish / skip).value,
+        "hybridScalametaFrontend" -> (hybridScalametaFrontend / publish / skip).value,
+        "dottyInternal" -> (dottyInternal / publish / skip).value
       )
-      val coreSkipped = (core / publish / skip).value
-      val currentFrontendSkipped = (frontend / publish / skip).value
       val rootAndExampleSkipValues = Vector(
         "root" -> (publish / skip).value,
         "publicApiExamples" -> (publicApiExamples / publish / skip).value,
         "publicCoreExamples" -> (publicCoreExamples / publish / skip).value
       )
-      if (coreSkipped || currentFrontendSkipped) {
-        sys.error("Core and current-Dotty frontend must remain publish-enabled real modules.")
-      }
-      val wrongExpandedPolicy = expandedSkipValues.filter { case (_, skipped) =>
-        if (expandedReleaseEnabled) skipped else !skipped
-      }
-      if (wrongExpandedPolicy.nonEmpty) {
-        val expected = if (expandedReleaseEnabled) "publish-enabled" else "skipped"
+      val accidentallySkipped = productionSkipValues
+        .filter(entry => entry._2)
+        .map(_._1)
+      if (accidentallySkipped.nonEmpty) {
         sys.error(
-          s"Expanded modules must be $expected in the current mode: " +
-            wrongExpandedPolicy.map(_._1).mkString(", ")
+          "Production modules must remain normally publishable: " +
+            accidentallySkipped.mkString(", ")
         )
       }
       val accidentallyPublishable = rootAndExampleSkipValues
@@ -681,11 +662,11 @@ lazy val root = (project in file("."))
       }
 
       log.info(
-        s"Scalameta artifact topology verified for Scala $line in " +
-          s"${if (expandedReleaseEnabled) "explicit expanded-release" else "ordinary default"} mode: " +
+        s"Candidate artifact topology verified for Scala $line: " +
+          "all five production modules normally publishable, root/examples skipped, " +
           "neutral binary-cross, frontend/backend full-cross, " +
           "public Type opt-in API confined to the typed coordinate, truthful POM closure, binary/source/doc packages, " +
-          "Apache-2.0 metadata, and fail-closed publication policy"
+          "Apache-2.0 metadata, and fail-closed release integrity"
       )
     }
   )

@@ -102,9 +102,11 @@ Term and Type slices. Differential tests remain appropriate whenever both
 routes claim a feature. This is not a lock-step promise that every future
 feature must land in both routes simultaneously. Ordinary released/default
 `qr`/`qq` and `tqr`/`tqq` remain current-Dotty; the Scalameta route remains
-explicit, experimental, and remotely unpublished today. The explicit
-expanded-release mode can stage the selected `0.3.0` Scalameta and exact
-backend candidate artifacts without changing this semantic ownership model.
+explicit, experimental, and remotely unpublished today. The Scalameta and
+exact-backend modules are normally publishable production projects, so a
+task-owned local repository can stage the selected `0.3.0` candidate artifacts
+without a publishability-enabling property or any change to this semantic
+ownership model.
 
 The additive `quasiquotes.Quasiquotes` and
 `quasiquotes.scalameta.Quasiquotes` objects are direct-export import façades for

@@ -49,8 +49,8 @@ RELEASE_PROFILES = {
         ),
         pass_marker="QUASIQUOTES_RELEASE_REPOSITORY_0_2_0_PASS",
     ),
-    "0.3.0-expanded": ReleaseProfile(
-        name="0.3.0-expanded",
+    "0.3.0-candidate": ReleaseProfile(
+        name="0.3.0-candidate",
         version="0.3.0",
         coordinates=(
             CoordinateSpec("quasiquotes-scala3-core_3", "3.3.8", "core"),
@@ -65,7 +65,7 @@ RELEASE_PROFILES = {
             CoordinateSpec("quasiquotes-scala3-scalameta-frontend_3.9.0", "3.9.0", "scalameta-frontend"),
             CoordinateSpec("quasiquotes-scala3-dotty-internal_3.9.0", "3.9.0", "dotty-internal"),
         ),
-        pass_marker="QUASIQUOTES_RELEASE_REPOSITORY_0_3_0_EXPANDED_PASS",
+        pass_marker="QUASIQUOTES_RELEASE_REPOSITORY_0_3_0_CANDIDATE_PASS",
     ),
 }
 
