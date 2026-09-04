@@ -110,7 +110,8 @@ encoded by recursive `TermShape.Infix` structure.
   neutral `TermShape` projector.
 - `dottyInternal` contains unpublished exact-version `untpd` adapters, the
   public bounded `ScalametaTermUntypedBridge` and
-  `ScalametaTypeUntypedBridge`, and the narrow
+  `ScalametaTypeUntypedBridge`, the bounded exact-version source-free and
+  generated-origin Scalameta Definition bridges, and the narrow
   `ContextualMethodPeerBridge`, `SelfAbstractTypeMemberPeerBridge`, and
   `DelegatedForwardingMethodPeerBridge`, plus the bounded
   `AuxTypeAliasPeerBridge` and `InstanceFactoryPeerBridge`. Its package-private

@@ -62,9 +62,9 @@ not a universal lexical ownership marker.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Terms | `scala.meta.Term` | `quasiquotes.neutral.ScalametaTermProjection.project` | public `ProjectedTermShape`; project-owned `TermShape` plus truthful optional root span | package-private `quasiquotes.terms.dotty.CoreTermShapeUntypedLowerer.lower` | fresh recursively source-free `untpd.Tree` | `quasiquotes.terms.dotty.ScalametaTermUntypedBridge.lower` | projector and bridge are public source APIs; lowerer is package-private; lowering requires a Dotty `Context` | `PUBLIC` | The bridge is only the direct projector/lowerer intersection. It has no richer-backend fallback: ascription and Lambda1 project but fail exact lowering; binder-bearing local-val and local-def blocks also fail this direct route. Multiple argument lists, type arguments, named/repeated/contextual arguments, broader `new`, and unsupported syntax fail projection. |
 | Types | `scala.meta.Type` | `quasiquotes.neutral.ScalametaTypeNormalFormProjection.project` | public `ProjectedTypeNormalForm`; project-owned `TypeNormalForm` plus truthful optional root span | package-private `quasiquotes.terms.dotty.CompletedTypeUntypedLowerer.lower` | fresh recursively source-free `untpd.Tree` representing a Type | `quasiquotes.types.dotty.ScalametaTypeUntypedBridge.lower` | projector and bridge are public source APIs; lowerer is package-private; no Dotty `Context` is required | `PUBLIC` | The exact intersection is `Int`/`String`/`Boolean`, fixed recursive `List`/`Option`/`Either`, Tuple2/3 syntax, and Function1/2 syntax. Source tuple/function syntax is preserved; names such as `Tuple2` and `Function1` are not reverse-recognized. A wider neutral success such as `AnyVal` remains an exact-lowering failure. |
-| Definitions | supported `scala.meta.Defn` root | package-private `quasiquotes.neutral.ScalametaDefinitionProjection.project` | package-private `ProjectedDefinitionShape`; project-owned `DefinitionShape` plus truthful optional root span | proposed package-private `DefinitionShapeUntypedLowerer.lower` | planned fresh source-free `untpd.ValDef`, `untpd.DefDef`, or `untpd.TypeDef` | planned `ScalametaDefinitionUntypedBridge.lower` | accepted projector is package-private; the general lowerer and bridge do not yet exist; the selected lowerer contract does not require a Dotty `Context` | projection `INTERNAL_READY`; lowering `IN_PROGRESS`; bridge `PLANNED` | The public bridge remains closed until the general exact lowerer is implemented and accepted. Existing specialized definition bridges do not substitute for this category pipeline. Classes, traits, objects, generic/bounded aliases, broader clauses, modifiers, defaults, and arbitrary bodies are not supported by this five-family seam. |
+| Definitions | supported `scala.meta.Defn` root | package-private `quasiquotes.neutral.ScalametaDefinitionProjection.project` | package-private `ProjectedDefinitionShape`; project-owned `DefinitionShape` plus truthful optional root span | package-private `quasiquotes.definitions.dotty.DefinitionShapeUntypedLowerer.lower` | fresh source-free `untpd.MemberDef` (`ValDef`, `DefDef`, or `TypeDef`) | `quasiquotes.definitions.dotty.ScalametaDefinitionUntypedBridge.lower` | bridge is a public source API; projector and lowerer remain package-private; lowering requires a Dotty `Context` | `PUBLIC` | Exactly five reusable families. The separate public `ScalametaDefinitionGeneratedOriginBridge` admits only the four concrete val/def families and returns deterministic generated provenance. Classes, traits, objects, generic/bounded aliases, broader clauses, modifiers, defaults, and arbitrary bodies remain unsupported. |
 
-The public Term and Type bridges expose stable `Failure(code, detail)`
+The public Term, Type, and Definition bridges expose stable `Failure(code, detail)`
 boundaries and classify projection and exact-lowering failures separately.
 Their outputs are fresh exact-version raw syntax with no fabricated typed
 symbols or source provenance. Consumers still own placement and ordinary
@@ -77,18 +77,18 @@ families and returns each family projector's result unchanged:
 
 | Family | Projected semantic variant | Projection status | General exact status |
 | --- | --- | --- | --- |
-| Explicitly typed immutable `val` | `DefinitionShape.ImmutableVal` | `INTERNAL_READY` | ordinary completion/backend route exists; common U-D dispatcher `IN_PROGRESS` |
-| True parameterless explicitly typed `def` | `DefinitionShape.ParameterlessDef` | `INTERNAL_READY` | ordinary completion/backend route exists; common U-D dispatcher `IN_PROGRESS` |
-| One ordinary explicitly typed parameter in one clause | `DefinitionShape.SingleParameterDef` | `INTERNAL_READY` | ordinary completion/backend route exists; common U-D dispatcher `IN_PROGRESS` |
-| Two ordinary explicitly typed parameters in one clause | `DefinitionShape.TwoParameterDef` | `INTERNAL_READY` | ordinary completion/backend route exists; common U-D dispatcher `IN_PROGRESS` |
-| Simple non-generic unbounded Type alias | `DefinitionShape.SimpleTypeAlias` | `INTERNAL_READY` | dedicated general alias lowering is `IN_PROGRESS` |
+| Explicitly typed immutable `val` | `DefinitionShape.ImmutableVal` | `INTERNAL_READY` | source-free `PUBLIC`; generic generated-origin `PUBLIC` |
+| True parameterless explicitly typed `def` | `DefinitionShape.ParameterlessDef` | `INTERNAL_READY` | source-free `PUBLIC`; generic generated-origin `PUBLIC` |
+| One ordinary explicitly typed parameter in one clause | `DefinitionShape.SingleParameterDef` | `INTERNAL_READY` | source-free `PUBLIC`; generic generated-origin `PUBLIC` |
+| Two ordinary explicitly typed parameters in one clause | `DefinitionShape.TwoParameterDef` | `INTERNAL_READY` | source-free `PUBLIC`; generic generated-origin `PUBLIC` |
+| Simple non-generic unbounded Type alias | `DefinitionShape.SimpleTypeAlias` | `INTERNAL_READY` | source-free `PUBLIC`; generic generated-origin `NOT_SUPPORTED` |
 
-The ordinary val/def families can already pass through
-`ConstructedDefinition.fromShape` and the package-private
-`ConstructedDefinitionUntypedBackend`. The simple alias needs a narrow general
-`DefinitionName` plus `TypeNormalForm` exact path. The category dispatcher will
-make these existing pieces one reusable U-D boundary; it does not widen any
-family.
+The source-free public bridge selects the common exact lowerer for all five
+families. The generated-origin public bridge deliberately routes only the four
+ordinary val/def families through `ConstructedDefinition.fromShape` and the
+package-private generated-origin adapter. The simple alias is rejected before
+completion; specialized refined-alias authority does not widen this generic
+category.
 
 ## Specialized bounded pipelines
 

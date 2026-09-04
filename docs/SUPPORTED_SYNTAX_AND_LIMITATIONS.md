@@ -38,8 +38,9 @@ The Q, N, and U labels describe direction rather than maturity:
 - Q is user-facing typed construction and matching in an active `Quotes`;
 - N is compiler-free projection from Scalameta or authoring back to Scalameta;
 - U-D creates a fresh exact compiler tree; its bounded Term and Type
-  intersections are public through category-specific exact-version facades and
-  other U-D families remain internal;
+  intersections and bounded Definition category are public through
+  category-specific exact-version facades, while other U-D families remain
+  internal;
 - U-U rewrites an admitted part of an existing exact compiler tree while
   preserving the stated identity and provenance contract.
 
@@ -53,6 +54,8 @@ compiler-version policy, source positions, owners, placement, and lifecycle.
 | --- | --- | --- |
 | `scala.meta.Term` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTermUntypedBridge`; direct non-binder and P0/P1 intersection only |
 | `scala.meta.Type` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTypeUntypedBridge`; recursive primitive/fixed application/Tuple2-3/Function1-2 intersection only |
+| `scala.meta.Defn` -> fresh source-free `untpd.MemberDef` | `BOUNDED` | Public exact-version `ScalametaDefinitionUntypedBridge`; five reusable Definition families only |
+| `scala.meta.Defn` -> positioned generated-origin `untpd.MemberDef` | `BOUNDED` | Public exact-version `ScalametaDefinitionGeneratedOriginBridge`; four concrete val/def families only |
 | `Term` -> `qr` scalar position | `BOUNDED` | Caller-owned reflected Term in an admitted scalar slot |
 | `Seq[Term]` -> `qr` arguments | `BOUNDED` | Exactly one rank-2 carrier in an admitted Apply or one-list New argument list |
 | `TypeRepr` / `tqr` -> `tqr` Type position | `BOUNDED` | Complete reflected Type positions only |
@@ -116,6 +119,28 @@ There is no rendering, reparsing, resolution, fallback, provenance, typing,
 symbol, ownership, or placement service, and no new `u*`/Type-quasiquote
 syntax. See the
 [focused Type bridge contract](SCALAMETA_TYPE_UNTYPED_BRIDGE.md).
+
+## Public bounded Scalameta Definition lowering
+
+`ScalametaDefinitionUntypedBridge.lower(definition)(using Context)` is the
+public source-free Definition composition. It admits exactly an explicitly
+typed immutable `val`, a true parameterless explicitly typed `def`, a one-
+ordinary-parameter explicitly typed `def`, an exact-two-ordinary-parameter
+explicitly typed `def`, or a simple non-generic unbounded Type alias. It
+returns a fresh `untpd.MemberDef`; every descendant is source/span-free and has
+no symbol or `TypedSplice`.
+
+`ScalametaDefinitionGeneratedOriginBridge.lower(definition,
+virtualSourceName)(using Context)` is the insertion-oriented sibling. It admits
+only the four concrete val/def families and returns a positioned member,
+deterministic generated source, and the effective virtual `SourceFile`. Simple
+aliases fail closed rather than borrowing specialized refined-alias authority.
+
+Both bridges preserve the neutral family's binder-identity semantics and fail
+closed for broader clauses, modifiers, defaults, generic methods, arbitrary
+bodies, classes, traits, and objects. Neither owns target admission, placement,
+insertion, rollback, ordinary typing, ownership, or reownership. See the
+[focused Definition bridge contract](SCALAMETA_DEFINITION_BRIDGES.md).
 
 Currently exercised areas include:
 

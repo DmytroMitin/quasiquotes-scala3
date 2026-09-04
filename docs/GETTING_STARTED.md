@@ -13,6 +13,13 @@ The declarations below use the latest immutable Maven Central release,
 `0.3.0-SNAPSHOT`; use it only through an intentional local build or
 `publishLocal` workflow.
 
+The unpublished exact-version source tree also exposes bounded public
+Scalameta Term, Type, and Definition lowering facades from `dottyInternal`.
+Definition consumers can choose a recursively source-free five-family result
+or a positioned generated-origin four-family val/def result. These APIs require
+an exact compiler-version match and do not own target placement or typing; see
+the [Scalameta Definition bridge guide](SCALAMETA_DEFINITION_BRIDGES.md).
+
 ## Compiler-free core
 
 ```scala

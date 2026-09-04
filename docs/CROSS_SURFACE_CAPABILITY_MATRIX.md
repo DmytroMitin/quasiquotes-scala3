@@ -69,23 +69,24 @@ The axes are:
 
 | Family | Q construct | Q match | typed Scalameta construct | typed Scalameta match | N project | N author | U-D fresh lower | U-U existing rewrite |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Immutable `val` | `INTERNAL` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — reusable explicitly typed immutable-val projector | `NOT_YET` | `INTERNAL` | `NOT_APPLICABLE` |
-| Parameterless ordinary `def` | `INTERNAL` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — reusable true-parameterless explicitly typed projector | `NOT_YET` | `INTERNAL` | `INTERNAL` — exact direct parameterless method-body replacement only; header and surrounding children retain the bounded identity/provenance contract |
-| One ordinary parameter | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` — reusable one-ordinary-parameter projector | `NOT_YET` | `INTERNAL` | `NOT_YET` — the current existing-tree rewriter rejects parameter clauses |
-| Exactly two ordinary parameters | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` — reusable exact-two-ordinary-parameter projector | `NOT_YET` | `INTERNAL` | `NOT_YET` — the current existing-tree rewriter rejects parameter clauses |
+| Immutable `val` | `INTERNAL` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — reusable explicitly typed immutable-val projector | `NOT_YET` | `BOUNDED` — public source-free and generated-origin Definition facades | `NOT_APPLICABLE` |
+| Parameterless ordinary `def` | `INTERNAL` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — reusable true-parameterless explicitly typed projector | `NOT_YET` | `BOUNDED` — public source-free and generated-origin Definition facades | `INTERNAL` — exact direct parameterless method-body replacement only; header and surrounding children retain the bounded identity/provenance contract |
+| One ordinary parameter | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` — reusable one-ordinary-parameter projector | `NOT_YET` | `BOUNDED` — public source-free and generated-origin Definition facades | `NOT_YET` — the current existing-tree rewriter rejects parameter clauses |
+| Exactly two ordinary parameters | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` — reusable exact-two-ordinary-parameter projector | `NOT_YET` | `BOUNDED` — public source-free and generated-origin Definition facades | `NOT_YET` — the current existing-tree rewriter rejects parameter clauses |
 | Parameter-sequence capture | `NOT_APPLICABLE` | `BOUNDED` — one static ordinary parameter clause with 0 through 5 parameters plus one RHS capture | `NOT_APPLICABLE` | `BOUNDED` — same ranked `dqq` slice and original reflected captures | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` | `NOT_APPLICABLE` |
 | Contextual method | `NOT_YET` — a public Core programmatic constructor exists, but no Q quasiquote syntax | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` — specialized projector | `NOT_YET` | `INTERNAL` | `NOT_YET` — the current existing-tree rewriter rejects parameter clauses |
-| Simple non-generic unbounded Type alias | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — reusable simple-alias projector | `NOT_YET` | `NOT_YET` — no general simple-alias exact route | `NOT_APPLICABLE` |
+| Simple non-generic unbounded Type alias | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — reusable simple-alias projector | `NOT_YET` | `BOUNDED` — public source-free Definition facade only; generic generated-origin route rejects aliases | `NOT_APPLICABLE` |
 | Bounded refined Type alias | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — specialized projector | `INTERNAL` — specialized authoring | `INTERNAL` | `NOT_APPLICABLE` |
 | Class / trait / object | `NOT_YET` | `NOT_YET` | `NOT_YET` — a separate internal public-reflection class plan is not typed-Scalameta syntax | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` — no fresh raw class/trait/object lowerer; typed-reflection generation is a different surface | `NOT_APPLICABLE` |
 | Anonymous implementation | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — specialized instance-factory projection | `NOT_YET` | `INTERNAL` — exact bounded instance-factory plan lowering, exposed only through its named exact-version peer bridge | `NOT_APPLICABLE` |
 
 The five reusable neutral Definition projectors remain separate package-private
-family entries behind one accepted package-private common dispatcher.
-Specialized contextual/refined-alias/instance-factory projectors and named
-peer bridges do not widen that ladder. A general Scalameta
-Definition-to-exact-tree public bridge remains `NOT_YET`, because the common
-U-D shape lowerer and its general simple-alias exact case are still absent.
+family entries behind one common dispatcher. The public exact-version
+`ScalametaDefinitionUntypedBridge` composes that dispatcher with the common
+source-free lowerer for exactly those five families. The separate generated-
+origin bridge admits only the four concrete val/def families. Specialized
+contextual/refined-alias/instance-factory projectors and named peer bridges do
+not widen either generic boundary.
 
 ## Composition and rank summary
 
@@ -93,6 +94,8 @@ U-D shape lowerer and its general simple-alias exact case are still absent.
 | --- | --- | --- |
 | `scala.meta.Term` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTermUntypedBridge`; direct non-binder and P0/P1 intersection only; source-free result |
 | `scala.meta.Type` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTypeUntypedBridge`; recursive Int/String/Boolean, fixed List/Option/Either, Tuple2/3 syntax, and Function1/2 syntax; source-free result |
+| `scala.meta.Defn` -> fresh source-free `untpd.MemberDef` | `BOUNDED` | Public exact-version `ScalametaDefinitionUntypedBridge`; five reusable Definition families |
+| `scala.meta.Defn` -> positioned generated-origin `untpd.MemberDef` | `BOUNDED` | Public exact-version `ScalametaDefinitionGeneratedOriginBridge`; four concrete val/def families only; caller owns target admission and insertion |
 | `Term` -> `qr` scalar position | `BOUNDED` | Caller-owned reflected Term transport in admitted scalar positions |
 | `Seq[Term]` -> `qr` Apply / one-list New arguments | `BOUNDED` | Exactly one rank-2 carrier in the admitted ordinary argument list |
 | `TypeRepr` / `tqr` -> `tqr` Type position | `BOUNDED` | Complete reflected Type slots in admitted templates |

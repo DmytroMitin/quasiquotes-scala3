@@ -194,7 +194,8 @@ names the concrete APIs, visibility boundaries, and current composition status.
   remain distinct contracts.
 - `dottyInternal` contains exact-compiler internal adapters, the public bounded
   exact-version `ScalametaTermUntypedBridge` and context-free
-  `ScalametaTypeUntypedBridge`, and five narrow experimental
+  `ScalametaTypeUntypedBridge`, the bounded exact-version source-free and
+  generated-origin Scalameta Definition bridges, and five narrow experimental
   foreign-package peer bridges: contextual-method lowering,
   bounded AUXify self abstract-Type-member lowering, delegated forwarding, and
   the bounded three-parameter refined Type alias, plus the exact bounded
@@ -359,14 +360,18 @@ now admits exactly one literal method with one ordinary parameter, complete
 parameter/result `TypeRepr` holes, a parameter-reference body, and one following
 result; broader statements and `qq` local-definition matching remain excluded.
 
-The unpublished neutral module now has separate reusable internal projectors
+The unpublished neutral module has separate reusable internal projectors
 for an explicitly typed immutable `val`, a true parameterless explicitly typed
 `def`, one- and two-ordinary-parameter explicitly typed `def`s, and a simple
-non-generic unbounded Type alias. One accepted package-private dispatcher now
-selects exactly those five families. The unpublished exact internal definition
-backend already lowers the four ordinary val/def families to source-free raw
-trees and also has deterministic generated-origin routes; parameter references
-are resolved by project binder identity rather than display text. A common U-D
-shape lowerer and its general simple-alias exact route are not yet product
-capabilities. This does not expose a general Definition raw-tree facade,
-generalize parameter-list syntax, or add general method placement/owner support.
+non-generic unbounded Type alias. One package-private dispatcher selects exactly
+those five families. The unpublished exact-version
+`ScalametaDefinitionUntypedBridge` now composes that dispatcher with the common
+Definition-shape lowerer and returns a fresh source-free `untpd.MemberDef` for
+all five families. The separate
+`ScalametaDefinitionGeneratedOriginBridge` returns positioned generated-origin
+members for only the four concrete val/def families; the simple alias is
+deliberately rejected because no generic alias-origin authority is admitted.
+Parameter references are resolved by project binder identity rather than
+display text. Neither bridge generalizes parameter-list syntax nor owns target
+admission, insertion, rollback, ordinary typing, or owner/reownership work. See
+the [bounded Definition bridge contract](docs/SCALAMETA_DEFINITION_BRIDGES.md).

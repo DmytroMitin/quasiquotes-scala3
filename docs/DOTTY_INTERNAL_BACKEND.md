@@ -43,6 +43,43 @@ documented on the
 It performs no TupleN/FunctionN name recovery, resolution, fallback, typing,
 symbol creation, ownership, or placement.
 
+`ScalametaDefinitionUntypedBridge` is the public exact-version source-free
+sibling for the reusable Definition category. It accepts `scala.meta.Defn`,
+mechanically composes the common neutral projector with the package-private
+Definition-shape lowerer, verifies that the result is an `untpd.MemberDef`, and
+returns stable missing-input, projection, or exact-lowering diagnostics. Its
+closed family set is one explicitly typed immutable `val`, one true
+parameterless explicitly typed `def`, one explicitly typed `def` with one
+ordinary parameter, one with exactly two ordinary parameters, and one simple
+non-generic unbounded Type alias.
+
+`ScalametaDefinitionGeneratedOriginBridge` is a separate public exact-version
+operation for insertion clients. It admits only the four concrete val/def
+families, completes their project-owned semantics, and returns an
+`untpd.MemberDef`, deterministic generated source, and effective virtual
+`SourceFile`. A simple Type alias fails with
+`GENERATED_ORIGIN_FAMILY_UNSUPPORTED`; this route does not borrow authority
+from the specialized refined-alias bridge. The complete boundary, failure
+codes, and placement responsibilities are documented on the
+[bounded Scalameta Definition bridge page](SCALAMETA_DEFINITION_BRIDGES.md).
+
+```text
+scala.meta.Defn
+  -> ScalametaDefinitionProjection.project
+  -> DefinitionShape
+  -> DefinitionShapeUntypedLowerer.lower
+  -> fresh source-free untpd.MemberDef
+
+scala.meta.Defn (four concrete val/def families)
+  -> ScalametaDefinitionProjection.project
+  -> ConstructedDefinition.fromShape
+  -> ConstructedDefinitionGeneratedOriginAdapter.lower
+  -> positioned untpd.MemberDef + generated source + SourceFile
+```
+
+Both operations require an active Dotty `Context`. Neither performs target
+admission, insertion, rollback, typing, symbol ownership, or reownership.
+
 Five definition-specific production objects in this module are intentionally
 exposed to foreign packages. `ContextualMethodPeerBridge` accepts either the
 legacy single-unbounded-parameter contextual method or the exact bounded
@@ -117,7 +154,7 @@ The bounded instance-factory operation is documented on the
 
 ## Internal module inventory
 
-Only the documented public Term/Type facades and foreign-package definition
+Only the documented public Term/Type/Definition facades and foreign-package definition
 bridges above are intended consumer seams. All other production owners are
 package-private or otherwise project-internal and carry no stable compatibility
 promise:
