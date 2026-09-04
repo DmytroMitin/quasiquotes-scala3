@@ -7,95 +7,95 @@ import scala.annotation.nowarn
 import scala.meta.*
 import scala.util.control.NonFatal
 
-/** Direct structural authoring for one reusable explicitly typed immutable val shape. */
+/** Direct structural authoring for one reusable explicitly typed parameterless method shape. */
 @nowarn("cat=deprecation")
-private[quasiquotes] object ScalametaTypedImmutableValAuthoring:
+private[quasiquotes] object ScalametaTypedParameterlessDefAuthoring:
   final case class Error(code: String, detail: String) derives CanEqual:
     def message: String = s"$code: $detail"
 
   def author(
-      shape: DefinitionShape.ImmutableVal
-  ): Either[Error, Defn.Val] =
+      shape: DefinitionShape.ParameterlessDef
+  ): Either[Error, Defn.Def] =
     Option(shape)
       .toRight(
         error(
-          "NEUTRAL_TYPED_VAL_AUTHORING_MISSING",
-          "the immutable val shape must be present."
+          "NEUTRAL_PARAMETERLESS_DEF_AUTHORING_MISSING",
+          "the parameterless def shape must be present."
         )
       )
       .flatMap(authorPresent)
 
   private def authorPresent(
-      shape: DefinitionShape.ImmutableVal
-  ): Either[Error, Defn.Val] =
+      shape: DefinitionShape.ParameterlessDef
+  ): Either[Error, Defn.Def] =
     for
       validated <- DefinitionShape
-        .immutableVal(shape.name, shape.declaredType, shape.rhs)
+        .parameterlessDef(shape.name, shape.resultType, shape.body)
         .left
         .map(_ => shapeUnsupported)
       normalForm <- TypeNormalForm
-        .fromShape(validated.declaredType)
+        .fromShape(validated.resultType)
         .left
         .map(_ => typeUnsupported)
       authoredType <- ScalametaTypeNormalFormAuthoring
         .author(normalForm)
         .left
         .map(_ => typeUnsupported)
-      authoredRhs <- ScalametaTermShapeAuthoring
-        .author(validated.rhs)
+      authoredBody <- ScalametaTermShapeAuthoring
+        .author(validated.body)
         .left
         .map(_ => termUnsupported)
       authoredName <- ScalametaTermDefinitionNameAuthoring
         .author(validated.name)
         .toRight(nameUnsupported)
-      authored <- construct(authoredName, authoredType, authoredRhs)
+      authored <- construct(authoredName, authoredType, authoredBody)
       _ <- requireExactRoundTrip(authored, shape)
     yield authored
 
   private def construct(
       name: Term.Name,
-      declaredType: Type,
-      rhs: Term
-  ): Either[Error, Defn.Val] =
-    try Right(Defn.Val(Nil, List(Pat.Var(name)), Some(declaredType), rhs))
+      resultType: Type,
+      body: Term
+  ): Either[Error, Defn.Def] =
+    try Right(Defn.Def(Nil, name, Nil, Some(resultType), body))
     catch case NonFatal(_) => Left(roundTripFailed)
 
   private def requireExactRoundTrip(
-      authored: Defn.Val,
-      expected: DefinitionShape.ImmutableVal
+      authored: Defn.Def,
+      expected: DefinitionShape.ParameterlessDef
   ): Either[Error, Unit] =
-    ScalametaTypedImmutableValProjection.project(authored) match
+    ScalametaTypedParameterlessDefProjection.project(authored) match
       case Right(ProjectedDefinitionShape(projected, None)) if projected == expected => Right(())
       case _ => Left(roundTripFailed)
 
   private def shapeUnsupported: Error =
     error(
-      "NEUTRAL_TYPED_VAL_AUTHORING_SHAPE_UNSUPPORTED",
-      "Core DefinitionShape rejected the immutable val input."
+      "NEUTRAL_PARAMETERLESS_DEF_AUTHORING_SHAPE_UNSUPPORTED",
+      "Core DefinitionShape rejected the parameterless def input."
     )
 
   private def typeUnsupported: Error =
     error(
-      "NEUTRAL_TYPED_VAL_AUTHORING_TYPE_UNSUPPORTED",
-      "the declared Type is outside the existing unresolved Type normal-form authoring family."
+      "NEUTRAL_PARAMETERLESS_DEF_AUTHORING_TYPE_UNSUPPORTED",
+      "the result Type is outside the existing unresolved Type normal-form authoring family."
     )
 
   private def termUnsupported: Error =
     error(
-      "NEUTRAL_TYPED_VAL_AUTHORING_TERM_UNSUPPORTED",
-      "the right-hand side is outside the current generic TermShape authoring family."
+      "NEUTRAL_PARAMETERLESS_DEF_AUTHORING_TERM_UNSUPPORTED",
+      "the method body is outside the current generic TermShape authoring family."
     )
 
   private def nameUnsupported: Error =
     error(
-      "NEUTRAL_TYPED_VAL_AUTHORING_NAME_UNSUPPORTED",
-      "the val name cannot be authored as a fresh Term.Name with exact Core spelling."
+      "NEUTRAL_PARAMETERLESS_DEF_AUTHORING_NAME_UNSUPPORTED",
+      "the method name cannot be authored as a fresh Term.Name with exact Core spelling."
     )
 
   private def roundTripFailed: Error =
     error(
-      "NEUTRAL_TYPED_VAL_AUTHORING_ROUNDTRIP_FAILED",
-      "the authored immutable val did not round-trip through the accepted N020 projector exactly."
+      "NEUTRAL_PARAMETERLESS_DEF_AUTHORING_ROUNDTRIP_FAILED",
+      "the authored parameterless def did not round-trip through the accepted N021 projector exactly."
     )
 
   private def error(code: String, detail: String): Error =
