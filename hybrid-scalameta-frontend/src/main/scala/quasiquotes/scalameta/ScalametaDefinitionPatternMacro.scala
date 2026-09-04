@@ -28,6 +28,15 @@ private[scalameta] object ScalametaDefinitionPatternMacro:
             '{ ScalametaQuasiPattern.rankedParameterSequenceExtractor($context)(using $callerQuotes) }
           case Right(ScalametaDefinitionFrontend.PatternKind.RankedParameterClauseSequence) =>
             '{ ScalametaQuasiPattern.rankedParameterClauseSequenceExtractor($context)(using $callerQuotes) }
+          case Right(
+                ScalametaDefinitionFrontend.PatternKind.CapturedNameRankedParameterClauseSequenceCapturedResult
+              ) =>
+            '{
+              ScalametaQuasiPattern
+                .capturedNameRankedParameterClauseSequenceCapturedResultExtractor($context)(using
+                  $callerQuotes
+                )
+            }
           case Left(failure) =>
             quotes.reflect.report.errorAndAbort(
               s"Invalid Scalameta dqq definition-pattern template: ${failure.message}",

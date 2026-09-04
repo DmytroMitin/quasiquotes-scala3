@@ -27,6 +27,14 @@ private[quasiquotes] object RankedDefinitionPatternExtractorFactory:
       RankedDefinitionPatternMatcher.extractExactCollectParamss(target)
     )
 
+  def capturedNameParamssResult(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (String, Seq[Seq[q.reflect.ValDef]], q.reflect.TypeRepr, q.reflect.Term)
+  ] =
+    new RankedDefinitionPatternExtractor(target =>
+      RankedDefinitionPatternMatcher.extractCapturedNameParamssResult(target)
+    )
+
 private[matching] object RankedDefinitionPatternMatcher:
   def extractExactCollect(using q: Quotes)(
       target: q.reflect.DefDef
@@ -44,13 +52,31 @@ private[matching] object RankedDefinitionPatternMatcher:
       (clauses.map(_.params), body)
     }
 
+  def extractCapturedNameParamssResult(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[(String, Seq[Seq[q.reflect.ValDef]], q.reflect.TypeRepr, q.reflect.Term)] =
+    extractAdmittedDefinition(target).map { (clauses, result, body) =>
+      (target.name, clauses.map(_.params), result, body)
+    }
+
   private def extractExactCollectClauses(using q: Quotes)(
       target: q.reflect.DefDef
   ): Option[(List[q.reflect.TermParamClause], q.reflect.Term)] =
+    extractAdmittedDefinition(target).flatMap { (clauses, result, body) =>
+      Option.when(
+        target.name == "collect" &&
+          TargetTypeReprInspector
+            .inspect(result)
+            .contains(TypeNormalForm.STypeIdent("Int"))
+      )((clauses, body))
+    }
+
+  private def extractAdmittedDefinition(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[(List[q.reflect.TermParamClause], q.reflect.TypeRepr, q.reflect.Term)] =
     import q.reflect.*
 
     if target == null ||
-        target.name != "collect" ||
         target.symbol == Symbol.noSymbol ||
         !target.symbol.isDefDef ||
         target.symbol.isClassConstructor ||
@@ -84,11 +110,5 @@ private[matching] object RankedDefinitionPatternMatcher:
           target.symbol.paramSymss == nestedSymbols
 
       Option
-        .when(
-          admittedClauses &&
-            admittedParameters &&
-            TargetTypeReprInspector
-              .inspect(target.returnTpt.tpe)
-              .contains(TypeNormalForm.STypeIdent("Int"))
-        )(())
-        .flatMap(_ => target.rhs.map(body => (clauses, body)))
+        .when(admittedClauses && admittedParameters)(target.returnTpt.tpe)
+        .flatMap(result => target.rhs.map(body => (clauses, result, body)))

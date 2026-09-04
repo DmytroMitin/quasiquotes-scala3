@@ -289,7 +289,7 @@ final class Q019DefinitionCaptureFeasibilityTest extends munit.FunSuite:
     assert(cases.forall(_.nonEmpty), cases)
     assert(cases.flatten.forall(_.contains("Invalid Q019 standard dqq")), cases)
 
-  test("dynamic selection and production name-result capture remain closed"):
+  test("Q019 candidate dynamic selection remains closed"):
     val dynamicErrors = typeCheckErrors(
       """{
         import scala.quoted.*
@@ -301,15 +301,4 @@ final class Q019DefinitionCaptureFeasibilityTest extends munit.FunSuite:
         ] = Q019SemanticStandardPattern.dqq(context)(using q)
       }"""
     )
-    val productionErrors = typeCheckErrors(
-      """{
-        import scala.quoted.*
-        import quasiquotes.matching.DefinitionPattern.dqq
-        def compile(using q: Quotes)(target: q.reflect.DefDef): Unit =
-          target match
-            case dqq"def $name(...$paramss): $result = $body" => ()
-            case _ => ()
-      }"""
-    )
     assert(dynamicErrors.nonEmpty, dynamicErrors)
-    assert(productionErrors.nonEmpty, productionErrors)

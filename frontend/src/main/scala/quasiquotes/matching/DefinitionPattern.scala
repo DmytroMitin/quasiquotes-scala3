@@ -104,6 +104,7 @@ object DefinitionPattern:
     case ExactTwo
     case RankedParameterSequence
     case RankedParameterClauseSequence
+    case CapturedNameRankedParameterClauseSequenceCapturedResult
 
   private final case class ParsedPattern(
       methodName: String,
@@ -187,6 +188,25 @@ object DefinitionPattern:
         abort(rankedParameterClauseSequenceDiagnostic(values))
       case None => abort("StringContext must not be null.")
 
+  private[matching] def capturedNameRankedParameterClauseSequenceCapturedResultExtractor(
+      sc: StringContext
+  )(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (String, Seq[Seq[q.reflect.ValDef]], q.reflect.TypeRepr, q.reflect.Term)
+  ] =
+    def abort(message: String): Nothing =
+      q.reflect.report.errorAndAbort(s"$InvalidDqqPrefix $message")
+
+    val parts = Option(sc).flatMap(value => Option(value.parts)).map(_.toList)
+    parts match
+      case Some(values) if isExactCapturedNameRankedParameterClauseSequenceCapturedResult(values) =>
+        RankedDefinitionPatternExtractorFactory.capturedNameParamssResult
+      case Some(_) =>
+        abort(
+          "expected exactly `def $name(...$paramss): $result = $body` with four captures in semantic-name, complete-paramss, semantic-result, and complete-body order"
+        )
+      case None => abort("StringContext must not be null.")
+
   private[matching] def classifyStaticParts(
       parts: List[String]
   ): Either[String, StaticPatternKind] =
@@ -194,6 +214,8 @@ object DefinitionPattern:
       Left("StringContext must contain exactly two literal parts.")
     else if parts.exists(_ == null) then
       Left("StringContext literal parts must not be null.")
+    else if isExactCapturedNameRankedParameterClauseSequenceCapturedResult(parts) then
+      Right(StaticPatternKind.CapturedNameRankedParameterClauseSequenceCapturedResult)
     else if isExactRankedParameterClauseSequence(parts) then
       Right(StaticPatternKind.RankedParameterClauseSequence)
     else if isExactRankedParameterSequence(parts) then
@@ -228,6 +250,18 @@ object DefinitionPattern:
       case List(prefix, between, suffix) =>
         prefix.matches("(?s)\\s*def\\s+collect\\s*\\(\\s*\\.\\.\\.\\s*") &&
           between.matches("(?s)\\s*\\)\\s*:\\s*Int\\s*=\\s*") &&
+          suffix.trim.isEmpty
+      case _ => false
+
+  private def isExactCapturedNameRankedParameterClauseSequenceCapturedResult(
+      parts: List[String]
+  ): Boolean =
+    parts match
+      case List(prefix, beforeParamss, beforeResult, beforeBody, suffix) =>
+        prefix.matches("(?s)\\s*def\\s+") &&
+          beforeParamss.matches("(?s)\\s*\\(\\s*\\.\\.\\.\\s*") &&
+          beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&
+          beforeBody.matches("(?s)\\s*=\\s*") &&
           suffix.trim.isEmpty
       case _ => false
 

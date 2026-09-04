@@ -183,7 +183,7 @@ final class Q019ScalametaDefinitionCaptureFeasibilityTest extends munit.FunSuite
     assert(cases.forall(_.nonEmpty), cases)
     assert(cases.flatten.forall(_.contains("Invalid Q019 typed-Scalameta dqq")), cases)
 
-  test("typed-Scalameta dynamic selection and production name-result capture remain closed"):
+  test("Q019 typed-Scalameta candidate dynamic selection remains closed"):
     val dynamicErrors = typeCheckErrors(
       """{
         import scala.quoted.*
@@ -195,15 +195,4 @@ final class Q019ScalametaDefinitionCaptureFeasibilityTest extends munit.FunSuite
         ] = Q019SemanticScalametaPattern.dqq(context)(using q)
       }"""
     )
-    val productionErrors = typeCheckErrors(
-      """{
-        import scala.quoted.*
-        import quasiquotes.scalameta.ScalametaQuasiPattern.dqq
-        def compile(using q: Quotes)(target: q.reflect.DefDef): Unit =
-          target match
-            case dqq"def $name(...$paramss): $result = $body" => ()
-            case _ => ()
-      }"""
-    )
     assert(dynamicErrors.nonEmpty, dynamicErrors)
-    assert(productionErrors.nonEmpty, productionErrors)
