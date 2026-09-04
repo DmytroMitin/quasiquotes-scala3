@@ -1,6 +1,6 @@
 package quasiquotes.neutral
 
-import _root_.quasiquotes.definitions.{DefinitionName, DefinitionShape}
+import _root_.quasiquotes.definitions.DefinitionShape
 
 import scala.annotation.nowarn
 import scala.meta.*
@@ -43,7 +43,7 @@ private[quasiquotes] object ScalametaTypedImmutableValProjection:
             "the typed immutable val requires one explicit declared Type."
           )
         )
-      name <- projectName(sourceName)
+      name <- ScalametaDefinitionNameProjection.project(sourceName)
       typeShape <- ScalametaTypeNormalFormProjection
         .projectValidatedShape(declaredType)
         .left
@@ -81,23 +81,6 @@ private[quasiquotes] object ScalametaTypedImmutableValProjection:
         )
     yield ProjectedDefinitionShape(shape, truthfulSpan(definition))
 
-  private def projectName(
-      sourceName: Term.Name
-  ): Either[NeutralProjectionError, DefinitionName] =
-    for
-      present <- Option(sourceName)
-        .toRight(nameFailure)
-      decoded <- Option(present.value)
-        .toRight(nameFailure)
-      tokenText = present.tokens.map(_.text).mkString
-      source = if tokenText.nonEmpty then tokenText else decoded
-      name <- DefinitionName
-        .fromSource(source)
-        .left
-        .map(_ => nameFailure)
-      _ <- Either.cond(name.decoded == decoded, (), nameFailure)
-    yield name
-
   private def truthfulSpan(tree: Tree): Option[NeutralSourceSpan] =
     tree.pos match
       case Position.None => None
@@ -116,12 +99,6 @@ private[quasiquotes] object ScalametaTypedImmutableValProjection:
 
   private def topologyError(detail: String): NeutralProjectionError =
     error("NEUTRAL_TYPED_VAL_TOPOLOGY_UNSUPPORTED", detail)
-
-  private def nameFailure: NeutralProjectionError =
-    error(
-      "NEUTRAL_DEFINITION_NAME_UNSUPPORTED",
-      "the declaration name must satisfy the existing Core source-spelling policy."
-    )
 
   private def error(code: String, detail: String): NeutralProjectionError =
     NeutralProjectionError(code, detail)
