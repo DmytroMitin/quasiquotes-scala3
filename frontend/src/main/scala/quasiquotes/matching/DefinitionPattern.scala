@@ -106,6 +106,7 @@ object DefinitionPattern:
     case RankedParameterSequence
     case RankedParameterClauseSequence
     case CapturedNameRankedParameterClauseSequenceCapturedResult
+    case CapturedModifiersNameRankedParameterClauseSequenceCapturedResult
     case CapturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult
     case CapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult
 
@@ -238,6 +239,32 @@ object DefinitionPattern:
         )
       case None => abort("StringContext must not be null.")
 
+  private[matching] def capturedModifiersNameRankedParameterClauseSequenceCapturedResultExtractor(
+      sc: StringContext
+  )(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      DefinitionModifiers[q.reflect.Flags, q.reflect.TypeRepr, q.reflect.Term],
+      String,
+      Seq[Seq[q.reflect.ValDef]],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    def abort(message: String): Nothing =
+      q.reflect.report.errorAndAbort(s"$InvalidDqqPrefix $message")
+
+    val parts = Option(sc).flatMap(value => Option(value.parts)).map(_.toList)
+    parts match
+      case Some(values)
+          if isExactCapturedModifiersNameRankedParameterClauseSequenceCapturedResult(values) =>
+        RankedDefinitionPatternExtractorFactory.capturedModifiersNameParamssResult
+      case Some(_) =>
+        abort(
+          "expected exactly `$mods def $name(...$paramss): $result = $body` with five captures in semantic-modifiers, semantic-name, complete-paramss, semantic-result, and complete-body order"
+        )
+      case None => abort("StringContext must not be null.")
+
   private[matching] def capturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultExtractor(
       sc: StringContext
   )(using q: Quotes): RankedDefinitionPatternExtractor[
@@ -274,6 +301,8 @@ object DefinitionPattern:
       Left("StringContext must contain exactly two literal parts.")
     else if parts.exists(_ == null) then
       Left("StringContext literal parts must not be null.")
+    else if isExactCapturedModifiersNameRankedParameterClauseSequenceCapturedResult(parts) then
+      Right(StaticPatternKind.CapturedModifiersNameRankedParameterClauseSequenceCapturedResult)
     else if isExactCapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult(
         parts
       )
@@ -347,6 +376,19 @@ object DefinitionPattern:
         prefix.matches("(?s)\\s*def\\s+") &&
           beforeTparams.matches("(?s)\\s*\\[\\s*\\.\\.\\s*") &&
           beforeParamss.matches("(?s)\\s*\\]\\s*\\(\\s*\\.\\.\\.\\s*") &&
+          beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&
+          beforeBody.matches("(?s)\\s*=\\s*") &&
+          suffix.trim.isEmpty
+      case _ => false
+
+  private def isExactCapturedModifiersNameRankedParameterClauseSequenceCapturedResult(
+      parts: List[String]
+  ): Boolean =
+    parts match
+      case List(beforeModifiers, beforeName, beforeParamss, beforeResult, beforeBody, suffix) =>
+        beforeModifiers.trim.isEmpty &&
+          beforeName.matches("(?s)\\s+def\\s+") &&
+          beforeParamss.matches("(?s)\\s*\\(\\s*\\.\\.\\.\\s*") &&
           beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&
           beforeBody.matches("(?s)\\s*=\\s*") &&
           suffix.trim.isEmpty

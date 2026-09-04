@@ -47,6 +47,15 @@ private[scalameta] object ScalametaDefinitionPatternMacro:
                 )(using $callerQuotes)
             }
           case Right(
+                ScalametaDefinitionFrontend.PatternKind.CapturedModifiersNameRankedParameterClauseSequenceCapturedResult
+              ) =>
+            '{
+              ScalametaQuasiPattern
+                .capturedModifiersNameRankedParameterClauseSequenceCapturedResultExtractor($context)(
+                  using $callerQuotes
+                )
+            }
+          case Right(
                 ScalametaDefinitionFrontend.PatternKind.CapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult
               ) =>
             '{
