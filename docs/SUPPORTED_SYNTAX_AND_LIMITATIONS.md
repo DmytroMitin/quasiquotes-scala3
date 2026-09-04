@@ -8,7 +8,10 @@ the [syntax support matrix](SYNTAX_SUPPORT_MATRIX.md). That table is the
 user-facing Q syntax view. The
 [cross-surface capability matrix](CROSS_SURFACE_CAPABILITY_MATRIX.md) reports
 the typed-Scalameta, neutral, fresh exact-lowering, and existing-tree rewrite
-directions independently. This document provides the detailed semantic and
+directions independently. The
+[projection, lowering, and bridge pipeline matrix](PROJECTION_LOWERING_BRIDGE_MATRIX.md)
+names the concrete APIs that compose those directions and records their
+visibility and maturity. This document provides the detailed semantic and
 diagnostic caveats behind those tables.
 
 ## How to read the surfaces

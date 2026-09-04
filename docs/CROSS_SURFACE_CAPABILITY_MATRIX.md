@@ -6,6 +6,10 @@ In particular, a neutral Scalameta projection and an internal exact-tree
 lowerer are separate contracts until a named public façade owns their
 composition, diagnostics, version policy, and placement semantics.
 
+For the concrete API-level data flow behind these axes, including visibility,
+`Context` requirements, and composed bridge boundaries, see the
+[projection, lowering, and bridge pipeline matrix](PROJECTION_LOWERING_BRIDGE_MATRIX.md).
+
 Status vocabulary:
 
 - `SUPPORTED` — available on the named public surface for this family;
@@ -77,11 +81,11 @@ The axes are:
 | Anonymous implementation | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — specialized instance-factory projection | `NOT_YET` | `INTERNAL` — exact bounded instance-factory plan lowering, exposed only through its named exact-version peer bridge | `NOT_APPLICABLE` |
 
 The five reusable neutral Definition projectors remain separate package-private
-family entries; one accepted common dispatcher is still pending. Specialized
-contextual/refined-alias/instance-factory projectors and named peer bridges do
-not widen that ladder. A general Scalameta Definition-to-exact-tree public
-bridge therefore remains `NOT_YET`, with the general simple-alias exact case
-still absent.
+family entries behind one accepted package-private common dispatcher.
+Specialized contextual/refined-alias/instance-factory projectors and named
+peer bridges do not widen that ladder. A general Scalameta
+Definition-to-exact-tree public bridge remains `NOT_YET`, because the common
+U-D shape lowerer and its general simple-alias exact case are still absent.
 
 ## Composition and rank summary
 

@@ -150,7 +150,9 @@ See the [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md) for the
 user-facing construct/match boundary and the
 [cross-surface capability matrix](docs/CROSS_SURFACE_CAPABILITY_MATRIX.md) for
 the independent Q, typed-Scalameta, neutral, fresh-lowering, and existing-tree
-rewrite directions.
+rewrite directions. The
+[projection, lowering, and bridge pipeline matrix](docs/PROJECTION_LOWERING_BRIDGE_MATRIX.md)
+names the concrete APIs, visibility boundaries, and current composition status.
 
 ## Related projects
 
@@ -273,6 +275,7 @@ See [Getting started](docs/GETTING_STARTED.md),
 [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md),
 [hybrid typed frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md),
 [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md),
+[projection, lowering, and bridge pipelines](docs/PROJECTION_LOWERING_BRIDGE_MATRIX.md),
 [exact constructor backend](docs/EXACT_BACKEND_CONSTRUCTOR_NEW.md),
 [supported syntax and limitations](docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md),
 [why quasiquotes?](docs/WHY_QUASIQUOTES.md),
@@ -359,11 +362,11 @@ result; broader statements and `qq` local-definition matching remain excluded.
 The unpublished neutral module now has separate reusable internal projectors
 for an explicitly typed immutable `val`, a true parameterless explicitly typed
 `def`, one- and two-ordinary-parameter explicitly typed `def`s, and a simple
-non-generic unbounded Type alias. The unpublished exact internal definition
+non-generic unbounded Type alias. One accepted package-private dispatcher now
+selects exactly those five families. The unpublished exact internal definition
 backend already lowers the four ordinary val/def families to source-free raw
 trees and also has deterministic generated-origin routes; parameter references
-are resolved by project binder identity rather than display text. A general
-simple-alias exact route and one common Definition dispatcher are not yet
-product capabilities. This does not expose compiler trees publicly,
-generalize parameter-list syntax, or add general method placement/owner
-support.
+are resolved by project binder identity rather than display text. A common U-D
+shape lowerer and its general simple-alias exact route are not yet product
+capabilities. This does not expose a general Definition raw-tree facade,
+generalize parameter-list syntax, or add general method placement/owner support.

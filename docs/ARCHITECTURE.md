@@ -21,6 +21,28 @@ templates, patterns, binder identities, structural construction and matching
 rules, and neutral diagnostics. Frontends must project into those shared
 models rather than inventing frontend-local equality or binding semantics.
 
+## Pipeline vocabulary
+
+The project uses direction-specific terms deliberately:
+
+- **projection** is the N-owned compiler-free conversion from an external
+  source AST into a project-owned semantic value;
+- **authoring** is N's admitted reverse direction from project semantics to a
+  fresh external source AST;
+- **lowering** is U's conversion from validated project semantics or a bounded
+  plan into a fresh exact lower-level representation;
+- **rewrite** is U's transformation of an existing exact raw tree under an
+  explicit identity, provenance, and origin contract;
+- **bridge** is a C-owned integration contract that composes layers behind one
+  source-facing operation, although its exact-version code normally lives in
+  `dottyInternal`;
+- **frontend** denotes Q's typed/Quotes-aware quasiquote construction and
+  matching, not an alias for projection or lowering.
+
+The [projection, lowering, and bridge pipeline matrix](PROJECTION_LOWERING_BRIDGE_MATRIX.md)
+lists the concrete Term, Type, Definition, and specialized peer APIs, their
+visibility, current maturity, `Context` requirements, and composition limits.
+
 ## Modules and dependency direction
 
 ```text
@@ -198,16 +220,16 @@ needs an explicit owner/reownership contract and must fail closed until that
 contract exists. Splicing a `Symbol` as shorthand for `Ref(symbol)` is not
 planned.
 
-The compiler-free Scalameta layer separately has package-private reusable
-projectors for explicitly typed immutable vals, true parameterless defs,
-one- and two-ordinary-parameter defs, and simple non-generic unbounded Type
-aliases. The exact backend already accepts completed forms for the four
-ordinary val/def families. The simple alias has no general exact route yet;
-the older refined-alias peer backend carries different type-parameter,
-refinement, binder, provenance, and diagnostic semantics and is not that
-route. A future public Definition-category composition therefore remains
-closed until one internal neutral dispatcher and one U-owned exact shape
-dispatcher make the five-family path mechanical.
+The compiler-free Scalameta layer has one accepted package-private dispatcher
+over reusable projectors for explicitly typed immutable vals, true
+parameterless defs, one- and two-ordinary-parameter defs, and simple
+non-generic unbounded Type aliases. The exact backend already accepts completed
+forms for the four ordinary val/def families. The simple alias has no general
+exact route yet; the older refined-alias peer backend carries different
+type-parameter, refinement, binder, provenance, and diagnostic semantics and
+is not that route. A future public Definition-category composition therefore
+remains closed until one U-owned exact shape dispatcher makes the five-family
+path mechanical.
 
 An advanced owner/definition-plan handle may eventually be justified by a
 real consumer, but symmetric `sqr`/`sqq` symbol syntax is not currently
