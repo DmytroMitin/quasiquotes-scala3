@@ -191,7 +191,8 @@ rewrite directions.
   Scalameta definition authoring and typed reflected Definition placement
   remain distinct contracts.
 - `dottyInternal` contains exact-compiler internal adapters, the public bounded
-  exact-version `ScalametaTermUntypedBridge`, and five narrow experimental
+  exact-version `ScalametaTermUntypedBridge` and context-free
+  `ScalametaTypeUntypedBridge`, and five narrow experimental
   foreign-package peer bridges: contextual-method lowering,
   bounded AUXify self abstract-Type-member lowering, delegated forwarding, and
   the bounded three-parameter refined Type alias, plus the exact bounded
@@ -218,6 +219,8 @@ the [Scalameta opt-in artifact topology](docs/SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY
 and the [Dotty-internal exact backend](docs/DOTTY_INTERNAL_BACKEND.md). Its
 public Term surface is the focused
 [bounded Scalameta Term bridge](docs/SCALAMETA_TERM_UNTYPED_BRIDGE.md); its
+public Type sibling is the
+[bounded Scalameta Type bridge](docs/SCALAMETA_TYPE_UNTYPED_BRIDGE.md); its
 foreign-package definition surfaces include the focused
 [contextual-method bridge](docs/EXPERIMENTAL_CONTEXTUAL_METHOD_PEER_BRIDGE.md)
 and [self abstract-Type-member bridge](docs/SELF_ABSTRACT_TYPE_MEMBER_PEER_BRIDGE.md).

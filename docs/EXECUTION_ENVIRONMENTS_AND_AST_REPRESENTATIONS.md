@@ -294,6 +294,13 @@ External macro tests compile and execute the standard quotation, public
 reflection, and `qr` forms on every supported compiler line; each returns `3`
 for operands `1` and `2`.
 
+The unpublished exact-version `dottyInternal` artifact also has two bounded
+public programmatic seams. `ScalametaTermUntypedBridge` requires an active
+compiler `Context`; the context-free `ScalametaTypeUntypedBridge` composes the
+compiler-free Type projector with the existing source-free exact Type lowerer.
+Both return raw `untpd.Tree` values only for their documented intersections;
+neither is a quoted-reflection API, placement service, or generic converter.
+
 ### Exact-version internal demonstrations
 
 In the current compiler implementation, `QuotesImpl` implements reflected

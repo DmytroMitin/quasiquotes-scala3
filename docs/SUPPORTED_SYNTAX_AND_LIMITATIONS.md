@@ -34,9 +34,9 @@ The Q, N, and U labels describe direction rather than maturity:
 
 - Q is user-facing typed construction and matching in an active `Quotes`;
 - N is compiler-free projection from Scalameta or authoring back to Scalameta;
-- U-D creates a fresh exact compiler tree; its bounded Term intersection is
-  public through one exact-version facade and other U-D families remain
-  internal;
+- U-D creates a fresh exact compiler tree; its bounded Term and Type
+  intersections are public through category-specific exact-version facades and
+  other U-D families remain internal;
 - U-U rewrites an admitted part of an existing exact compiler tree while
   preserving the stated identity and provenance contract.
 
@@ -49,6 +49,7 @@ compiler-version policy, source positions, owners, placement, and lifecycle.
 | Composition | Current status | Boundary |
 | --- | --- | --- |
 | `scala.meta.Term` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTermUntypedBridge`; direct non-binder and P0/P1 intersection only |
+| `scala.meta.Type` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTypeUntypedBridge`; recursive primitive/fixed application/Tuple2-3/Function1-2 intersection only |
 | `Term` -> `qr` scalar position | `BOUNDED` | Caller-owned reflected Term in an admitted scalar slot |
 | `Seq[Term]` -> `qr` arguments | `BOUNDED` | Exactly one rank-2 carrier in an admitted Apply or one-list New argument list |
 | `TypeRepr` / `tqr` -> `tqr` Type position | `BOUNDED` | Complete reflected Type positions only |
@@ -91,6 +92,27 @@ accepts the tested ordinary shapes when required names exist, while raw
 span-free `untpd.InfixOp` typing remains span-sensitive. The exact-version API
 adds no `u*`/`n*` syntax, no generic bridge, and no Type or Definition facade.
 See the [focused bridge contract](SCALAMETA_TERM_UNTYPED_BRIDGE.md).
+
+## Public bounded Scalameta Type lowering
+
+`ScalametaTypeUntypedBridge.lower(sourceType)` is the public direct
+Scalameta-Type-to-raw-Type-tree composition. It requires no Dotty `Context` and
+mechanically composes `ScalametaTypeNormalFormProjection.project` with
+`CompletedTypeUntypedLowerer.lower`.
+
+The admitted recursive intersection contains Int/String/Boolean, fixed
+`List`/`Option`/`Either`, Tuple2/3 syntax, and Function1/2 syntax. `AnyVal` is
+neutral-projectable but fails exact lowering. Unsupported simple names,
+selected/path Types and constructors, other generic constructors/arities,
+larger tuple/function arities, and richer Type nodes fail neutral projection.
+Explicit `TupleN`/`FunctionN` applications are not reclassified as tuple or
+function syntax.
+
+Every result is fresh and recursively source/span-free with no `TypedSplice`.
+There is no rendering, reparsing, resolution, fallback, provenance, typing,
+symbol, ownership, or placement service, and no new `u*`/Type-quasiquote
+syntax. See the
+[focused Type bridge contract](SCALAMETA_TYPE_UNTYPED_BRIDGE.md).
 
 Currently exercised areas include:
 

@@ -75,8 +75,11 @@ delivery chronology.
   separate compatibility decision.
 - Keep `dottyInternal` source visible but its artifact unpublished. Preserve the
   category-specific public exact-version `ScalametaTermUntypedBridge` for its
-  documented direct non-binder and P0/P1 intersection; keep Type and Definition
-  out of that facade, and do not generalize it into a raw-tree toolkit. Retain
+  documented direct non-binder and P0/P1 intersection, and the context-free
+  sibling `ScalametaTypeUntypedBridge` for the recursive primitive,
+  List/Option/Either, Tuple2/3-syntax, and Function1/2-syntax intersection.
+  Keep Term and Type as distinct categories, keep Definition out of both, and
+  do not generalize them into a raw-tree toolkit. Retain
   the definition-specific exact-version bridges for tightly coupled
   foreign-package peers. `ContextualMethodPeerBridge` admits the unchanged
   legacy `Show[A]` method and complete bounded `Add.Out` method.

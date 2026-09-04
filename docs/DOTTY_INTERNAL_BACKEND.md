@@ -32,6 +32,17 @@ and exact lowering failure. There is no rendering, reparsing, fallback, richer
 backend routing, provenance synthesis, typing, symbol creation, ownership, or
 placement service.
 
+`ScalametaTypeUntypedBridge` is the context-free public sibling for the
+bounded Type intersection. It composes
+`ScalametaTypeNormalFormProjection.project` with the package-private
+`CompletedTypeUntypedLowerer.lower` and returns a categorized failure or a
+fresh source-free raw Type tree. Its recursive Int/String/Boolean,
+List/Option/Either, Tuple2/3-syntax, and Function1/2-syntax boundary is
+documented on the
+[bounded Scalameta Type bridge page](SCALAMETA_TYPE_UNTYPED_BRIDGE.md).
+It performs no TupleN/FunctionN name recovery, resolution, fallback, typing,
+symbol creation, ownership, or placement.
+
 Five definition-specific production objects in this module are intentionally
 exposed to foreign packages. `ContextualMethodPeerBridge` accepts either the
 legacy single-unbounded-parameter contextual method or the exact bounded
@@ -106,8 +117,8 @@ The bounded instance-factory operation is documented on the
 
 ## Internal module inventory
 
-Only the documented public Term facade and foreign-package definition bridges
-above are intended consumer seams. All other production owners are
+Only the documented public Term/Type facades and foreign-package definition
+bridges above are intended consumer seams. All other production owners are
 package-private or otherwise project-internal and carry no stable compatibility
 promise:
 

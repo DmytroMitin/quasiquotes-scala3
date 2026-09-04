@@ -50,6 +50,18 @@ scala.meta.Term (bounded literals / names / select / Apply / infix / unary
   -> source-free untpd.Tree
 ```
 
+The bounded Type sibling follows the same dependency direction without a
+compiler `Context`:
+
+```text
+scala.meta.Type
+  -> ScalametaTypeUntypedBridge
+  -> ScalametaTypeNormalFormProjection
+  -> core TypeNormalForm
+  -> package-private CompletedTypeUntypedLowerer
+  -> source-free untpd.Tree
+```
+
 No arrow in this route performs name resolution, overload resolution, typing,
 precedence parsing, or source/provenance reconstruction. Precedence is already
 encoded by recursive `TermShape.Infix` structure.
@@ -75,7 +87,8 @@ encoded by recursive `TermShape.Infix` structure.
   the caller's `Quotes` universe; it does not route through the narrower
   neutral `TermShape` projector.
 - `dottyInternal` contains unpublished exact-version `untpd` adapters, the
-  public bounded `ScalametaTermUntypedBridge`, and the narrow
+  public bounded `ScalametaTermUntypedBridge` and
+  `ScalametaTypeUntypedBridge`, and the narrow
   `ContextualMethodPeerBridge`, `SelfAbstractTypeMemberPeerBridge`, and
   `DelegatedForwardingMethodPeerBridge`, plus the bounded
   `AuxTypeAliasPeerBridge` and `InstanceFactoryPeerBridge`. Its package-private
@@ -241,10 +254,12 @@ scala.meta.Term
 ```
 
 The Term-category name scales across bounded arities and recursive Term
-families without encoding a rollout tranche. A future Type boundary would be a
-separate Type-specific sibling, not a universal Scalameta-to-Dotty facade. The
-current route adds no new public source syntax, provenance reconstruction,
-typing, symbols, ownership, or placement.
+families without encoding a rollout tranche. The Type boundary is the separate
+context-free `ScalametaTypeUntypedBridge` sibling, not a universal
+Scalameta-to-Dotty facade. It composes the neutral Type normal-form projector
+with the existing completed-Type lowerer for their bounded recursive
+intersection. Neither route adds public source syntax, provenance
+reconstruction, typing, symbols, ownership, or placement.
 
 It preserves only a truthful root source span and performs no rendering,
 reparse, typing, symbol lookup, overload resolution, or fallback. The recursive

@@ -54,10 +54,10 @@ The axes are:
 
 | Family | Q construct | Q match | typed Scalameta construct | typed Scalameta match | N project | N author | U-D fresh lower | U-U existing rewrite |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Named Type | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `INTERNAL` | `NOT_APPLICABLE` |
-| Fixed `List` / `Option` / `Either` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` | `NOT_APPLICABLE` |
-| Tuple2 / Tuple3 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` | `NOT_APPLICABLE` |
-| Function1 / Function2 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` | `NOT_APPLICABLE` |
+| Named Type | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — Int/String/Boolean through public exact-version `ScalametaTypeUntypedBridge` | `NOT_APPLICABLE` |
+| Fixed `List` / `Option` / `Either` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — recursive fixed arities through the public exact-version facade | `NOT_APPLICABLE` |
+| Tuple2 / Tuple3 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — tuple syntax through public exact-version `ScalametaTypeUntypedBridge` | `NOT_APPLICABLE` |
+| Function1 / Function2 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — function syntax through public exact-version `ScalametaTypeUntypedBridge` | `NOT_APPLICABLE` |
 | Reflected complete-Type holes / captures | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `INTERNAL` — completed semantic Types only | `NOT_APPLICABLE` |
 | Runtime-length Type application arguments | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
 
@@ -85,6 +85,7 @@ Definition-to-exact-tree public bridge therefore remains `NOT_YET`.
 | Composition | Current status | Boundary |
 | --- | --- | --- |
 | `scala.meta.Term` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTermUntypedBridge`; direct non-binder and P0/P1 intersection only; source-free result |
+| `scala.meta.Type` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTypeUntypedBridge`; recursive Int/String/Boolean, fixed List/Option/Either, Tuple2/3 syntax, and Function1/2 syntax; source-free result |
 | `Term` -> `qr` scalar position | `BOUNDED` | Caller-owned reflected Term transport in admitted scalar positions |
 | `Seq[Term]` -> `qr` Apply / one-list New arguments | `BOUNDED` | Exactly one rank-2 carrier in the admitted ordinary argument list |
 | `TypeRepr` / `tqr` -> `tqr` Type position | `BOUNDED` | Complete reflected Type slots in admitted templates |
