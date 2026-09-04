@@ -72,11 +72,12 @@ The axes are:
 | Contextual method | `NOT_YET` — a public Core programmatic constructor exists, but no Q quasiquote syntax | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` — specialized projector | `NOT_YET` | `INTERNAL` | `NOT_YET` — the current existing-tree rewriter rejects parameter clauses |
 | Bounded refined Type alias | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — specialized projector | `INTERNAL` — specialized authoring | `INTERNAL` | `NOT_APPLICABLE` |
 | Class / trait / object | `NOT_YET` | `NOT_YET` | `NOT_YET` — a separate internal public-reflection class plan is not typed-Scalameta syntax | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` — no fresh raw class/trait/object lowerer; typed-reflection generation is a different surface | `NOT_APPLICABLE` |
-| Anonymous implementation | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — specialized instance-factory projection | `NOT_YET` | `NOT_YET` — the specialized neutral semantic plan has no accepted exact lowering | `NOT_APPLICABLE` |
+| Anonymous implementation | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — specialized instance-factory projection | `NOT_YET` | `INTERNAL` — exact bounded instance-factory plan lowering, exposed only through its named exact-version peer bridge | `NOT_APPLICABLE` |
 
-Specialized neutral Definition projectors are evidence for their named shapes;
-they are not a reusable `scala.meta.Stat -> Definition` boundary. A general
-Scalameta Definition-to-exact-tree public bridge therefore remains `NOT_YET`.
+Specialized neutral Definition projectors and named peer bridges are evidence
+only for their exact admitted shapes; they are not a reusable
+`scala.meta.Stat -> Definition` boundary. A general Scalameta
+Definition-to-exact-tree public bridge therefore remains `NOT_YET`.
 
 ## Composition and rank summary
 

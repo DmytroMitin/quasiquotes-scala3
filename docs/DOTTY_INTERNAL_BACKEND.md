@@ -10,7 +10,7 @@ full Scala compiler version and active compiler context.
 
 ## Current public-for-JVM-access surface
 
-Four definition-specific production objects in this module are intentionally
+Five definition-specific production objects in this module are intentionally
 exposed to foreign packages. `ContextualMethodPeerBridge` accepts either the
 legacy single-unbounded-parameter contextual method or the exact bounded
 two-parameter bounded `Add.Out` method. The separate
@@ -19,7 +19,10 @@ member family. `DelegatedForwardingMethodPeerBridge` accepts only the exact
 one-type-parameter, ordinary-parameter, final-using-parameter
 forwarder whose body calls the contextual instance with the ordinary argument.
 `AuxTypeAliasPeerBridge` accepts only the exact three-parameter,
-two-target-reference, one-refinement-alias family. All four require a virtual
+two-target-reference, one-refinement-alias family. `InstanceFactoryPeerBridge`
+accepts only the complete bounded generic factory with a by-name carrier, a
+binary-function carrier, one matching anonymous parent, and two ordered
+overrides. All five require a virtual
 source name and return a categorized
 failure or a positioned tree with deterministic generated source and the
 effective virtual source name.
@@ -49,6 +52,25 @@ lifecycle, companion placement and merge, insertion, rollback, and ordinary
 typing. Macro-Paradise itself has no Quasiquotes or Scalameta product
 dependency.
 
+The bounded instance-factory path is separately composed as:
+
+```text
+scala.meta.Defn.Def
+  -> ScalametaInstanceFactoryProjection
+  -> package-private InstanceFactoryPlan
+  -> InstanceFactoryPlanUntypedLowerer
+  -> InstanceFactoryGeneratedOriginAdapter
+  -> InstanceFactoryPeerBridge.Lowered
+       -> positioned untpd.DefDef
+       -> generated source
+       -> virtual source name
+```
+
+The projector is the sole authority for the factory grammar and binder roles;
+the exact backend does not repeat a spelling-based semantic validator. The
+bridge returns only after the complete raw tree and generated-origin gates
+pass, so malformed input never yields a partial factory.
+
 The focused API and failure contract remain documented on the
 [experimental contextual-method peer bridge page](EXPERIMENTAL_CONTEXTUAL_METHOD_PEER_BRIDGE.md).
 The second operation is documented separately on the
@@ -57,6 +79,8 @@ The 043 operation is documented on the
 [delegated forwarding-method bridge page](DELEGATED_FORWARDING_METHOD_PEER_BRIDGE.md).
 The bounded Type-alias operation is documented on the
 [Type-alias bridge page](TYPE_ALIAS_PEER_BRIDGE.md).
+The bounded instance-factory operation is documented on the
+[instance-factory bridge page](INSTANCE_FACTORY_PEER_BRIDGE.md).
 
 ## Internal module inventory
 

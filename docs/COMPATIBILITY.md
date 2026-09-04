@@ -21,8 +21,8 @@ Artifact policy:
   experimental and unpublished; compatibility is tested on Scala 3.3.8,
   3.8.4, and 3.9.0 and remains bounded by Scalameta dialect support;
 - `dottyInternal`: full Scala-version crossing, unpublished, with an
-  experimental `ContextualMethodPeerBridge` whose compiler-internal input and
-  output require an exact producer/consumer compiler match;
+  experimental family of definition-specific peer bridges whose
+  compiler-internal output requires an exact producer/consumer compiler match;
 - aggregate root and example modules: unpublished.
 
 The candidate expanded `0.3.0` release set adds the binary-crossed neutral

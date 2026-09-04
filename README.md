@@ -190,10 +190,11 @@ rewrite directions.
   exact-two Definition lowerers and matchers for their overlapping slices; neutral
   Scalameta definition authoring and typed reflected Definition placement
   remain distinct contracts.
-- `dottyInternal` contains exact-compiler internal adapters and four narrow
+- `dottyInternal` contains exact-compiler internal adapters and five narrow
   experimental foreign-package peer bridges: contextual-method lowering,
   bounded AUXify self abstract-Type-member lowering, delegated forwarding, and
-  the bounded three-parameter refined Type alias. Its richer package-private Term backend
+  the bounded three-parameter refined Type alias, plus the exact bounded
+  instance-factory bridge. Its richer package-private Term backend
   also accepts the bounded one-local-val P2 block when authoritative completed
   Type sidecars are available and the bounded P3 local-identity-definition block
   when authoritative parameter/result completed-Type sidecars are available.

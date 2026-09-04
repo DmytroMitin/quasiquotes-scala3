@@ -78,7 +78,9 @@ delivery chronology.
   peers. `ContextualMethodPeerBridge` admits the unchanged legacy `Show[A]`
   method and complete bounded `Add.Out` method.
   `SelfAbstractTypeMemberPeerBridge` admits only the coherent bounded
-  bounded abstract member; neither is a generic raw-tree API.
+  abstract member. Preserve the delegated-forwarder, refined-Type-alias, and
+  complete instance-factory bridges at their exact admitted shapes; none is a
+  generic raw-tree API.
 - Preserve Apache-2.0 POM and JAR metadata for intended `core` and `frontend`
   distributions.
 - Expand structural term and type support through narrow, test-backed slices.

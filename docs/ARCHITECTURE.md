@@ -75,7 +75,7 @@ encoded by recursive `TermShape.Infix` structure.
 - `dottyInternal` contains unpublished exact-version `untpd` adapters and the
   narrow `ContextualMethodPeerBridge`, `SelfAbstractTypeMemberPeerBridge`, and
   `DelegatedForwardingMethodPeerBridge`, plus the bounded
-  `AuxTypeAliasPeerBridge`. Its package-private
+  `AuxTypeAliasPeerBridge` and `InstanceFactoryPeerBridge`. Its package-private
   `CoreTermShapeUntypedLowerer` consumes the accepted neutral non-binder family
   (Int/String/Boolean literals, infix, unary, tuple, conditional,
   Identifier/Select/one-list Apply) plus transparent P0 and binder-free P1
@@ -264,6 +264,18 @@ and uses `DelegatedForwardingMethodPeerBridge` to obtain a positioned
 `untpd.DefDef`. AUXify still owns method derivation, and Macro-Paradise still
 owns source inspection, companion lifecycle, placement, conflict policy, and
 rollback. This operation is not a general method or Term bridge.
+
+The bounded instance-factory path accepts one complete authored Scalameta
+`Defn.Def` with a by-name value carrier, a structural binary-function carrier,
+one direct unary result/anonymous parent, and exactly two ordered overrides.
+`ScalametaInstanceFactoryProjection` validates the complete binder-role graph,
+then the exact backend constructs and positions one 33-node `untpd.DefDef`.
+`InstanceFactoryPeerBridge` exposes only that complete insertion-ready result,
+deterministic generated source, effective virtual source name, and stable
+bounded failures. It does not expose the internal plan or admit arbitrary
+definitions, templates, or anonymous implementations. AUXify retains source
+inspection and authoring; Macro-Paradise retains lifecycle, companion
+placement, atomic rollback, and typing.
 
 The bounded Type-alias path accepts one already-authored Scalameta
 `Defn.Type` plus explicit alias, three parameter, three bound, target, and
