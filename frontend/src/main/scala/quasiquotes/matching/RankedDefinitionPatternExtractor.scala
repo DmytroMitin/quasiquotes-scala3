@@ -49,6 +49,21 @@ private[quasiquotes] object RankedDefinitionPatternExtractorFactory:
       RankedDefinitionPatternMatcher.extractCapturedNameTypeParamsParamssResult(target)
     )
 
+  def capturedModifiersNameTypeParamsParamssResult(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      DefinitionModifiers[q.reflect.Flags, q.reflect.TypeRepr, q.reflect.Term],
+      String,
+      Seq[q.reflect.TypeDef],
+      Seq[Seq[q.reflect.ValDef]],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    new RankedDefinitionPatternExtractor(target =>
+      RankedDefinitionPatternMatcher.extractCapturedModifiersNameTypeParamsParamssResult(target)
+    )
+
 private[matching] object RankedDefinitionPatternMatcher:
   def extractExactCollect(using q: Quotes)(
       target: q.reflect.DefDef
@@ -86,6 +101,28 @@ private[matching] object RankedDefinitionPatternMatcher:
   ] =
     extractAdmittedGenericDefinition(target).map { (tparams, clauses, result, body) =>
       (target.name, tparams, clauses.map(_.params), result, body)
+    }
+
+  def extractCapturedModifiersNameTypeParamsParamssResult(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[
+    (
+      DefinitionModifiers[q.reflect.Flags, q.reflect.TypeRepr, q.reflect.Term],
+      String,
+      Seq[q.reflect.TypeDef],
+      Seq[Seq[q.reflect.ValDef]],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    extractAdmittedGenericDefinitionCore(target).map { (tparams, clauses, result, body) =>
+      val modifiers = new DefinitionModifiers(
+        target.symbol.flags,
+        target.symbol.privateWithin,
+        target.symbol.protectedWithin,
+        target.symbol.annotations
+      )
+      (modifiers, target.name, tparams, clauses.map(_.params), result, body)
     }
 
   private def extractExactCollectClauses(using q: Quotes)(
@@ -153,12 +190,25 @@ private[matching] object RankedDefinitionPatternMatcher:
       q.reflect.Term
     )
   ] =
+    extractAdmittedGenericDefinitionCore(target).filter(_ =>
+      DefinitionModifierSemantics.isSemanticallyEmpty(target.symbol)
+    )
+
+  private def extractAdmittedGenericDefinitionCore(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[
+    (
+      List[q.reflect.TypeDef],
+      List[q.reflect.TermParamClause],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
     import q.reflect.*
 
     if target == null ||
         target.symbol == Symbol.noSymbol ||
         !target.symbol.isDefDef ||
-        !DefinitionModifierSemantics.isSemanticallyEmpty(target.symbol) ||
         target.symbol.isClassConstructor ||
         target.symbol.flags.is(Flags.ExtensionMethod) ||
         target.symbol.flags.is(Flags.FieldAccessor) ||

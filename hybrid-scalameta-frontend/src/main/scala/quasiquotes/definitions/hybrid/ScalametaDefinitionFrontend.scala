@@ -28,6 +28,7 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
     case RankedParameterClauseSequence
     case CapturedNameRankedParameterClauseSequenceCapturedResult
     case CapturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult
+    case CapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult
 
   final case class Failure(
       category: String,
@@ -101,6 +102,16 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
       bodySentinel: String
   )
 
+  final case class CapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultProjection(
+      methodSentinel: String,
+      firstTypeParameterSentinel: String,
+      secondTypeParameterSentinel: String,
+      firstParameterSentinel: String,
+      secondParameterSentinel: String,
+      resultSentinel: String,
+      bodySentinel: String
+  )
+
   def build(using q: Quotes)(
       parts: Seq[String],
       arguments: Seq[q.reflect.TypeRepr]
@@ -161,25 +172,33 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
           case Left(exactTwoFailure) =>
             RankedPatternSource.unsupportedFamilyRankDiagnostic(parts, "Definition") match
               case Some(detail) =>
-                projectCapturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultPattern(
+                projectCapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultPattern(
                   parts
                 ) match
                   case Right(_) =>
                     Right(
-                      PatternKind.CapturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult
+                      PatternKind.CapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult
                     )
                   case Left(_) =>
-                    projectCapturedNameRankedParameterClauseSequenceCapturedResultPattern(parts) match
+                    projectCapturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultPattern(
+                      parts
+                    ) match
                       case Right(_) =>
-                        Right(PatternKind.CapturedNameRankedParameterClauseSequenceCapturedResult)
+                        Right(
+                          PatternKind.CapturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult
+                        )
                       case Left(_) =>
-                        projectRankedParameterClauseSequencePattern(parts) match
-                          case Right(_) => Right(PatternKind.RankedParameterClauseSequence)
+                        projectCapturedNameRankedParameterClauseSequenceCapturedResultPattern(parts) match
+                          case Right(_) =>
+                            Right(PatternKind.CapturedNameRankedParameterClauseSequenceCapturedResult)
                           case Left(_) =>
-                            projectRankedPattern(parts) match
-                              case Right(_) => Right(PatternKind.RankedParameterSequence)
+                            projectRankedParameterClauseSequencePattern(parts) match
+                              case Right(_) => Right(PatternKind.RankedParameterClauseSequence)
                               case Left(_) =>
-                                Left(Failure("DEFINITION_PATTERN_RANK_UNSUPPORTED", 0, 0, detail))
+                                projectRankedPattern(parts) match
+                                  case Right(_) => Right(PatternKind.RankedParameterSequence)
+                                  case Left(_) =>
+                                    Left(Failure("DEFINITION_PATTERN_RANK_UNSUPPORTED", 0, 0, detail))
               case None => Left(exactTwoFailure)
 
   def compileRankedPattern(
@@ -204,6 +223,16 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
     CapturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultProjection
   ] =
     projectCapturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultPattern(
+      parts
+    )
+
+  def compileCapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultPattern(
+      parts: Seq[String]
+  ): Either[
+    Failure,
+    CapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultProjection
+  ] =
+    projectCapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultPattern(
       parts
     )
 
@@ -888,6 +917,186 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
       bodySentinel
     )
 
+  private[quasiquotes] def projectCapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultPattern(
+      parts: Seq[String]
+  ): Either[
+    Failure,
+    CapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultProjection
+  ] =
+    for
+      checkedParts <- checkedParts(
+        parts,
+        7,
+        "semantic modifiers, semantic name, complete type-parameter sequence, complete parameter-clause sequence, semantic result Type, and complete body captures"
+      )
+      _ <- require(
+        isExactCapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult(
+          checkedParts
+        ),
+        checkedParts.mkString.length,
+        "DEFINITION_PATTERN_CAPTURE_LAYOUT_UNSUPPORTED",
+        "only `$mods def $name[..$tparams](...$paramss): $result = $body` is supported for the six-capture Definition shape."
+      )
+      _ <- exactSourceGuard(checkedParts)
+      literalSource = checkedParts.mkString
+      methodSentinel = freshIndexed("__qq_scmeta_definition_method_", literalSource, Set.empty)
+      firstTypeParameterSentinel = freshIndexed(
+        "__QqScmetaDefinitionTypeParameter_",
+        literalSource,
+        Set(methodSentinel)
+      )
+      secondTypeParameterSentinel = freshIndexed(
+        "__QqScmetaDefinitionTypeParameter_",
+        literalSource,
+        Set(methodSentinel, firstTypeParameterSentinel)
+      )
+      firstParameterSentinel = freshIndexed(
+        "__qq_scmeta_definition_parameter_",
+        literalSource,
+        Set(methodSentinel, firstTypeParameterSentinel, secondTypeParameterSentinel)
+      )
+      secondParameterSentinel = freshIndexed(
+        "__qq_scmeta_definition_parameter_",
+        literalSource,
+        Set(
+          methodSentinel,
+          firstTypeParameterSentinel,
+          secondTypeParameterSentinel,
+          firstParameterSentinel
+        )
+      )
+      resultSentinel = freshIndexed(
+        "__qq_scmeta_definition_result_",
+        literalSource,
+        Set(
+          methodSentinel,
+          firstTypeParameterSentinel,
+          secondTypeParameterSentinel,
+          firstParameterSentinel,
+          secondParameterSentinel
+        )
+      )
+      bodySentinel = freshIndexed(
+        "__qq_scmeta_definition_body_",
+        literalSource,
+        Set(
+          methodSentinel,
+          firstTypeParameterSentinel,
+          secondTypeParameterSentinel,
+          firstParameterSentinel,
+          secondParameterSentinel,
+          resultSentinel
+        )
+      )
+      typeMarkerOffset = checkedParts(2).lastIndexOf("..")
+      termMarkerOffset = checkedParts(3).lastIndexOf("...")
+      source =
+        "@deprecated(\"q025\", \"\") private[quasiquotes] final" + checkedParts(1) +
+          methodSentinel + checkedParts(2).substring(0, typeMarkerOffset) +
+          s"$firstTypeParameterSentinel, $secondTypeParameterSentinel <: List[$firstTypeParameterSentinel]" +
+          checkedParts(3).substring(0, termMarkerOffset) +
+          s"$firstParameterSentinel: $firstTypeParameterSentinel)($secondParameterSentinel: $secondTypeParameterSentinel" +
+          checkedParts(4) + resultSentinel + checkedParts(5) + bodySentinel + checkedParts(6)
+      definition <- parseDefinition(source)
+      _ <- require(
+        (definition.mods match
+          case List(_: Mod.Annot, _: Mod.Private, _: Mod.Final) => true
+          case _ => false) &&
+          definition.name.value == methodSentinel &&
+          definition.name.syntax == methodSentinel,
+        source.length,
+        "DEFINITION_PATTERN_CAPTURE_LAYOUT_UNSUPPORTED",
+        "the ordered annotation/qualified-private/final probe and method-name sentinel must remain structural."
+      )
+      group <- definition.paramClauseGroups match
+        case value :: Nil => Right(value)
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_GROUP_TOPOLOGY_UNSUPPORTED",
+            "expected exactly one parameter-clause group."
+          )
+      typeParameters <- group.tparamClause.values match
+        case first :: second :: Nil => Right((first, second))
+        case _ =>
+          unsupported(
+            source.length,
+            "TYPE_PARAMETER_TOPOLOGY_UNSUPPORTED",
+            "the type-parameter sentinel must preserve two ordered parameters."
+          )
+      (firstTypeParameter, secondTypeParameter) = typeParameters
+      _ <- require(
+        firstTypeParameter.mods.isEmpty &&
+          secondTypeParameter.mods.isEmpty &&
+          firstTypeParameter.name.value == firstTypeParameterSentinel &&
+          firstTypeParameter.name.syntax == firstTypeParameterSentinel &&
+          secondTypeParameter.name.value == secondTypeParameterSentinel &&
+          secondTypeParameter.name.syntax == secondTypeParameterSentinel &&
+          secondTypeParameter.tbounds.hi.exists(
+            _.syntax == s"List[$firstTypeParameterSentinel]"
+          ),
+        source.length,
+        "TYPE_PARAMETER_TOPOLOGY_UNSUPPORTED",
+        "the ordered type-parameter sentinels and dependent bound must remain structural."
+      )
+      clauses <- group.paramClauses match
+        case first :: second :: Nil if first.mod.isEmpty && second.mod.isEmpty =>
+          Right((first, second))
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_CLAUSE_TOPOLOGY_UNSUPPORTED",
+            "the rank-3 sentinel must preserve two ordinary parameter clauses."
+          )
+      (firstClause, secondClause) = clauses
+      firstParameter <- firstClause.values match
+        case value :: Nil if value.mods.isEmpty && value.default.isEmpty => Right(value)
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_TOPOLOGY_UNSUPPORTED",
+            "the first rank-3 sentinel clause must contain one ordinary parameter."
+          )
+      secondParameter <- secondClause.values match
+        case value :: Nil if value.mods.isEmpty && value.default.isEmpty => Right(value)
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_TOPOLOGY_UNSUPPORTED",
+            "the second rank-3 sentinel clause must contain one ordinary parameter."
+          )
+      _ <- require(
+        firstParameter.name.value == firstParameterSentinel &&
+          firstParameter.decltpe.exists(_.syntax == firstTypeParameterSentinel) &&
+          secondParameter.name.value == secondParameterSentinel &&
+          secondParameter.decltpe.exists(_.syntax == secondTypeParameterSentinel) &&
+          definition.decltpe.exists {
+            case value: Type.Name =>
+              value.value == resultSentinel && value.syntax == resultSentinel
+            case _ => false
+          },
+        source.length,
+        "DEFINITION_PATTERN_CAPTURE_LAYOUT_UNSUPPORTED",
+        "the type-parameter, paramss, and result sentinels must remain in their exact positions."
+      )
+      _ <- definition.body match
+        case value: Term.Name if value.value == bodySentinel => Right(())
+        case _ =>
+          unsupported(
+            source.length,
+            "COMPLETE_BODY_CAPTURE_REQUIRED",
+            "the body capture must occupy the complete Definition right-hand side."
+          )
+    yield CapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultProjection(
+      methodSentinel,
+      firstTypeParameterSentinel,
+      secondTypeParameterSentinel,
+      firstParameterSentinel,
+      secondParameterSentinel,
+      resultSentinel,
+      bodySentinel
+    )
+
   private def isExactRankedParameterSequence(parts: Vector[String]): Boolean =
     parts match
       case Vector(prefix, between, suffix) =>
@@ -922,6 +1131,28 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
     parts match
       case Vector(prefix, beforeTparams, beforeParamss, beforeResult, beforeBody, suffix) =>
         prefix.matches("(?s)\\s*def\\s+") &&
+          beforeTparams.matches("(?s)\\s*\\[\\s*\\.\\.\\s*") &&
+          beforeParamss.matches("(?s)\\s*\\]\\s*\\(\\s*\\.\\.\\.\\s*") &&
+          beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&
+          beforeBody.matches("(?s)\\s*=\\s*") &&
+          suffix.trim.isEmpty
+      case _ => false
+
+  private def isExactCapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult(
+      parts: Vector[String]
+  ): Boolean =
+    parts match
+      case Vector(
+            beforeModifiers,
+            beforeName,
+            beforeTparams,
+            beforeParamss,
+            beforeResult,
+            beforeBody,
+            suffix
+          ) =>
+        beforeModifiers.trim.isEmpty &&
+          beforeName.matches("(?s)\\s+def\\s+") &&
           beforeTparams.matches("(?s)\\s*\\[\\s*\\.\\.\\s*") &&
           beforeParamss.matches("(?s)\\s*\\]\\s*\\(\\s*\\.\\.\\.\\s*") &&
           beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&

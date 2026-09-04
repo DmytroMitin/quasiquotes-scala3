@@ -4,6 +4,7 @@ import scala.annotation.targetName
 import scala.quoted.Quotes
 
 import quasiquotes.matching.{
+  DefinitionModifiers,
   DefinitionPatternExtractor,
   RankedDefinitionPatternExtractor,
   RankedDefinitionPatternExtractorFactory,
@@ -185,6 +186,34 @@ object ScalametaQuasiPattern:
       ) match
       case Right(_) =>
         RankedDefinitionPatternExtractorFactory.capturedNameTypeParamsParamssResult
+      case Left(failure) =>
+        q.reflect.report.errorAndAbort(
+          s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"
+        )
+
+  private[scalameta] def capturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultExtractor(
+      context: StringContext
+  )(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      DefinitionModifiers[q.reflect.Flags, q.reflect.TypeRepr, q.reflect.Term],
+      String,
+      Seq[q.reflect.TypeDef],
+      Seq[Seq[q.reflect.ValDef]],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    if context == null then
+      q.reflect.report.errorAndAbort(
+        "Invalid Scalameta dqq definition-pattern template: StringContext must not be null."
+      )
+    ScalametaDefinitionFrontend
+      .compileCapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultPattern(
+        context.parts
+      ) match
+      case Right(_) =>
+        RankedDefinitionPatternExtractorFactory.capturedModifiersNameTypeParamsParamssResult
       case Left(failure) =>
         q.reflect.report.errorAndAbort(
           s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"
