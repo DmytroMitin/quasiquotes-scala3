@@ -9,8 +9,15 @@ import dotty.tools.dotc.core.Types.NoType
 import dotty.tools.dotc.util.SourceFile
 import dotty.tools.dotc.util.Spans.Span
 
-import quasiquotes.definitions.{ConstructedDefinition, DefinitionName, DefinitionShape}
+import quasiquotes.definitions.{
+  ConstructedDefinition,
+  DefinitionConstructionError,
+  DefinitionName,
+  DefinitionShape
+}
 import quasiquotes.parser.{BinderId, TermShape, TypeShape, TypeShapeInspector}
+
+import scala.util.{Success, Try}
 
 import DefinitionShapeUntypedLowererError.*
 
@@ -172,6 +179,65 @@ class DefinitionShapeUntypedLowererTest extends munit.FunSuite:
     }
   }
 
+  test("rejects forged null bodies for all four ordinary families through the completion category") {
+    withContext {
+      val firstBinder = BinderId(1)
+      val secondBinder = BinderId(2)
+      val forged = Vector[DefinitionShape](
+        reflectedDefinition(
+          classOf[DefinitionShape.ImmutableVal],
+          valueName,
+          intType,
+          null
+        ),
+        reflectedDefinition(
+          classOf[DefinitionShape.ParameterlessDef],
+          methodName,
+          intType,
+          null
+        ),
+        reflectedDefinition(
+          classOf[DefinitionShape.SingleParameterDef],
+          methodName,
+          firstBinder,
+          xName,
+          intType,
+          intType,
+          null
+        ),
+        reflectedDefinition(
+          classOf[DefinitionShape.TwoParameterDef],
+          methodName,
+          firstBinder,
+          xName,
+          intType,
+          secondBinder,
+          yName,
+          intType,
+          intType,
+          null
+        )
+      )
+
+      val results = forged.map(shape => Try(DefinitionShapeUntypedLowerer.lower(shape)))
+
+      results.foreach { result =>
+        assert(
+          result match
+            case Success(
+                  Left(
+                    OrdinaryDefinitionCompletionFailure(
+                      _: DefinitionConstructionError.UnsupportedParsedDefinitionBody
+                    )
+                  )
+                ) => true
+            case _ => false,
+          clues(result)
+        )
+      }
+    }
+  }
+
   test("rejects sourced, spanned, symbol-bearing, and TypedSplice descendants recursively") {
     withContext {
       val sourced = untpd
@@ -229,6 +295,14 @@ class DefinitionShapeUntypedLowererTest extends munit.FunSuite:
     constructor
       .newInstance(definitionName, rhs)
       .asInstanceOf[DefinitionShape]
+
+  private def reflectedDefinition[A <: DefinitionShape](
+      definitionClass: Class[A],
+      arguments: AnyRef*
+  ): DefinitionShape =
+    val constructor = definitionClass.getDeclaredConstructors.head
+    constructor.setAccessible(true)
+    constructor.newInstance(arguments*).asInstanceOf[DefinitionShape]
 
   private def assertRawInvariantFailure(
       raw: untpd.Tree,

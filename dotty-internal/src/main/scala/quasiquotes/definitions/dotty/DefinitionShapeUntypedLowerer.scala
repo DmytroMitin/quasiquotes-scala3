@@ -6,7 +6,13 @@ import dotty.tools.dotc.core.Names.typeName
 import dotty.tools.dotc.core.Symbols.NoSymbol
 import dotty.tools.dotc.util.{NoSource, SourceFile}
 
-import quasiquotes.definitions.{ConstructedDefinition, DefinitionName, DefinitionShape}
+import quasiquotes.definitions.{
+  ConstructedDefinition,
+  DefinitionConstructionError,
+  DefinitionName,
+  DefinitionShape
+}
+import quasiquotes.parser.TermShape
 import quasiquotes.terms.dotty.CompletedTypeUntypedLowerer
 import quasiquotes.types.TypeNormalForm
 
@@ -20,16 +26,28 @@ private[quasiquotes] object DefinitionShapeUntypedLowerer:
       .toRight(MissingDefinitionShape)
       .flatMap {
         case alias: DefinitionShape.SimpleTypeAlias => lowerAlias(alias)
-        case ordinary: DefinitionShape.ImmutableVal => lowerOrdinary(ordinary)
-        case ordinary: DefinitionShape.ParameterlessDef => lowerOrdinary(ordinary)
-        case ordinary: DefinitionShape.SingleParameterDef => lowerOrdinary(ordinary)
-        case ordinary: DefinitionShape.TwoParameterDef => lowerOrdinary(ordinary)
+        case ordinary: DefinitionShape.ImmutableVal =>
+          lowerOrdinary(ordinary, ordinary.rhs)
+        case ordinary: DefinitionShape.ParameterlessDef =>
+          lowerOrdinary(ordinary, ordinary.body)
+        case ordinary: DefinitionShape.SingleParameterDef =>
+          lowerOrdinary(ordinary, ordinary.body)
+        case ordinary: DefinitionShape.TwoParameterDef =>
+          lowerOrdinary(ordinary, ordinary.body)
       }
 
   private def lowerOrdinary(
-      shape: DefinitionShape
+      shape: DefinitionShape,
+      body: TermShape
   )(using Context): Either[DefinitionShapeUntypedLowererError, untpd.Tree] =
     for
+      _ <- Option(body).toRight(
+        OrdinaryDefinitionCompletionFailure(
+          DefinitionConstructionError.UnsupportedParsedDefinitionBody(
+            "ordinary DefinitionShape lowering requires a present body."
+          )
+        )
+      )
       completed <- ConstructedDefinition
         .fromShape(shape)
         .left
