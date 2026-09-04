@@ -24,6 +24,8 @@ private[matching] object DefinitionPatternMacro:
             '{ DefinitionPattern.twoParameterExtractor($context)(using $callerQuotes) }
           case Right(DefinitionPattern.StaticPatternKind.RankedParameterSequence) =>
             '{ DefinitionPattern.rankedParameterSequenceExtractor($context)(using $callerQuotes) }
+          case Right(DefinitionPattern.StaticPatternKind.RankedParameterClauseSequence) =>
+            '{ DefinitionPattern.rankedParameterClauseSequenceExtractor($context)(using $callerQuotes) }
           case Left(detail) =>
             quotes.reflect.report.errorAndAbort(
               s"Invalid dqq definition-pattern template: $detail",

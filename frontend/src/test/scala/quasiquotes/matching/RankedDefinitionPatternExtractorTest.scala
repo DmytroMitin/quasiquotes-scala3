@@ -140,12 +140,6 @@ final class RankedDefinitionPatternExtractorTest extends munit.FunSuite:
       messages(
         """import scala.quoted.*; import quasiquotes.matching.DefinitionPattern.dqq
            def f(using q: Quotes)(d: q.reflect.DefDef) = d match
-             case dqq"def collect(...$paramss): Int = $body" => ()
-             case _ => ()"""
-      ),
-      messages(
-        """import scala.quoted.*; import quasiquotes.matching.DefinitionPattern.dqq
-           def f(using q: Quotes)(d: q.reflect.DefDef) = d match
              case dqq"..$mods def collect(): Int = $body" => ()
              case _ => ()"""
       ),

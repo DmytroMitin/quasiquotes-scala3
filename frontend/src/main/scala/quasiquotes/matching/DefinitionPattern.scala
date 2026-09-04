@@ -103,6 +103,7 @@ object DefinitionPattern:
     case SingleParameter
     case ExactTwo
     case RankedParameterSequence
+    case RankedParameterClauseSequence
 
   private final case class ParsedPattern(
       methodName: String,
@@ -169,6 +170,23 @@ object DefinitionPattern:
         abort(rankedParameterSequenceDiagnostic(values))
       case None => abort("StringContext must not be null.")
 
+  private[matching] def rankedParameterClauseSequenceExtractor(
+      sc: StringContext
+  )(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (Seq[Seq[q.reflect.ValDef]], q.reflect.Term)
+  ] =
+    def abort(message: String): Nothing =
+      q.reflect.report.errorAndAbort(s"$InvalidDqqPrefix $message")
+
+    val parts = Option(sc).flatMap(value => Option(value.parts)).map(_.toList)
+    parts match
+      case Some(values) if isExactRankedParameterClauseSequence(values) =>
+        RankedDefinitionPatternExtractorFactory.exactCollectParamss
+      case Some(values) =>
+        abort(rankedParameterClauseSequenceDiagnostic(values))
+      case None => abort("StringContext must not be null.")
+
   private[matching] def classifyStaticParts(
       parts: List[String]
   ): Either[String, StaticPatternKind] =
@@ -176,6 +194,8 @@ object DefinitionPattern:
       Left("StringContext must contain exactly two literal parts.")
     else if parts.exists(_ == null) then
       Left("StringContext literal parts must not be null.")
+    else if isExactRankedParameterClauseSequence(parts) then
+      Right(StaticPatternKind.RankedParameterClauseSequence)
     else if isExactRankedParameterSequence(parts) then
       Right(StaticPatternKind.RankedParameterSequence)
     else
@@ -203,6 +223,14 @@ object DefinitionPattern:
           suffix.trim.isEmpty
       case _ => false
 
+  private def isExactRankedParameterClauseSequence(parts: List[String]): Boolean =
+    parts match
+      case List(prefix, between, suffix) =>
+        prefix.matches("(?s)\\s*def\\s+collect\\s*\\(\\s*\\.\\.\\.\\s*") &&
+          between.matches("(?s)\\s*\\)\\s*:\\s*Int\\s*=\\s*") &&
+          suffix.trim.isEmpty
+      case _ => false
+
   private def rankedParameterSequenceDiagnostic(parts: List[String]): String =
     val literal = parts.mkString("<capture>")
     if literal.contains("...") then
@@ -213,6 +241,17 @@ object DefinitionPattern:
       "rank-2 capture is supported only as the complete immediate parameter list in `def collect(..$params): Int = $body`"
     else
       "expected exactly `def collect(..$params): Int = $body`"
+
+  private def rankedParameterClauseSequenceDiagnostic(parts: List[String]): String =
+    val literal = parts.mkString("<capture>")
+    if parts.count(_.contains("...")) > 1 then
+      "only one rank-3 parameter-clause capture is supported for Definition patterns"
+    else if literal.contains("..") && !literal.contains("...") then
+      "rank-2 capture does not represent the complete parameter-clause region"
+    else if literal.contains("...") then
+      "rank-3 capture is supported only as the complete parameter-clause region in `def collect(...$paramss): Int = $body`"
+    else
+      "expected exactly `def collect(...$paramss): Int = $body`"
 
   private def validateParts(sc: StringContext): Either[String, List[String]] =
     if sc == null then Left("StringContext must not be null.")

@@ -131,7 +131,7 @@ final class Q017ScalametaDefinitionParamssCaptureFeasibilityTest extends munit.F
     assert(cases.forall(_.nonEmpty), cases)
     assert(cases.flatten.forall(_.contains("Invalid Q017 typed-Scalameta dqq")), cases)
 
-  test("typed-Scalameta dynamic rank-3 selection and production rank-3 remain closed"):
+  test("typed-Scalameta dynamic rank-3 selection remains closed while the exact production shape is admitted"):
     val dynamicErrors = typeCheckErrors(
       """{
         import scala.quoted.*
@@ -154,4 +154,4 @@ final class Q017ScalametaDefinitionParamssCaptureFeasibilityTest extends munit.F
       }"""
     )
     assert(dynamicErrors.nonEmpty, dynamicErrors)
-    assert(productionErrors.exists(_.message.contains("rank-3 captures are not supported")), productionErrors)
+    assertEquals(productionErrors, Nil)

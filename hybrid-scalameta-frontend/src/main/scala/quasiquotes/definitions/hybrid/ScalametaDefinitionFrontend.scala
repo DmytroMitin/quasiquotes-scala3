@@ -25,6 +25,7 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
     case SingleParameter
     case ExactTwo
     case RankedParameterSequence
+    case RankedParameterClauseSequence
 
   final case class Failure(
       category: String,
@@ -71,6 +72,12 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
 
   final case class RankedPatternProjection(
       parameterSentinel: String,
+      bodySentinel: String
+  )
+
+  final case class RankedParameterClauseSequenceProjection(
+      firstParameterSentinel: String,
+      secondParameterSentinel: String,
       bodySentinel: String
   )
 
@@ -134,16 +141,24 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
           case Left(exactTwoFailure) =>
             RankedPatternSource.unsupportedFamilyRankDiagnostic(parts, "Definition") match
               case Some(detail) =>
-                projectRankedPattern(parts) match
-                  case Right(_) => Right(PatternKind.RankedParameterSequence)
+                projectRankedParameterClauseSequencePattern(parts) match
+                  case Right(_) => Right(PatternKind.RankedParameterClauseSequence)
                   case Left(_) =>
-                    Left(Failure("DEFINITION_PATTERN_RANK_UNSUPPORTED", 0, 0, detail))
+                    projectRankedPattern(parts) match
+                      case Right(_) => Right(PatternKind.RankedParameterSequence)
+                      case Left(_) =>
+                        Left(Failure("DEFINITION_PATTERN_RANK_UNSUPPORTED", 0, 0, detail))
               case None => Left(exactTwoFailure)
 
   def compileRankedPattern(
       parts: Seq[String]
   ): Either[Failure, RankedPatternProjection] =
     projectRankedPattern(parts)
+
+  def compileRankedParameterClauseSequencePattern(
+      parts: Seq[String]
+  ): Either[Failure, RankedParameterClauseSequenceProjection] =
+    projectRankedParameterClauseSequencePattern(parts)
 
   def compileExactTwoPattern(
       parts: Seq[String]
@@ -407,10 +422,130 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
           )
     yield RankedPatternProjection(parameterSentinel, bodySentinel)
 
+  private[quasiquotes] def projectRankedParameterClauseSequencePattern(
+      parts: Seq[String]
+  ): Either[Failure, RankedParameterClauseSequenceProjection] =
+    for
+      checkedParts <- checkedParts(
+        parts,
+        3,
+        "one complete parameter-clause-sequence capture and one complete-body capture"
+      )
+      _ <- require(
+        isExactRankedParameterClauseSequence(checkedParts),
+        checkedParts.mkString.length,
+        "DEFINITION_PATTERN_RANK_UNSUPPORTED",
+        "rank-3 capture is supported only as `def collect(...$paramss): Int = $body`."
+      )
+      _ <- exactSourceGuard(checkedParts)
+      literalSource = checkedParts.mkString
+      firstParameterSentinel = freshIndexed(
+        "__qq_scmeta_definition_parameter_",
+        literalSource,
+        Set.empty
+      )
+      secondParameterSentinel = freshIndexed(
+        "__qq_scmeta_definition_parameter_",
+        literalSource,
+        Set(firstParameterSentinel)
+      )
+      bodySentinel = freshIndexed(
+        "__qq_scmeta_definition_body_",
+        literalSource,
+        Set(firstParameterSentinel, secondParameterSentinel)
+      )
+      markerOffset = checkedParts.head.lastIndexOf("...")
+      source =
+        checkedParts.head.substring(0, markerOffset) +
+          s"$firstParameterSentinel: Int)($secondParameterSentinel: String" +
+          checkedParts(1) + bodySentinel + checkedParts(2)
+      definition <- parseDefinition(source)
+      _ <- require(
+        definition.mods.isEmpty &&
+          definition.name.value == "collect" &&
+          definition.name.syntax == "collect",
+        source.length,
+        "DEFINITION_PATTERN_RANK_UNSUPPORTED",
+        "the ranked template must keep the fixed ordinary collect method."
+      )
+      group <- definition.paramClauseGroups match
+        case value :: Nil => Right(value)
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_GROUP_TOPOLOGY_UNSUPPORTED",
+            "expected exactly one parameter-clause group."
+          )
+      _ <- require(
+        group.tparamClause.values.isEmpty,
+        source.length,
+        "TYPE_PARAMETERS_UNSUPPORTED",
+        "type parameters are not supported."
+      )
+      clauses <- group.paramClauses match
+        case first :: second :: Nil if first.mod.isEmpty && second.mod.isEmpty =>
+          Right((first, second))
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_CLAUSE_TOPOLOGY_UNSUPPORTED",
+            "the rank-3 sentinel must preserve two ordinary parameter clauses."
+          )
+      (firstClause, secondClause) = clauses
+      firstParameter <- firstClause.values match
+        case value :: Nil if value.mods.isEmpty && value.default.isEmpty => Right(value)
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_TOPOLOGY_UNSUPPORTED",
+            "the first rank-3 sentinel clause must contain one ordinary parameter."
+          )
+      secondParameter <- secondClause.values match
+        case value :: Nil if value.mods.isEmpty && value.default.isEmpty => Right(value)
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_TOPOLOGY_UNSUPPORTED",
+            "the second rank-3 sentinel clause must contain one ordinary parameter."
+          )
+      _ <- require(
+        firstParameter.name.value == firstParameterSentinel &&
+          firstParameter.name.syntax == firstParameterSentinel &&
+          firstParameter.decltpe.exists(_.syntax == "Int") &&
+          secondParameter.name.value == secondParameterSentinel &&
+          secondParameter.name.syntax == secondParameterSentinel &&
+          secondParameter.decltpe.exists(_.syntax == "String") &&
+          definition.decltpe.exists(_.syntax == "Int"),
+        source.length,
+        "DEFINITION_PATTERN_RANK_UNSUPPORTED",
+        "the rank-3 sentinels and fixed Int result Type must remain in their exact structural positions."
+      )
+      _ <- definition.body match
+        case value: Term.Name if value.value == bodySentinel => Right(())
+        case _ =>
+          unsupported(
+            source.length,
+            "COMPLETE_BODY_CAPTURE_REQUIRED",
+            "the body capture must occupy the complete Definition right-hand side."
+          )
+    yield RankedParameterClauseSequenceProjection(
+      firstParameterSentinel,
+      secondParameterSentinel,
+      bodySentinel
+    )
+
   private def isExactRankedParameterSequence(parts: Vector[String]): Boolean =
     parts match
       case Vector(prefix, between, suffix) =>
         prefix.matches("(?s)\\s*def\\s+collect\\s*\\(\\s*\\.\\.\\s*") &&
+          between.matches("(?s)\\s*\\)\\s*:\\s*Int\\s*=\\s*") &&
+          suffix.trim.isEmpty
+      case _ => false
+
+  private def isExactRankedParameterClauseSequence(parts: Vector[String]): Boolean =
+    parts match
+      case Vector(prefix, between, suffix) =>
+        prefix.matches("(?s)\\s*def\\s+collect\\s*\\(\\s*\\.\\.\\.\\s*") &&
           between.matches("(?s)\\s*\\)\\s*:\\s*Int\\s*=\\s*") &&
           suffix.trim.isEmpty
       case _ => false
