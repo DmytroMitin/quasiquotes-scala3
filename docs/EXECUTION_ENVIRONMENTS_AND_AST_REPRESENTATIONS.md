@@ -226,9 +226,13 @@ types are package-internal. Public compiler-free construction is limited to
 `SingleParameterMethodResultView`, and `TwoParameterMethodResultView`
 projections. Public reflected `dqr`/`dqq` are bounded `DefDef` surfaces in the
 caller's `Quotes`. Experimental `scala.meta.Defn` values supply direct neutral
-source construction/matching in the unpublished module, and only the admitted
-contextual-method shape projects into `DefinitionResultView`. The exact
-raw/generated-origin definition backend remains unpublished.
+source construction/matching in the unpublished module. Separate
+package-private neutral projectors now cover explicitly typed immutable vals,
+true parameterless defs, one- and two-ordinary-parameter defs, and simple
+non-generic unbounded aliases; the admitted specialized contextual-method
+shape separately projects into `DefinitionResultView`. These projectors do not
+yet form a public Definition bridge. The exact raw/generated-origin definition
+backend remains unpublished, and no general simple-alias exact route exists.
 
 Not every internal representation warrants another interpolation syntax. Local
 imports can rename Scalameta `q`/`t` to provisional `nqr`/`nqq`,

@@ -198,6 +198,17 @@ needs an explicit owner/reownership contract and must fail closed until that
 contract exists. Splicing a `Symbol` as shorthand for `Ref(symbol)` is not
 planned.
 
+The compiler-free Scalameta layer separately has package-private reusable
+projectors for explicitly typed immutable vals, true parameterless defs,
+one- and two-ordinary-parameter defs, and simple non-generic unbounded Type
+aliases. The exact backend already accepts completed forms for the four
+ordinary val/def families. The simple alias has no general exact route yet;
+the older refined-alias peer backend carries different type-parameter,
+refinement, binder, provenance, and diagnostic semantics and is not that
+route. A future public Definition-category composition therefore remains
+closed until one internal neutral dispatcher and one U-owned exact shape
+dispatcher make the five-family path mechanical.
+
 An advanced owner/definition-plan handle may eventually be justified by a
 real consumer, but symmetric `sqr`/`sqq` symbol syntax is not currently
 planned: symbols are compiler semantic entities, not source syntax.

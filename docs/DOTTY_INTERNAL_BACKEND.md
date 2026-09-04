@@ -155,8 +155,11 @@ promise:
   preserved function and untouched arguments retain exact identity; every
   fresh node in the child-bearing replacement receives the old argument site.
   These paths are not D-style new-syntax lowering and are not public APIs.
-- `ConstructedDefinitionUntypedBackend` and
-  `PublicContextualMethodUntypedBackend` construct bounded raw definitions.
+- `ConstructedDefinitionUntypedBackend` constructs the reusable immutable-val,
+  true-parameterless-def, one-ordinary-parameter-def, and
+  two-ordinary-parameter-def raw families;
+  `PublicContextualMethodUntypedBackend` owns its separate bounded method.
+  Neither is a general simple-Type-alias route.
 - `ScopedContextualMethodUntypedLowerer` and its generated-origin adapter own
   only the exact bounded two-binder/refinement raw shape.
 - `SelfAbstractTypeMemberUntypedLowerer` and its generated-origin adapter own

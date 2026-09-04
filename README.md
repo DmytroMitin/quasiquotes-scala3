@@ -356,10 +356,14 @@ now admits exactly one literal method with one ordinary parameter, complete
 parameter/result `TypeRepr` holes, a parameter-reference body, and one following
 result; broader statements and `qq` local-definition matching remain excluded.
 
-The unpublished exact internal definition backend also supports the bounded
-single-ordinary-parameter and exact-two-ordinary-parameter definition shapes
-behind the compiler-free public projections. It constructs source-free raw
-trees or deterministic generated-origin trees without parsing in production,
-resolving parameter references by project binder identity rather than display
-text. This does not expose compiler trees publicly, generalize parameter-list
-syntax, or add general method placement/owner support.
+The unpublished neutral module now has separate reusable internal projectors
+for an explicitly typed immutable `val`, a true parameterless explicitly typed
+`def`, one- and two-ordinary-parameter explicitly typed `def`s, and a simple
+non-generic unbounded Type alias. The unpublished exact internal definition
+backend already lowers the four ordinary val/def families to source-free raw
+trees and also has deterministic generated-origin routes; parameter references
+are resolved by project binder identity rather than display text. A general
+simple-alias exact route and one common Definition dispatcher are not yet
+product capabilities. This does not expose compiler trees publicly,
+generalize parameter-list syntax, or add general method placement/owner
+support.

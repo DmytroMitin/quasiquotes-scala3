@@ -224,17 +224,20 @@ Definition work proceeds by semantic ownership rather than syntax breadth:
 6. broader clauses, Types, and bodies;
 7. class, trait, and object construction only after a reusable owner/member model exists.
 
-A future neutral API may take the conceptual shape
-`ScalametaDefinitionProjection.project(stat)`, but that spelling is illustrative,
-not a locked public name. The next implementation step is a reusable neutral
-Definition projection model; specialized contextual-method, Type-alias, and
-instance-factory projectors do not substitute for it.
+A package-private reusable neutral projection ladder now covers those first
+five families through separate family-owned projectors. A single internal
+dispatcher such as `ScalametaDefinitionProjection.project(definition)` remains
+a consolidation step; that spelling is illustrative, not a locked public
+name. Specialized contextual-method, refined-Type-alias, and instance-factory
+projectors remain separate semantics and do not substitute for this ladder.
 
-The existing neutral Term and Type projectors can each compose with an existing
-internal exact lowerer for their admitted non-binder families. They are ready
-for separate bounded public façade and diagnostic-design tasks. No such public
-API is declared here, and a general Scalameta Definition-to-exact-tree bridge
-waits on the reusable neutral Definition projection step.
+The existing neutral Term and Type projectors compose with bounded public
+exact-version facades for their admitted intersections. For Definitions, the
+four ordinary val/def shapes already complete into the existing internal exact
+backend, while the simple alias deliberately lacks a general exact path. The
+next cross-family gate is therefore an internal exact dispatcher with one
+narrow simple-alias case after the neutral dispatcher is accepted. No general
+Scalameta Definition-to-exact-tree public API is declared here.
 
 Publication policy remains a separate successor task: it must decide stable
 coordinates, supported compiler lanes, compatibility evidence, and release
