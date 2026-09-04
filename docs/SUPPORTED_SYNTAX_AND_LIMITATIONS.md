@@ -34,7 +34,9 @@ The Q, N, and U labels describe direction rather than maturity:
 
 - Q is user-facing typed construction and matching in an active `Quotes`;
 - N is compiler-free projection from Scalameta or authoring back to Scalameta;
-- U-D creates a fresh exact compiler tree behind an exact-version internal boundary;
+- U-D creates a fresh exact compiler tree; its bounded Term intersection is
+  public through one exact-version facade and other U-D families remain
+  internal;
 - U-U rewrites an admitted part of an existing exact compiler tree while
   preserving the stated identity and provenance contract.
 
@@ -46,6 +48,7 @@ compiler-version policy, source positions, owners, placement, and lifecycle.
 
 | Composition | Current status | Boundary |
 | --- | --- | --- |
+| `scala.meta.Term` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTermUntypedBridge`; direct non-binder and P0/P1 intersection only |
 | `Term` -> `qr` scalar position | `BOUNDED` | Caller-owned reflected Term in an admitted scalar slot |
 | `Seq[Term]` -> `qr` arguments | `BOUNDED` | Exactly one rank-2 carrier in an admitted Apply or one-list New argument list |
 | `TypeRepr` / `tqr` -> `tqr` Type position | `BOUNDED` | Complete reflected Type positions only |
@@ -64,6 +67,30 @@ ordinary `dqq` clause. That matcher returns the original ordered
 add construction-side parameter splicing or whole-Definition sequences. Rank 3
 is not implemented. Type sequences and whole-Definition sequences are not
 production capabilities. Symbol splicing is not planned as source syntax.
+
+## Public bounded Scalameta Term lowering
+
+`ScalametaTermUntypedBridge.lower(term)(using Context)` is the only public
+direct Scalameta-Term-to-raw-tree composition. It mechanically projects through
+`ScalametaTermProjection` and lowers through `CoreTermShapeUntypedLowerer`; it
+does not render, reparse, fall back, or select the richer backend.
+
+The accepted intersection is Int/String/Boolean literals, identifiers,
+recursive selections, one ordinary positional Apply list, recursive ordinary
+infix and unary terms, tuples of arity 2 through 22, explicit `if`/`else`,
+standard single-quoted `s` interpolation, one fully-qualified non-generic
+one-list constructor, transparent P0 parentheses, and binder-free P1 blocks.
+Nested or Type Apply, named/star/contextual arguments, broader constructors,
+ascription, Lambda1, P2/P3 binders, and broader statements fail closed with
+stable missing-input, neutral-projection, or exact-lowering failure classes.
+
+Every returned node is fresh and has no source, span, symbol, or `TypedSplice`;
+no Scalameta child identity or source provenance is preserved. The consumer
+still owns typing, owners, insertion, placement, and lifecycle. Direct Typer
+accepts the tested ordinary shapes when required names exist, while raw
+span-free `untpd.InfixOp` typing remains span-sensitive. The exact-version API
+adds no `u*`/`n*` syntax, no generic bridge, and no Type or Definition facade.
+See the [focused bridge contract](SCALAMETA_TERM_UNTYPED_BRIDGE.md).
 
 Currently exercised areas include:
 

@@ -73,10 +73,13 @@ delivery chronology.
   exact-compiler validation, original reflected-hole/capture identity, and
   compiler-line dialect selection; do not switch the public default without a
   separate compatibility decision.
-- Keep `dottyInternal` source visible but its artifact unpublished. Retain only
-  definition-specific exact-version bridges for tightly coupled foreign-package
-  peers. `ContextualMethodPeerBridge` admits the unchanged legacy `Show[A]`
-  method and complete bounded `Add.Out` method.
+- Keep `dottyInternal` source visible but its artifact unpublished. Preserve the
+  category-specific public exact-version `ScalametaTermUntypedBridge` for its
+  documented direct non-binder and P0/P1 intersection; keep Type and Definition
+  out of that facade, and do not generalize it into a raw-tree toolkit. Retain
+  the definition-specific exact-version bridges for tightly coupled
+  foreign-package peers. `ContextualMethodPeerBridge` admits the unchanged
+  legacy `Show[A]` method and complete bounded `Add.Out` method.
   `SelfAbstractTypeMemberPeerBridge` admits only the coherent bounded
   abstract member. Preserve the delegated-forwarder, refined-Type-alias, and
   complete instance-factory bridges at their exact admitted shapes; none is a

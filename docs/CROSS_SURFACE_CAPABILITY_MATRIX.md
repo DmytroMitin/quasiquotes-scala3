@@ -22,7 +22,8 @@ The axes are:
 - **typed Scalameta construct/match** — the unpublished opt-in typed frontend;
 - **N project** — compiler-free `scala.meta` AST to project semantic values;
 - **N author** — project semantic values to compiler-free `scala.meta` ASTs;
-- **U-D fresh lower** — package-private fresh exact compiler-tree lowering;
+- **U-D fresh lower** — fresh exact compiler-tree lowering, public only through
+  a named exact-version facade where the matrix says so and otherwise internal;
 - **U-U existing rewrite** — package-private rewriting of an existing exact
   compiler tree while preserving the admitted graph and provenance contract.
 
@@ -30,18 +31,18 @@ The axes are:
 
 | Family | Q construct | Q match | typed Scalameta construct | typed Scalameta match | N project | N author | U-D fresh lower | U-U existing rewrite |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Literal / identifier | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `INTERNAL` | `NOT_APPLICABLE` |
-| Selection | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `INTERNAL` | `NOT_APPLICABLE` |
-| Ordinary Apply | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `INTERNAL` | `INTERNAL` — one selected existing Apply in a direct parameterless method body; bounded leaf or direct-identifier Apply argument replacement only |
-| Infix | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` | `NOT_APPLICABLE` |
-| Unary | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` | `NOT_APPLICABLE` |
-| Tuple | `BOUNDED` — arity 2 through 22 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` | `NOT_APPLICABLE` |
-| `if` with explicit `else` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `INTERNAL` | `NOT_APPLICABLE` |
-| Standard `s` interpolation | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — fresh `Position.None` standard-`s` AST with exact semantic round trip | `INTERNAL` | `NOT_APPLICABLE` |
+| Literal / identifier | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — public exact-version `ScalametaTermUntypedBridge` | `NOT_APPLICABLE` |
+| Selection | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — public exact-version `ScalametaTermUntypedBridge` | `NOT_APPLICABLE` |
+| Ordinary Apply | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — one ordinary positional list through the public exact-version facade | `INTERNAL` — one selected existing Apply in a direct parameterless method body; bounded leaf or direct-identifier Apply argument replacement only |
+| Infix | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — public exact-version facade; raw span-free `InfixOp` | `NOT_APPLICABLE` |
+| Unary | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — public exact-version `ScalametaTermUntypedBridge` | `NOT_APPLICABLE` |
+| Tuple | `BOUNDED` — arity 2 through 22 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — arity 2 through 22 through the public exact-version facade | `NOT_APPLICABLE` |
+| `if` with explicit `else` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — public exact-version `ScalametaTermUntypedBridge` | `NOT_APPLICABLE` |
+| Standard `s` interpolation | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — fresh `Position.None` standard-`s` AST with exact semantic round trip | `BOUNDED` — public exact-version `ScalametaTermUntypedBridge` | `NOT_APPLICABLE` |
 | Type ascription | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `INTERNAL` | `NOT_APPLICABLE` |
 | Lambda1 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `INTERNAL` — completed parameter-Type sidecar required | `NOT_APPLICABLE` |
-| Fixed one-list `new` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` | `NOT_APPLICABLE` |
-| Binder-free P1 block | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` | `NOT_APPLICABLE` |
+| Fixed one-list `new` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — fully-qualified, non-generic, one ordinary list through the public exact-version facade | `NOT_APPLICABLE` |
+| Binder-free P1 block | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — public exact-version `ScalametaTermUntypedBridge` | `NOT_APPLICABLE` |
 | Single typed local immutable val (P2) | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `INTERNAL` — requires completed-Type sidecars | `NOT_APPLICABLE` |
 | Source-owned local identity method (P3) | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` | `NOT_YET` | `INTERNAL` — requires completed-Type sidecars | `NOT_APPLICABLE` |
 | Rank-2 Term arguments in Apply / one-list New | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` — the sequence is expanded before exact lowering | `NOT_APPLICABLE` |
@@ -83,6 +84,7 @@ Definition-to-exact-tree public bridge therefore remains `NOT_YET`.
 
 | Composition | Current status | Boundary |
 | --- | --- | --- |
+| `scala.meta.Term` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTermUntypedBridge`; direct non-binder and P0/P1 intersection only; source-free result |
 | `Term` -> `qr` scalar position | `BOUNDED` | Caller-owned reflected Term transport in admitted scalar positions |
 | `Seq[Term]` -> `qr` Apply / one-list New arguments | `BOUNDED` | Exactly one rank-2 carrier in the admitted ordinary argument list |
 | `TypeRepr` / `tqr` -> `tqr` Type position | `BOUNDED` | Complete reflected Type slots in admitted templates |

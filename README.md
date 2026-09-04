@@ -190,8 +190,9 @@ rewrite directions.
   exact-two Definition lowerers and matchers for their overlapping slices; neutral
   Scalameta definition authoring and typed reflected Definition placement
   remain distinct contracts.
-- `dottyInternal` contains exact-compiler internal adapters and five narrow
-  experimental foreign-package peer bridges: contextual-method lowering,
+- `dottyInternal` contains exact-compiler internal adapters, the public bounded
+  exact-version `ScalametaTermUntypedBridge`, and five narrow experimental
+  foreign-package peer bridges: contextual-method lowering,
   bounded AUXify self abstract-Type-member lowering, delegated forwarding, and
   the bounded three-parameter refined Type alias, plus the exact bounded
   instance-factory bridge. Its richer package-private Term backend
@@ -215,7 +216,9 @@ See the [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md),
 the [hybrid typed frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md),
 the [Scalameta opt-in artifact topology](docs/SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md),
 and the [Dotty-internal exact backend](docs/DOTTY_INTERNAL_BACKEND.md). Its
-foreign-package surfaces are the focused
+public Term surface is the focused
+[bounded Scalameta Term bridge](docs/SCALAMETA_TERM_UNTYPED_BRIDGE.md); its
+foreign-package definition surfaces include the focused
 [contextual-method bridge](docs/EXPERIMENTAL_CONTEXTUAL_METHOD_PEER_BRIDGE.md)
 and [self abstract-Type-member bridge](docs/SELF_ABSTRACT_TYPE_MEMBER_PEER_BRIDGE.md).
 

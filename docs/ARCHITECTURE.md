@@ -41,7 +41,9 @@ The production neutral Term route and its narrower exact continuation are:
 
 ```text
 scala.meta.Term (bounded literals / names / select / Apply / infix / unary
-  / tuple / if / fully-qualified one-list New / Lambda1 / P0-P3 block families)
+  / tuple / if / standard-s / fully-qualified one-list New / Lambda1
+  / P0-P3 block families)
+  -> ScalametaTermUntypedBridge
   -> ScalametaTermProjection
   -> core TermShape
   -> package-private CoreTermShapeUntypedLowerer (non-binder + P0/P1 overlap)
@@ -72,8 +74,9 @@ encoded by recursive `TermShape.Infix` structure.
   applicable. Term construction currently lowers Scalameta ASTs directly in
   the caller's `Quotes` universe; it does not route through the narrower
   neutral `TermShape` projector.
-- `dottyInternal` contains unpublished exact-version `untpd` adapters and the
-  narrow `ContextualMethodPeerBridge`, `SelfAbstractTypeMemberPeerBridge`, and
+- `dottyInternal` contains unpublished exact-version `untpd` adapters, the
+  public bounded `ScalametaTermUntypedBridge`, and the narrow
+  `ContextualMethodPeerBridge`, `SelfAbstractTypeMemberPeerBridge`, and
   `DelegatedForwardingMethodPeerBridge`, plus the bounded
   `AuxTypeAliasPeerBridge` and `InstanceFactoryPeerBridge`. Its package-private
   `CoreTermShapeUntypedLowerer` consumes the accepted neutral non-binder family
@@ -227,6 +230,22 @@ scala.meta Int/String/Boolean literals / ApplyInfix / unary / tuple / if
   -> core TermShape
 ```
 
+Its public exact-version continuation is separately named and owned:
+
+```text
+scala.meta.Term
+  -> ScalametaTermUntypedBridge.lower
+       -> ScalametaTermProjection.project
+       -> CoreTermShapeUntypedLowerer.lower
+  -> fresh source-free untpd.Tree
+```
+
+The Term-category name scales across bounded arities and recursive Term
+families without encoding a rollout tranche. A future Type boundary would be a
+separate Type-specific sibling, not a universal Scalameta-to-Dotty facade. The
+current route adds no new public source syntax, provenance reconstruction,
+typing, symbols, ownership, or placement.
+
 It preserves only a truthful root source span and performs no rendering,
 reparse, typing, symbol lookup, overload resolution, or fallback. The recursive
 result is a semantic copy; it does not preserve Scalameta child identity or raw
@@ -237,8 +256,8 @@ templates, and broader statement/binder forms remain outside the neutral
 contract. The bounded reverse `ScalametaTermShapeAuthoring` route constructs
 fresh `Position.None` Scalameta Terms for the binder-free ordinary family,
 fully-qualified `new`, and binder-free P1 blocks; it deliberately excludes
-P2/P3 binder authoring and source-provenance reconstruction. The direct
-exact backend accepts the non-binder family above plus transparent P0 and
+P2/P3 binder authoring and source-provenance reconstruction. The public bounded
+direct exact facade accepts the non-binder family above plus transparent P0 and
 binder-free P1 blocks; a direct Apply in function position is rejected as a
 second argument list, while Apply remains valid in argument and qualifier
 positions. Lambda1, P2, and P3 do not cross this direct edge; P2 and P3 remain

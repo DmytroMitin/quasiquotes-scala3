@@ -8,7 +8,29 @@ API stability. It follows the project's 0.x compatibility policy and is not a
 generic public `untpd` or `tpd` toolkit. Consumers must align with the module's
 full Scala compiler version and active compiler context.
 
-## Current public-for-JVM-access surface
+## Current public exact-version surface
+
+`ScalametaTermUntypedBridge` is the public programmatic Term facade. It accepts
+one `scala.meta.Term`, mechanically calls `ScalametaTermProjection.project`,
+then passes the projected `TermShape` to the package-private
+`CoreTermShapeUntypedLowerer.lower`. It returns either a stable categorized
+failure or a fresh source-free raw tree. Its exact admitted intersection,
+negative families, provenance contract, and Typer characterization are
+documented on the
+[bounded Scalameta Term bridge page](SCALAMETA_TERM_UNTYPED_BRIDGE.md).
+
+```text
+scala.meta.Term
+  -> ScalametaTermProjection.project
+  -> core TermShape
+  -> CoreTermShapeUntypedLowerer.lower
+  -> source-free untpd.Tree
+```
+
+The public failure codes distinguish missing input, neutral projection failure,
+and exact lowering failure. There is no rendering, reparsing, fallback, richer
+backend routing, provenance synthesis, typing, symbol creation, ownership, or
+placement service.
 
 Five definition-specific production objects in this module are intentionally
 exposed to foreign packages. `ContextualMethodPeerBridge` accepts either the
@@ -84,11 +106,13 @@ The bounded instance-factory operation is documented on the
 
 ## Internal module inventory
 
-Only the documented foreign-package bridges above are intended consumer seams.
-All other production owners are package-private or otherwise project-internal
-and carry no stable compatibility promise:
+Only the documented public Term facade and foreign-package definition bridges
+above are intended consumer seams. All other production owners are
+package-private or otherwise project-internal and carry no stable compatibility
+promise:
 
-- `CoreTermShapeUntypedLowerer` lowers the accepted non-binder Core family:
+- `CoreTermShapeUntypedLowerer`, behind the public bounded Term facade, lowers
+  the accepted non-binder Core family:
   canonical Int/String/Boolean literals, recursive ordinary infix and unary
   nodes, tuples, explicit conditionals, direct identifiers, recursive
   selections, and exactly one ordinary positional Apply list. It also lowers
@@ -177,11 +201,11 @@ contexts.
 ## Deliberate exclusions
 
 There is no production public bridge from arbitrary `scala.meta.Term` to
-`untpd.Tree`, no public neutral projector from arbitrary `scala.meta.Term`, no
-generic raw-tree family, no placement service, and no stable published
-coordinate for this module today. A future candidate Maven coordinate does not
-widen those API boundaries or stabilize the internal machinery. The
-package-private production composition admits the bounded accepted
+`untpd.Tree`: the named public facade admits only the documented direct
+intersection. There is no generic raw-tree family, no placement service, and
+no stable published coordinate for this module today. A future candidate Maven
+coordinate does not widen those API boundaries or stabilize the internal
+machinery. The public bounded composition admits the accepted
 Int/String/Boolean literal, infix, unary, tuple, conditional, direct
 identifier/selection, one-list ordinary Apply, and transparent P0/binder-free
 P1 families through core `TermShape`.
@@ -190,10 +214,9 @@ Typed Scalameta Term traversal instead belongs to the separate unpublished
 
 The direct-lowerer support is bounded to new source-free D construction from
 project-owned `TermShape`; the separate U rewriter above owns limited existing-
-tree identity/reconstruction semantics. Neither direction introduces a cross-
-surface capability layer. `new`, interpolation, ascription, Lambda1 in the
-direct lowerer, P2/P3 statement binders in the direct lowerer, and other raw
-Term families remain explicit separate slices. The richer backend's P2/P3
-support does not widen the direct lowerer because the latter has no
-authoritative completed-Type sidecars. None of the
-definition-specific bridges widens that boundary.
+tree identity/reconstruction semantics. The facade admits the existing direct
+`new` and standard-`s` interpolation slices, but rejects ascription, Lambda1,
+P2/P3 statement binders, and other raw Term families. The richer backend's
+P2/P3 support does not widen the facade because the direct route has no
+authoritative completed-Type sidecars. None of the definition-specific bridges
+widens that boundary.
