@@ -2,12 +2,22 @@ package quasiquotes.neutral
 
 import _root_.quasiquotes.definitions.DefinitionName
 
-import scala.meta.Term
+import scala.meta.{Name, Term, Type}
 
 /** Shared structural projection for reusable Scalameta definition names. */
 private[quasiquotes] object ScalametaDefinitionNameProjection:
   def project(
       sourceName: Term.Name
+  ): Either[NeutralProjectionError, DefinitionName] =
+    projectName(sourceName)
+
+  def project(
+      sourceName: Type.Name
+  ): Either[NeutralProjectionError, DefinitionName] =
+    projectName(sourceName)
+
+  private def projectName(
+      sourceName: Name
   ): Either[NeutralProjectionError, DefinitionName] =
     for
       present <- Option(sourceName)

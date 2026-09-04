@@ -296,6 +296,12 @@ private[quasiquotes] object ConstructedDefinition:
               )
             )
         yield result
+      case _: DefinitionShape.SimpleTypeAlias =>
+        Left(
+          DefinitionConstructionError.UnsupportedParsedDefinitionType(
+            "simple type aliases are outside the current constructed-definition family"
+          )
+        )
 
   private def validateType(
       normalForm: TypeNormalForm

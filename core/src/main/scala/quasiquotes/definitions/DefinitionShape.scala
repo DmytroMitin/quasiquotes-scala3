@@ -116,6 +116,21 @@ private[quasiquotes] object DefinitionShape:
     override def hashCode: Int = (name, declaredType, rhs).hashCode
     override def toString: String = render
 
+  final class SimpleTypeAlias private[DefinitionShape] (
+      val name: DefinitionName,
+      val rhs: TypeShape
+  ) extends DefinitionShape:
+    def render: String =
+      s"SimpleTypeAlias(name=${name.render}, rhs=${rhs.render})"
+
+    override def equals(other: Any): Boolean =
+      other match
+        case that: SimpleTypeAlias => name == that.name && rhs == that.rhs
+        case _ => false
+
+    override def hashCode: Int = (name, rhs).hashCode
+    override def toString: String = render
+
   def parameterlessDef(
       name: DefinitionName,
       resultType: TypeShape,
@@ -200,6 +215,13 @@ private[quasiquotes] object DefinitionShape:
       _ <- validateType(declaredType, "value declared type")
       _ <- validateTerm(rhs, "value right-hand side")
     yield new ImmutableVal(name, declaredType, rhs)
+
+  def simpleTypeAlias(
+      name: DefinitionName,
+      rhs: TypeShape
+  ): Either[DefinitionError, SimpleTypeAlias] =
+    validateType(rhs, "type alias right-hand side")
+      .map(_ => new SimpleTypeAlias(name, rhs))
 
   private def validateType(
       shape: TypeShape,

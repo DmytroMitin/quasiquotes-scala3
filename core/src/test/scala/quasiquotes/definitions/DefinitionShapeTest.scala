@@ -8,6 +8,57 @@ class DefinitionShapeTest extends munit.FunSuite:
   private val intType = TypeShape.Identifier("Int")
   private val literal = TermShape.Literal("42")
 
+  test("simple type alias preserves one validated reusable semantic structure") {
+    val rhs =
+      TypeShape.Apply(
+        TypeShape.Identifier("Option"),
+        List(TypeShape.Identifier("Int"))
+      )
+    val alias = DefinitionShape.simpleTypeAlias(plainName, rhs).toOption.get
+    val sameAlias = DefinitionShape.simpleTypeAlias(plainName, rhs).toOption.get
+
+    assertEquals(alias.name, plainName)
+    assertEquals(alias.rhs, rhs)
+    assertEquals(alias, sameAlias)
+    assertEquals(alias.hashCode, sameAlias.hashCode)
+    assertEquals(
+      alias.render,
+      "SimpleTypeAlias(name=PlainName(answer), rhs=TypeApply(TypeIdent(Option), [TypeIdent(Int)]))"
+    )
+    assertEquals(alias.toString, alias.render)
+  }
+
+  test("simple type alias reuses existing Type normal-form admission") {
+    val unsupported = TypeShape.Select(TypeShape.Identifier("scala"), "Int")
+
+    assertEquals(
+      DefinitionShape.simpleTypeAlias(keywordName, unsupported),
+      Left(DefinitionError.UnsupportedDefinitionType("type alias right-hand side"))
+    )
+    assertEquals(
+      DefinitionShape
+        .simpleTypeAlias(keywordName, unsupported)
+        .left
+        .toOption
+        .get
+        .message,
+      "Unsupported type alias right-hand side: expected the currently supported compiler-free structural type subset."
+    )
+  }
+
+  test("simple type alias does not widen the older ConstructedDefinition family") {
+    val alias = DefinitionShape.simpleTypeAlias(plainName, intType).toOption.get
+
+    assertEquals(
+      ConstructedDefinition.fromShape(alias),
+      Left(
+        DefinitionConstructionError.UnsupportedParsedDefinitionType(
+          "simple type aliases are outside the current constructed-definition family"
+        )
+      )
+    )
+  }
+
   test("parameterless def and immutable val preserve distinct validated structures") {
     val method = DefinitionShape.parameterlessDef(plainName, intType, literal).toOption.get
     val value = DefinitionShape.immutableVal(plainName, intType, literal).toOption.get
