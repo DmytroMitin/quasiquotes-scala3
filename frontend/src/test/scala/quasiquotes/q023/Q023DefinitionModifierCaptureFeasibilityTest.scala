@@ -121,7 +121,7 @@ final class Q023DefinitionModifierCaptureFeasibilityTest extends munit.FunSuite:
     assert(result._5, result)
     assert(result._6, result)
 
-  test("current Q020 and Q022 omitted-modifier templates wildcard definition modifiers"):
+  test("Q020 and Q022 omitted-modifier templates require semantic-empty modifiers after Q024"):
     given Compiler = Compiler.make(getClass.getClassLoader)
     val rows = withQuotes:
       val q = summon[Quotes]
@@ -146,8 +146,10 @@ final class Q023DefinitionModifierCaptureFeasibilityTest extends munit.FunSuite:
       }
 
     rows.foreach(row => println(s"Q023_OMITTED_MODS $row"))
-    assert(rows.forall(_._2), rows)
-    assert(rows.forall(_._3), rows)
+    assert(rows.head._2, rows)
+    assert(rows.head._3, rows)
+    assert(rows.tail.forall(!_._2), rows)
+    assert(rows.tail.forall(!_._3), rows)
 
   test("inline and transparent inline flags and omitted-template behavior are public and stable"):
     val row = Q023InlineProbe.evidence
@@ -155,7 +157,7 @@ final class Q023DefinitionModifierCaptureFeasibilityTest extends munit.FunSuite:
     println(s"Q023_INLINE_MODIFIERS $row")
     assertEquals(row, (true, true))
 
-  test("same-universe public-reflection inline targets are admitted by Q020 Q022 and Q023"):
+  test("same-universe inline targets are rejected by omitted patterns and captured by Q023"):
     given Compiler = Compiler.make(getClass.getClassLoader)
     val row = withQuotes:
       val q = summon[Quotes]
@@ -193,7 +195,7 @@ final class Q023DefinitionModifierCaptureFeasibilityTest extends munit.FunSuite:
       )
 
     println(s"Q023_INLINE_SAME_UNIVERSE $row")
-    assertEquals(row, (true, true, true, true, true, true))
+    assertEquals(row, (false, false, false, false, true, true))
 
   test("structured view represents zero one and N modifier facts without changing capture rank"):
     given Compiler = Compiler.make(getClass.getClassLoader)

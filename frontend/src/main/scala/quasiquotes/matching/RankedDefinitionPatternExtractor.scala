@@ -108,6 +108,7 @@ private[matching] object RankedDefinitionPatternMatcher:
     if target == null ||
         target.symbol == Symbol.noSymbol ||
         !target.symbol.isDefDef ||
+        !DefinitionModifierSemantics.isSemanticallyEmpty(target.symbol) ||
         target.symbol.isClassConstructor ||
         target.symbol.flags.is(Flags.ExtensionMethod) ||
         target.symbol.flags.is(Flags.FieldAccessor) ||
@@ -157,6 +158,7 @@ private[matching] object RankedDefinitionPatternMatcher:
     if target == null ||
         target.symbol == Symbol.noSymbol ||
         !target.symbol.isDefDef ||
+        !DefinitionModifierSemantics.isSemanticallyEmpty(target.symbol) ||
         target.symbol.isClassConstructor ||
         target.symbol.flags.is(Flags.ExtensionMethod) ||
         target.symbol.flags.is(Flags.FieldAccessor) ||

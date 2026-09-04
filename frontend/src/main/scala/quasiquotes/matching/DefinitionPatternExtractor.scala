@@ -16,6 +16,7 @@ final class DefinitionPatternExtractor private (
         target.name != expected.methodName ||
         target.symbol == Symbol.noSymbol ||
         !target.symbol.isDefDef ||
+        !DefinitionModifierSemantics.isSemanticallyEmpty(target.symbol) ||
         target.symbol.isClassConstructor ||
         target.symbol.flags.is(Flags.ExtensionMethod) ||
         target.symbol.flags.is(Flags.FieldAccessor) ||

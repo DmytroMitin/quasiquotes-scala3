@@ -40,6 +40,7 @@ final class SingleParameterDefinitionPattern private[matching] (
         target.name != expectedMethodName ||
         target.symbol == Symbol.noSymbol ||
         !target.symbol.isDefDef ||
+        !DefinitionModifierSemantics.isSemanticallyEmpty(target.symbol) ||
         target.symbol.isClassConstructor ||
         target.symbol.flags.is(Flags.ExtensionMethod) ||
         target.symbol.flags.is(Flags.FieldAccessor) ||
