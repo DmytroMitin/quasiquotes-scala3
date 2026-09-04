@@ -163,6 +163,33 @@ object ScalametaQuasiPattern:
           s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"
         )
 
+  private[scalameta] def capturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultExtractor(
+      context: StringContext
+  )(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      String,
+      Seq[q.reflect.TypeDef],
+      Seq[Seq[q.reflect.ValDef]],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    if context == null then
+      q.reflect.report.errorAndAbort(
+        "Invalid Scalameta dqq definition-pattern template: StringContext must not be null."
+      )
+    ScalametaDefinitionFrontend
+      .compileCapturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultPattern(
+        context.parts
+      ) match
+      case Right(_) =>
+        RankedDefinitionPatternExtractorFactory.capturedNameTypeParamsParamssResult
+      case Left(failure) =>
+        q.reflect.report.errorAndAbort(
+          s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"
+        )
+
   /** JVM-linkage bridge for callers compiled against the pre-Q014 extension.
     * New source calls use the transparent inline structural selector.
     */

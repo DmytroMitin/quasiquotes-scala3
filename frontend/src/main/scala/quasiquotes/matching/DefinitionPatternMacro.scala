@@ -35,6 +35,15 @@ private[matching] object DefinitionPatternMacro:
                   $callerQuotes
                 )
             }
+          case Right(
+                DefinitionPattern.StaticPatternKind.CapturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult
+              ) =>
+            '{
+              DefinitionPattern
+                .capturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultExtractor(
+                  $context
+                )(using $callerQuotes)
+            }
           case Left(detail) =>
             quotes.reflect.report.errorAndAbort(
               s"Invalid dqq definition-pattern template: $detail",

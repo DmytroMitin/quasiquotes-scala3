@@ -35,6 +35,20 @@ private[quasiquotes] object RankedDefinitionPatternExtractorFactory:
       RankedDefinitionPatternMatcher.extractCapturedNameParamssResult(target)
     )
 
+  def capturedNameTypeParamsParamssResult(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      String,
+      Seq[q.reflect.TypeDef],
+      Seq[Seq[q.reflect.ValDef]],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    new RankedDefinitionPatternExtractor(target =>
+      RankedDefinitionPatternMatcher.extractCapturedNameTypeParamsParamssResult(target)
+    )
+
 private[matching] object RankedDefinitionPatternMatcher:
   def extractExactCollect(using q: Quotes)(
       target: q.reflect.DefDef
@@ -57,6 +71,21 @@ private[matching] object RankedDefinitionPatternMatcher:
   ): Option[(String, Seq[Seq[q.reflect.ValDef]], q.reflect.TypeRepr, q.reflect.Term)] =
     extractAdmittedDefinition(target).map { (clauses, result, body) =>
       (target.name, clauses.map(_.params), result, body)
+    }
+
+  def extractCapturedNameTypeParamsParamssResult(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[
+    (
+      String,
+      Seq[q.reflect.TypeDef],
+      Seq[Seq[q.reflect.ValDef]],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    extractAdmittedGenericDefinition(target).map { (tparams, clauses, result, body) =>
+      (target.name, tparams, clauses.map(_.params), result, body)
     }
 
   private def extractExactCollectClauses(using q: Quotes)(
@@ -112,3 +141,71 @@ private[matching] object RankedDefinitionPatternMatcher:
       Option
         .when(admittedClauses && admittedParameters)(target.returnTpt.tpe)
         .flatMap(result => target.rhs.map(body => (clauses, result, body)))
+
+  private def extractAdmittedGenericDefinition(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[
+    (
+      List[q.reflect.TypeDef],
+      List[q.reflect.TermParamClause],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    import q.reflect.*
+
+    if target == null ||
+        target.symbol == Symbol.noSymbol ||
+        !target.symbol.isDefDef ||
+        target.symbol.isClassConstructor ||
+        target.symbol.flags.is(Flags.ExtensionMethod) ||
+        target.symbol.flags.is(Flags.FieldAccessor) ||
+        target.symbol.flags.is(Flags.ParamAccessor) ||
+        target.symbol.flags.is(Flags.CaseAccessor) ||
+        target.symbol.flags.is(Flags.Given)
+    then None
+    else
+      target.paramss match
+        case (typeClause: TypeParamClause) :: rawTermClauses
+            if typeClause.params.nonEmpty =>
+          val tparams = typeClause.params
+          val clauses = rawTermClauses.collect { case clause: TermParamClause => clause }
+          val typeSymbols = tparams.map(_.symbol)
+          val parameters = clauses.flatMap(_.params)
+          val parameterSymbols = parameters.map(_.symbol)
+          val nestedSymbols = typeSymbols :: clauses.map(_.params.map(_.symbol))
+          val admittedTypeParameters =
+            typeSymbols.forall(_ != Symbol.noSymbol) &&
+              typeSymbols.distinct.size == typeSymbols.size &&
+              tparams.forall(parameter =>
+                parameter.symbol.owner == target.symbol &&
+                  parameter.symbol.annotations.isEmpty &&
+                  !parameter.symbol.flags.is(Flags.Covariant) &&
+                  !parameter.symbol.flags.is(Flags.Contravariant) &&
+                  (parameter.rhs match
+                    case _: TypeBoundsTree => true
+                    case _ => false)
+              )
+          val admittedClauses =
+            clauses.size == rawTermClauses.size &&
+              clauses.forall(clause =>
+                !clause.isImplicit && !clause.isGiven && !clause.isErased
+              )
+          val admittedParameters =
+            parameterSymbols.forall(_ != Symbol.noSymbol) &&
+              parameterSymbols.distinct.size == parameterSymbols.size &&
+              parameters.forall(parameter =>
+                parameter.symbol.owner == target.symbol &&
+                  !parameter.symbol.flags.is(Flags.HasDefault) &&
+                  !parameter.symbol.flags.is(Flags.Erased) &&
+                  !parameter.symbol.flags.is(Flags.Implicit) &&
+                  !parameter.symbol.flags.is(Flags.Given)
+              ) &&
+              target.symbol.paramSymss == nestedSymbols
+
+          Option
+            .when(admittedTypeParameters && admittedClauses && admittedParameters)(
+              target.returnTpt.tpe
+            )
+            .flatMap(result => target.rhs.map(body => (tparams, clauses, result, body)))
+        case _ => None

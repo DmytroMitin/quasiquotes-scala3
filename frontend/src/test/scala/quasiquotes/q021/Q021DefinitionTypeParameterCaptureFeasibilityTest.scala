@@ -329,14 +329,14 @@ final class Q021DefinitionTypeParameterCaptureFeasibilityTest extends munit.FunS
     assertEquals(accepted, Nil)
     assert(rejected.forall(_.nonEmpty), rejected)
 
-  test("production Q020 rejects the unadmitted five-capture type-parameter syntax"):
+  test("production Q022 admits the Q021-selected five-capture type-parameter syntax"):
     val errors = typeCheckErrors(
       """import scala.quoted.*; import quasiquotes.Quasiquotes.dqq
          def f(using q: Quotes)(d: q.reflect.DefDef) = d match
            case dqq"def $name[..$tparams](...$paramss): $result = $body" => ()
            case _ => ()"""
     )
-    assert(errors.nonEmpty, errors)
+    assertEquals(errors, Nil)
 
   test("Q021 standard candidate dynamic selection remains closed"):
     val errors = typeCheckErrors(
