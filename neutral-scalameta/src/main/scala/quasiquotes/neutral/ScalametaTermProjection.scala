@@ -19,7 +19,12 @@ import scala.meta.tokens.Token
 /** Compiler-free projection for the bounded ordinary source-Term family. */
 object ScalametaTermProjection:
   private enum BinderKind:
-    case Lambda1, P2LocalVal, LocalDefMethod, LocalDefParameter
+    case DefinitionParameter, Lambda1, P2LocalVal, LocalDefMethod, LocalDefParameter
+
+  private[quasiquotes] final case class DefinitionBinder(
+      sourceName: String,
+      binderId: BinderId
+  )
 
   private final case class ActiveBinder(
       name: String,
@@ -27,9 +32,9 @@ object ScalametaTermProjection:
       kind: BinderKind
   )
 
-  private final class ProjectionState:
+  private final class ProjectionState(initialBinderId: Int):
     val p2Admission = new P2LocalValAdmission.Tracker
-    private var nextBinderId = 0
+    private var nextBinderId = initialBinderId
 
     def allocateBinder(): BinderId =
       val result = BinderId(nextBinderId)
@@ -98,14 +103,33 @@ object ScalametaTermProjection:
   def project(
       term: Term
   ): Either[NeutralProjectionError, ProjectedTermShape] =
+    projectEntry(term, Vector.empty)
+
+  private[quasiquotes] def projectWithDefinitionBinders(
+      term: Term,
+      binders: Vector[DefinitionBinder]
+  ): Either[NeutralProjectionError, ProjectedTermShape] =
+    projectEntry(term, binders)
+
+  private def projectEntry(
+      term: Term,
+      binders: Vector[DefinitionBinder]
+  ): Either[NeutralProjectionError, ProjectedTermShape] =
     Option(term)
       .toRight(error("NEUTRAL_TERM_MISSING", "the Scalameta term must be present."))
-      .flatMap(projectPresent)
+      .flatMap(present =>
+        initialDefinitionScope(binders)
+          .flatMap { (scope, nextBinderId) =>
+            projectPresent(present, scope, new ProjectionState(nextBinderId))
+          }
+      )
 
   private def projectPresent(
-      term: Term
+      term: Term,
+      scope: List[ActiveBinder],
+      state: ProjectionState
   ): Either[NeutralProjectionError, ProjectedTermShape] =
-    projectShape(term, Nil, new ProjectionState)
+    projectShape(term, scope, state)
       .flatMap(shape =>
         SourceOwnedLocalDefAdmission
           .validate(shape)
@@ -113,6 +137,42 @@ object ScalametaTermProjection:
           .map(localDefAdmissionError)
           .map(_ => ProjectedTermShape(shape, truthfulSpan(term)))
       )
+
+  private def initialDefinitionScope(
+      binders: Vector[DefinitionBinder]
+  ): Either[NeutralProjectionError, (List[ActiveBinder], Int)] =
+    val failure = error(
+      "NEUTRAL_DEFINITION_BINDER_SCOPE_UNSUPPORTED",
+      "initial definition binders require non-empty distinct source names and distinct non-overflowing BinderIds."
+    )
+
+    Option(binders).toRight(failure).flatMap { presentBinders =>
+      val entriesPresent = presentBinders.forall(binder =>
+        binder != null && binder.sourceName != null && binder.binderId != null
+      )
+
+      if !entriesPresent then Left(failure)
+      else
+        val names = presentBinders.map(_.sourceName)
+        val ids = presentBinders.map(_.binderId)
+        val distinct = names.distinct.size == names.size && ids.distinct.size == ids.size
+        val bounded = ids.forall(_.value < Int.MaxValue)
+
+        Either.cond(
+          names.forall(_.nonEmpty) && distinct && bounded,
+          (
+            presentBinders.toList.map(binder =>
+              ActiveBinder(
+                binder.sourceName,
+                binder.binderId,
+                BinderKind.DefinitionParameter
+              )
+            ),
+            ids.map(_.value).maxOption.fold(0)(_ + 1)
+          ),
+          failure
+        )
+    }
 
   private def projectShape(
       term: Term,
