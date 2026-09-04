@@ -1,6 +1,8 @@
 package quasiquotes.definitions
 
-import quasiquotes.parser.{TermShape, TypeShape}
+import quasiquotes.parser.{BinderId, TermShape, TypeShape}
+
+import scala.util.{Success, Try}
 
 class DefinitionShapeTest extends munit.FunSuite:
   private val plainName = DefinitionName.plain("answer").toOption.get
@@ -158,6 +160,47 @@ class DefinitionShapeTest extends munit.FunSuite:
       DefinitionShape.immutableVal(plainName, intType, first).left.toOption.get.message,
       "Unsupported value right-hand side: the body contains a term shape outside the currently supported structural subset."
     )
+  }
+
+  test("all ordinary Definition factories fail closed for a missing body") {
+    val parameterName = DefinitionName.plain("value").toOption.get
+    val secondParameterName = DefinitionName.plain("other").toOption.get
+    val expectedReason = "definition bodies require a present TermShape"
+
+    val results = List(
+      Try(DefinitionShape.immutableVal(plainName, intType, null)) -> "value right-hand side",
+      Try(DefinitionShape.parameterlessDef(plainName, intType, null)) -> "method body",
+      Try(
+        DefinitionShape.singleParameterDef(
+          plainName,
+          BinderId(0),
+          parameterName,
+          intType,
+          intType,
+          null
+        )
+      ) -> "method body",
+      Try(
+        DefinitionShape.twoParameterDef(
+          plainName,
+          BinderId(0),
+          parameterName,
+          intType,
+          BinderId(1),
+          secondParameterName,
+          intType,
+          intType,
+          null
+        )
+      ) -> "method body"
+    )
+
+    results.foreach { (result, component) =>
+      assertEquals(
+        result,
+        Success(Left(DefinitionError.UnsupportedDefinitionBody(component, expectedReason)))
+      )
+    }
   }
 
   test("placeholder identifiers require later authoritative template metadata") {

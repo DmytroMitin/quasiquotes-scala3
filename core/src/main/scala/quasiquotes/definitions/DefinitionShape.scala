@@ -248,6 +248,8 @@ private[quasiquotes] object DefinitionShape:
       allowedDefinitionBinders: Vector[BinderId]
   ): Option[String] =
     shape match
+      case null =>
+        Some("definition bodies require a present TermShape")
       case TermShape.Identifier(_, true) =>
         Some("placeholder identifiers require authoritative template metadata and are not representation-core bodies")
       case TermShape.Identifier(_, false) | TermShape.Literal(_) =>
