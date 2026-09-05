@@ -28,6 +28,11 @@ class CheckSnippetsTest(unittest.TestCase):
         documented_p2_local_val: str = "val p2LocalVal = 15",
         documented_source_owned_local_def: str = "val sourceOwnedLocalDef = 16",
         documented_why: str = "val why = 17",
+        documented_c028_term_type: str = "val c028TermType = 18",
+        documented_c028_semantic_definition: str = "val c028Definition = 19",
+        documented_c028_dotty_source_free: str = "val c028SourceFree = 20",
+        documented_c028_dotty_generated_origin: str = "val c028Generated = 21",
+        documented_c028_generic_specialized: str = "val c028Specialized = 22",
     ) -> None:
         docs = root / "docs"
         sources = root / "public-api-examples/src/test/scala/external/consumer"
@@ -120,6 +125,30 @@ class CheckSnippetsTest(unittest.TestCase):
             "// snippet:why-quasiquotes-current:end\n",
             encoding="utf-8",
         )
+        neutral_sources = root / "neutral-scalameta/src/test/scala/external/consumer"
+        dotty_sources = root / "dotty-internal/src/test/scala/external/consumer"
+        neutral_sources.mkdir(parents=True)
+        dotty_sources.mkdir(parents=True)
+        (neutral_sources / "C028TermTypeHelloWorld.scala").write_text(
+            "// snippet:c028-term-type:start\nval c028TermType = 18\n"
+            "// snippet:c028-term-type:end\n",
+            encoding="utf-8",
+        )
+        (core_sources / "C028SemanticDefinitionHelloWorld.scala").write_text(
+            "// snippet:c028-semantic-definition:start\nval c028Definition = 19\n"
+            "// snippet:c028-semantic-definition:end\n",
+            encoding="utf-8",
+        )
+        (dotty_sources / "C028DottyBridgeHelloWorld.scala").write_text(
+            "// snippet:c028-dotty-source-free:start\nval c028SourceFree = 20\n"
+            "// snippet:c028-dotty-source-free:end\n"
+            "// snippet:c028-dotty-generated-origin:start\nval c028Generated = 21\n"
+            "// snippet:c028-dotty-generated-origin:end\n"
+            "// snippet:c028-generic-specialized-definition:start\n"
+            "val c028Specialized = 22\n"
+            "// snippet:c028-generic-specialized-definition:end\n",
+            encoding="utf-8",
+        )
         (root / "README.md").write_text(
             "<!-- snippet:readme-quick-start:start -->\n```scala\n"
             + documented_quick_start
@@ -179,6 +208,24 @@ class CheckSnippetsTest(unittest.TestCase):
             + "\n```\n<!-- snippet:why-quasiquotes-current:end -->\n",
             encoding="utf-8",
         )
+        (docs / "SEMANTIC_MODELS_AND_CONVERSIONS.md").write_text(
+            "<!-- snippet:c028-term-type:start -->\n```scala\n"
+            + documented_c028_term_type
+            + "\n```\n<!-- snippet:c028-term-type:end -->\n"
+            + "<!-- snippet:c028-semantic-definition:start -->\n```scala\n"
+            + documented_c028_semantic_definition
+            + "\n```\n<!-- snippet:c028-semantic-definition:end -->\n"
+            + "<!-- snippet:c028-dotty-source-free:start -->\n```scala\n"
+            + documented_c028_dotty_source_free
+            + "\n```\n<!-- snippet:c028-dotty-source-free:end -->\n"
+            + "<!-- snippet:c028-dotty-generated-origin:start -->\n```scala\n"
+            + documented_c028_dotty_generated_origin
+            + "\n```\n<!-- snippet:c028-dotty-generated-origin:end -->\n"
+            + "<!-- snippet:c028-generic-specialized-definition:start -->\n```scala\n"
+            + documented_c028_generic_specialized
+            + "\n```\n<!-- snippet:c028-generic-specialized-definition:end -->\n",
+            encoding="utf-8",
+        )
 
     def run_checker(self, root: Path) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -197,8 +244,25 @@ class CheckSnippetsTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(
-                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, p1-block-first-use, p2-local-val-first-use, source-owned-local-def-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start, why-quasiquotes-current",
+                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, p1-block-first-use, p2-local-val-first-use, source-owned-local-def-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start, why-quasiquotes-current, c028-term-type, c028-semantic-definition, c028-dotty-source-free, c028-dotty-generated-origin, c028-generic-specialized-definition",
                 result.stdout,
+            )
+
+    def test_rejects_c028_semantic_definition_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(
+                root,
+                documented_lambda="val lambda = 3",
+                documented_c028_semantic_definition="val c028Definition = 20",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "First-use snippet drift: c028-semantic-definition",
+                result.stderr,
             )
 
     def test_rejects_p1_block_documentation_drift(self) -> None:

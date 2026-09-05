@@ -71,6 +71,26 @@ SNIPPETS = {
         Path("public-api-examples/src/test/scala/external/consumer/WhyQuasiquotesCurrentExamples.scala"),
         Path("docs/WHY_QUASIQUOTES.md"),
     ),
+    "c028-term-type": (
+        Path("neutral-scalameta/src/test/scala/external/consumer/C028TermTypeHelloWorld.scala"),
+        Path("docs/SEMANTIC_MODELS_AND_CONVERSIONS.md"),
+    ),
+    "c028-semantic-definition": (
+        Path("public-core-examples/src/test/scala/external/consumer/C028SemanticDefinitionHelloWorld.scala"),
+        Path("docs/SEMANTIC_MODELS_AND_CONVERSIONS.md"),
+    ),
+    "c028-dotty-source-free": (
+        Path("dotty-internal/src/test/scala/external/consumer/C028DottyBridgeHelloWorld.scala"),
+        Path("docs/SEMANTIC_MODELS_AND_CONVERSIONS.md"),
+    ),
+    "c028-dotty-generated-origin": (
+        Path("dotty-internal/src/test/scala/external/consumer/C028DottyBridgeHelloWorld.scala"),
+        Path("docs/SEMANTIC_MODELS_AND_CONVERSIONS.md"),
+    ),
+    "c028-generic-specialized-definition": (
+        Path("dotty-internal/src/test/scala/external/consumer/C028DottyBridgeHelloWorld.scala"),
+        Path("docs/SEMANTIC_MODELS_AND_CONVERSIONS.md"),
+    ),
 }
 
 

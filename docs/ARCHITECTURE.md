@@ -1,5 +1,22 @@
 # Architecture
 
+Start with the three representations, not the implementation lanes:
+
+```text
+Scalameta source AST
+  <-> bounded Projection / fresh Authoring
+project-owned compiler-free semantic model
+  -> exact fresh lowering
+Dotty exact untpd AST
+```
+
+Scalameta provides broad source structure and may retain source tokens and
+positions. The project model owns bounded normalized meaning and alpha-aware
+binder semantics. Dotty `untpd` owns exact compiler topology, provenance, and
+raw object identity where promised. Whitespace alone is not the distinction.
+See the canonical [semantic models and conversions guide](SEMANTIC_MODELS_AND_CONVERSIONS.md)
+for the complete fidelity/loss model and checked public examples.
+
 The durable language pipeline is:
 
 ```text
@@ -16,14 +33,22 @@ lock-step. In the hybrid route, only a Scalameta parse failure may fall back to
 the current parser.
 
 There are multiple source-facing routes, but there are not multiple semantic
-quasiquote engines. `core` owns the compiler-free Term and Type normal forms,
-templates, patterns, binder identities, structural construction and matching
-rules, and neutral diagnostics. Frontends must project into those shared
-models rather than inventing frontend-local equality or binding semantics.
+quasiquote engines. `core` owns compiler-free Term, Type, and Definition
+semantics, templates, patterns, binder identities, structural construction and
+matching rules, and neutral diagnostics. The current public
+`SemanticDefinition` is a non-exhaustive semantic model with smart constructors
+and typed views; the older five-family `DefinitionShape` remains an internal
+adapter carrier. Frontends must project into shared models rather than inventing
+frontend-local equality or binding semantics.
 
 ## Pipeline vocabulary
 
-The project uses direction-specific terms deliberately:
+The lane labels are **Q** for the Quotes-aware typed frontend, **N** for the
+neutral compiler-free/Scalameta world, **U-D** for **exact fresh lowering**,
+**U-U** for **exact existing-tree transformation**, and **C** for cross-layer
+composition/API policy rather than another AST. `N` and `U` do not imply public
+`n*` or `u*` syntax; public `u*` remains later optional. The project uses
+direction-specific terms deliberately:
 
 - **projection** is the N-owned compiler-free conversion from an external
   source AST into a project-owned semantic value;
@@ -229,13 +254,21 @@ planned.
 The compiler-free Scalameta layer has one accepted package-private dispatcher
 over reusable projectors for explicitly typed immutable vals, true
 parameterless defs, one- and two-ordinary-parameter defs, and simple
-non-generic unbounded Type aliases. The exact backend already accepts completed
-forms for the four ordinary val/def families. The simple alias has no general
-exact route yet; the older refined-alias peer backend carries different
-type-parameter, refinement, binder, provenance, and diagnostic semantics and
-is not that route. A future public Definition-category composition therefore
-remains closed until one U-owned exact shape dispatcher makes the five-family
-path mechanical.
+non-generic unbounded Type aliases. A public exact-version source-free
+`ScalametaDefinitionUntypedBridge` now composes this internal projector with an
+internal five-family lowerer. The separate public generated-origin bridge
+admits only the four concrete val/def families; its simple-alias exclusion is
+not widened by specialized refined-alias authority. The accepted public Core
+`SemanticDefinition` is not yet connected to public Scalameta Definition
+Projection/Authoring or a public project-model-to-Dotty lowering facade; those
+surfaces remain planned.
+
+On the separate U-U axis, the accepted package-private single-parameter method
+result-Type rewriter replaces only an explicit primitive `Int`, `String`, or
+`Boolean` result leaf while preserving the parameter, parameter Type, RHS,
+non-target members, and opaque owner children by exact identity. This bounded
+existing-tree seam is not a public exact-U algebra and does not imply the
+separately selected parameter-Type rewrite.
 
 An advanced owner/definition-plan handle may eventually be justified by a
 real consumer, but symmetric `sqr`/`sqq` symbol syntax is not currently
@@ -321,9 +354,12 @@ application, contextual clauses, simple/import-relative or type-applied
 constructors, multiple constructor lists, named/star arguments, anonymous
 templates, and broader statement/binder forms remain outside the neutral
 contract. The bounded reverse `ScalametaTermShapeAuthoring` route constructs
-fresh `Position.None` Scalameta Terms for the binder-free ordinary family,
-fully-qualified `new`, and binder-free P1 blocks; it deliberately excludes
-P2/P3 binder authoring and source-provenance reconstruction. The public bounded
+fresh `Position.None` Scalameta Terms for the accepted ordinary family,
+fully-qualified `new`, standard-`s` interpolation, primitive ascription,
+typed Lambda1, binder-free P1, one-local-val P2, and local-identity-method P3.
+Binder-bearing values are safely inspectable/constructible through public
+`TermShapeBindingView` and `TermShapeBindings`; grouping parentheses and
+source-provenance reconstruction remain outside. The public bounded
 direct exact facade accepts the non-binder family above plus transparent P0 and
 binder-free P1 blocks; a direct Apply in function position is rejected as a
 second argument list, while Apply remains valid in argument and qualifier
@@ -355,12 +391,17 @@ The bounded instance-factory path accepts one complete authored Scalameta
 `Defn.Def` with a by-name value carrier, a structural binary-function carrier,
 one direct unary result/anonymous parent, and exactly two ordered overrides.
 `ScalametaInstanceFactoryProjection` validates the complete binder-role graph,
-then the exact backend constructs and positions one 33-node `untpd.DefDef`.
+The accepted package-private `ScalametaInstanceFactoryAuthoring` reverse edge
+can instead start from the exact `InstanceFactoryPlan`, author fresh
+`Position.None` Scalameta syntax, and require alpha-equivalent five-role
+reprojection. It remains specialized and does not implement the planned public
+generic `SemanticDefinition` authoring facade. The exact backend constructs and
+positions one 33-node `untpd.DefDef`.
 `InstanceFactoryPeerBridge` exposes only that complete insertion-ready result,
 deterministic generated source, effective virtual source name, and stable
 bounded failures. It does not expose the internal plan or admit arbitrary
 definitions, templates, or anonymous implementations. AUXify retains source
-inspection and authoring; Macro-Paradise retains lifecycle, companion
+inspection and consumer-side integration; Macro-Paradise retains lifecycle, companion
 placement, atomic rollback, and typing.
 
 The bounded Type-alias path accepts one already-authored Scalameta

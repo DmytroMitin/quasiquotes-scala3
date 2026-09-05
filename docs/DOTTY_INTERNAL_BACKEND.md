@@ -8,6 +8,13 @@ API stability. It follows the project's 0.x compatibility policy and is not a
 generic public `untpd` or `tpd` toolkit. Consumers must align with the module's
 full Scala compiler version and active compiler context.
 
+The canonical [semantic models and conversions guide](SEMANTIC_MODELS_AND_CONVERSIONS.md)
+defines the three representations before the lane labels: **U-D** means exact
+fresh lowering into new `untpd` syntax, while **U-U** means exact existing-tree
+transformation with explicit identity/provenance promises. **C** owns the
+cross-layer API policy and is not another AST. Neither U direction implies a
+public `u*` syntax family.
+
 ## Current public exact-version surface
 
 `ScalametaTermUntypedBridge` is the public programmatic Term facade. It accepts
@@ -129,6 +136,12 @@ owner repair, multi-member insertion, or arbitrary-index editing. See the
 All Term and Definition operations other than the context-free Type bridge
 require an active Dotty `Context`. None performs target admission, insertion,
 rollback, typing, symbol ownership, or reownership.
+
+These current public bridges start from Scalameta syntax. Stable public facades
+that start directly from public project semantic values—including
+`TermShape`, `TypeNormalForm`, and `SemanticDefinition`—are **planned**, not
+current. The implementation lowerers remain package-private and must not be
+treated as consumer APIs.
 
 Five definition-specific production objects in this module are intentionally
 exposed to foreign packages. `ContextualMethodPeerBridge` accepts either the
@@ -300,6 +313,18 @@ These probes do not authorize manual `ExprImpl` construction, a general
 contexts.
 
 ## Deliberate exclusions
+
+Accepted package-private U-U mechanisms can perform bounded method-body and
+class/Template transformations over existing raw graphs, preserving exact
+objects where their contracts say so. The accepted single-parameter method
+result-Type seam replaces only an explicit `Int`, `String`, or `Boolean` result
+leaf, preserving the original parameter, parameter Type, RHS, non-target
+members, and opaque owner children by exact identity while attributing fresh
+shells and the leaf to their exact transformation sites. Parameter-Type rewrite
+is a separate later capability. A future public programmatic exact
+capture/view/rewrite algebra was selected architecturally, but no general
+public exact-U transformation API exists today; optional `u*` syntax remains a
+later decision.
 
 There is no production public bridge from arbitrary `scala.meta.Term` to
 `untpd.Tree`: the named public facade admits only the documented direct

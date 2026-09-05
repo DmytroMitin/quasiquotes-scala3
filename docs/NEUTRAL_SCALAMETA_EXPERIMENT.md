@@ -5,6 +5,12 @@ experiment. It depends on `core` and `org.scalameta:scalameta_3:4.17.3`, uses
 ordinary Scala 3 binary crossing, and is aggregated by the root build. It has no
 Scala compiler implementation, `scala3-staging`, or SemanticDB dependency.
 
+Before reading N as a lane name, see the canonical
+[semantic models and conversions guide](SEMANTIC_MODELS_AND_CONVERSIONS.md): N
+means compiler-free project semantics plus bounded Scalameta interoperability,
+not public `n*` syntax. Scalameta source AST, the project semantic model, and
+exact Dotty `untpd` are distinct representations.
+
 This module is not part of the published `0.2.0` coordinate set. Its package,
 result types, error codes, and any local syntax aliases are unstable research
 interfaces rather than a compatibility commitment.
@@ -58,9 +64,10 @@ Accepted production support is the recursive family formed from Scalameta
 `Lit.Int`, `Lit.String`, and `Lit.Boolean` semantic values; ordinary binary
 `Term.ApplyInfix`; unary `+`, `-`, `!`, and `~`; tuples of arity 2 through 22;
 explicit three-branch `if`; conservative direct source identifiers and
-selections; and one ordinary positional `Term.Apply` argument list. It also
-admits one fully-qualified non-generic `Term.New` with exactly one ordinary
-positional argument list, one explicitly typed ordinary Lambda1, transparent
+selections; one ordinary positional `Term.Apply` argument list; standard-`s`
+interpolation; and primitive Type ascription. It also admits one fully-qualified
+non-generic `Term.New` with exactly one ordinary positional argument list, one
+explicitly typed ordinary Lambda1, transparent
 one-Term P0 braces, binder-free P1 blocks, one bounded explicitly typed eager
 immutable local-val P2 block with the existing whole-tree binder/shadowing
 policy, and one bounded source-owned local identity-method P3 block. The P3 family requires one
@@ -70,9 +77,14 @@ result, distinct deterministic binders, and no recursion. Apply and the admitted
 constructor list permit zero, one, or multiple arguments. Nested Apply lists,
 Type application, contextual clauses, simple/import-relative or type-applied
 constructors, multiple constructor lists, named/star arguments, anonymous
-templates, ascription, interpolation, and broader lambdas/binders/statements
-return stable `NeutralProjectionError` categories;
+templates, non-primitive ascription, non-standard interpolation, and broader
+lambdas/binders/statements return stable `NeutralProjectionError` categories;
 they never become `TermShape.Unsupported`.
+
+Grouping parentheses are retained only in parsed-origin tokens/positions by
+Scalameta 4.17.3; they are not a distinct structural `Term`. Projection returns
+the inner semantic shape, and generic fresh Authoring cannot reconstruct the
+original grouping.
 
 The name policy is syntactic only: direct and selected names use non-keyword
 ASCII spellings matching `[A-Za-z_][A-Za-z0-9_]*`, excluding `_`. No compiler,
@@ -126,17 +138,19 @@ be invoked as string interpolators. The module therefore does not claim a thin
 
 The project also owns one bounded semantic-value-to-Scalameta reverse route:
 `ScalametaTermShapeAuthoring.author`. It creates fresh `Position.None` Terms
-for the accepted binder-free ordinary family (literals, identifiers,
+for the accepted ordinary family (literals, identifiers,
 selections, one-list Apply, infix, unary, tuples, and explicit `if`), the
 fully-qualified one-list `new` family, transparent P0, and binder-free P1
 blocks. It also authors bounded standard-`s` interpolation, including recursive
 admitted arguments and nested standard-`s` values, by constructing fresh direct
 `Term.Interpolate` nodes and requiring exact semantic round trip through
-`ScalametaTermProjection`. It preserves ordered children but reconstructs no
-source position, original token spelling, comment, or child identity. P2 local
-values, P3 local definitions, Lambda1 and other binder-bearing forms, and
-ascription remain outside this authoring surface. Raw, `f`, custom, and
-triple-quoted interpolation remain excluded.
+`ScalametaTermProjection`. It also authors the accepted primitive ascription,
+typed Lambda1, one-local-val P2, and local-identity-method P3 families. Public
+`TermShapeBindings` and `TermShapeBindingView` expose binder relationships
+through opaque graph-local handles rather than private storage cases or raw
+IDs. Authoring preserves ordered semantic children but reconstructs no source
+position, original token spelling, comment, grouping parenthesis, or child
+identity. Raw, `f`, custom, and triple-quoted interpolation remain excluded.
 
 ## Bounded validated projection
 
@@ -182,6 +196,13 @@ stable `NeutralProjectionError` categories. It performs no source rendering,
 reparsing, name resolution, typechecking, symbol lookup, owner inference, or
 compiler-context synthesis.
 
+The separate package-private instance-factory route now has both directions:
+`ScalametaInstanceFactoryProjection` validates one exact anonymous-factory
+grammar, while `ScalametaInstanceFactoryAuthoring` authors fresh
+`Position.None` syntax from its five-role `InstanceFactoryPlan` and requires
+alpha-equivalent reprojection. This specialized reverse edge is not the planned
+public generic `SemanticDefinition` Authoring facade.
+
 If the Scalameta input has an actual position, the result preserves its exact
 start/end offsets as `NeutralSourceSpan`. Explicitly constructed trees with
 `Position.None` remain valid and return no source span.
@@ -214,11 +235,13 @@ definition shape and deliberately returns `Position.None`.
 Reverse projection cannot truthfully reconstruct source tokens, comments,
 formatting, exact offsets, or compiler-normalized distinctions. Unsupported raw
 forms fail explicitly. Exact trees never appear in the neutral module's API.
-The Term route likewise does not carry Scalameta offsets through the
-core value, fabricate source, or publish a `scala.meta.Term -> untpd.Tree` API.
-It constructs new D syntax from project-owned semantics; it does not absorb the
-separate U experiment for identity-preserving structural rewrites over existing
-raw trees.
+The Term route likewise does not carry Scalameta offsets through the core value
+or fabricate source. The exact-version module publishes bounded source-free and
+generated-origin `scala.meta.Term -> untpd.Tree` convenience bridges, while the
+semantic lowerers behind them remain internal. Stable public facades starting
+from project semantic values are planned, not current. Exact fresh lowering
+does not absorb the separate U-U direction for identity-preserving structural
+rewrites over existing raw trees.
 
 The exact module's complete ownership and exclusions are documented in the
 [Dotty-internal exact backend](DOTTY_INTERNAL_BACKEND.md).

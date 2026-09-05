@@ -16,6 +16,16 @@ compiler-free semantic model with multiple source frontends. Current-Dotty is
 the released/default reference route; the Scalameta typed route is an explicit,
 unpublished experiment rather than a second quasiquote engine.
 
+Choose the representation by the contract you need: Scalameta for broad source
+AST work, the project-owned compiler-free model for bounded normalized Term,
+Type, and Definition semantics, and exact-version Dotty `untpd` for fresh raw
+lowering or identity-sensitive existing-tree transformation. The canonical
+[semantic models and conversions guide](docs/SEMANTIC_MODELS_AND_CONVERSIONS.md)
+defines Q/N/U-D/U-U/C, shows the current conversion graph, and contains
+compile-checked public Term, Type, `SemanticDefinition`, and exact-bridge hello
+worlds. Planned Definition adapters, project-model lowerers, and exact-U APIs
+are labeled there rather than presented as shipped.
+
 ## Quick start
 
 `qr` constructs a Scala 3 quoted-reflection `Term` from source-like syntax
@@ -176,10 +186,12 @@ names the concrete APIs, visibility boundaries, and current composition status.
   fully-qualified, non-generic, one-positional-list constructor/New family,
   without `Quotes`, compiler implementation dependencies, staging, SemanticDB,
   or exact trees. Its bounded `ScalametaTermShapeAuthoring` reverse direction
-  creates fresh `Position.None` Scalameta Terms for binder-free ordinary terms,
-  fully-qualified `new`, binder-free P1 blocks, and standard-`s`
-  interpolation with exact semantic round trip; P2/P3 binder authoring and
-  source-provenance reconstruction remain outside.
+  creates fresh `Position.None` Scalameta Terms for the accepted ordinary,
+  fully-qualified `new`, standard-`s`, primitive-ascription, typed-Lambda1,
+  binder-free P1, one-local-val P2, and local-identity-method P3 families with
+  exact semantic round trip. Grouping parentheses remain source-origin syntax
+  rather than a distinct project Term; source-provenance reconstruction remains
+  outside.
 - `hybridScalametaFrontend` is a remotely unpublished, compiler-coupled side-by-side
   experiment. It contains explicit typed Term, Type, and bounded Definition
   opt-in APIs in `quasiquotes.scalameta`. They parse public Scalameta ASTs,
@@ -284,6 +296,7 @@ See [Getting started](docs/GETTING_STARTED.md),
 [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md),
 [hybrid typed frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md),
 [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md),
+[semantic models and conversions](docs/SEMANTIC_MODELS_AND_CONVERSIONS.md),
 [projection, lowering, and bridge pipelines](docs/PROJECTION_LOWERING_BRIDGE_MATRIX.md),
 [exact constructor backend](docs/EXACT_BACKEND_CONSTRUCTOR_NEW.md),
 [supported syntax and limitations](docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md),
@@ -303,9 +316,10 @@ root, unpublished experimental `neutralScalameta`, unpublished
 internals. It is generated from packaged Scaladoc search metadata for
 deterministic source/API-shape diffing; it is neither human API documentation
 nor binary, TASTy, overload-resolution, or semantic compatibility proof.
-The controller-accepted current standard candidate inventory is 679 rows / 661
-groups, while the unpublished typed-Scalameta inventory remains 43 rows / 43
-groups. The typed exact-two selector replaces one source signature while
+The controller-accepted current standard candidate inventory is 793 rows,
+including the additive C026 Term-binding and C027 semantic-Definition APIs,
+while the unpublished typed-Scalameta inventory remains 43 rows / 43 groups.
+The typed exact-two selector replaces one source signature while
 retaining its historical erased JVM descriptor through a source-hidden bridge. These
 development counts do not alter the immutable `0.2.0` baseline or imply a
 remote `0.3.0` release.
@@ -331,12 +345,15 @@ them byte for byte.
 Public type diagnostics describe the supported boundary without development
 chronology or generated placeholder names.
 
-The compiler-free public API constructs bounded single- and exact-two-parameter
-methods whose bodies explicitly select a declared parameter. That public name
-selection is converted once to the package-private binder-aware definition
-core; a free same-text `CompletedTerm.reference` is never captured implicitly.
-This is a semantic construction/projection API, not a source parser or
-method-placement backend.
+The compiler-free public API includes the older bounded Definition construction
+surface and the accepted `SemanticDefinition` model. `SemanticDefinition`
+constructs bounded immutable values, concrete methods with zero/one/two
+ordinary parameters, and simple aliases through validated names, clauses,
+types, bodies, and typed views. Method bodies select parameters through the
+persistent opaque `DefinitionParameterScope`; a free same-text identifier is
+never captured implicitly. Public generic Scalameta Definition
+Projection/Authoring and project-semantic-to-Dotty lowering remain planned, so
+this Core model is not a source parser or placement backend.
 
 ## License
 

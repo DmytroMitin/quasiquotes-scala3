@@ -17,6 +17,12 @@ delivery chronology.
   while Scalameta and the compiler-free core form a separate neutral axis.
   `dottyInternal` remains an unpublished exact backend, not a generic raw-tree
   toolkit.
+- Keep the canonical current representation/conversion contract in
+  `docs/SEMANTIC_MODELS_AND_CONVERSIONS.md`: Q is Quotes-aware typed frontend
+  work, N is compiler-free/Scalameta interoperability, U-D is exact fresh
+  lowering, U-U is exact existing-tree transformation, and C is integration/API
+  ownership rather than another AST. Keep public `n*` absent and `u*` later
+  optional.
 - Preserve the production compiler-free `scala.meta.Term -> TermShape`
   projector for the accepted literal/infix/unary/tuple/conditional/name/select/
   one-list-Apply family, one typed Lambda1, bounded P0/P1/P2/P3 blocks, and a
@@ -63,10 +69,17 @@ delivery chronology.
   upstream macros without forwarding or duplicating them.
 - Preserve bounded neutral reverse authoring through
   `ScalametaTermShapeAuthoring`: fresh `Position.None` Scalameta Terms for the
-  accepted binder-free ordinary family, fully-qualified `new`, and binder-free
-  P1 blocks, with exact project-shape round trips. Keep P2/P3 binders,
-  interpolation, typed parentheses, and source-provenance reconstruction out of
-  this authoring surface.
+  accepted ordinary, fully-qualified `new`, standard-`s`, primitive-ascription,
+  typed-Lambda1, binder-free P1, one-local-val P2, and local-identity-method P3
+  families, with exact project-shape round trips. Public opaque binder views and
+  builders expose co-reference without raw IDs. Keep grouping-parenthesis and
+  source-provenance reconstruction out of this authoring surface.
+- Preserve the public compiler-free `SemanticDefinition` Core model with
+  validated names, ordinary parameter clauses, persistent opaque parameter
+  scope, smart constructors, and non-exhaustive typed views. Keep the internal
+  five-family `DefinitionShape` carrier private. Public generic Scalameta
+  Definition Projection/Authoring, public project-semantic-to-Dotty lowering,
+  and a public exact-U algebra remain separately planned rather than current.
 - Keep the compiler-coupled `hybridScalametaFrontend` experiment unpublished
   and side by side with the current engine. Its admitted typed Term, Type, and
   bounded Definition slices expand only through differential tests,
@@ -224,20 +237,20 @@ Definition work proceeds by semantic ownership rather than syntax breadth:
 6. broader clauses, Types, and bodies;
 7. class, trait, and object construction only after a reusable owner/member model exists.
 
-A package-private reusable neutral projection ladder now covers those first
-five families through separate family-owned projectors. A single internal
-dispatcher such as `ScalametaDefinitionProjection.project(definition)` remains
-a consolidation step; that spelling is illustrative, not a locked public
-name. Specialized contextual-method, refined-Type-alias, and instance-factory
-projectors remain separate semantics and do not substitute for this ladder.
+A package-private reusable neutral Projection/Authoring ladder now covers
+those first five families through separate family-owned implementations and a
+common internal dispatcher. Public `SemanticDefinition` adapters remain
+planned. Specialized contextual-method, refined-Type-alias, and
+instance-factory projectors remain separate semantics; the refined-alias and
+instance-factory families also have specialized package-private reverse
+authorers, and none substitutes for the generic ladder.
 
 The existing neutral Term and Type projectors compose with bounded public
 exact-version facades for their admitted intersections. For Definitions, the
-four ordinary val/def shapes already complete into the existing internal exact
-backend, while the simple alias deliberately lacks a general exact path. The
-next cross-family gate is therefore an internal exact dispatcher with one
-narrow simple-alias case after the neutral dispatcher is accepted. No general
-Scalameta Definition-to-exact-tree public API is declared here.
+five generic families, including the simple alias, compose through the public
+source-free exact-version bridge; the generated-origin bridge remains limited
+to the four concrete val/def families. Public adapters from
+`SemanticDefinition` remain planned.
 
 Publication policy remains a separate successor task: it must decide stable
 coordinates, supported compiler lanes, compatibility evidence, and release
@@ -264,7 +277,8 @@ remain supported; no deep package move or deprecation is selected. At that
 umbrella-facade task's historical checkpoint, the exact accepted API delta was
 additive: standard 676 to 677 rows and hybrid 42 to 43 search rows, with one
 object addition and zero removals in each inventory. The current programme
-inventory is the current 679-row / 661-group standard surface and the
+inventory is the current 793-row standard surface, including the additive
+C026 Term-binding and C027 semantic-Definition APIs, and the
 unchanged 43-row hybrid surface recorded above.
 
 ## North-star source-like generation

@@ -10,6 +10,14 @@ For the concrete API-level data flow behind these axes, including visibility,
 `Context` requirements, and composed bridge boundaries, see the
 [projection, lowering, and bridge pipeline matrix](PROJECTION_LOWERING_BRIDGE_MATRIX.md).
 
+Before using the lane labels: **Q** is the Quotes-aware typed frontend; **N**
+is the neutral compiler-free semantic/Scalameta world; **U-D** is **exact fresh
+lowering**; **U-U** is **exact existing-tree transformation**; and **C** owns
+cross-layer integration/API policy rather than another AST. N and U do not
+name public `n*` or `u*` syntax families; `u*` remains later optional. The
+canonical [semantic models and conversions guide](SEMANTIC_MODELS_AND_CONVERSIONS.md)
+defines the three representations and their loss/provenance contracts.
+
 Status vocabulary:
 
 - `SUPPORTED` — available on the named public surface for this family;
@@ -43,12 +51,13 @@ The axes are:
 | Tuple | `BOUNDED` — arity 2 through 22 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — arity 2 through 22 through both public exact-version Term bridges | `NOT_APPLICABLE` |
 | `if` with explicit `else` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — both public exact-version Term bridges | `NOT_APPLICABLE` |
 | Standard `s` interpolation | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — fresh `Position.None` standard-`s` AST with exact semantic round trip | `BOUNDED` — both public exact-version Term bridges | `NOT_APPLICABLE` |
-| Type ascription | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `BOUNDED` — public generated-origin bridge for completable Int/String/Boolean sidecars; source-free bridge rejects | `NOT_APPLICABLE` |
-| Lambda1 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `BOUNDED` — public generated-origin bridge when the explicit parameter Type is completable; source-free bridge rejects | `NOT_APPLICABLE` |
+| Type ascription | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — fresh primitive ascription with semantic reprojection | `BOUNDED` — public generated-origin bridge for completable Int/String/Boolean sidecars; source-free bridge rejects | `NOT_APPLICABLE` |
+| Lambda1 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — typed Lambda1 with opaque binder semantics | `BOUNDED` — public generated-origin bridge when the explicit parameter Type is completable; source-free bridge rejects | `NOT_APPLICABLE` |
 | Fixed one-list `new` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — fully-qualified, non-generic, one ordinary list through both public exact-version Term bridges | `NOT_APPLICABLE` |
 | Binder-free P1 block | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — both public exact-version Term bridges | `NOT_APPLICABLE` |
-| Single typed local immutable val (P2) | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `BOUNDED` — public generated-origin bridge when the declared Type is completable; source-free bridge rejects | `NOT_APPLICABLE` |
-| Source-owned local identity method (P3) | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` | `NOT_YET` | `BOUNDED` — public generated-origin bridge for the bounded local identity-method form with completable parameter/result Types; source-free bridge rejects | `NOT_APPLICABLE` |
+| Single typed local immutable val (P2) | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — one local immutable value with opaque binder semantics | `BOUNDED` — public generated-origin bridge when the declared Type is completable; source-free bridge rejects | `NOT_APPLICABLE` |
+| Source-owned local identity method (P3) | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` | `BOUNDED` — one local identity method with distinct opaque parameter/method binders | `BOUNDED` — public generated-origin bridge for the bounded local identity-method form with completable parameter/result Types; source-free bridge rejects | `NOT_APPLICABLE` |
+| Grouping parentheses | source grammar | source grammar | source grammar | source grammar | `BOUNDED` — transparent projection to the inner semantic shape | `NOT_YET` — not representable as a distinct project Term under Scalameta 4.17.3 | `NOT_APPLICABLE` — any lowered result follows the inner semantic shape | `NOT_APPLICABLE` |
 | Rank-2 Term arguments in Apply / one-list New | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` — the sequence is expanded before exact lowering | `NOT_APPLICABLE` |
 | Rank-3 Term sequence | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
 | Dynamic selected-member construction | `BOUNDED` | `NOT_YET` | `BOUNDED` — validated `SelectedMemberName` in one explicit receiver-selection name field; unique accessible member only | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
@@ -67,26 +76,33 @@ The axes are:
 
 ## Definitions
 
+C027 adds the current public compiler-free `SemanticDefinition` smart
+construction/view layer for bounded immutable values, concrete methods, and
+simple aliases. The N columns below still describe the separate Scalameta
+adapters: their five-family implementation is internal, and the public
+`SemanticDefinition` Projection/Authoring facades are **planned**.
+
 | Family | Q construct | Q match | typed Scalameta construct | typed Scalameta match | N project | N author | U-D fresh lower | U-U existing rewrite |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Immutable `val` | `INTERNAL` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — reusable explicitly typed immutable-val projector | `NOT_YET` | `BOUNDED` — public source-free and generated-origin Definition facades | `NOT_APPLICABLE` |
-| Parameterless ordinary `def` | `INTERNAL` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — reusable true-parameterless explicitly typed projector | `NOT_YET` | `BOUNDED` — public source-free and generated-origin Definition facades | `INTERNAL` — exact direct parameterless method-body replacement only; header and surrounding children retain the bounded identity/provenance contract |
-| One ordinary parameter | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` — reusable one-ordinary-parameter projector | `NOT_YET` | `BOUNDED` — public source-free and generated-origin Definition facades | `NOT_YET` — the current existing-tree rewriter rejects parameter clauses |
-| Exactly two ordinary parameters | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` — reusable exact-two-ordinary-parameter projector | `NOT_YET` | `BOUNDED` — public source-free and generated-origin Definition facades | `NOT_YET` — the current existing-tree rewriter rejects parameter clauses |
+| Immutable `val` | `INTERNAL` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — reusable explicitly typed immutable-val projector | `INTERNAL` — reusable fresh authorer; public `SemanticDefinition` adapter planned | `BOUNDED` — public source-free and generated-origin Definition facades | `NOT_APPLICABLE` |
+| Parameterless ordinary `def` | `INTERNAL` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — reusable true-parameterless explicitly typed projector | `INTERNAL` — reusable fresh authorer; public `SemanticDefinition` adapter planned | `BOUNDED` — public source-free and generated-origin Definition facades | `INTERNAL` — exact direct parameterless method-body replacement only; header and surrounding children retain the bounded identity/provenance contract |
+| One ordinary parameter | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` — reusable one-ordinary-parameter projector | `INTERNAL` — reusable binder-aware fresh authorer; public `SemanticDefinition` adapter planned | `BOUNDED` — public source-free and generated-origin Definition facades | `INTERNAL` — exact existing single-parameter method view plus bounded primitive explicit result-Type replacement; parameter, parameter Type, RHS, and non-target members retain exact identity |
+| Exactly two ordinary parameters | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `INTERNAL` — reusable exact-two-ordinary-parameter projector | `INTERNAL` — reusable binder-aware fresh authorer; public `SemanticDefinition` adapter planned | `BOUNDED` — public source-free and generated-origin Definition facades | `NOT_YET` — the current existing-tree rewriter rejects parameter clauses |
 | Parameter-sequence capture | `NOT_APPLICABLE` | `BOUNDED` — one static ordinary parameter clause with 0 through 5 parameters plus one RHS capture | `NOT_APPLICABLE` | `BOUNDED` — same ranked `dqq` slice and original reflected captures | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` | `NOT_APPLICABLE` |
 | Contextual method | `NOT_YET` — a public Core programmatic constructor exists, but no Q quasiquote syntax | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` — specialized projector | `NOT_YET` | `INTERNAL` | `NOT_YET` — the current existing-tree rewriter rejects parameter clauses |
-| Simple non-generic unbounded Type alias | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — reusable simple-alias projector | `NOT_YET` | `BOUNDED` — public source-free Definition facade only; generic generated-origin route rejects aliases | `NOT_APPLICABLE` |
+| Simple non-generic unbounded Type alias | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — reusable simple-alias projector | `INTERNAL` — reusable fresh authorer; public `SemanticDefinition` adapter planned | `BOUNDED` — public source-free Definition facade only; generic generated-origin route rejects aliases | `NOT_APPLICABLE` |
 | Bounded refined Type alias | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — specialized projector | `INTERNAL` — specialized authoring | `INTERNAL` | `NOT_APPLICABLE` |
 | Class / trait / object | `NOT_YET` | `NOT_YET` | `NOT_YET` — a separate internal public-reflection class plan is not typed-Scalameta syntax | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` — no fresh raw class/trait/object lowerer; typed-reflection generation is a different surface | `NOT_APPLICABLE` |
-| Anonymous implementation | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — specialized instance-factory projection | `NOT_YET` | `INTERNAL` — exact bounded instance-factory plan lowering, exposed only through its named exact-version peer bridge | `NOT_APPLICABLE` |
+| Anonymous implementation | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `INTERNAL` — specialized instance-factory projection | `INTERNAL` — specialized five-role instance-factory plan authoring with alpha-equivalent reprojection | `INTERNAL` — exact bounded instance-factory plan lowering, exposed only through its named exact-version peer bridge | `NOT_APPLICABLE` |
 
 The five reusable neutral Definition projectors remain separate package-private
 family entries behind one common dispatcher. The public exact-version
 `ScalametaDefinitionUntypedBridge` composes that dispatcher with the common
 source-free lowerer for exactly those five families. The separate generated-
 origin bridge admits only the four concrete val/def families. Specialized
-contextual/refined-alias/instance-factory projectors and named peer bridges do
-not widen either generic boundary.
+contextual/refined-alias/instance-factory projectors, the specialized
+refined-alias and instance-factory authorers, and named peer bridges do not
+widen either generic boundary.
 
 The public exact-version `ScalametaDefinitionClassMemberAppendBridge` is a
 separate hybrid composition, not another cell on either fresh-lowering or
