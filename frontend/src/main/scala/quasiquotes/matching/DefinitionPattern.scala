@@ -109,6 +109,7 @@ object DefinitionPattern:
     case CapturedNameNamedUsingParameterSequenceCapturedResult
     case CapturedNameScala2ImplicitParameterSequenceCapturedResult
     case CapturedModifiersNameNamedUsingParameterSequenceCapturedResult
+    case CapturedModifiersNameMixedOrdinaryNamedUsingParameterSequencesCapturedResult
     case CapturedModifiersNameScala2ImplicitParameterSequenceCapturedResult
     case CapturedModifiersNameRankedParameterClauseSequenceCapturedResult
     case CapturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult
@@ -295,6 +296,35 @@ object DefinitionPattern:
         )
       case None => abort("StringContext must not be null.")
 
+  private[matching] def capturedModifiersNameMixedOrdinaryNamedUsingParameterSequencesCapturedResultExtractor(
+      sc: StringContext
+  )(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      DefinitionModifiers[q.reflect.Flags, q.reflect.TypeRepr, q.reflect.Term],
+      String,
+      Seq[q.reflect.ValDef],
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    def abort(message: String): Nothing =
+      q.reflect.report.errorAndAbort(s"$InvalidDqqPrefix $message")
+
+    val parts = Option(sc).flatMap(value => Option(value.parts)).map(_.toList)
+    parts match
+      case Some(values)
+          if isExactCapturedModifiersNameMixedOrdinaryNamedUsingParameterSequencesCapturedResult(
+            values
+          ) =>
+        RankedDefinitionPatternExtractorFactory.capturedModifiersNameMixedOrdinaryNamedUsingParamsResult
+      case Some(_) =>
+        abort(
+          "expected exactly `$mods def $name(..$params)(using ..$usingParams): $result = $body` with six captures in semantic-modifiers, semantic-name, complete-ordinary-parameters, complete-named-using-parameters, semantic-result, and complete-body order"
+        )
+      case None => abort("StringContext must not be null.")
+
   private[matching] def capturedNameNamedUsingParameterSequenceCapturedResultExtractor(
       sc: StringContext
   )(using q: Quotes): RankedDefinitionPatternExtractor[
@@ -403,6 +433,13 @@ object DefinitionPattern:
       Right(StaticPatternKind.CapturedNameScala2ImplicitParameterSequenceCapturedResult)
     else if isExactCapturedModifiersNameNamedUsingParameterSequenceCapturedResult(parts) then
       Right(StaticPatternKind.CapturedModifiersNameNamedUsingParameterSequenceCapturedResult)
+    else if isExactCapturedModifiersNameMixedOrdinaryNamedUsingParameterSequencesCapturedResult(
+        parts
+      )
+    then
+      Right(
+        StaticPatternKind.CapturedModifiersNameMixedOrdinaryNamedUsingParameterSequencesCapturedResult
+      )
     else if isExactCapturedModifiersNameScala2ImplicitParameterSequenceCapturedResult(parts) then
       Right(StaticPatternKind.CapturedModifiersNameScala2ImplicitParameterSequenceCapturedResult)
     else if isExactCapturedModifiersNameRankedParameterClauseSequenceCapturedResult(parts) then
@@ -506,6 +543,28 @@ object DefinitionPattern:
         beforeModifiers.trim.isEmpty &&
           beforeName.matches("(?s)\\s+def\\s+") &&
           beforeParams.matches("(?s)\\s*\\(\\s*using\\s+\\.\\.\\s*") &&
+          beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&
+          beforeBody.matches("(?s)\\s*=\\s*") &&
+          suffix.trim.isEmpty
+      case _ => false
+
+  private def isExactCapturedModifiersNameMixedOrdinaryNamedUsingParameterSequencesCapturedResult(
+      parts: List[String]
+  ): Boolean =
+    parts match
+      case List(
+            beforeModifiers,
+            beforeName,
+            beforeOrdinaryParams,
+            beforeUsingParams,
+            beforeResult,
+            beforeBody,
+            suffix
+          ) =>
+        beforeModifiers.trim.isEmpty &&
+          beforeName.matches("(?s)\\s+def\\s+") &&
+          beforeOrdinaryParams.matches("(?s)\\s*\\(\\s*\\.\\.\\s*") &&
+          beforeUsingParams.matches("(?s)\\s*\\)\\s*\\(\\s*using\\s+\\.\\.\\s*") &&
           beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&
           beforeBody.matches("(?s)\\s*=\\s*") &&
           suffix.trim.isEmpty

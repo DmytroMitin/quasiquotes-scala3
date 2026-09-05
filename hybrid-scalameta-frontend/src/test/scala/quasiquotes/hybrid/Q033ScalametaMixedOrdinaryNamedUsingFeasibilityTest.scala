@@ -74,7 +74,7 @@ final class Q033ScalametaMixedOrdinaryNamedUsingFeasibilityTest extends munit.Fu
 
     assertEquals(result, (true, true, true, true, true, true))
 
-  test("typed-Scalameta test grammar rejects unselected layouts and production remains closed"):
+  test("typed-Scalameta test grammar rejects unselected layouts and production now owns Q033"):
     inline def messages(inline source: String): List[String] = typeCheckErrors(source).map(_.message)
     inline def candidateMessages(inline pattern: String): List[String] =
       messages(
@@ -104,5 +104,4 @@ final class Q033ScalametaMixedOrdinaryNamedUsingFeasibilityTest extends munit.Fu
            case dqq"$mods def $name(..$params)(using ..$usingParams): $result = $body" => ()
            case _ => ()"""
     )
-    assert(production.nonEmpty, production)
-    assert(production.exists(_.contains("Invalid Scalameta dqq definition-pattern template")), production)
+    assertEquals(production, Nil)

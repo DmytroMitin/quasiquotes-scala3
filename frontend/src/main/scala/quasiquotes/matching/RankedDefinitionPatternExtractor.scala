@@ -71,6 +71,25 @@ private[quasiquotes] object RankedDefinitionPatternExtractorFactory:
       RankedDefinitionPatternMatcher.extractCapturedNameNamedUsingParamsResult(target)
     )
 
+  def capturedModifiersNameMixedOrdinaryNamedUsingParamsResult(using
+      q: Quotes
+  ): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      DefinitionModifiers[q.reflect.Flags, q.reflect.TypeRepr, q.reflect.Term],
+      String,
+      Seq[q.reflect.ValDef],
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    new RankedDefinitionPatternExtractor(target =>
+      RankedDefinitionPatternMatcher.extractCapturedModifiersNameMixedOrdinaryNamedUsingParamsResult(
+        target
+      )
+    )
+
   def capturedModifiersNameScala2ImplicitParamsResult(using q: Quotes): RankedDefinitionPatternExtractor[
     q.reflect.DefDef,
     (
@@ -197,6 +216,29 @@ private[matching] object RankedDefinitionPatternMatcher:
         (target.name, parameters, result, body)
       }
 
+  def extractCapturedModifiersNameMixedOrdinaryNamedUsingParamsResult(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[
+    (
+      DefinitionModifiers[q.reflect.Flags, q.reflect.TypeRepr, q.reflect.Term],
+      String,
+      Seq[q.reflect.ValDef],
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    extractAdmittedMixedOrdinaryNamedUsingDefinition(target).map {
+      (ordinaryParameters, usingParameters, result, body) =>
+        val modifiers = new DefinitionModifiers(
+          target.symbol.flags,
+          target.symbol.privateWithin,
+          target.symbol.protectedWithin,
+          target.symbol.annotations
+        )
+        (modifiers, target.name, ordinaryParameters, usingParameters, result, body)
+    }
+
   def extractCapturedModifiersNameScala2ImplicitParamsResult(using q: Quotes)(
       target: q.reflect.DefDef
   ): Option[
@@ -288,16 +330,7 @@ private[matching] object RankedDefinitionPatternMatcher:
   ): Option[(List[q.reflect.ValDef], q.reflect.TypeRepr, q.reflect.Term)] =
     import q.reflect.*
 
-    if target == null ||
-        target.symbol == Symbol.noSymbol ||
-        !target.symbol.isDefDef ||
-        target.symbol.isClassConstructor ||
-        target.symbol.flags.is(Flags.ExtensionMethod) ||
-        target.symbol.flags.is(Flags.FieldAccessor) ||
-        target.symbol.flags.is(Flags.ParamAccessor) ||
-        target.symbol.flags.is(Flags.CaseAccessor) ||
-        target.symbol.flags.is(Flags.Given)
-    then None
+    if !isAdmittedNormalMethod(target) then None
     else
       target.paramss match
         case List(clause: TermParamClause)
@@ -327,16 +360,7 @@ private[matching] object RankedDefinitionPatternMatcher:
   ): Option[(List[q.reflect.ValDef], q.reflect.TypeRepr, q.reflect.Term)] =
     import q.reflect.*
 
-    if target == null ||
-        target.symbol == Symbol.noSymbol ||
-        !target.symbol.isDefDef ||
-        target.symbol.isClassConstructor ||
-        target.symbol.flags.is(Flags.ExtensionMethod) ||
-        target.symbol.flags.is(Flags.FieldAccessor) ||
-        target.symbol.flags.is(Flags.ParamAccessor) ||
-        target.symbol.flags.is(Flags.CaseAccessor) ||
-        target.symbol.flags.is(Flags.Given)
-    then None
+    if !isAdmittedNormalMethod(target) then None
     else
       target.paramss match
         case List(clause: TermParamClause)
@@ -360,6 +384,74 @@ private[matching] object RankedDefinitionPatternMatcher:
             .when(admittedParameters)(target.returnTpt.tpe)
             .flatMap(result => target.rhs.map(body => (parameters, result, body)))
         case _ => None
+
+  private def extractAdmittedMixedOrdinaryNamedUsingDefinition(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[
+    (
+      List[q.reflect.ValDef],
+      List[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    import q.reflect.*
+
+    if !isAdmittedNormalMethod(target) then None
+    else
+      target.paramss match
+        case List(ordinaryClause: TermParamClause, usingClause: TermParamClause)
+            if !ordinaryClause.isImplicit &&
+              !ordinaryClause.isGiven &&
+              !ordinaryClause.isErased &&
+              usingClause.isGiven &&
+              !usingClause.isImplicit &&
+              !usingClause.isErased &&
+              usingClause.params.nonEmpty =>
+          val ordinaryParameters = ordinaryClause.params
+          val usingParameters = usingClause.params
+          val ordinarySymbols = ordinaryParameters.map(_.symbol)
+          val usingSymbols = usingParameters.map(_.symbol)
+          val allSymbols = ordinarySymbols ++ usingSymbols
+          val admittedParameters =
+            allSymbols.forall(_ != Symbol.noSymbol) &&
+              allSymbols.distinct.size == allSymbols.size &&
+              ordinaryParameters.forall(parameter =>
+                parameter.symbol.owner == target.symbol &&
+                  !parameter.symbol.flags.is(Flags.Implicit) &&
+                  !parameter.symbol.flags.is(Flags.Given) &&
+                  !parameter.symbol.flags.is(Flags.Erased) &&
+                  !parameter.symbol.flags.is(Flags.HasDefault)
+              ) &&
+              usingParameters.forall(parameter =>
+                parameter.symbol.owner == target.symbol &&
+                  parameter.symbol.flags.is(Flags.Given) &&
+                  !parameter.symbol.flags.is(Flags.Implicit) &&
+                  !parameter.symbol.flags.is(Flags.Synthetic) &&
+                  !parameter.symbol.flags.is(Flags.Erased) &&
+                  !parameter.symbol.flags.is(Flags.HasDefault)
+              ) &&
+              target.symbol.paramSymss == List(ordinarySymbols, usingSymbols)
+
+          Option
+            .when(admittedParameters)(target.returnTpt.tpe)
+            .flatMap(result =>
+              target.rhs.map(body => (ordinaryParameters, usingParameters, result, body))
+            )
+        case _ => None
+
+  private def isAdmittedNormalMethod(using q: Quotes)(target: q.reflect.DefDef): Boolean =
+    import q.reflect.*
+
+    target != null &&
+      target.symbol != Symbol.noSymbol &&
+      target.symbol.isDefDef &&
+      !target.symbol.isClassConstructor &&
+      !target.symbol.flags.is(Flags.ExtensionMethod) &&
+      !target.symbol.flags.is(Flags.FieldAccessor) &&
+      !target.symbol.flags.is(Flags.ParamAccessor) &&
+      !target.symbol.flags.is(Flags.CaseAccessor) &&
+      !target.symbol.flags.is(Flags.Given)
 
   private def extractAdmittedDefinitionCore(using q: Quotes)(
       target: q.reflect.DefDef
