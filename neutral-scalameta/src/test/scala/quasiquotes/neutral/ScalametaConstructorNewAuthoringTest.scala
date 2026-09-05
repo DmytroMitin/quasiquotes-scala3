@@ -96,7 +96,6 @@ final class ScalametaConstructorNewAuthoringTest extends munit.FunSuite:
 
   test("retains child-family failures and rejects a malformed nested constructor"):
     List(
-      TermShape.Typed(free, "Int"),
       TermShape.Parenthesized(free)
     ).foreach(child =>
       assertErrorCode(

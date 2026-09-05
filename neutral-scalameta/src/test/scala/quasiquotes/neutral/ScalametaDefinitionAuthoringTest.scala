@@ -212,7 +212,7 @@ final class ScalametaDefinitionAuthoringTest extends munit.FunSuite:
     val shape = immutable(
       plain("answer"),
       intType,
-      TermShape.Typed(TermShape.Identifier("source", false), "Int")
+      TermShape.Parenthesized(TermShape.Identifier("source", false))
     )
     val problem = ScalametaTypedImmutableValAuthoring.author(shape).left.toOption.get
 

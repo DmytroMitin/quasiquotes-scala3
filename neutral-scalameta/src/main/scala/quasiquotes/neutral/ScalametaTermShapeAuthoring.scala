@@ -189,6 +189,14 @@ object ScalametaTermShapeAuthoring:
               )
             )
           yield authored
+        case TermShape.Typed(expression, typeName) =>
+          for
+            authoredExpression <- authorPresent(expression, scope)
+            authoredType <- authorPrimitiveAscriptionType(typeName)
+            authored <- construct("typed/ascribed term")(
+              Term.Ascribe(authoredExpression, authoredType)
+            )
+          yield authored
         case TermShape.Block(statements, result) =>
           for
             authoredStatements <- traverse(statements)(authorBlockStatement(_, scope))
@@ -205,6 +213,11 @@ object ScalametaTermShapeAuthoring:
             )
           )
       }
+
+  private def authorPrimitiveAscriptionType(typeName: String): Either[Error, Type.Name] =
+    typeName match
+      case "Int" | "String" | "Boolean" => Right(Type.Name(typeName))
+      case _ => Left(typedTypeUnsupported)
 
   private def authorBlockStatement(
       statement: BlockStatement,
@@ -420,6 +433,12 @@ object ScalametaTermShapeAuthoring:
 
   private def structureError(detail: String): Error =
     error("NEUTRAL_TERM_AUTHORING_STRUCTURE_UNSUPPORTED", detail)
+
+  private def typedTypeUnsupported: Error =
+    error(
+      "NEUTRAL_TERM_AUTHORING_TYPED_TYPE_UNSUPPORTED",
+      "typed/ascribed authoring admits only canonical Int, String, and Boolean."
+    )
 
   private def error(code: String, detail: String): Error =
     Error(code, detail)

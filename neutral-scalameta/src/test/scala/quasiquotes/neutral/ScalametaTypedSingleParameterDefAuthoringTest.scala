@@ -278,7 +278,7 @@ final class ScalametaTypedSingleParameterDefAuthoringTest extends munit.FunSuite
     assertErrorCode(missingMethodName, "NEUTRAL_SINGLE_PARAMETER_DEF_AUTHORING_NAME_UNSUPPORTED")
     assertErrorCode(missingParameterName, "NEUTRAL_SINGLE_PARAMETER_DEF_AUTHORING_NAME_UNSUPPORTED")
 
-  test("keeps the Core and N029 body-family intersection fail closed in both directions"):
+  test("keeps the remaining Core and N029 body-family intersection fail closed in both directions"):
     val coreRejectedNew = DefinitionShape.singleParameterDef(
       plainName("method"),
       id0,
@@ -294,14 +294,6 @@ final class ScalametaTypedSingleParameterDefAuthoringTest extends munit.FunSuite
     assert(coreRejectedNew.isLeft)
 
     val n029Rejected = List(
-      method(
-        "typed",
-        id0,
-        "x",
-        intType,
-        intType,
-        TermShape.Typed(bound(id0, "x"), "Int")
-      ),
       method(
         "parenthesized",
         id0,

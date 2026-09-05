@@ -367,7 +367,6 @@ final class ScalametaTypedTwoParameterDefAuthoringTest extends munit.FunSuite:
     )
 
     List(
-      method("typed", id0, "x", intType, id1, "y", intType, intType, TermShape.Typed(bound(id0, "x"), "Int")),
       method("parenthesized", id0, "x", intType, id1, "y", intType, intType, TermShape.Parenthesized(bound(id1, "y")))
     ).foreach(assertErrorCode(_, "NEUTRAL_TWO_PARAMETER_DEF_AUTHORING_TERM_UNSUPPORTED"))
 

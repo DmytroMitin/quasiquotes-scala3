@@ -200,13 +200,8 @@ final class ScalametaTypedImmutableValAuthoringTest extends munit.FunSuite:
         .isLeft
     )
 
-  test("reports Core-admitted but generic-Term-authoring-rejected bodies as intersection failures"):
+  test("reports remaining Core-admitted but generic-Term-authoring-rejected bodies as intersection failures"):
     val rejected = List(
-      immutable(
-        "typed",
-        intType,
-        TermShape.Typed(TermShape.Identifier("source", false), "Int")
-      ),
       immutable(
         "parenthesized",
         intType,

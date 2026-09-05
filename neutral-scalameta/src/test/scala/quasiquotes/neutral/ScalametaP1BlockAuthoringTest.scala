@@ -142,8 +142,7 @@ final class ScalametaP1BlockAuthoringTest extends munit.FunSuite:
     )
     val excluded = List[TermShape](
       lambda,
-      TermShape.BoundReference(BinderId(4), "x"),
-      TermShape.Typed(TermShape.Literal("1"), "Int")
+      TermShape.BoundReference(BinderId(4), "x")
     )
 
     excluded.foreach(child =>

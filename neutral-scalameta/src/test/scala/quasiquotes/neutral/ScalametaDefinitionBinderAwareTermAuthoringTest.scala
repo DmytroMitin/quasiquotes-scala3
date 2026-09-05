@@ -189,7 +189,6 @@ final class ScalametaDefinitionBinderAwareTermAuthoringTest extends munit.FunSui
 
   test("retains existing unsupported families under seeded authoring"):
     val unsupported = List(
-      TermShape.Typed(TermShape.BoundReference(id0, "x"), "Int"),
       TermShape.Parenthesized(TermShape.BoundReference(id0, "x")),
       TermShape.Lambda1(BinderId(1), "y", "Int", TermShape.BoundReference(id0, "x"))
     )
