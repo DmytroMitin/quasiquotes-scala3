@@ -100,6 +100,32 @@ scala.meta.Defn (four concrete val/def families)
   -> positioned untpd.MemberDef + generated source + SourceFile
 ```
 
+`ScalametaDefinitionClassMemberAppendBridge` is the public bounded hybrid seam
+for consumers that already hold one admitted pre-Typer ordinary class. It first
+uses `ScalametaDefinitionGeneratedOriginBridge` unchanged, then passes that
+exact positioned `DefDef` or `ValDef` to the package-private
+`ExistingUntpdClassMemberAppender`. It returns the rebuilt class, the exact
+appended member, and the unchanged generated-source metadata.
+
+```text
+existing pre-Typer ordinary class + scala.meta.Defn + virtual source name
+  -> ScalametaDefinitionGeneratedOriginBridge.lower
+  -> exact positioned DefDef or ValDef
+  -> ExistingUntpdClassMemberAppender.append
+  -> rebuilt TypeDef + exact appended member + generated source + SourceFile
+```
+
+The result intentionally has mixed provenance. Every old direct member remains
+the exact original object at its original source, the new member retains its
+generated virtual source, and only the changed Template/class shells are fresh
+at the original same-site replacement source and span. Public failures are
+stage-oriented: `GENERATED_DEFINITION_FAILED` or
+`EXISTING_CLASS_APPEND_FAILED`, with the upstream stable code retained in the
+detail. The bridge appends exactly one member last, admits a final body size no
+greater than 64, and performs no lifecycle, target selection, rollback, typing,
+owner repair, multi-member insertion, or arbitrary-index editing. See the
+[bounded hybrid append guide](SCALAMETA_DEFINITION_CLASS_MEMBER_APPEND_BRIDGE.md).
+
 All Term and Definition operations other than the context-free Type bridge
 require an active Dotty `Context`. None performs target admission, insertion,
 rollback, typing, symbol ownership, or reownership.

@@ -88,6 +88,15 @@ origin bridge admits only the four concrete val/def families. Specialized
 contextual/refined-alias/instance-factory projectors and named peer bridges do
 not widen either generic boundary.
 
+The public exact-version `ScalametaDefinitionClassMemberAppendBridge` is a
+separate hybrid composition, not another cell on either fresh-lowering or
+existing-rewrite axis. For the same four concrete generated-origin families it
+authors one exact member through the existing Definition bridge, then delegates
+append-last reconstruction of one admitted existing ordinary class to the
+package-private U-U authority. Existing members keep identity/order and original
+source, the appended member keeps its generated virtual source, and only the
+class/Template shells are fresh at their original replacement site.
+
 ## Composition and rank summary
 
 | Composition | Current status | Boundary |
@@ -97,6 +106,7 @@ not widen either generic boundary.
 | `scala.meta.Type` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTypeUntypedBridge`; recursive Int/String/Boolean, fixed List/Option/Either, Tuple2/3 syntax, and Function1/2 syntax; source-free result |
 | `scala.meta.Defn` -> fresh source-free `untpd.MemberDef` | `BOUNDED` | Public exact-version `ScalametaDefinitionUntypedBridge`; five reusable Definition families |
 | `scala.meta.Defn` -> positioned generated-origin `untpd.MemberDef` | `BOUNDED` | Public exact-version `ScalametaDefinitionGeneratedOriginBridge`; four concrete val/def families only; caller owns target admission and insertion |
+| existing pre-Typer class + `scala.meta.Defn` -> rebuilt class | `BOUNDED` | Public exact-version `ScalametaDefinitionClassMemberAppendBridge`; exactly one generated member is appended last through the existing-tree authority, with caller-owned lifecycle and ordinary typing |
 | `Term` -> `qr` scalar position | `BOUNDED` | Caller-owned reflected Term transport in admitted scalar positions |
 | `Seq[Term]` -> `qr` Apply / one-list New arguments | `BOUNDED` | Exactly one rank-2 carrier in the admitted ordinary argument list |
 | `TypeRepr` / `tqr` -> `tqr` Type position | `BOUNDED` | Complete reflected Type slots in admitted templates |

@@ -196,7 +196,8 @@ names the concrete APIs, visibility boundaries, and current composition status.
   exact-version `ScalametaTermUntypedBridge` and context-free
   `ScalametaTypeUntypedBridge`, the public bounded exact-version
   `ScalametaTermGeneratedOriginBridge`, the bounded exact-version source-free
-  and generated-origin Scalameta Definition bridges, and five narrow experimental
+  and generated-origin Scalameta Definition bridges, the public bounded hybrid
+  `ScalametaDefinitionClassMemberAppendBridge`, and five narrow experimental
   foreign-package peer bridges: contextual-method lowering,
   bounded AUXify self abstract-Type-member lowering, delegated forwarding, and
   the bounded three-parameter refined Type alias, plus the exact bounded
@@ -228,6 +229,9 @@ and separate
 its
 public Type sibling is the
 [bounded Scalameta Type bridge](docs/SCALAMETA_TYPE_UNTYPED_BRIDGE.md); its
+public hybrid Definition/existing-class composition seam is the
+[bounded class-member append bridge](docs/SCALAMETA_DEFINITION_CLASS_MEMBER_APPEND_BRIDGE.md);
+its
 foreign-package definition surfaces include the focused
 [contextual-method bridge](docs/EXPERIMENTAL_CONTEXTUAL_METHOD_PEER_BRIDGE.md)
 and [self abstract-Type-member bridge](docs/SELF_ABSTRACT_TYPE_MEMBER_PEER_BRIDGE.md).
@@ -379,3 +383,13 @@ Parameter references are resolved by project binder identity rather than
 display text. Neither bridge generalizes parameter-list syntax nor owns target
 admission, insertion, rollback, ordinary typing, or owner/reownership work. See
 the [bounded Definition bridge contract](docs/SCALAMETA_DEFINITION_BRIDGES.md).
+
+`ScalametaDefinitionClassMemberAppendBridge` is the separate bounded hybrid
+composition for an already parsed pre-Typer ordinary class. It authors one of
+those four generated-origin val/def families, delegates exact append-last
+reconstruction to the existing-tree authority, and returns the rebuilt class
+plus the exact appended member. Old members retain their original objects and
+source, the new member retains its generated virtual source, and only the
+enclosing class/Template shells are fresh at their original replacement site.
+Macro/plugin lifecycle, target selection, rollback, and ordinary typing remain
+caller-owned.
