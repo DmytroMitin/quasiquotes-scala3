@@ -63,6 +63,14 @@ private[quasiquotes] object RankedDefinitionPatternExtractorFactory:
       RankedDefinitionPatternMatcher.extractCapturedModifiersNameNamedUsingParamsResult(target)
     )
 
+  def capturedNameNamedUsingParamsResult(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (String, Seq[q.reflect.ValDef], q.reflect.TypeRepr, q.reflect.Term)
+  ] =
+    new RankedDefinitionPatternExtractor(target =>
+      RankedDefinitionPatternMatcher.extractCapturedNameNamedUsingParamsResult(target)
+    )
+
   def capturedNameTypeParamsParamssResult(using q: Quotes): RankedDefinitionPatternExtractor[
     q.reflect.DefDef,
     (
@@ -157,6 +165,15 @@ private[matching] object RankedDefinitionPatternMatcher:
       )
       (modifiers, target.name, parameters, result, body)
     }
+
+  def extractCapturedNameNamedUsingParamsResult(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[(String, Seq[q.reflect.ValDef], q.reflect.TypeRepr, q.reflect.Term)] =
+    extractAdmittedNamedUsingDefinition(target)
+      .filter(_ => DefinitionModifierSemantics.isSemanticallyEmpty(target.symbol))
+      .map { (parameters, result, body) =>
+        (target.name, parameters, result, body)
+      }
 
   def extractCapturedNameTypeParamsParamssResult(using q: Quotes)(
       target: q.reflect.DefDef
