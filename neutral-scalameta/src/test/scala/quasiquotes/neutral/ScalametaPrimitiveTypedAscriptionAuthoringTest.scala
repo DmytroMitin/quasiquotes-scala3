@@ -93,10 +93,6 @@ final class ScalametaPrimitiveTypedAscriptionAuthoringTest extends munit.FunSuit
       TermShape.Typed(null, "Int") -> "NEUTRAL_TERM_AUTHORING_STRUCTURE_UNSUPPORTED",
       TermShape.Typed(TermShape.Parenthesized(free), "Int") ->
         "NEUTRAL_TERM_AUTHORING_FAMILY_UNSUPPORTED",
-      TermShape.Typed(
-        TermShape.Lambda1(BinderId(0), "x", "Int", free),
-        "Int"
-      ) -> "NEUTRAL_TERM_AUTHORING_FAMILY_UNSUPPORTED",
       TermShape.Typed(TermShape.Literal("01"), "Int") ->
         "NEUTRAL_TERM_AUTHORING_LITERAL_UNSUPPORTED",
       TermShape.Typed(TermShape.Identifier("bad-name", false), "Int") ->
@@ -107,7 +103,7 @@ final class ScalametaPrimitiveTypedAscriptionAuthoringTest extends munit.FunSuit
       assertErrorCode(shape, expectedCode)
     }
 
-  test("does not generalize the Parenthesized Lambda1 or public BoundReference fallbacks"):
+  test("does not generalize the Parenthesized or public BoundReference fallbacks"):
     val expected = Left(
       ScalametaTermShapeAuthoring.Error(
         "NEUTRAL_TERM_AUTHORING_FAMILY_UNSUPPORTED",
@@ -117,7 +113,6 @@ final class ScalametaPrimitiveTypedAscriptionAuthoringTest extends munit.FunSuit
 
     List(
       TermShape.Parenthesized(free),
-      TermShape.Lambda1(BinderId(0), "x", "Int", free),
       TermShape.BoundReference(BinderId(0), "x")
     ).foreach(shape => assertEquals(ScalametaTermShapeAuthoring.author(shape), expected))
 

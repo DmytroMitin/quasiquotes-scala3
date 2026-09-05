@@ -133,19 +133,20 @@ final class ScalametaP1BlockAuthoringTest extends munit.FunSuite:
       )
     )
 
-  test("rejects binder-bearing and independently excluded prefix or result children"):
+  test("authors Lambda children and rejects independently excluded BoundReference children"):
     val lambda = TermShape.Lambda1(
-      BinderId(3),
+      BinderId(0),
       "x",
       "Int",
-      TermShape.BoundReference(BinderId(3), "x")
+      TermShape.BoundReference(BinderId(0), "x")
     )
-    val excluded = List[TermShape](
-      lambda,
-      TermShape.BoundReference(BinderId(4), "x")
+    assertRoundTrip(block(List(lambda), result), author(block(List(lambda), result)))
+    assertRoundTrip(
+      block(List(TermShape.Literal("1")), lambda),
+      author(block(List(TermShape.Literal("1")), lambda))
     )
 
-    excluded.foreach(child =>
+    List[TermShape](TermShape.BoundReference(BinderId(4), "x")).foreach(child =>
       assertErrorCode(
         block(List(child), result),
         "NEUTRAL_TERM_AUTHORING_FAMILY_UNSUPPORTED"

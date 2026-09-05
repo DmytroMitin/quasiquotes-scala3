@@ -172,7 +172,6 @@ final class ScalametaStandardSInterpolationAuthoringTest extends munit.FunSuite:
 
   test("retains existing excluded child-family diagnostics before construction"):
     val excluded = List(
-      TermShape.Lambda1(BinderId(0), "x", "Int", freeX),
       TermShape.BoundReference(BinderId(0), "x"),
       TermShape.Parenthesized(freeX),
       TermShape.Unsupported("Term.Match", "outside N019")

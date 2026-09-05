@@ -26,15 +26,25 @@ object ScalametaTermShapeAuthoring:
       sourceName: String
   )
 
+  private final case class AuthoredLambdaBinder(
+      binderId: BinderId,
+      sourceName: String
+  )
+
   private final case class AuthoringScope(
       definitionBinders: Vector[AuthoredDefinitionBinder],
-      definitionBinderAware: Boolean
+      definitionBinderAware: Boolean,
+      lambdaBinder: Option[AuthoredLambdaBinder]
   ):
     def sourceNameFor(binderId: BinderId): Option[String] =
-      definitionBinders.find(_.binderId == binderId).map(_.sourceName)
+      lambdaBinder
+        .filter(_.binderId == binderId)
+        .map(_.sourceName)
+        .orElse(definitionBinders.find(_.binderId == binderId).map(_.sourceName))
 
   private val SupportedUnaryOperators = Set("+", "-", "!", "~")
-  private val BinderFreeScope = AuthoringScope(Vector.empty, definitionBinderAware = false)
+  private val BinderFreeScope =
+    AuthoringScope(Vector.empty, definitionBinderAware = false, lambdaBinder = None)
 
   def author(shape: TermShape): Either[Error, Term] =
     Option(shape)
@@ -50,7 +60,11 @@ object ScalametaTermShapeAuthoring:
       .toRight(error("NEUTRAL_TERM_AUTHORING_MISSING", "the TermShape must be present."))
       .flatMap(present =>
         validateDefinitionBinders(binders).flatMap { authoredBinders =>
-          val scope = AuthoringScope(authoredBinders, definitionBinderAware = true)
+          val scope = AuthoringScope(
+            authoredBinders,
+            definitionBinderAware = true,
+            lambdaBinder = None
+          )
           authorPresent(present, scope)
             .flatMap(candidate => validateDefinitionRoundTrip(present, candidate, authoredBinders))
         }
@@ -67,6 +81,15 @@ object ScalametaTermShapeAuthoring:
         case TermShape.Identifier(name, false) =>
           requirePresent(name, "identifier names must be present.")
             .flatMap(value => construct("identifier")(Term.Name(value)))
+        case TermShape.BoundReference(binderId, _) if scope.lambdaBinder.nonEmpty =>
+          Option(binderId)
+            .flatMap(scope.sourceNameFor)
+            .toRight(
+              lambdaScopeUnsupported(
+                "bound references inside Lambda1 must resolve to an active Lambda or Definition binder."
+              )
+            )
+            .flatMap(value => construct("lambda-scoped bound reference")(Term.Name(value)))
         case TermShape.BoundReference(binderId, _) if scope.definitionBinderAware =>
           Option(binderId)
             .flatMap(scope.sourceNameFor)
@@ -197,6 +220,8 @@ object ScalametaTermShapeAuthoring:
               Term.Ascribe(authoredExpression, authoredType)
             )
           yield authored
+        case TermShape.Lambda1(binderId, displayName, parameterType, body) =>
+          authorLambda1(binderId, displayName, parameterType, body, scope)
         case TermShape.Block(statements, result) =>
           for
             authoredStatements <- traverse(statements)(authorBlockStatement(_, scope))
@@ -213,6 +238,54 @@ object ScalametaTermShapeAuthoring:
             )
           )
       }
+
+  private def authorLambda1(
+      binderId: BinderId,
+      displayName: String,
+      parameterType: String,
+      body: TermShape,
+      scope: AuthoringScope
+  ): Either[Error, Term.Function] =
+    if scope.lambdaBinder.nonEmpty then
+      Left(
+        error(
+          "NEUTRAL_TERM_AUTHORING_LAMBDA_NESTED_UNSUPPORTED",
+          "nested Lambda1 terms are outside bounded Scalameta authoring."
+        )
+      )
+    else
+      for
+        presentBinderId <- Option(binderId).toRight(
+          lambdaScopeUnsupported("Lambda1 binder ids must be present.")
+        )
+        _ <- Either.cond(
+          !scope.definitionBinders.exists(_.binderId == presentBinderId),
+          (),
+          lambdaScopeUnsupported(
+            "a Lambda1 binder id must not collide with an active Definition binder id."
+          )
+        )
+        presentName <- requirePresent(displayName, "Lambda1 parameter names must be present.")
+        authoredType <- authorLambdaParameterType(parameterType)
+        parameterName <- construct("Lambda1 parameter name")(Term.Name(presentName))
+        authoredBody <- authorPresent(
+          body,
+          scope.copy(lambdaBinder = Some(AuthoredLambdaBinder(presentBinderId, presentName)))
+        )
+        authored <- construct("ordinary one-parameter Lambda1")(
+          Term.Function(
+            Term.ParamClause(
+              List(Term.Param(Nil, parameterName, Some(authoredType), None))
+            ),
+            authoredBody
+          )
+        )
+      yield authored
+
+  private def authorLambdaParameterType(typeName: String): Either[Error, Type.Name] =
+    typeName match
+      case "Int" | "String" | "Boolean" => Right(Type.Name(typeName))
+      case _ => Left(lambdaParameterTypeUnsupported)
 
   private def authorPrimitiveAscriptionType(typeName: String): Either[Error, Type.Name] =
     typeName match
@@ -375,6 +448,8 @@ object ScalametaTermShapeAuthoring:
       expected: TermShape,
       candidate: Term
   ): Either[Error, Term] =
+    val normalizedExpected = TermShapeTraversal.alphaNormalize(expected)
+
     ScalametaTermProjection
       .project(candidate)
       .left
@@ -385,9 +460,13 @@ object ScalametaTermShapeAuthoring:
         )
       )
       .flatMap(projected =>
+        val preservesMeaning =
+          if normalizedExpected == expected then projected.shape == expected
+          else TermShapeTraversal.alphaNormalize(projected.shape) == normalizedExpected
+
         for
           _ <- Either.cond(
-            projected.shape == expected,
+            preservesMeaning,
             (),
             error(
               "NEUTRAL_TERM_AUTHORING_ROUND_TRIP_REJECTED",
@@ -439,6 +518,15 @@ object ScalametaTermShapeAuthoring:
       "NEUTRAL_TERM_AUTHORING_TYPED_TYPE_UNSUPPORTED",
       "typed/ascribed authoring admits only canonical Int, String, and Boolean."
     )
+
+  private def lambdaParameterTypeUnsupported: Error =
+    error(
+      "NEUTRAL_TERM_AUTHORING_LAMBDA_PARAMETER_TYPE_UNSUPPORTED",
+      "Lambda1 parameter authoring admits only canonical Int, String, and Boolean."
+    )
+
+  private def lambdaScopeUnsupported(detail: String): Error =
+    error("NEUTRAL_TERM_AUTHORING_LAMBDA_SCOPE_UNSUPPORTED", detail)
 
   private def error(code: String, detail: String): Error =
     Error(code, detail)

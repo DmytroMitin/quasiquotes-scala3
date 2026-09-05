@@ -187,18 +187,11 @@ final class ScalametaDefinitionBinderAwareTermAuthoringTest extends munit.FunSui
       )
     )
 
-  test("retains existing unsupported families under seeded authoring"):
-    val unsupported = List(
+  test("retains the Parenthesized unsupported family under seeded authoring"):
+    assertErrorCode(
       TermShape.Parenthesized(TermShape.BoundReference(id0, "x")),
-      TermShape.Lambda1(BinderId(1), "y", "Int", TermShape.BoundReference(id0, "x"))
-    )
-
-    unsupported.foreach(shape =>
-      assertErrorCode(
-        shape,
-        Vector(xBinder),
-        "NEUTRAL_TERM_AUTHORING_FAMILY_UNSUPPORTED"
-      )
+      Vector(xBinder),
+      "NEUTRAL_TERM_AUTHORING_FAMILY_UNSUPPORTED"
     )
 
   private def binder(id: BinderId, name: DefinitionName): DefinitionBinder =

@@ -901,10 +901,9 @@ object ScalametaTermProjection:
                   )
                 )
                 .flatMap(projectLambda1ParameterType)
-              parameterName <- validateSourceName(
+              parameterName <- validateLambdaParameterName(
                 parameter.name.value,
-                "NEUTRAL_LAMBDA_PARAMETER_NAME_UNSUPPORTED",
-                "lambda parameter names"
+                "NEUTRAL_LAMBDA_PARAMETER_NAME_UNSUPPORTED"
               )
               binder = ActiveBinder(
                 parameterName,
@@ -1058,7 +1057,7 @@ object ScalametaTermProjection:
   ): Either[NeutralProjectionError, String] =
     Either.cond(
       Option(name).exists(value =>
-        value != "_" && PlainSourceName.matches(value) && !Scala3Keywords(value)
+        isPlainSourceName(value) && !Scala3Keywords(value)
       ),
       name,
       error(
@@ -1066,6 +1065,22 @@ object ScalametaTermProjection:
         s"$role require a non-keyword ASCII name matching [A-Za-z_][A-Za-z0-9_]*, excluding _."
       )
     )
+
+  private def validateLambdaParameterName(
+      name: String,
+      code: String
+  ): Either[NeutralProjectionError, String] =
+    Either.cond(
+      Option(name).exists(isPlainSourceName),
+      name,
+      error(
+        code,
+        "lambda parameter names require an ASCII name matching [A-Za-z_][A-Za-z0-9_]*, excluding _."
+      )
+    )
+
+  private def isPlainSourceName(value: String): Boolean =
+    value != "_" && PlainSourceName.matches(value)
 
   private def traverse[A, B](
       values: List[A]
