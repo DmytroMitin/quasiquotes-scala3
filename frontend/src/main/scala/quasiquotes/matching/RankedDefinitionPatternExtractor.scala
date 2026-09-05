@@ -90,6 +90,24 @@ private[quasiquotes] object RankedDefinitionPatternExtractorFactory:
       )
     )
 
+  def capturedNameMixedOrdinaryNamedUsingParamsResult(using
+      q: Quotes
+  ): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      String,
+      Seq[q.reflect.ValDef],
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    new RankedDefinitionPatternExtractor(target =>
+      RankedDefinitionPatternMatcher.extractCapturedNameMixedOrdinaryNamedUsingParamsResult(
+        target
+      )
+    )
+
   def capturedModifiersNameScala2ImplicitParamsResult(using q: Quotes): RankedDefinitionPatternExtractor[
     q.reflect.DefDef,
     (
@@ -238,6 +256,23 @@ private[matching] object RankedDefinitionPatternMatcher:
         )
         (modifiers, target.name, ordinaryParameters, usingParameters, result, body)
     }
+
+  def extractCapturedNameMixedOrdinaryNamedUsingParamsResult(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[
+    (
+      String,
+      Seq[q.reflect.ValDef],
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    extractAdmittedMixedOrdinaryNamedUsingDefinition(target)
+      .filter(_ => DefinitionModifierSemantics.isSemanticallyEmpty(target.symbol))
+      .map { (ordinaryParameters, usingParameters, result, body) =>
+        (target.name, ordinaryParameters, usingParameters, result, body)
+      }
 
   def extractCapturedModifiersNameScala2ImplicitParamsResult(using q: Quotes)(
       target: q.reflect.DefDef

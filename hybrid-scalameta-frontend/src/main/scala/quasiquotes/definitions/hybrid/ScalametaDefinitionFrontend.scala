@@ -28,6 +28,7 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
     case RankedParameterClauseSequence
     case CapturedNameRankedParameterClauseSequenceCapturedResult
     case CapturedNameNamedUsingParameterSequenceCapturedResult
+    case CapturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResult
     case CapturedNameScala2ImplicitParameterSequenceCapturedResult
     case CapturedModifiersNameNamedUsingParameterSequenceCapturedResult
     case CapturedModifiersNameMixedOrdinaryNamedUsingParameterSequencesCapturedResult
@@ -125,6 +126,16 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
   )
 
   final case class CapturedModifiersNameMixedOrdinaryNamedUsingParameterSequencesCapturedResultProjection(
+      methodSentinel: String,
+      firstOrdinaryParameterSentinel: String,
+      secondOrdinaryParameterSentinel: String,
+      firstUsingParameterSentinel: String,
+      secondUsingParameterSentinel: String,
+      resultSentinel: String,
+      bodySentinel: String
+  )
+
+  final case class CapturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResultProjection(
       methodSentinel: String,
       firstOrdinaryParameterSentinel: String,
       secondOrdinaryParameterSentinel: String,
@@ -233,6 +244,13 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
                   )
                 then
                   Right(PatternKind.CapturedNameNamedUsingParameterSequenceCapturedResult)
+                else if isExactCapturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResult(
+                    parts.toVector
+                  )
+                then
+                  Right(
+                    PatternKind.CapturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResult
+                  )
                 else if isExactCapturedNameScala2ImplicitParameterSequenceCapturedResult(
                     parts.toVector
                   )
@@ -362,6 +380,14 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
     projectCapturedModifiersNameMixedOrdinaryNamedUsingParameterSequencesCapturedResultPattern(
       parts
     )
+
+  def compileCapturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResultPattern(
+      parts: Seq[String]
+  ): Either[
+    Failure,
+    CapturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResultProjection
+  ] =
+    projectCapturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResultPattern(parts)
 
   def compileCapturedModifiersNameScala2ImplicitParameterSequenceCapturedResultPattern(
       parts: Seq[String]
@@ -1503,6 +1529,180 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
       bodySentinel
     )
 
+  private[quasiquotes] def projectCapturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResultPattern(
+      parts: Seq[String]
+  ): Either[
+    Failure,
+    CapturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResultProjection
+  ] =
+    for
+      checkedParts <- checkedParts(
+        parts,
+        6,
+        "semantic name, complete ordinary parameter sequence, complete named-using parameter sequence, semantic result Type, and complete body captures"
+      )
+      _ <- require(
+        isExactCapturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResult(checkedParts),
+        checkedParts.mkString.length,
+        "DEFINITION_PATTERN_CAPTURE_LAYOUT_UNSUPPORTED",
+        "only `def $name(..$params)(using ..$usingParams): $result = $body` is supported for the semantic-empty mixed ordinary/named-using five-capture Definition shape."
+      )
+      _ <- exactSourceGuard(checkedParts)
+      literalSource = checkedParts.mkString
+      methodSentinel = freshIndexed("__qq_scmeta_definition_method_", literalSource, Set.empty)
+      firstOrdinaryParameterSentinel = freshIndexed(
+        "__qq_scmeta_definition_ordinary_parameter_",
+        literalSource,
+        Set(methodSentinel)
+      )
+      secondOrdinaryParameterSentinel = freshIndexed(
+        "__qq_scmeta_definition_ordinary_parameter_",
+        literalSource,
+        Set(methodSentinel, firstOrdinaryParameterSentinel)
+      )
+      firstUsingParameterSentinel = freshIndexed(
+        "__qq_scmeta_definition_using_parameter_",
+        literalSource,
+        Set(methodSentinel, firstOrdinaryParameterSentinel, secondOrdinaryParameterSentinel)
+      )
+      secondUsingParameterSentinel = freshIndexed(
+        "__qq_scmeta_definition_using_parameter_",
+        literalSource,
+        Set(
+          methodSentinel,
+          firstOrdinaryParameterSentinel,
+          secondOrdinaryParameterSentinel,
+          firstUsingParameterSentinel
+        )
+      )
+      resultSentinel = freshIndexed(
+        "__qq_scmeta_definition_result_",
+        literalSource,
+        Set(
+          methodSentinel,
+          firstOrdinaryParameterSentinel,
+          secondOrdinaryParameterSentinel,
+          firstUsingParameterSentinel,
+          secondUsingParameterSentinel
+        )
+      )
+      bodySentinel = freshIndexed(
+        "__qq_scmeta_definition_body_",
+        literalSource,
+        Set(
+          methodSentinel,
+          firstOrdinaryParameterSentinel,
+          secondOrdinaryParameterSentinel,
+          firstUsingParameterSentinel,
+          secondUsingParameterSentinel,
+          resultSentinel
+        )
+      )
+      ordinaryMarkerOffset = checkedParts(1).lastIndexOf("..")
+      usingMarkerOffset = checkedParts(2).lastIndexOf("..")
+      source =
+        checkedParts(0) + methodSentinel + checkedParts(1).substring(0, ordinaryMarkerOffset) +
+          s"$firstOrdinaryParameterSentinel: Int, $secondOrdinaryParameterSentinel: String" +
+          checkedParts(2).substring(0, usingMarkerOffset) +
+          s"$firstUsingParameterSentinel: Ordering[Int], $secondUsingParameterSentinel: Numeric[Int]" +
+          checkedParts(3) + resultSentinel + checkedParts(4) + bodySentinel + checkedParts(5)
+      definition <- parseDefinition(source)
+      _ <- require(
+        definition.mods.isEmpty &&
+          definition.name.value == methodSentinel &&
+          definition.name.syntax == methodSentinel,
+        source.length,
+        "DEFINITION_PATTERN_CAPTURE_LAYOUT_UNSUPPORTED",
+        "the omitted-modifier position and method-name sentinel must remain structural."
+      )
+      group <- definition.paramClauseGroups match
+        case value :: Nil => Right(value)
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_GROUP_TOPOLOGY_UNSUPPORTED",
+            "expected exactly one nongeneric parameter-clause group."
+          )
+      _ <- require(
+        group.tparamClause.values.isEmpty,
+        source.length,
+        "TYPE_PARAMETERS_UNSUPPORTED",
+        "the semantic-empty mixed ordinary/named-using probe must not contain a type-parameter clause."
+      )
+      clauses <- group.paramClauses match
+        case ordinary :: using :: Nil if ordinary.mod.isEmpty && using.mod.exists(_.syntax == "using") =>
+          Right((ordinary, using))
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_CLAUSE_TOPOLOGY_UNSUPPORTED",
+            "the sentinels must occupy exactly one ordinary clause followed by one named using clause."
+          )
+      (ordinaryClause, usingClause) = clauses
+      ordinaryParameters <- ordinaryClause.values match
+        case first :: second :: Nil
+            if first.mods.isEmpty && first.default.isEmpty &&
+              second.mods.isEmpty && second.default.isEmpty =>
+          Right((first, second))
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_TOPOLOGY_UNSUPPORTED",
+            "the ordinary sentinel clause must contain two ordinary named parameters."
+          )
+      usingParameters <- usingClause.values match
+        case first :: second :: Nil
+            if first.mods.map(_.syntax) == List("using") && first.default.isEmpty &&
+              second.mods.map(_.syntax) == List("using") && second.default.isEmpty =>
+          Right((first, second))
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_TOPOLOGY_UNSUPPORTED",
+            "the named-using sentinel clause must contain two named contextual parameters."
+          )
+      (firstOrdinaryParameter, secondOrdinaryParameter) = ordinaryParameters
+      (firstUsingParameter, secondUsingParameter) = usingParameters
+      _ <- require(
+        firstOrdinaryParameter.name.value == firstOrdinaryParameterSentinel &&
+          firstOrdinaryParameter.name.syntax == firstOrdinaryParameterSentinel &&
+          firstOrdinaryParameter.decltpe.exists(_.syntax == "Int") &&
+          secondOrdinaryParameter.name.value == secondOrdinaryParameterSentinel &&
+          secondOrdinaryParameter.name.syntax == secondOrdinaryParameterSentinel &&
+          secondOrdinaryParameter.decltpe.exists(_.syntax == "String") &&
+          firstUsingParameter.name.value == firstUsingParameterSentinel &&
+          firstUsingParameter.name.syntax == firstUsingParameterSentinel &&
+          firstUsingParameter.decltpe.exists(_.syntax == "Ordering[Int]") &&
+          secondUsingParameter.name.value == secondUsingParameterSentinel &&
+          secondUsingParameter.name.syntax == secondUsingParameterSentinel &&
+          secondUsingParameter.decltpe.exists(_.syntax == "Numeric[Int]") &&
+          definition.decltpe.exists {
+            case value: Type.Name =>
+              value.value == resultSentinel && value.syntax == resultSentinel
+            case _ => false
+          },
+        source.length,
+        "DEFINITION_PATTERN_CAPTURE_LAYOUT_UNSUPPORTED",
+        "the ordinary, named-using, and result sentinels must remain in their exact structural positions."
+      )
+      _ <- definition.body match
+        case value: Term.Name if value.value == bodySentinel => Right(())
+        case _ =>
+          unsupported(
+            source.length,
+            "COMPLETE_BODY_CAPTURE_REQUIRED",
+            "the body capture must occupy the complete Definition right-hand side."
+          )
+    yield CapturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResultProjection(
+      methodSentinel,
+      firstOrdinaryParameterSentinel,
+      secondOrdinaryParameterSentinel,
+      firstUsingParameterSentinel,
+      secondUsingParameterSentinel,
+      resultSentinel,
+      bodySentinel
+    )
+
   private[quasiquotes] def projectCapturedModifiersNameScala2ImplicitParameterSequenceCapturedResultPattern(
       parts: Seq[String]
   ): Either[
@@ -2131,6 +2331,26 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
           ) =>
         beforeModifiers.trim.isEmpty &&
           beforeName.matches("(?s)\\s+def\\s+") &&
+          beforeOrdinaryParams.matches("(?s)\\s*\\(\\s*\\.\\.\\s*") &&
+          beforeUsingParams.matches("(?s)\\s*\\)\\s*\\(\\s*using\\s+\\.\\.\\s*") &&
+          beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&
+          beforeBody.matches("(?s)\\s*=\\s*") &&
+          suffix.trim.isEmpty
+      case _ => false
+
+  private def isExactCapturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResult(
+      parts: Vector[String]
+  ): Boolean =
+    parts match
+      case Vector(
+            prefix,
+            beforeOrdinaryParams,
+            beforeUsingParams,
+            beforeResult,
+            beforeBody,
+            suffix
+          ) =>
+        prefix.matches("(?s)\\s*def\\s+") &&
           beforeOrdinaryParams.matches("(?s)\\s*\\(\\s*\\.\\.\\s*") &&
           beforeUsingParams.matches("(?s)\\s*\\)\\s*\\(\\s*using\\s+\\.\\.\\s*") &&
           beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&

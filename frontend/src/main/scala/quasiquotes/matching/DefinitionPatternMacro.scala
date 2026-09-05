@@ -72,6 +72,15 @@ private[matching] object DefinitionPatternMacro:
                 )(using $callerQuotes)
             }
           case Right(
+                DefinitionPattern.StaticPatternKind.CapturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResult
+              ) =>
+            '{
+              DefinitionPattern
+                .capturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResultExtractor(
+                  $context
+                )(using $callerQuotes)
+            }
+          case Right(
                 DefinitionPattern.StaticPatternKind.CapturedNameScala2ImplicitParameterSequenceCapturedResult
               ) =>
             '{

@@ -180,9 +180,13 @@ final class MixedOrdinaryNamedUsingDefinitionClauseCaptureProductionTest extends
         "given-definition" -> provided,
         "null" -> null.asInstanceOf[DefDef]
       )
-      val extractor =
+      val captured =
         dqq(StringContext("", " def ", "(..", ")(using ..", "): ", " = ", ""))(using q)
-      targets.map((label, target) => label -> extractor.unapply(target).isEmpty)
+      val omitted =
+        dqq(StringContext("def ", "(..", ")(using ..", "): ", " = ", ""))(using q)
+      targets.map((label, target) =>
+        label -> (captured.unapply(target).isEmpty && omitted.unapply(target).isEmpty)
+      )
 
     rows.foreach(row => assert(row._2, row))
 
@@ -198,6 +202,7 @@ final class MixedOrdinaryNamedUsingDefinitionClauseCaptureProductionTest extends
 
     val accepted = patternMessages("""case dqq"$mods def $name(..$params)(using ..$usingParams): $result = $body" => ()""")
     val q028 = patternMessages("""case dqq"$mods def $name(using ..$usingParams): $result = $body" => ()""")
+    val q035 = patternMessages("""case dqq"def $name(..$params)(using ..$usingParams): $result = $body" => ()""")
     val rejected = List(
       patternMessages("""case dqq"private $mods def $name(..$params)(using ..$usingParams): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods final def $name(..$params)(using ..$usingParams): $result = $body" => ()"""),
@@ -220,12 +225,12 @@ final class MixedOrdinaryNamedUsingDefinitionClauseCaptureProductionTest extends
       patternMessages("""case dqq"$mods def $name(..$params)(using ..$usingParams): $result = $body + 1" => ()"""),
       patternMessages("""case dqq"$mods def $name(..$params)(using ..$usingParams): $result = $left + $right" => ()"""),
       patternMessages("""case dqq"$mods def $name(..$params)(using ..$usingParams): $result = $body extra" => ()"""),
-      patternMessages("""case dqq"$mods def $name(.$params)(using ..$usingParams): $result = $body" => ()"""),
-      patternMessages("""case dqq"def $name(..$params)(using ..$usingParams): $result = $body" => ()""")
+      patternMessages("""case dqq"$mods def $name(.$params)(using ..$usingParams): $result = $body" => ()""")
     )
 
     assertEquals(accepted, Nil)
     assertEquals(q028, Nil)
+    assertEquals(q035, Nil)
     assert(rejected.forall(_.nonEmpty), rejected)
     assert(rejected.flatten.forall(_.contains("Invalid dqq definition-pattern template")), rejected)
 
