@@ -8,7 +8,7 @@ import dotty.tools.dotc.util.{NoSource, SourceFile}
 
 /** Bounded exact-identity filtering of one existing ordinary class Template body. */
 private[quasiquotes] object ExistingUntpdClassMemberFilter:
-  private val MaxDirectMembers = 64
+  private[dotty] val MaxDirectMembers = 64
 
   enum ProvenanceKind:
     case PreservedOriginalObject
@@ -23,6 +23,11 @@ private[quasiquotes] object ExistingUntpdClassMemberFilter:
       originalRoot: untpd.TypeDef,
       originalTemplate: untpd.Template,
       members: Vector[Member]
+  )
+
+  private[dotty] final case class Reconstructed(
+      root: untpd.TypeDef,
+      template: untpd.Template
   )
 
   final case class Result private[dotty] (
@@ -142,6 +147,7 @@ private[quasiquotes] object ExistingUntpdClassMemberFilter:
       presentCapture <- Option(captured).toRight(
         error("CAPTURE_REQUIRED", "the U023 captured class was null.")
       )
+      _ <- validateCaptured(presentCapture)
       indices <- Option(retainedIndices).toRight(
         error("SELECTION_REQUIRED", "the retained-index selection was null.")
       )
@@ -179,16 +185,63 @@ private[quasiquotes] object ExistingUntpdClassMemberFilter:
       captured: Capture,
       retained: Vector[Member]
   )(using Context): Either[ExistingUntpdClassMemberFilterError, Result] =
+    val retainedTrees = retained.map(_.tree).toList
+    for
+      reconstructed <- reconstruct(captured, retainedTrees.toVector)
+      result = Result(
+        captured,
+        retained,
+        reconstructed.root,
+        reconstructed.template
+      )
+      _ <- verify(result)
+    yield result
+
+  private[dotty] def reconstruct(
+      captured: Capture,
+      bodyTrees: Vector[untpd.Tree]
+  )(using Context): Either[ExistingUntpdClassMemberFilterError, Reconstructed] =
+    for
+      _ <- validateCaptured(captured)
+      body <- Option(bodyTrees).toRight(
+        error("CAPTURE_INVARIANT_FAILED", "the replacement body vector was null.")
+      )
+      _ <- Either.cond(
+        body.size <= MaxDirectMembers,
+        (),
+        error(
+          "DIRECT_MEMBER_LIMIT_EXCEEDED",
+          s"the reconstructed Template would have ${body.size} direct members; the bounded limit is $MaxDirectMembers."
+        )
+      )
+      _ <- body.iterator.zipWithIndex.collectFirst {
+        case (member, index) if member == null || member.isEmpty => index
+      } match
+        case Some(index) =>
+          Left(
+            error(
+              "MALFORMED_DIRECT_MEMBER",
+              s"replacement direct member $index was null or EmptyTree."
+            )
+          )
+        case None => Right(())
+      reconstructed <- reconstructUnchecked(captured, body)
+    yield reconstructed
+
+  private def reconstructUnchecked(
+      captured: Capture,
+      bodyTrees: Vector[untpd.Tree]
+  )(using Context): Either[ExistingUntpdClassMemberFilterError, Reconstructed] =
     val originalRoot = captured.originalRoot
     val originalTemplate = captured.originalTemplate
-    val retainedTrees = retained.map(_.tree).toList
+    val body = bodyTrees.toList
     given SourceFile = NoSource
     val sourceFreeTemplate = untpd.Template(
       originalTemplate.constr,
       originalTemplate.parentsOrDerived,
       originalTemplate.derived,
       originalTemplate.self,
-      retainedTrees
+      body
     )
     val sourceFreeRoot =
       untpd.TypeDef(originalRoot.name, sourceFreeTemplate).withMods(originalRoot.mods)
@@ -197,14 +250,34 @@ private[quasiquotes] object ExistingUntpdClassMemberFilter:
       sourceFreeTemplate.parentsOrDerived,
       sourceFreeTemplate.derived,
       sourceFreeTemplate.self,
-      retainedTrees
+      body
     ).cloneIn(originalTemplate.source).withSpan(originalTemplate.span)
     val rebuiltRoot = untpd.cpy.TypeDef(sourceFreeRoot)(
       sourceFreeRoot.name,
       rebuiltTemplate
     ).cloneIn(originalRoot.source).withSpan(originalRoot.span)
-    val result = Result(captured, retained, rebuiltRoot, rebuiltTemplate)
-    verify(result).map(_ => result)
+    val valid =
+      !rebuiltRoot.eq(originalRoot) &&
+        !rebuiltTemplate.eq(originalTemplate) &&
+        rebuiltRoot.mods.eq(originalRoot.mods) &&
+        rebuiltTemplate.constr.eq(originalTemplate.constr) &&
+        rebuiltTemplate.parentsOrDerived.eq(originalTemplate.parentsOrDerived) &&
+        rebuiltTemplate.derived.eq(originalTemplate.derived) &&
+        rebuiltTemplate.self.eq(originalTemplate.self) &&
+        rebuiltRoot.source == originalRoot.source &&
+        rebuiltRoot.span == originalRoot.span &&
+        rebuiltTemplate.source == originalTemplate.source &&
+        rebuiltTemplate.span == originalTemplate.span &&
+        rebuiltTemplate.body.size == body.size &&
+        rebuiltTemplate.body.zip(body).forall((rebuilt, supplied) => rebuilt.eq(supplied))
+    Either.cond(
+      valid,
+      Reconstructed(rebuiltRoot, rebuiltTemplate),
+      error(
+        "INSERTION_READY_RECONSTRUCTION_FAILED",
+        "the reconstructed class/Template violated the bounded identity or original-site shell provenance invariant."
+      )
+    )
 
   private def verify(
       result: Result
@@ -260,7 +333,7 @@ private[quasiquotes] object ExistingUntpdClassMemberFilter:
         )
       case None => Right(())
 
-  private def allTrees(tree: untpd.Tree)(using Context): Vector[untpd.Tree] =
+  private[dotty] def allTrees(tree: untpd.Tree)(using Context): Vector[untpd.Tree] =
     val builder = Vector.newBuilder[untpd.Tree]
     val traverser = new untpd.UntypedTreeTraverser:
       override def traverse(current: untpd.Tree)(using Context): Unit =
@@ -268,6 +341,36 @@ private[quasiquotes] object ExistingUntpdClassMemberFilter:
         traverseChildren(current)
     traverser.traverse(tree)
     builder.result()
+
+  private[dotty] def validateCaptured(
+      captured: Capture
+  )(using Context): Either[ExistingUntpdClassMemberFilterError, Unit] =
+    val valid = Option(captured).exists { value =>
+      Option(value.originalRoot).exists { root =>
+        Option(value.originalTemplate).exists { template =>
+          Option(value.members).exists { members =>
+            Option(template.body).exists { body =>
+              root.rhs.eq(template) &&
+              members.size == body.size &&
+              members.zipWithIndex.forall { case (member, index) =>
+                member != null &&
+                member.index == index &&
+                member.tree != null &&
+                member.tree.eq(body(index))
+              }
+            }
+          }
+        }
+      }
+    }
+    Either.cond(
+      valid,
+      (),
+      error(
+        "CAPTURE_INVARIANT_FAILED",
+        "the captured class no longer matches its original TypeDef, Template, ordered indices, and direct-member identities."
+      )
+    )
 
   private def firstDuplicate(indices: Vector[Int]): Option[Int] =
     val seen = scala.collection.mutable.HashSet.empty[Int]
