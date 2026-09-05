@@ -263,7 +263,7 @@ final class ScalametaP2LocalValAuthoringTest extends munit.FunSuite:
     )
     assertErrorCode(sameNameUnderLambda, "NEUTRAL_TERM_AUTHORING_ROUND_TRIP_REJECTED")
 
-  test("preserves public raw BoundReference Parenthesized and local-def exclusions"):
+  test("preserves public raw BoundReference Parenthesized and invalid-P3 exclusions"):
     assertEquals(
       ScalametaTermShapeAuthoring.author(bound(id0, "x")),
       Left(
@@ -288,7 +288,7 @@ final class ScalametaP2LocalValAuthoringTest extends munit.FunSuite:
     )
     assertErrorCode(
       TermShape.Block(List(localDef), TermShape.Identifier("identity", false)),
-      "NEUTRAL_TERM_AUTHORING_FAMILY_UNSUPPORTED"
+      "NEUTRAL_TERM_AUTHORING_P3_RESULT_UNSUPPORTED"
     )
 
   private def p2(

@@ -1,7 +1,7 @@
 package quasiquotes.neutral
 
 import _root_.quasiquotes.definitions.DefinitionName
-import _root_.quasiquotes.parser.{BinderId, BlockStatement, ConstructorNamePolicy, TermShape}
+import _root_.quasiquotes.parser.{BinderId, BlockStatement, ConstructorNamePolicy, TermShape, TypeShape}
 import _root_.quasiquotes.terms.TermShapeTraversal
 
 import scala.annotation.nowarn
@@ -249,6 +249,11 @@ object ScalametaTermShapeAuthoring:
         case TermShape.Lambda1(binderId, displayName, parameterType, body) =>
           authorLambda1(binderId, displayName, parameterType, body, scope)
         case TermShape.Block(
+              (local: BlockStatement.LocalDef) :: Nil,
+              result
+            ) =>
+          authorP3LocalIdentityDef(local, result, scope)
+        case TermShape.Block(
               (local: BlockStatement.LocalVal) :: Nil,
               result
             ) =>
@@ -313,6 +318,101 @@ object ScalametaTermShapeAuthoring:
         )
       yield authored
 
+  private def authorP3LocalIdentityDef(
+      local: BlockStatement.LocalDef,
+      result: TermShape,
+      scope: AuthoringScope
+  ): Either[Error, Term.Block] =
+    for
+      methodBinderId <- Option(local.methodBinderId).toRight(
+        p3ScopeUnsupported("P3 local method binder ids must be present.")
+      )
+      parameterBinderId <- Option(local.parameterBinderId).toRight(
+        p3ScopeUnsupported("P3 local parameter binder ids must be present.")
+      )
+      _ <- Either.cond(
+        methodBinderId != parameterBinderId,
+        (),
+        p3ScopeUnsupported("P3 method and parameter binder ids must be distinct.")
+      )
+      _ <- Either.cond(
+        !scope.definitionBinders.exists(binder =>
+          binder.binderId == methodBinderId || binder.binderId == parameterBinderId
+        ) &&
+          !scope.lambdaBinder.exists(binder =>
+            binder.binderId == methodBinderId || binder.binderId == parameterBinderId
+          ) &&
+          !scope.p2LocalValBinder.exists(binder =>
+            binder.binderId == methodBinderId || binder.binderId == parameterBinderId
+          ),
+        (),
+        p3ScopeUnsupported(
+          "P3 method and parameter binder ids must not collide with active Definition, Lambda, or P2 binders."
+        )
+      )
+      _ <- Either.cond(
+        scope.lambdaBinder.isEmpty && scope.p2LocalValBinder.isEmpty,
+        (),
+        p3NestedUnsupported
+      )
+      _ <- Either.cond(
+        scope.definitionBinders.forall(_.binderId.value <= Int.MaxValue - 2),
+        (),
+        p3ScopeUnsupported(
+          "P3 authoring requires capacity for two fresh projector binder ids after the active Definition scope."
+        )
+      )
+      methodName <- requirePresent(
+        local.methodDisplayName,
+        "P3 local method names must be present."
+      )
+      parameterName <- requirePresent(
+        local.parameterDisplayName,
+        "P3 local parameter names must be present."
+      )
+      typeName <- authorP3IdentityType(local.parameterType, local.resultType)
+      _ <- local.body match
+        case TermShape.BoundReference(binderId, _) if binderId == parameterBinderId => Right(())
+        case _ => Left(p3BodyUnsupported)
+      _ <- result match
+        case TermShape.BoundReference(binderId, _) if binderId == methodBinderId => Right(())
+        case _ => Left(p3ResultUnsupported)
+      authoredMethodName <- construct("P3 local method declaration name")(Term.Name(methodName))
+      authoredParameterName <- construct("P3 local parameter declaration name")(Term.Name(parameterName))
+      authoredParameterType <- construct("P3 local parameter type")(Type.Name(typeName))
+      authoredResultType <- construct("P3 local result type")(Type.Name(typeName))
+      authoredBody <- construct("P3 local method body reference")(Term.Name(parameterName))
+      authoredResult <- construct("P3 local method result reference")(Term.Name(methodName))
+      authoredDefinition <- construct("P3 local identity method")(
+        Defn.Def(
+          Nil,
+          authoredMethodName,
+          List(
+            Member.ParamClauseGroup(
+              Type.ParamClause(Nil),
+              List(
+                Term.ParamClause(
+                  List(
+                    Term.Param(
+                      Nil,
+                      authoredParameterName,
+                      Some(authoredParameterType),
+                      None
+                    )
+                  )
+                )
+              )
+            )
+          ),
+          Some(authoredResultType),
+          authoredBody
+        )
+      )
+      authored <- construct("P3 local identity-method block")(
+        Term.Block(List(authoredDefinition, authoredResult))
+      )
+    yield authored
+
   private def authorP2LocalVal(
       local: BlockStatement.LocalVal,
       result: TermShape,
@@ -368,6 +468,17 @@ object ScalametaTermShapeAuthoring:
     typeName match
       case "Int" | "String" | "Boolean" | "AnyVal" => Right(Type.Name(typeName))
       case _ => Left(p2DeclaredTypeUnsupported)
+
+  private def authorP3IdentityType(
+      parameterType: TypeShape,
+      resultType: TypeShape
+  ): Either[Error, String] =
+    (parameterType, resultType) match
+      case (TypeShape.Identifier(parameter), TypeShape.Identifier(result))
+          if parameter == result &&
+            (parameter == "Int" || parameter == "String" || parameter == "Boolean") =>
+        Right(parameter)
+      case _ => Left(p3TypeUnsupported)
 
   private def authorLambdaParameterType(typeName: String): Either[Error, Type.Name] =
     typeName match
@@ -623,6 +734,33 @@ object ScalametaTermShapeAuthoring:
 
   private def p2ScopeUnsupported(detail: String): Error =
     error("NEUTRAL_TERM_AUTHORING_P2_SCOPE_UNSUPPORTED", detail)
+
+  private def p3ScopeUnsupported(detail: String): Error =
+    error("NEUTRAL_TERM_AUTHORING_P3_SCOPE_UNSUPPORTED", detail)
+
+  private def p3TypeUnsupported: Error =
+    error(
+      "NEUTRAL_TERM_AUTHORING_P3_TYPE_UNSUPPORTED",
+      "P3 identity method authoring requires equal canonical Int, String, or Boolean parameter and result Types."
+    )
+
+  private def p3BodyUnsupported: Error =
+    error(
+      "NEUTRAL_TERM_AUTHORING_P3_BODY_UNSUPPORTED",
+      "P3 identity method bodies must be exactly the local parameter BoundReference."
+    )
+
+  private def p3ResultUnsupported: Error =
+    error(
+      "NEUTRAL_TERM_AUTHORING_P3_RESULT_UNSUPPORTED",
+      "P3 block results must be exactly the local method BoundReference."
+    )
+
+  private def p3NestedUnsupported: Error =
+    error(
+      "NEUTRAL_TERM_AUTHORING_P3_NESTED_UNSUPPORTED",
+      "a P3 local identity method nested under Lambda1 or P2 is outside bounded Scalameta authoring."
+    )
 
   private def error(code: String, detail: String): Error =
     Error(code, detail)
