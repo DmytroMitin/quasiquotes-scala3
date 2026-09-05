@@ -182,6 +182,13 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
   )(using Context): Either[ConstructedTermGeneratedOriginError, untpd.Tree] =
     position(raw, fragment.root.shifted(baseOffset), source)
 
+  private[quasiquotes] def validatePositionedTypeAgainstPlan(
+      tree: untpd.Tree,
+      fragment: TypeFragment,
+      baseOffset: Int
+  )(using Context): Either[ConstructedTermGeneratedOriginError, Unit] =
+    validateTreeAgainstPlan(tree, fragment.root.shifted(baseOffset))
+
   def validatePositionedTree(
       tree: untpd.Tree,
       expectedSource: SourceFile,
@@ -1479,6 +1486,33 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
       (),
       IncompletePositionMap(errors.mkString("; "))
     )
+
+  private def validateTreeAgainstPlan(
+      tree: untpd.Tree,
+      plan: NodePlan
+  )(using Context): Either[ConstructedTermGeneratedOriginError, Unit] =
+    if tree.span != plan.span then
+      Left(
+        IncompletePositionMap(
+          s"${tree.getClass.getSimpleName} span ${tree.span} did not match exact planned span ${plan.span}"
+        )
+      )
+    else
+      val children = directChildren(tree)
+      if children.size != plan.children.size then
+        Left(
+          IncompletePositionMap(
+            s"${tree.getClass.getSimpleName} had ${children.size} material children instead of planned ${plan.children.size}"
+          )
+        )
+      else
+        children
+          .zip(plan.children)
+          .foldLeft[Either[ConstructedTermGeneratedOriginError, Unit]](
+            Right(())
+          ) { case (validated, (child, childPlan)) =>
+            validated.flatMap(_ => validateTreeAgainstPlan(child, childPlan))
+          }
 
   private[quasiquotes] def allTrees(
       tree: untpd.Tree

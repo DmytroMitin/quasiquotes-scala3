@@ -19,13 +19,20 @@ import quasiquotes.types.TypeNormalForm
 private[quasiquotes] object DefinitionShapeUntypedLowerer:
   import DefinitionShapeUntypedLowererError.*
 
+  private[dotty] final case class LoweredSimpleTypeAlias(
+      name: DefinitionName,
+      normalForm: TypeNormalForm,
+      tree: untpd.TypeDef
+  )
+
   def lower(
       shape: DefinitionShape
   )(using Context): Either[DefinitionShapeUntypedLowererError, untpd.Tree] =
     Option(shape)
       .toRight(MissingDefinitionShape)
       .flatMap {
-        case alias: DefinitionShape.SimpleTypeAlias => lowerAlias(alias)
+        case alias: DefinitionShape.SimpleTypeAlias =>
+          lowerSimpleTypeAlias(alias).map(_.tree)
         case ordinary: DefinitionShape.ImmutableVal =>
           lowerOrdinary(ordinary, ordinary.rhs)
         case ordinary: DefinitionShape.ParameterlessDef =>
@@ -59,9 +66,12 @@ private[quasiquotes] object DefinitionShapeUntypedLowerer:
       _ <- validateRawInvariant(raw, "ordinary DefinitionShape")
     yield raw
 
-  private def lowerAlias(
+  private[dotty] def lowerSimpleTypeAlias(
       alias: DefinitionShape.SimpleTypeAlias
-  )(using Context): Either[DefinitionShapeUntypedLowererError, untpd.Tree] =
+  )(using Context): Either[
+    DefinitionShapeUntypedLowererError,
+    LoweredSimpleTypeAlias
+  ] =
     given SourceFile = NoSource
 
     for
@@ -86,19 +96,22 @@ private[quasiquotes] object DefinitionShapeUntypedLowerer:
         .map(SimpleTypeAliasCompletedTypeFailure.apply)
       raw = untpd.TypeDef(rawName, rawRhs)
       _ <- validateAlias(raw, rawRhs)
-    yield raw
+    yield LoweredSimpleTypeAlias(alias.name, normalForm, raw)
 
   private def lowerAliasName(
       name: DefinitionName
   ) =
-    Option(name)
-      .flatMap { value =>
-        DefinitionName
-          .fromSource(value.source)
-          .toOption
-          .filter(_.decoded == value.decoded)
-          .map(_ => typeName(value.decoded))
-      }
+    Option(name).flatMap { value =>
+      for
+        source <- Option(value.source)
+        decoded <- Option(value.decoded)
+        spelling <- Option(value.spelling)
+        roundTripped <- DefinitionName.fromSource(source).toOption
+        if roundTripped.decoded == decoded &&
+          roundTripped.source == source &&
+          roundTripped.spelling == spelling
+      yield typeName(decoded)
+    }
       .toRight(
         SimpleTypeAliasNameFailure(
           "the validated DefinitionName did not round-trip through its source spelling."
