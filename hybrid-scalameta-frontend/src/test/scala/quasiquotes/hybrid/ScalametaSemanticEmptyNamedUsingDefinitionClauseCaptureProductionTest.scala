@@ -121,6 +121,7 @@ final class ScalametaSemanticEmptyNamedUsingDefinitionClauseCaptureProductionTes
 
     val q029 = patternMessages("""case dqq"def $name(using ..$params): $result = $body" => ()""")
     val q028 = patternMessages("""case dqq"$mods def $name(using ..$params): $result = $body" => ()""")
+    val q031 = patternMessages("""case dqq"$mods def $name(implicit ..$params): $result = $body" => ()""")
     val rejected = List(
       patternMessages("""case dqq"private def $name(using ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"def fixed(using ..$params): $result = $body" => ()"""),
@@ -132,7 +133,6 @@ final class ScalametaSemanticEmptyNamedUsingDefinitionClauseCaptureProductionTes
       patternMessages("""case dqq"def $name(..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(value: Int)(using ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(using ..$first)(using ..$second): $result = $body" => ()"""),
-      patternMessages("""case dqq"def $name(implicit ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(using erased ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(using ..$params): Int = $body" => ()"""),
       patternMessages("""case dqq"def $name(using ..$params): $result = $body + 1" => ()"""),
@@ -143,6 +143,7 @@ final class ScalametaSemanticEmptyNamedUsingDefinitionClauseCaptureProductionTes
 
     assertEquals(q029, Nil)
     assertEquals(q028, Nil)
+    assertEquals(q031, Nil)
     assert(rejected.forall(_.nonEmpty), rejected)
     assert(rejected.flatten.forall(_.contains("Invalid Scalameta dqq definition-pattern template")), rejected)
 

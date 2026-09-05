@@ -6,13 +6,13 @@ import scala.language.experimental.erasedDefinitions
 import scala.quoted.*
 import scala.quoted.staging.{Compiler, withQuotes}
 
-final class Q028Annotation extends StaticAnnotation
+final class Q031Annotation extends StaticAnnotation
 
-final class NamedUsingDefinitionClauseCaptureProductionTest extends munit.FunSuite:
-  test("external packages receive exact direct and umbrella Q028 capture types"):
-    val _ = external.consumer.Q028ExternalNamedUsingDefinitionClauseConsumer
+final class Scala2ImplicitDefinitionClauseCaptureProductionTest extends munit.FunSuite:
+  test("external packages receive exact direct and umbrella Q031 capture types"):
+    val _ = external.consumer.Q031ExternalScala2ImplicitDefinitionClauseConsumer
 
-  test("Q028 captures exact modifiers binders result and body for 1 2 and N named using parameters"):
+  test("Q031 captures exact modifiers binders result and body for 1 2 3 and N implicit parameters"):
     import quasiquotes.Quasiquotes.dqq
 
     given Compiler = Compiler.make(getClass.getClassLoader)
@@ -21,16 +21,21 @@ final class NamedUsingDefinitionClauseCaptureProductionTest extends munit.FunSui
       import q.reflect.*
 
       val definitions = fixtureDefinitions(using q)
-      val extractor = dqq(StringContext("", " def ", "(using ..", "): ", " = ", ""))(using q)
+      val extractor = dqq(StringContext("", " def ", "(implicit ..", "): ", " = ", ""))(using q)
       val names = List(
         "one",
         "two",
         "three",
         "many",
-        "privateUsing",
-        "finalUsing",
-        "annotatedUsing",
-        "qualifiedUsing"
+        "nestedResult",
+        "privateImplicit",
+        "protectedImplicit",
+        "finalImplicit",
+        "overrideImplicit",
+        "annotatedImplicit",
+        "qualifiedPrivateImplicit",
+        "qualifiedProtectedImplicit",
+        "implicitMethod"
       )
 
       def sameScope(left: Option[TypeRepr], right: Option[TypeRepr]): Boolean =
@@ -58,7 +63,8 @@ final class NamedUsingDefinitionClauseCaptureProductionTest extends munit.FunSui
           captured._3.forall(parameter =>
             parameter.symbol != Symbol.noSymbol &&
               parameter.symbol.owner == target.symbol &&
-              parameter.symbol.flags.is(Flags.Given) &&
+              parameter.symbol.flags.is(Flags.Implicit) &&
+              !parameter.symbol.flags.is(Flags.Given) &&
               !parameter.symbol.flags.is(Flags.Synthetic) &&
               !parameter.symbol.flags.is(Flags.Erased) &&
               !parameter.symbol.flags.is(Flags.HasDefault)
@@ -66,7 +72,8 @@ final class NamedUsingDefinitionClauseCaptureProductionTest extends munit.FunSui
           captured._3.map(_.symbol).distinct.size == captured._3.size,
           target.symbol.paramSymss == List(clause.params.map(_.symbol)),
           captured._4 =:= target.returnTpt.tpe,
-          target.rhs.exists(_ eq captured._5)
+          target.rhs.exists(_ eq captured._5),
+          clause.isImplicit && !clause.isGiven && !clause.isErased
         )
       }
 
@@ -83,6 +90,7 @@ final class NamedUsingDefinitionClauseCaptureProductionTest extends munit.FunSui
       assert(row._12, row)
       assert(row._13, row)
       assert(row._14, row)
+      assert(row._15, row)
     }
     val cardinalities = rows.map(row => row._1 -> row._7).toMap
     assertEquals(cardinalities("one"), 1)
@@ -90,7 +98,7 @@ final class NamedUsingDefinitionClauseCaptureProductionTest extends munit.FunSui
     assertEquals(cardinalities("three"), 3)
     assertEquals(cardinalities("many"), 4)
 
-  test("Q028 rejects every still-closed target family including context-bound aliases"):
+  test("Q031 rejects every nonimplicit generic malformed and nondefinition target family"):
     import quasiquotes.matching.DefinitionPattern.dqq
 
     given Compiler = Compiler.make(getClass.getClassLoader)
@@ -109,12 +117,12 @@ final class NamedUsingDefinitionClauseCaptureProductionTest extends munit.FunSui
         traversal.traverseTree(expression.asTerm)(Symbol.spliceOwner)
         found.head
 
-      val exact = definition('{ def exact(using first: Ordering[Int], second: Numeric[Int]): Int = 1; () }, "exact")
-      val foreign = definition('{ def foreign(using first: Ordering[Int], second: Numeric[Int]): Int = 1; () }, "foreign")
+      val exact = definition('{ def exact(implicit first: Ordering[Int], second: Numeric[Int]): Int = 1; () }, "exact")
+      val foreign = definition('{ def foreign(implicit first: Ordering[Int], second: Numeric[Int]): Int = 1; () }, "foreign")
       val clause = exact.paramss.head.asInstanceOf[TermParamClause]
-      val extractor = dqq(StringContext("", " def ", "(using ..", "): ", " = ", ""))(using q)
-      val constructor = definition('{ class Sample(using value: Int); () }, "<init>")
-      val extension = definition('{ extension (value: Int) def expanded(using other: Int): Int = value + other; () }, "expanded")
+      val extractor = dqq(StringContext("", " def ", "(implicit ..", "): ", " = ", ""))(using q)
+      val constructor = definition('{ class Sample(implicit value: Int); () }, "<init>")
+      val extension = definition('{ extension (value: Int) def expanded(implicit other: Int): Int = value + other; () }, "expanded")
       val provided = definition('{ given provided(using value: Int): Int = value; () }, "provided")
       def flaggedAccessor(flags: Flags): DefDef =
         val symbol = Symbol.newMethod(
@@ -130,16 +138,16 @@ final class NamedUsingDefinitionClauseCaptureProductionTest extends munit.FunSui
         "ordinary" -> definition('{ def ordinary(value: Int): Int = value; () }, "ordinary"),
         "zero-clauses" -> definition('{ def zero: Int = 0; () }, "zero"),
         "empty-ordinary" -> definition('{ def empty(): Int = 0; () }, "empty"),
+        "named-using" -> definition('{ def named(using value: Int): Int = value; () }, "named"),
         "anonymous-using" -> definition('{ def anonymous(using Ordering[Int]): Int = 1; () }, "anonymous"),
-        "scala2-implicit" -> definition('{ def old(implicit value: Int): Int = value; () }, "old"),
-        "erased" -> definition('{ def erasedClause(erased value: Int): Int = 0; () }, "erasedClause"),
-        "mixed" -> definition('{ def mixed(value: Int)(using ordering: Ordering[Int]): Int = value; () }, "mixed"),
-        "multiple-using" -> definition('{ def multiple(using ordering: Ordering[Int])(using numeric: Numeric[Int]): Int = 1; () }, "multiple"),
+        "generic-implicit" -> definition('{ def genericImplicit[A](implicit ordering: Ordering[A]): Int = 1; () }, "genericImplicit"),
         "context-bound" -> definition('{ def bounded[A: Ordering]: Int = 1; () }, "bounded"),
         "context-bound-ordinary" -> definition('{ def boundedOrdinary[A: Ordering](value: A): A = value; () }, "boundedOrdinary"),
         "context-bound-using" -> definition('{ def boundedUsing[A: Ordering](using marker: Numeric[Int]): Int = 1; () }, "boundedUsing"),
-        "generic" -> definition('{ def generic[A](using value: Ordering[A]): Int = 1; () }, "generic"),
-        "default" -> definition('{ def defaulted(using value: Int = 1): Int = value; () }, "defaulted"),
+        "ordinary-then-implicit" -> definition('{ def mixed(value: Int)(implicit ordering: Ordering[Int]): Int = value; () }, "mixed"),
+        "multiple-implicit-like" -> DefDef.copy(exact)(exact.name, List(clause, clause), exact.returnTpt, exact.rhs),
+        "erased" -> definition('{ def erasedClause(erased value: Int): Int = 0; () }, "erasedClause"),
+        "default" -> definition('{ def defaulted(implicit value: Int = 1): Int = value; () }, "defaulted"),
         "foreign-owner" -> DefDef.copy(exact)(exact.name, foreign.paramss, exact.returnTpt, exact.rhs),
         "duplicate-symbol" -> DefDef.copy(exact)(exact.name, List(TermParamClause(List(clause.params.head, clause.params.head))), exact.returnTpt, exact.rhs),
         "reordered-symbols" -> DefDef.copy(exact)(exact.name, List(TermParamClause(clause.params.reverse)), exact.returnTpt, exact.rhs),
@@ -157,30 +165,7 @@ final class NamedUsingDefinitionClauseCaptureProductionTest extends munit.FunSui
 
     rows.foreach(row => assert(row._2, row))
 
-  test("Q028 does not widen complete paramss siblings"):
-    import quasiquotes.Quasiquotes.dqq
-
-    given Compiler = Compiler.make(getClass.getClassLoader)
-    val result = withQuotes:
-      val q = summon[Quotes]
-      import q.reflect.*
-      val target = fixtureDefinitions(using q)("one")
-      val q020 = dqq(StringContext("def ", "(...", "): ", " = ", ""))(using q)
-      val q026 = dqq(StringContext("", " def ", "(...", "): ", " = ", ""))(using q)
-      val q022 = dqq(StringContext("def ", "[..", "](...", "): ", " = ", ""))(using q)
-      val q025 = dqq(StringContext("", " def ", "[..", "](...", "): ", " = ", ""))(using q)
-      val q028 = dqq(StringContext("", " def ", "(using ..", "): ", " = ", ""))(using q)
-      (
-        q028.unapply(target).nonEmpty,
-        q020.unapply(target).isEmpty,
-        q026.unapply(target).isEmpty,
-        q022.unapply(target).isEmpty,
-        q025.unapply(target).isEmpty
-      )
-
-    assertEquals(result, (true, true, true, true, true))
-
-  test("standard selector admits only the exact Q028 static grammar"):
+  test("standard selector admits only the exact Q031 static grammar and preserves sibling selection"):
     inline def messages(inline source: String): List[String] = typeCheckErrors(source).map(_.message)
     inline def patternMessages(inline pattern: String): List[String] =
       messages(
@@ -190,33 +175,42 @@ final class NamedUsingDefinitionClauseCaptureProductionTest extends munit.FunSui
              case _ => ()"""
       )
 
-    val accepted = patternMessages("""case dqq"$mods def $name(using ..$params): $result = $body" => ()""")
-    val q031 = patternMessages("""case dqq"$mods def $name(implicit ..$params): $result = $body" => ()""")
+    val accepted = patternMessages("""case dqq"$mods def $name(implicit ..$params): $result = $body" => ()""")
+    val siblingAccepted = List(
+      patternMessages("""case dqq"$mods def $name(using ..$params): $result = $body" => ()"""),
+      patternMessages("""case dqq"def $name(using ..$params): $result = $body" => ()"""),
+      patternMessages("""case dqq"def $name(...$paramss): $result = $body" => ()"""),
+      patternMessages("""case dqq"$mods def $name(...$paramss): $result = $body" => ()"""),
+      patternMessages("""case dqq"def $name[..$tparams](...$paramss): $result = $body" => ()"""),
+      patternMessages("""case dqq"$mods def $name[..$tparams](...$paramss): $result = $body" => ()""")
+    )
     val rejected = List(
-      patternMessages("""case dqq"private def $name(using ..$params): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods final def $name(using ..$params): $result = $body" => ()"""),
-      patternMessages("""case dqq"$left $right def $name(using ..$params): $result = $body" => ()"""),
-      patternMessages("""case dqq"$modsdef $name(using ..$params): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods def fixed(using ..$params): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods def $name[..$tparams](using ..$params): $result = $body" => ()"""),
+      patternMessages("""case dqq"def $name(implicit ..$params): $result = $body" => ()"""),
+      patternMessages("""case dqq"private def $name(implicit ..$params): $result = $body" => ()"""),
+      patternMessages("""case dqq"$mods final def $name(implicit ..$params): $result = $body" => ()"""),
+      patternMessages("""case dqq"$left $right def $name(implicit ..$params): $result = $body" => ()"""),
+      patternMessages("""case dqq"$modsdef $name(implicit ..$params): $result = $body" => ()"""),
+      patternMessages("""case dqq"$mods def fixed(implicit ..$params): $result = $body" => ()"""),
+      patternMessages("""case dqq"$mods def $name[..$tparams](implicit ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(..$params): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods def $name(using ...$paramss): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods def $name(using fixed: Int, ..$params): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods def $name(using ..$params, fixed: Int): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods def $name(using ..$first)(using ..$second): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods def $name(using erased ..$params): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods def $name(using ..$params): Int = $body" => ()"""),
-      patternMessages("""case dqq"$mods def $name(using ..$params): $result = $body + 1" => ()"""),
-      patternMessages("""case dqq"$mods def $name(using ..$params): $result = $left + $right" => ()"""),
-      patternMessages("""case dqq"$mods def $name(using ..$params): $result = $body extra" => ()""")
+      patternMessages("""case dqq"$mods def $name(implicit ...$paramss): $result = $body" => ()"""),
+      patternMessages("""case dqq"$mods def $name(implicit fixed: Int, ..$params): $result = $body" => ()"""),
+      patternMessages("""case dqq"$mods def $name(implicit ..$params, fixed: Int): $result = $body" => ()"""),
+      patternMessages("""case dqq"$mods def $name(value: Int)(implicit ..$params): $result = $body" => ()"""),
+      patternMessages("""case dqq"$mods def $name(implicit ..$first)(implicit ..$second): $result = $body" => ()"""),
+      patternMessages("""case dqq"$mods def $name(implicit ..$params): Int = $body" => ()"""),
+      patternMessages("""case dqq"$mods def $name(implicit ..$params): $result = $body + 1" => ()"""),
+      patternMessages("""case dqq"$mods def $name(implicit ..$params): $result = $left + $right" => ()"""),
+      patternMessages("""case dqq"$mods def $name(implicit ..$params): $result = $body extra" => ()"""),
+      patternMessages("""case dqq"$mods def $name(implicit .$params): $result = $body" => ()""")
     )
 
     assertEquals(accepted, Nil)
-    assertEquals(q031, Nil)
+    assert(siblingAccepted.forall(_.isEmpty), siblingAccepted)
     assert(rejected.forall(_.nonEmpty), rejected)
     assert(rejected.flatten.forall(_.contains("Invalid dqq definition-pattern template")), rejected)
 
-  test("dynamic Q028 selection retains the historical exact-one fallback"):
+  test("dynamic Q031 selection retains the historical exact-one fallback"):
     val errors = typeCheckErrors(
       """import scala.quoted.*; import quasiquotes.matching.{DefinitionModifiers, DefinitionPattern, RankedDefinitionPatternExtractor}
          def f(using q: Quotes)(context: StringContext): RankedDefinitionPatternExtractor[
@@ -240,17 +234,22 @@ final class NamedUsingDefinitionClauseCaptureProductionTest extends munit.FunSui
     traversal.traverseTree(
       '{
         trait Base:
-          def finalUsing(using ordering: Ordering[Int]): Int
+          def overrideImplicit(implicit ordering: Ordering[Int]): Int
 
         class Fixture extends Base:
-          def one(using ordering: Ordering[Int]): Int = 1
-          def two(using ordering: Ordering[Int], numeric: Numeric[Int]): Int = 2
-          def three(using first: Ordering[Int], second: Numeric[Int], third: CanEqual[Int, Int]): Int = 3
-          def many(using first: Ordering[Int], second: Numeric[Int], third: CanEqual[Int, Int], fourth: ValueOf[1]): Int = 4
-          private def privateUsing(using ordering: Ordering[Int]): Int = 1
-          final override def finalUsing(using ordering: Ordering[Int]): Int = 1
-          @Q028Annotation def annotatedUsing(using ordering: Ordering[Int]): Int = 1
-          private[matching] def qualifiedUsing(using ordering: Ordering[Int]): Int = 1
+          def one(implicit ordering: Ordering[Int]): Int = 1
+          def two(implicit ordering: Ordering[Int], numeric: Numeric[Int]): Int = 2
+          def three(implicit first: Ordering[Int], second: Numeric[Int], third: CanEqual[Int, Int]): Int = 3
+          def many(implicit first: Ordering[Int], second: Numeric[Int], third: CanEqual[Int, Int], fourth: ValueOf[1]): Int = 4
+          def nestedResult(implicit ordering: Ordering[Int]): List[Option[Int]] = Nil
+          private def privateImplicit(implicit ordering: Ordering[Int]): Int = 1
+          protected def protectedImplicit(implicit ordering: Ordering[Int]): Int = 1
+          final def finalImplicit(implicit ordering: Ordering[Int]): Int = 1
+          override def overrideImplicit(implicit ordering: Ordering[Int]): Int = 1
+          @Q031Annotation def annotatedImplicit(implicit ordering: Ordering[Int]): Int = 1
+          private[matching] def qualifiedPrivateImplicit(implicit ordering: Ordering[Int]): Int = 1
+          protected[matching] def qualifiedProtectedImplicit(implicit ordering: Ordering[Int]): Int = 1
+          implicit def implicitMethod(implicit ordering: Ordering[Int]): Int = 1
         ()
       }.asTerm
     )(Symbol.spliceOwner)

@@ -63,6 +63,15 @@ private[matching] object DefinitionPatternMacro:
                 )
             }
           case Right(
+                DefinitionPattern.StaticPatternKind.CapturedModifiersNameScala2ImplicitParameterSequenceCapturedResult
+              ) =>
+            '{
+              DefinitionPattern
+                .capturedModifiersNameScala2ImplicitParameterSequenceCapturedResultExtractor(
+                  $context
+                )(using $callerQuotes)
+            }
+          case Right(
                 DefinitionPattern.StaticPatternKind.CapturedModifiersNameRankedParameterClauseSequenceCapturedResult
               ) =>
             '{

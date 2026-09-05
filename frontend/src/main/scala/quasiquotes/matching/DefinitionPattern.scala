@@ -108,6 +108,7 @@ object DefinitionPattern:
     case CapturedNameRankedParameterClauseSequenceCapturedResult
     case CapturedNameNamedUsingParameterSequenceCapturedResult
     case CapturedModifiersNameNamedUsingParameterSequenceCapturedResult
+    case CapturedModifiersNameScala2ImplicitParameterSequenceCapturedResult
     case CapturedModifiersNameRankedParameterClauseSequenceCapturedResult
     case CapturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult
     case CapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult
@@ -313,6 +314,32 @@ object DefinitionPattern:
         )
       case None => abort("StringContext must not be null.")
 
+  private[matching] def capturedModifiersNameScala2ImplicitParameterSequenceCapturedResultExtractor(
+      sc: StringContext
+  )(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      DefinitionModifiers[q.reflect.Flags, q.reflect.TypeRepr, q.reflect.Term],
+      String,
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    def abort(message: String): Nothing =
+      q.reflect.report.errorAndAbort(s"$InvalidDqqPrefix $message")
+
+    val parts = Option(sc).flatMap(value => Option(value.parts)).map(_.toList)
+    parts match
+      case Some(values)
+          if isExactCapturedModifiersNameScala2ImplicitParameterSequenceCapturedResult(values) =>
+        RankedDefinitionPatternExtractorFactory.capturedModifiersNameScala2ImplicitParamsResult
+      case Some(_) =>
+        abort(
+          "expected exactly `$mods def $name(implicit ..$params): $result = $body` with five captures in semantic-modifiers, semantic-name, complete-Scala-2-implicit-parameters, semantic-result, and complete-body order"
+        )
+      case None => abort("StringContext must not be null.")
+
   private[matching] def capturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultExtractor(
       sc: StringContext
   )(using q: Quotes): RankedDefinitionPatternExtractor[
@@ -353,6 +380,8 @@ object DefinitionPattern:
       Right(StaticPatternKind.CapturedNameNamedUsingParameterSequenceCapturedResult)
     else if isExactCapturedModifiersNameNamedUsingParameterSequenceCapturedResult(parts) then
       Right(StaticPatternKind.CapturedModifiersNameNamedUsingParameterSequenceCapturedResult)
+    else if isExactCapturedModifiersNameScala2ImplicitParameterSequenceCapturedResult(parts) then
+      Right(StaticPatternKind.CapturedModifiersNameScala2ImplicitParameterSequenceCapturedResult)
     else if isExactCapturedModifiersNameRankedParameterClauseSequenceCapturedResult(parts) then
       Right(StaticPatternKind.CapturedModifiersNameRankedParameterClauseSequenceCapturedResult)
     else if isExactCapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult(
@@ -466,6 +495,19 @@ object DefinitionPattern:
       case List(prefix, beforeParams, beforeResult, beforeBody, suffix) =>
         prefix.matches("(?s)\\s*def\\s+") &&
           beforeParams.matches("(?s)\\s*\\(\\s*using\\s+\\.\\.\\s*") &&
+          beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&
+          beforeBody.matches("(?s)\\s*=\\s*") &&
+          suffix.trim.isEmpty
+      case _ => false
+
+  private def isExactCapturedModifiersNameScala2ImplicitParameterSequenceCapturedResult(
+      parts: List[String]
+  ): Boolean =
+    parts match
+      case List(beforeModifiers, beforeName, beforeParams, beforeResult, beforeBody, suffix) =>
+        beforeModifiers.trim.isEmpty &&
+          beforeName.matches("(?s)\\s+def\\s+") &&
+          beforeParams.matches("(?s)\\s*\\(\\s*implicit\\s+\\.\\.\\s*") &&
           beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&
           beforeBody.matches("(?s)\\s*=\\s*") &&
           suffix.trim.isEmpty

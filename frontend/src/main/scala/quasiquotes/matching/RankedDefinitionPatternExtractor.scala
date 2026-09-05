@@ -71,6 +71,20 @@ private[quasiquotes] object RankedDefinitionPatternExtractorFactory:
       RankedDefinitionPatternMatcher.extractCapturedNameNamedUsingParamsResult(target)
     )
 
+  def capturedModifiersNameScala2ImplicitParamsResult(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      DefinitionModifiers[q.reflect.Flags, q.reflect.TypeRepr, q.reflect.Term],
+      String,
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    new RankedDefinitionPatternExtractor(target =>
+      RankedDefinitionPatternMatcher.extractCapturedModifiersNameScala2ImplicitParamsResult(target)
+    )
+
   def capturedNameTypeParamsParamssResult(using q: Quotes): RankedDefinitionPatternExtractor[
     q.reflect.DefDef,
     (
@@ -175,6 +189,27 @@ private[matching] object RankedDefinitionPatternMatcher:
         (target.name, parameters, result, body)
       }
 
+  def extractCapturedModifiersNameScala2ImplicitParamsResult(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[
+    (
+      DefinitionModifiers[q.reflect.Flags, q.reflect.TypeRepr, q.reflect.Term],
+      String,
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    extractAdmittedScala2ImplicitDefinition(target).map { (parameters, result, body) =>
+      val modifiers = new DefinitionModifiers(
+        target.symbol.flags,
+        target.symbol.privateWithin,
+        target.symbol.protectedWithin,
+        target.symbol.annotations
+      )
+      (modifiers, target.name, parameters, result, body)
+    }
+
   def extractCapturedNameTypeParamsParamssResult(using q: Quotes)(
       target: q.reflect.DefDef
   ): Option[
@@ -259,6 +294,45 @@ private[matching] object RankedDefinitionPatternMatcher:
                 parameter.symbol.owner == target.symbol &&
                   parameter.symbol.flags.is(Flags.Given) &&
                   !parameter.symbol.flags.is(Flags.Implicit) &&
+                  !parameter.symbol.flags.is(Flags.Synthetic) &&
+                  !parameter.symbol.flags.is(Flags.Erased) &&
+                  !parameter.symbol.flags.is(Flags.HasDefault)
+              ) &&
+              target.symbol.paramSymss == List(symbols)
+
+          Option
+            .when(admittedParameters)(target.returnTpt.tpe)
+            .flatMap(result => target.rhs.map(body => (parameters, result, body)))
+        case _ => None
+
+  private def extractAdmittedScala2ImplicitDefinition(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[(List[q.reflect.ValDef], q.reflect.TypeRepr, q.reflect.Term)] =
+    import q.reflect.*
+
+    if target == null ||
+        target.symbol == Symbol.noSymbol ||
+        !target.symbol.isDefDef ||
+        target.symbol.isClassConstructor ||
+        target.symbol.flags.is(Flags.ExtensionMethod) ||
+        target.symbol.flags.is(Flags.FieldAccessor) ||
+        target.symbol.flags.is(Flags.ParamAccessor) ||
+        target.symbol.flags.is(Flags.CaseAccessor) ||
+        target.symbol.flags.is(Flags.Given)
+    then None
+    else
+      target.paramss match
+        case List(clause: TermParamClause)
+            if clause.isImplicit && !clause.isGiven && !clause.isErased && clause.params.nonEmpty =>
+          val parameters = clause.params
+          val symbols = parameters.map(_.symbol)
+          val admittedParameters =
+            symbols.forall(_ != Symbol.noSymbol) &&
+              symbols.distinct.size == symbols.size &&
+              parameters.forall(parameter =>
+                parameter.symbol.owner == target.symbol &&
+                  parameter.symbol.flags.is(Flags.Implicit) &&
+                  !parameter.symbol.flags.is(Flags.Given) &&
                   !parameter.symbol.flags.is(Flags.Synthetic) &&
                   !parameter.symbol.flags.is(Flags.Erased) &&
                   !parameter.symbol.flags.is(Flags.HasDefault)
