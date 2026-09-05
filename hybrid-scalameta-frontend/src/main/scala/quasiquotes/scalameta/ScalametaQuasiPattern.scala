@@ -291,6 +291,25 @@ object ScalametaQuasiPattern:
           s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"
         )
 
+  private[scalameta] def capturedNameScala2ImplicitParameterSequenceCapturedResultExtractor(
+      context: StringContext
+  )(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (String, Seq[q.reflect.ValDef], q.reflect.TypeRepr, q.reflect.Term)
+  ] =
+    if context == null then
+      q.reflect.report.errorAndAbort(
+        "Invalid Scalameta dqq definition-pattern template: StringContext must not be null."
+      )
+    ScalametaDefinitionFrontend
+      .compileCapturedNameScala2ImplicitParameterSequenceCapturedResultPattern(context.parts) match
+      case Right(_) =>
+        RankedDefinitionPatternExtractorFactory.capturedNameScala2ImplicitParamsResult
+      case Left(failure) =>
+        q.reflect.report.errorAndAbort(
+          s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"
+        )
+
   private[scalameta] def capturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResultExtractor(
       context: StringContext
   )(using q: Quotes): RankedDefinitionPatternExtractor[

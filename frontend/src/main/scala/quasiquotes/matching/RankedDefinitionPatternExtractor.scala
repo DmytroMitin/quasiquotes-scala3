@@ -85,6 +85,14 @@ private[quasiquotes] object RankedDefinitionPatternExtractorFactory:
       RankedDefinitionPatternMatcher.extractCapturedModifiersNameScala2ImplicitParamsResult(target)
     )
 
+  def capturedNameScala2ImplicitParamsResult(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (String, Seq[q.reflect.ValDef], q.reflect.TypeRepr, q.reflect.Term)
+  ] =
+    new RankedDefinitionPatternExtractor(target =>
+      RankedDefinitionPatternMatcher.extractCapturedNameScala2ImplicitParamsResult(target)
+    )
+
   def capturedNameTypeParamsParamssResult(using q: Quotes): RankedDefinitionPatternExtractor[
     q.reflect.DefDef,
     (
@@ -209,6 +217,15 @@ private[matching] object RankedDefinitionPatternMatcher:
       )
       (modifiers, target.name, parameters, result, body)
     }
+
+  def extractCapturedNameScala2ImplicitParamsResult(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[(String, Seq[q.reflect.ValDef], q.reflect.TypeRepr, q.reflect.Term)] =
+    extractAdmittedScala2ImplicitDefinition(target)
+      .filter(_ => DefinitionModifierSemantics.isSemanticallyEmpty(target.symbol))
+      .map { (parameters, result, body) =>
+        (target.name, parameters, result, body)
+      }
 
   def extractCapturedNameTypeParamsParamssResult(using q: Quotes)(
       target: q.reflect.DefDef
