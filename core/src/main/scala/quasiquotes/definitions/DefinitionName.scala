@@ -4,18 +4,25 @@ private[quasiquotes] enum DefinitionNameSpelling derives CanEqual:
   case Plain
   case BacktickedKeyword
 
-private[quasiquotes] sealed trait DefinitionName derives CanEqual:
-  def decoded: String
-  def source: String
-  def spelling: DefinitionNameSpelling
-  final def render: String = DefinitionName.render(this)
+final class DefinitionName private (
+    private[quasiquotes] val decoded: String,
+    val source: String,
+    private[quasiquotes] val spelling: DefinitionNameSpelling
+) derives CanEqual:
+  private[quasiquotes] def render: String = DefinitionName.render(this)
 
-private[quasiquotes] object DefinitionName:
-  private final case class ValidatedName(
-      decoded: String,
-      source: String,
-      spelling: DefinitionNameSpelling
-  ) extends DefinitionName
+  override def equals(other: Any): Boolean =
+    other match
+      case that: DefinitionName =>
+        decoded == that.decoded &&
+          source == that.source &&
+          spelling == that.spelling
+      case _ => false
+
+  override def hashCode(): Int = (decoded, source, spelling).hashCode
+  override def toString: String = render
+
+object DefinitionName:
 
   private val Scala3Keywords: Set[String] = Set(
     "abstract",
@@ -74,14 +81,17 @@ private[quasiquotes] object DefinitionName:
     "yield"
   )
 
-  def plain(source: String): Either[DefinitionError, DefinitionName] =
-    if isPlainIdentifier(source) && source != "_" && !Scala3Keywords(source) then
-      Right(ValidatedName(source, source, DefinitionNameSpelling.Plain))
+  private[quasiquotes] def plain(source: String): Either[DefinitionError, DefinitionName] =
+    if source != null && isPlainIdentifier(source) && source != "_" && !Scala3Keywords(source) then
+      Right(new DefinitionName(source, source, DefinitionNameSpelling.Plain))
     else Left(DefinitionError.InvalidPlainName(source))
 
-  def backticked(source: String): Either[DefinitionError, DefinitionName] =
+  private[quasiquotes] def backticked(
+      source: String
+  ): Either[DefinitionError, DefinitionName] =
     val hasOnePair =
-      source.length >= 3 &&
+      source != null &&
+        source.length >= 3 &&
         source.head == '`' &&
         source.last == '`' &&
         !source.substring(1, source.length - 1).contains('`') &&
@@ -90,13 +100,28 @@ private[quasiquotes] object DefinitionName:
     val decoded = if hasOnePair then source.substring(1, source.length - 1) else ""
 
     if hasOnePair && decoded.nonEmpty && Scala3Keywords(decoded) then
-      Right(ValidatedName(decoded, source, DefinitionNameSpelling.BacktickedKeyword))
+      Right(new DefinitionName(decoded, source, DefinitionNameSpelling.BacktickedKeyword))
     else Left(DefinitionError.InvalidBacktickedName(source))
 
-  def fromSource(source: String): Either[DefinitionError, DefinitionName] =
-    if source.contains('`') then backticked(source) else plain(source)
+  def fromSource(source: String): Either[DefinitionSemanticError, DefinitionName] =
+    if source == null then
+      Left(
+        DefinitionSemanticError(
+          "DEFINITION_SEMANTIC_MISSING",
+          "the definition name source must be present."
+        )
+      )
+    else
+      fromSourceInternal(source).left.map(error =>
+        DefinitionSemanticError("DEFINITION_SEMANTIC_INVALID_NAME", error.message)
+      )
 
-  def render(name: DefinitionName): String =
+  private[quasiquotes] def fromSourceInternal(
+      source: String
+  ): Either[DefinitionError, DefinitionName] =
+    if source != null && source.contains('`') then backticked(source) else plain(source)
+
+  private[quasiquotes] def render(name: DefinitionName): String =
     name.spelling match
       case DefinitionNameSpelling.Plain => s"PlainName(${name.source})"
       case DefinitionNameSpelling.BacktickedKeyword => s"BacktickedKeywordName(${name.source})"

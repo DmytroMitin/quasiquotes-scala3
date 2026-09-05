@@ -318,7 +318,7 @@ final class TermLocalDefinitionView private[quasiquotes] (
   def resultType: TypeNormalForm = resultTypeValue
   def body: Option[TermShape] = bodyValue
 
-private[terms] object TermBindingInternals:
+private[quasiquotes] object TermBindingInternals:
   private final class Graph
 
   final class ScopeState(private val names: scala.collection.Map[BinderId, String]):
@@ -342,6 +342,59 @@ private[terms] object TermBindingInternals:
 
   private final case class BuildContext(session: Session, scope: Vector[BinderId])
   private val currentBuild = new DynamicVariable[Option[BuildContext]](None)
+
+  final class PersistentParameters private[TermBindingInternals] (
+      private[TermBindingInternals] val session: Session,
+      private[TermBindingInternals] val ids: Vector[Vector[BinderId]]
+  ):
+    private val flattenedIds = ids.flatten
+
+    def binderAt(
+        clauseIndex: Int,
+        parameterIndex: Int
+    ): Either[TermBindingFailure, TermBinder] =
+      binderIdAt(clauseIndex, parameterIndex)
+        .map(id => new TermBinder(session.graph, id.asInstanceOf[AnyRef]))
+
+    def referenceAt(
+        clauseIndex: Int,
+        parameterIndex: Int
+    ): Either[TermBindingFailure, TermShape] =
+      binderIdAt(clauseIndex, parameterIndex).map { id =>
+        val reference = TermShape.BoundReference(id, session.names.getOrElse(id, ""))
+        Registry.register(reference, session.graph, flattenedIds)
+        reference
+      }
+
+    def complete(shape: TermShape): Either[TermBindingFailure, TermShape] =
+      presentShape(shape, "definition method body")
+        .flatMap(validateEmbedded(_, session.graph, flattenedIds))
+        .flatMap { present =>
+          val validation =
+            if flattenedIds.isEmpty then TermShapeTraversal.validateSupported(present)
+            else TermShapeTraversal.validateSupportedInScope(present, flattenedIds)
+          validation.left
+            .map(_ => unsupported("the definition method body exceeds the admitted Core Term family."))
+            .map { _ =>
+              Registry.register(present, session.graph, flattenedIds)
+              present
+            }
+        }
+
+    def alphaNormalize(shape: TermShape): TermShape =
+      if flattenedIds.isEmpty then TermShapeTraversal.alphaNormalize(shape)
+      else TermShapeTraversal.alphaNormalizeInScope(shape, flattenedIds)
+
+    private def binderIdAt(
+        clauseIndex: Int,
+        parameterIndex: Int
+    ): Either[TermBindingFailure, BinderId] =
+      ids.lift(clauseIndex).flatMap(_.lift(parameterIndex)).toRight(
+        failure(
+          "TERM_BINDER_UNBOUND",
+          s"no method parameter exists at clause $clauseIndex, index $parameterIndex."
+        )
+      )
 
   private final case class RegistryEntry(
       shape: WeakReference[TermShape],
@@ -480,6 +533,43 @@ private[terms] object TermBindingInternals:
       case None =>
         val session = new Session
         operation(session, Vector.empty)
+
+  def persistentParameters(
+      names: Vector[Vector[String]]
+  ): Either[TermBindingFailure, PersistentParameters] =
+    Option(names).toRight(missing("definition parameter clauses must be present.")).flatMap {
+      presentNames =>
+        val session = new Session
+        presentNames
+          .foldLeft[Either[TermBindingFailure, Vector[Vector[BinderId]]]](
+            Right(Vector.empty)
+          ) { (clausesResult, clauseNames) =>
+            for
+              clauses <- clausesResult
+              presentClause <- Option(clauseNames)
+                .toRight(missing("a definition parameter clause must be present."))
+              clause <- presentClause.foldLeft[
+                Either[TermBindingFailure, Vector[BinderId]]
+              ](Right(Vector.empty)) { (idsResult, name) =>
+                for
+                  collected <- idsResult
+                  presentName <- Option(name)
+                    .toRight(missing("a definition parameter name must be present."))
+                  id <- session.allocate()
+                  _ = session.remember(id, presentName)
+                yield collected :+ id
+              }
+            yield clauses :+ clause
+          }
+          .map(new PersistentParameters(session, _))
+    }
+
+  def withPersistentParameters[A](
+      parameters: PersistentParameters
+  )(operation: => A): A =
+    currentBuild.withValue(
+      Some(BuildContext(parameters.session, parameters.ids.flatten))
+    )(operation)
 
   def handles(graph: AnyRef, ids: Vector[BinderId]): Set[TermBinder] =
     ids.iterator.map(id => new TermBinder(graph, id.asInstanceOf[AnyRef])).toSet

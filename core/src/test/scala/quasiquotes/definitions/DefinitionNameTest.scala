@@ -1,19 +1,24 @@
 package quasiquotes.definitions
 
 class DefinitionNameTest extends munit.FunSuite:
-  private def accepted(result: Either[DefinitionError, DefinitionName]): DefinitionName =
+  private def acceptedInternal(result: Either[DefinitionError, DefinitionName]): DefinitionName =
+    result.fold(error => fail(error.message), identity)
+
+  private def acceptedPublic(
+      result: Either[DefinitionSemanticError, DefinitionName]
+  ): DefinitionName =
     result.fold(error => fail(error.message), identity)
 
   test("plain names retain exact decoded source and structural rendering") {
     val expected = Vector("answer", "answer1", "_answer")
 
     expected.foreach { source =>
-      val name = accepted(DefinitionName.plain(source))
+      val name = acceptedInternal(DefinitionName.plain(source))
       assertEquals(name.decoded, source)
       assertEquals(name.source, source)
       assertEquals(name.spelling, DefinitionNameSpelling.Plain)
       assertEquals(name.render, s"PlainName($source)")
-      assertEquals(name, accepted(DefinitionName.fromSource(source)))
+      assertEquals(name, acceptedPublic(DefinitionName.fromSource(source)))
     }
   }
 
@@ -21,12 +26,12 @@ class DefinitionNameTest extends munit.FunSuite:
     val expected = Vector("`type`" -> "type", "`match`" -> "match", "`extension`" -> "extension")
 
     expected.foreach { case (source, decoded) =>
-      val name = accepted(DefinitionName.backticked(source))
+      val name = acceptedInternal(DefinitionName.backticked(source))
       assertEquals(name.decoded, decoded)
       assertEquals(name.source, source)
       assertEquals(name.spelling, DefinitionNameSpelling.BacktickedKeyword)
       assertEquals(name.render, s"BacktickedKeywordName($source)")
-      assertEquals(name, accepted(DefinitionName.fromSource(source)))
+      assertEquals(name, acceptedPublic(DefinitionName.fromSource(source)))
     }
   }
 

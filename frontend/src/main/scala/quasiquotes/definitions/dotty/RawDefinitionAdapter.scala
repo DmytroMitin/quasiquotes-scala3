@@ -196,7 +196,7 @@ private[dotty] object RawDefinitionAdapter:
               definitionLocation
             )
             name <- liftDefinition(
-              DefinitionName.fromSource(nameEvidence.sourceSpelling),
+              DefinitionName.fromSourceInternal(nameEvidence.sourceSpelling),
               RawDefinitionAdapterError.InvalidDefinitionName.apply,
               exactLocation(sourceId, nameEvidence.span)
             )
