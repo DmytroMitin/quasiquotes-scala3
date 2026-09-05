@@ -348,7 +348,16 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
       case _: TermShape.Parenthesized => "Parenthesized"
       case _: TermShape.Unsupported => "Unsupported"
 
-  private def verifySourceFree(
+  private[dotty] def verifySourceFree(
+      tree: untpd.Tree
+  )(using Context): Either[CoreTermShapeUntypedLowererError, Unit] =
+    Option(tree)
+      .toRight(
+        SourceFreeInvariantViolation("null", "the node is null.")
+      )
+      .flatMap(verifySourceFreePresent)
+
+  private def verifySourceFreePresent(
       tree: untpd.Tree
   )(using Context): Either[CoreTermShapeUntypedLowererError, Unit] =
     val nodeKind = tree.getClass.getSimpleName
@@ -383,6 +392,11 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
           for
             _ <- verifySourceFree(operator)
             _ <- verifySourceFree(operand)
+          yield ()
+        case untpd.Typed(expression, typeTree) =>
+          for
+            _ <- verifySourceFree(expression)
+            _ <- verifySourceFree(typeTree)
           yield ()
         case untpd.Tuple(elements) =>
           traverse(elements)(verifySourceFree).map(_ => ())
