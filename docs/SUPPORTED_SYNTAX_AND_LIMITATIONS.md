@@ -53,6 +53,7 @@ compiler-version policy, source positions, owners, placement, and lifecycle.
 | Composition | Current status | Boundary |
 | --- | --- | --- |
 | `scala.meta.Term` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTermUntypedBridge`; direct non-binder and P0/P1 intersection only |
+| `scala.meta.Term` -> positioned generated-origin `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTermGeneratedOriginBridge`; direct family plus completable ascription, Lambda1, P2, and P3 |
 | `scala.meta.Type` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTypeUntypedBridge`; recursive primitive/fixed application/Tuple2-3/Function1-2 intersection only |
 | `scala.meta.Defn` -> fresh source-free `untpd.MemberDef` | `BOUNDED` | Public exact-version `ScalametaDefinitionUntypedBridge`; five reusable Definition families only |
 | `scala.meta.Defn` -> positioned generated-origin `untpd.MemberDef` | `BOUNDED` | Public exact-version `ScalametaDefinitionGeneratedOriginBridge`; four concrete val/def families only |
@@ -98,6 +99,28 @@ accepts the tested ordinary shapes when required names exist, while raw
 span-free `untpd.InfixOp` typing remains span-sensitive. The exact-version API
 adds no `u*`/`n*` syntax, no generic bridge, and no Type or Definition facade.
 See the [focused bridge contract](SCALAMETA_TERM_UNTYPED_BRIDGE.md).
+
+## Public bounded Scalameta Term generated-origin lowering
+
+`ScalametaTermGeneratedOriginBridge.lower(term,
+virtualSourceName)(using Context)` is the separate insertion-oriented Term
+composition. It uses the same neutral projector, completes the projected shape
+through `ConstructedTerm.fromShape`, and delegates to the existing
+generated-origin adapter. It does not change or fall back from
+`ScalametaTermUntypedBridge`.
+
+The verified intersection includes the direct family above plus bounded
+Int/String/Boolean Type ascriptions, Lambda1, one typed local immutable-val P2
+block, and one source-owned local identity-method P3 block. Broader projected
+Types that require an explicit completed sidecar fail with
+`TERM_COMPLETION_FAILED`; neutral exclusions remain projection failures.
+
+Success carries a positioned tree, deterministic generated source, and the
+effective virtual `SourceFile`. Every descendant uses that source, has an
+in-bounds span, has `NoSymbol`, and is not a `TypedSplice`. The consumer still
+owns target admission, insertion, rollback, ordinary typing, owners, and
+symbols. See the
+[focused generated-origin contract](SCALAMETA_TERM_GENERATED_ORIGIN_BRIDGE.md).
 
 ## Public bounded Scalameta Type lowering
 

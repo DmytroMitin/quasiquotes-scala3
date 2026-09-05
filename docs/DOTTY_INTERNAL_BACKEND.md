@@ -32,6 +32,29 @@ and exact lowering failure. There is no rendering, reparsing, fallback, richer
 backend routing, provenance synthesis, typing, symbol creation, ownership, or
 placement service.
 
+`ScalametaTermGeneratedOriginBridge` is the separate insertion-oriented Term
+facade. It projects through the same neutral authority, completes the projected
+shape with `ConstructedTerm.fromShape`, and routes only that completed value
+through the package-private generated-origin adapter. It returns a positioned
+`untpd.Tree`, deterministic generated source, and the effective virtual
+`SourceFile`.
+
+```text
+scala.meta.Term
+  -> ScalametaTermProjection.project
+  -> ConstructedTerm.fromShape
+  -> ConstructedTermGeneratedOriginAdapter.lower
+  -> positioned untpd.Tree + generated source + SourceFile
+```
+
+This path includes the direct source-free intersection and, when its bounded
+Types can be completed, Type ascription, Lambda1, P2 local val, and the P3
+local identity-method block. It reports `MISSING_INPUT`,
+`NEUTRAL_PROJECTION_FAILED`, `TERM_COMPLETION_FAILED`,
+`INVALID_VIRTUAL_SOURCE`, or defensive `GENERATED_ORIGIN_FAILED`. It does not
+widen neutral projection or change the source-free facade. See the
+[bounded Scalameta Term generated-origin bridge page](SCALAMETA_TERM_GENERATED_ORIGIN_BRIDGE.md).
+
 `ScalametaTypeUntypedBridge` is the context-free public sibling for the
 bounded Type intersection. It composes
 `ScalametaTypeNormalFormProjection.project` with the package-private
@@ -77,8 +100,9 @@ scala.meta.Defn (four concrete val/def families)
   -> positioned untpd.MemberDef + generated source + SourceFile
 ```
 
-Both operations require an active Dotty `Context`. Neither performs target
-admission, insertion, rollback, typing, symbol ownership, or reownership.
+All Term and Definition operations other than the context-free Type bridge
+require an active Dotty `Context`. None performs target admission, insertion,
+rollback, typing, symbol ownership, or reownership.
 
 Five definition-specific production objects in this module are intentionally
 exposed to foreign packages. `ContextualMethodPeerBridge` accepts either the

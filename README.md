@@ -194,8 +194,9 @@ names the concrete APIs, visibility boundaries, and current composition status.
   remain distinct contracts.
 - `dottyInternal` contains exact-compiler internal adapters, the public bounded
   exact-version `ScalametaTermUntypedBridge` and context-free
-  `ScalametaTypeUntypedBridge`, the bounded exact-version source-free and
-  generated-origin Scalameta Definition bridges, and five narrow experimental
+  `ScalametaTypeUntypedBridge`, the public bounded exact-version
+  `ScalametaTermGeneratedOriginBridge`, the bounded exact-version source-free
+  and generated-origin Scalameta Definition bridges, and five narrow experimental
   foreign-package peer bridges: contextual-method lowering,
   bounded AUXify self abstract-Type-member lowering, delegated forwarding, and
   the bounded three-parameter refined Type alias, plus the exact bounded
@@ -220,8 +221,11 @@ See the [neutral Scalameta experiment](docs/NEUTRAL_SCALAMETA_EXPERIMENT.md),
 the [hybrid typed frontend experiment](docs/HYBRID_SCALAMETA_TERM_FRONTEND_EXPERIMENT.md),
 the [Scalameta opt-in artifact topology](docs/SCALAMETA_OPT_IN_ARTIFACT_TOPOLOGY.md),
 and the [Dotty-internal exact backend](docs/DOTTY_INTERNAL_BACKEND.md). Its
-public Term surface is the focused
-[bounded Scalameta Term bridge](docs/SCALAMETA_TERM_UNTYPED_BRIDGE.md); its
+public Term surfaces are the focused
+[bounded source-free Scalameta Term bridge](docs/SCALAMETA_TERM_UNTYPED_BRIDGE.md)
+and separate
+[bounded generated-origin Scalameta Term bridge](docs/SCALAMETA_TERM_GENERATED_ORIGIN_BRIDGE.md);
+its
 public Type sibling is the
 [bounded Scalameta Type bridge](docs/SCALAMETA_TYPE_UNTYPED_BRIDGE.md); its
 foreign-package definition surfaces include the focused

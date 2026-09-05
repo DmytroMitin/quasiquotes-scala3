@@ -35,20 +35,20 @@ The axes are:
 
 | Family | Q construct | Q match | typed Scalameta construct | typed Scalameta match | N project | N author | U-D fresh lower | U-U existing rewrite |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Literal / identifier | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — public exact-version `ScalametaTermUntypedBridge` | `NOT_APPLICABLE` |
-| Selection | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — public exact-version `ScalametaTermUntypedBridge` | `NOT_APPLICABLE` |
-| Ordinary Apply | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — one ordinary positional list through the public exact-version facade | `INTERNAL` — one selected existing Apply in a direct parameterless method body; bounded leaf or direct-identifier Apply argument replacement only |
-| Infix | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — public exact-version facade; raw span-free `InfixOp` | `NOT_APPLICABLE` |
-| Unary | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — public exact-version `ScalametaTermUntypedBridge` | `NOT_APPLICABLE` |
-| Tuple | `BOUNDED` — arity 2 through 22 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — arity 2 through 22 through the public exact-version facade | `NOT_APPLICABLE` |
-| `if` with explicit `else` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — public exact-version `ScalametaTermUntypedBridge` | `NOT_APPLICABLE` |
-| Standard `s` interpolation | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — fresh `Position.None` standard-`s` AST with exact semantic round trip | `BOUNDED` — public exact-version `ScalametaTermUntypedBridge` | `NOT_APPLICABLE` |
-| Type ascription | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `INTERNAL` | `NOT_APPLICABLE` |
-| Lambda1 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `INTERNAL` — completed parameter-Type sidecar required | `NOT_APPLICABLE` |
-| Fixed one-list `new` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — fully-qualified, non-generic, one ordinary list through the public exact-version facade | `NOT_APPLICABLE` |
-| Binder-free P1 block | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — public exact-version `ScalametaTermUntypedBridge` | `NOT_APPLICABLE` |
-| Single typed local immutable val (P2) | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `INTERNAL` — requires completed-Type sidecars | `NOT_APPLICABLE` |
-| Source-owned local identity method (P3) | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` | `NOT_YET` | `INTERNAL` — requires completed-Type sidecars | `NOT_APPLICABLE` |
+| Literal / identifier | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — public source-free and generated-origin exact-version Term bridges | `NOT_APPLICABLE` |
+| Selection | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — public source-free and generated-origin exact-version Term bridges | `NOT_APPLICABLE` |
+| Ordinary Apply | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — one ordinary positional list through both public exact-version Term bridges | `INTERNAL` — one selected existing Apply in a direct parameterless method body; bounded leaf or direct-identifier Apply argument replacement only |
+| Infix | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — both public Term bridges; only the source-free route retains raw span-free `InfixOp` caveats | `NOT_APPLICABLE` |
+| Unary | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — both public exact-version Term bridges | `NOT_APPLICABLE` |
+| Tuple | `BOUNDED` — arity 2 through 22 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — arity 2 through 22 through both public exact-version Term bridges | `NOT_APPLICABLE` |
+| `if` with explicit `else` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — both public exact-version Term bridges | `NOT_APPLICABLE` |
+| Standard `s` interpolation | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — fresh `Position.None` standard-`s` AST with exact semantic round trip | `BOUNDED` — both public exact-version Term bridges | `NOT_APPLICABLE` |
+| Type ascription | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `BOUNDED` — public generated-origin bridge for completable Int/String/Boolean sidecars; source-free bridge rejects | `NOT_APPLICABLE` |
+| Lambda1 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `BOUNDED` — public generated-origin bridge when the explicit parameter Type is completable; source-free bridge rejects | `NOT_APPLICABLE` |
+| Fixed one-list `new` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — fully-qualified, non-generic, one ordinary list through both public exact-version Term bridges | `NOT_APPLICABLE` |
+| Binder-free P1 block | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — both public exact-version Term bridges | `NOT_APPLICABLE` |
+| Single typed local immutable val (P2) | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `BOUNDED` — public generated-origin bridge when the declared Type is completable; source-free bridge rejects | `NOT_APPLICABLE` |
+| Source-owned local identity method (P3) | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` | `NOT_YET` | `BOUNDED` — public generated-origin bridge for the bounded local identity-method form with completable parameter/result Types; source-free bridge rejects | `NOT_APPLICABLE` |
 | Rank-2 Term arguments in Apply / one-list New | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` — the sequence is expanded before exact lowering | `NOT_APPLICABLE` |
 | Rank-3 Term sequence | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
 | Dynamic selected-member construction | `BOUNDED` | `NOT_YET` | `BOUNDED` — validated `SelectedMemberName` in one explicit receiver-selection name field; unique accessible member only | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
@@ -93,6 +93,7 @@ not widen either generic boundary.
 | Composition | Current status | Boundary |
 | --- | --- | --- |
 | `scala.meta.Term` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTermUntypedBridge`; direct non-binder and P0/P1 intersection only; source-free result |
+| `scala.meta.Term` -> positioned generated-origin `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTermGeneratedOriginBridge`; direct family plus completable ascription, Lambda1, P2, and P3; caller owns placement and insertion |
 | `scala.meta.Type` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTypeUntypedBridge`; recursive Int/String/Boolean, fixed List/Option/Either, Tuple2/3 syntax, and Function1/2 syntax; source-free result |
 | `scala.meta.Defn` -> fresh source-free `untpd.MemberDef` | `BOUNDED` | Public exact-version `ScalametaDefinitionUntypedBridge`; five reusable Definition families |
 | `scala.meta.Defn` -> positioned generated-origin `untpd.MemberDef` | `BOUNDED` | Public exact-version `ScalametaDefinitionGeneratedOriginBridge`; four concrete val/def families only; caller owns target admission and insertion |

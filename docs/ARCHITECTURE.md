@@ -59,17 +59,21 @@ and Scalameta transitively through `neutralScalameta`, while
 `hybridScalametaFrontend` has both the current typed frontend and the neutral
 Scalameta projection available. `frontend` never depends on `dottyInternal`.
 
-The production neutral Term route and its narrower exact continuation are:
+The production neutral Term route has two separately named exact continuations:
 
 ```text
 scala.meta.Term (bounded literals / names / select / Apply / infix / unary
   / tuple / if / standard-s / fully-qualified one-list New / Lambda1
   / P0-P3 block families)
-  -> ScalametaTermUntypedBridge
   -> ScalametaTermProjection
   -> core TermShape
-  -> package-private CoreTermShapeUntypedLowerer (non-binder + P0/P1 overlap)
-  -> source-free untpd.Tree
+       -> ScalametaTermUntypedBridge
+            -> package-private CoreTermShapeUntypedLowerer
+            -> source-free untpd.Tree (non-binder + P0/P1 overlap)
+       -> ScalametaTermGeneratedOriginBridge
+            -> package-private ConstructedTerm.fromShape
+            -> package-private ConstructedTermGeneratedOriginAdapter
+            -> positioned untpd.Tree + generated source + SourceFile
 ```
 
 The bounded Type sibling follows the same dependency direction without a
@@ -110,6 +114,7 @@ encoded by recursive `TermShape.Infix` structure.
   neutral `TermShape` projector.
 - `dottyInternal` contains unpublished exact-version `untpd` adapters, the
   public bounded `ScalametaTermUntypedBridge` and
+  `ScalametaTermGeneratedOriginBridge`, the context-free
   `ScalametaTypeUntypedBridge`, the bounded exact-version source-free and
   generated-origin Scalameta Definition bridges, and the narrow
   `ContextualMethodPeerBridge`, `SelfAbstractTypeMemberPeerBridge`, and
@@ -287,13 +292,26 @@ scala.meta.Term
   -> fresh source-free untpd.Tree
 ```
 
+The insertion-oriented sibling is independently named and does not widen that
+source-free contract:
+
+```text
+scala.meta.Term
+  -> ScalametaTermGeneratedOriginBridge.lower
+       -> ScalametaTermProjection.project
+       -> ConstructedTerm.fromShape
+       -> ConstructedTermGeneratedOriginAdapter.lower
+  -> positioned untpd.Tree + generated source + SourceFile
+```
+
 The Term-category name scales across bounded arities and recursive Term
 families without encoding a rollout tranche. The Type boundary is the separate
 context-free `ScalametaTypeUntypedBridge` sibling, not a universal
 Scalameta-to-Dotty facade. It composes the neutral Type normal-form projector
 with the existing completed-Type lowerer for their bounded recursive
-intersection. Neither route adds public source syntax, provenance
-reconstruction, typing, symbols, ownership, or placement.
+intersection. None of these routes adds public source syntax, typing, symbols,
+ownership, or placement; only the generated-origin Term sibling creates its
+own deterministic virtual provenance.
 
 It preserves only a truthful root source span and performs no rendering,
 reparse, typing, symbol lookup, overload resolution, or fallback. The recursive
