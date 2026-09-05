@@ -31,20 +31,36 @@ object ScalametaTermShapeAuthoring:
       sourceName: String
   )
 
+  private final case class AuthoredP2LocalValBinder(
+      binderId: BinderId,
+      sourceName: String
+  )
+
   private final case class AuthoringScope(
       definitionBinders: Vector[AuthoredDefinitionBinder],
       definitionBinderAware: Boolean,
-      lambdaBinder: Option[AuthoredLambdaBinder]
+      lambdaBinder: Option[AuthoredLambdaBinder],
+      p2LocalValBinder: Option[AuthoredP2LocalValBinder]
   ):
     def sourceNameFor(binderId: BinderId): Option[String] =
-      lambdaBinder
+      p2LocalValBinder
         .filter(_.binderId == binderId)
         .map(_.sourceName)
+        .orElse(
+          lambdaBinder
+            .filter(_.binderId == binderId)
+            .map(_.sourceName)
+        )
         .orElse(definitionBinders.find(_.binderId == binderId).map(_.sourceName))
 
   private val SupportedUnaryOperators = Set("+", "-", "!", "~")
   private val BinderFreeScope =
-    AuthoringScope(Vector.empty, definitionBinderAware = false, lambdaBinder = None)
+    AuthoringScope(
+      Vector.empty,
+      definitionBinderAware = false,
+      lambdaBinder = None,
+      p2LocalValBinder = None
+    )
 
   def author(shape: TermShape): Either[Error, Term] =
     Option(shape)
@@ -63,7 +79,8 @@ object ScalametaTermShapeAuthoring:
           val scope = AuthoringScope(
             authoredBinders,
             definitionBinderAware = true,
-            lambdaBinder = None
+            lambdaBinder = None,
+            p2LocalValBinder = None
           )
           authorPresent(present, scope)
             .flatMap(candidate => validateDefinitionRoundTrip(present, candidate, authoredBinders))
@@ -81,6 +98,15 @@ object ScalametaTermShapeAuthoring:
         case TermShape.Identifier(name, false) =>
           requirePresent(name, "identifier names must be present.")
             .flatMap(value => construct("identifier")(Term.Name(value)))
+        case TermShape.BoundReference(binderId, _) if scope.p2LocalValBinder.nonEmpty =>
+          Option(binderId)
+            .flatMap(scope.sourceNameFor)
+            .toRight(
+              p2ScopeUnsupported(
+                "bound references inside P2 must resolve to an active local, Lambda, or Definition binder."
+              )
+            )
+            .flatMap(value => construct("P2-scoped bound reference")(Term.Name(value)))
         case TermShape.BoundReference(binderId, _) if scope.lambdaBinder.nonEmpty =>
           Option(binderId)
             .flatMap(scope.sourceNameFor)
@@ -222,6 +248,11 @@ object ScalametaTermShapeAuthoring:
           yield authored
         case TermShape.Lambda1(binderId, displayName, parameterType, body) =>
           authorLambda1(binderId, displayName, parameterType, body, scope)
+        case TermShape.Block(
+              (local: BlockStatement.LocalVal) :: Nil,
+              result
+            ) =>
+          authorP2LocalVal(local, result, scope)
         case TermShape.Block(statements, result) =>
           for
             authoredStatements <- traverse(statements)(authorBlockStatement(_, scope))
@@ -281,6 +312,62 @@ object ScalametaTermShapeAuthoring:
           )
         )
       yield authored
+
+  private def authorP2LocalVal(
+      local: BlockStatement.LocalVal,
+      result: TermShape,
+      scope: AuthoringScope
+  ): Either[Error, Term.Block] =
+    if scope.p2LocalValBinder.nonEmpty then
+      Left(
+        error(
+          "NEUTRAL_TERM_AUTHORING_P2_NESTED_UNSUPPORTED",
+          "a nested P2 local immutable val is outside bounded Scalameta authoring."
+        )
+      )
+    else
+      for
+        binderId <- Option(local.binderId).toRight(
+          p2ScopeUnsupported("P2 local binder ids must be present.")
+        )
+        _ <- Either.cond(
+          !scope.lambdaBinder.exists(_.binderId == binderId) &&
+            !scope.definitionBinders.exists(_.binderId == binderId),
+          (),
+          p2ScopeUnsupported(
+            "a P2 local binder id must not collide with an active Lambda or Definition binder id."
+          )
+        )
+        displayName <- requirePresent(
+          local.displayName,
+          "P2 local binder names must be present."
+        )
+        declaredType <- authorP2DeclaredType(local.declaredType)
+        authoredName <- construct("P2 local binder name")(Term.Name(displayName))
+        authoredInitializer <- authorPresent(local.initializer, scope)
+        authoredResult <- authorPresent(
+          result,
+          scope.copy(
+            p2LocalValBinder = Some(AuthoredP2LocalValBinder(binderId, displayName))
+          )
+        )
+        authoredDefinition <- construct("P2 local immutable val")(
+          Defn.Val(
+            Nil,
+            List(Pat.Var(authoredName)),
+            Some(declaredType),
+            authoredInitializer
+          )
+        )
+        authored <- construct("P2 local immutable-val block")(
+          Term.Block(List(authoredDefinition, authoredResult))
+        )
+      yield authored
+
+  private def authorP2DeclaredType(typeName: String): Either[Error, Type.Name] =
+    typeName match
+      case "Int" | "String" | "Boolean" | "AnyVal" => Right(Type.Name(typeName))
+      case _ => Left(p2DeclaredTypeUnsupported)
 
   private def authorLambdaParameterType(typeName: String): Either[Error, Type.Name] =
     typeName match
@@ -498,7 +585,7 @@ object ScalametaTermShapeAuthoring:
         }
       )
 
-  private def construct[A <: Term](role: String)(candidate: => A): Either[Error, A] =
+  private def construct[A <: Tree](role: String)(candidate: => A): Either[Error, A] =
     try Right(candidate)
     catch
       case NonFatal(_) =>
@@ -527,6 +614,15 @@ object ScalametaTermShapeAuthoring:
 
   private def lambdaScopeUnsupported(detail: String): Error =
     error("NEUTRAL_TERM_AUTHORING_LAMBDA_SCOPE_UNSUPPORTED", detail)
+
+  private def p2DeclaredTypeUnsupported: Error =
+    error(
+      "NEUTRAL_TERM_AUTHORING_P2_DECLARED_TYPE_UNSUPPORTED",
+      "P2 declared-Type authoring admits only canonical Int, String, Boolean, and AnyVal."
+    )
+
+  private def p2ScopeUnsupported(detail: String): Error =
+    error("NEUTRAL_TERM_AUTHORING_P2_SCOPE_UNSUPPORTED", detail)
 
   private def error(code: String, detail: String): Error =
     Error(code, detail)

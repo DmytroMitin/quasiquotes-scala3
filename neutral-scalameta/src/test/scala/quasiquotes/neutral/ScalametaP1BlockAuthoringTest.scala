@@ -109,7 +109,7 @@ final class ScalametaP1BlockAuthoringTest extends munit.FunSuite:
     assertRoundTrip(shape, authored)
     assert(authored.stats.forall(_.isInstanceOf[Term.Interpolate]))
 
-  test("rejects LocalVal and LocalDef prefixes through the family boundary"):
+  test("authors the selected LocalVal shape and keeps LocalDef outside the family boundary"):
     val localVal = BlockStatement.LocalVal(
       BinderId(0),
       "value",
@@ -126,11 +126,11 @@ final class ScalametaP1BlockAuthoringTest extends munit.FunSuite:
       TermShape.BoundReference(BinderId(2), "value")
     )
 
-    List(localVal, localDef).foreach(statement =>
-      assertErrorCode(
-        TermShape.Block(List(statement), result),
-        "NEUTRAL_TERM_AUTHORING_FAMILY_UNSUPPORTED"
-      )
+    val localValShape = TermShape.Block(List(localVal), result)
+    assertRoundTrip(localValShape, author(localValShape))
+    assertErrorCode(
+      TermShape.Block(List(localDef), result),
+      "NEUTRAL_TERM_AUTHORING_FAMILY_UNSUPPORTED"
     )
 
   test("authors Lambda children and rejects independently excluded BoundReference children"):
