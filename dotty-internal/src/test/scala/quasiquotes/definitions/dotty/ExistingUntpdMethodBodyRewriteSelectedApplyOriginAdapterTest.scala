@@ -229,6 +229,16 @@ class ExistingUntpdMethodBodyRewriteSelectedApplyOriginAdapterTest
           null.asInstanceOf[ExistingUntpdMethodBodyRewriter.Result]
         )
       )
+      assertError("ORIGIN_ADAPTATION_FAILED")(
+        ExistingUntpdMethodBodyRewriteOriginAdapter.adaptSelectedApply(
+          structural.copy(
+            replacementBody = untpd.Apply(
+              untpd.Select(untpd.Ident(termName("service")), termName("invoke")),
+              null.asInstanceOf[List[untpd.Tree]]
+            )
+          )
+        )
+      )
       val parsedReplacement = parseTerm("service.invoke(20)").asInstanceOf[untpd.Apply]
       assertError("SOURCE_FREE_INTERMEDIATE_REQUIRED")(
         ExistingUntpdMethodBodyRewriteOriginAdapter.adaptSelectedApply(

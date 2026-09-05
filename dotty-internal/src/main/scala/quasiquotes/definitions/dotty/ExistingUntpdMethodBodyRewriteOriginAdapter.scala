@@ -31,47 +31,27 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
   def adapt(
       structural: ExistingUntpdMethodBodyRewriter.Result
   )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, Result] =
-    try
-      Option(structural)
-        .toRight(error("RESULT_REQUIRED", "the U002 structural result was null."))
-        .flatMap(validateSourceFreeInput)
-        .flatMap(validateSingleNodeReplacement)
-        .flatMap(validateOriginalSites)
-        .flatMap(positionSingleNode)
-    catch
-      case NonFatal(exception) =>
-        Left(
-          error(
-            "ORIGIN_ADAPTATION_FAILED",
-            Option(exception.getMessage)
-              .filter(_.nonEmpty)
-              .getOrElse(exception.getClass.getSimpleName)
-          )
-        )
+    Option(structural)
+      .toRight(error("RESULT_REQUIRED", "the U002 structural result was null."))
+      .flatMap(validateStructuralCarrier)
+      .flatMap(validateSourceFreeInput)
+      .flatMap(validateSingleNodeReplacement)
+      .flatMap(validateOriginalSites)
+      .flatMap(value => reconstructSafely(positionSingleNode(value)))
 
   /** Attributes one direct-Ident Apply and 1..3 leaf arguments uniformly to the replaced RHS site. */
   def adaptApply(
       structural: ExistingUntpdMethodBodyRewriter.Result
   )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, Result] =
-    try
-      Option(structural)
-        .toRight(error("RESULT_REQUIRED", "the U002 structural result was null."))
-        .flatMap(validateSourceFreeInput)
-        .flatMap(validateApplyReplacement)
-        .flatMap(validated =>
-          validateOriginalSites(validated.structural).map(_ => validated)
-        )
-        .flatMap(positionApply)
-    catch
-      case NonFatal(exception) =>
-        Left(
-          error(
-            "ORIGIN_ADAPTATION_FAILED",
-            Option(exception.getMessage)
-              .filter(_.nonEmpty)
-              .getOrElse(exception.getClass.getSimpleName)
-          )
-        )
+    Option(structural)
+      .toRight(error("RESULT_REQUIRED", "the U002 structural result was null."))
+      .flatMap(validateStructuralCarrier)
+      .flatMap(validateSourceFreeInput)
+      .flatMap(validateApplyReplacement)
+      .flatMap(validated =>
+        validateOriginalSites(validated.structural).map(_ => validated)
+      )
+      .flatMap(value => reconstructSafely(positionApply(value)))
 
   /** Attributes one direct-Ident-qualified selected Apply and 1..3 leaf arguments
     * uniformly to the replaced RHS site.
@@ -79,17 +59,80 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
   def adaptSelectedApply(
       structural: ExistingUntpdMethodBodyRewriter.Result
   )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, Result] =
-    try
-      Option(structural)
-        .toRight(error("RESULT_REQUIRED", "the U002 structural result was null."))
-        .flatMap(validateSelectedApplyReplacement)
-        .flatMap(validated =>
-          validateSourceFreeInput(validated.structural).map(_ => validated)
+    Option(structural)
+      .toRight(error("RESULT_REQUIRED", "the U002 structural result was null."))
+      .flatMap(validateStructuralCarrier)
+      .flatMap(validateSelectedApplyReplacement)
+      .flatMap(validated =>
+        validateSourceFreeInput(validated.structural).map(_ => validated)
+      )
+      .flatMap(validated =>
+        validateOriginalSites(validated.structural).map(_ => validated)
+      )
+      .flatMap(value => reconstructSafely(positionSelectedApply(value)))
+
+  private def validateStructuralCarrier(
+      structural: ExistingUntpdMethodBodyRewriter.Result
+  ): Either[ExistingUntpdMethodBodyRewriteOriginError, ExistingUntpdMethodBodyRewriter.Result] =
+    val requiredTrees = Vector[untpd.Tree](
+      structural.originalRoot,
+      structural.originalTemplate,
+      structural.originalTarget,
+      structural.rebuiltRoot,
+      structural.rebuiltTemplate,
+      structural.rebuiltTarget
+    )
+    val listsPresent =
+      Option(structural.prefix).exists(_.forall(_ != null)) &&
+        Option(structural.suffix).exists(_.forall(_ != null))
+    val treeGraphsPresent =
+      requiredTrees.forall(tree =>
+        tree != null && !ExistingUntpdMethodBodyRewriter.rawTreeGraphHasNull(tree)
+      )
+    Either.cond(
+      listsPresent && treeGraphsPresent,
+      structural,
+      error(
+        "ORIGIN_ADAPTATION_FAILED",
+        "the U002 structural result contained a null tree, child, or child sequence."
+      )
+    )
+
+  private def validateSourceFreeInput(
+      structural: ExistingUntpdMethodBodyRewriter.Result
+  )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, ExistingUntpdMethodBodyRewriter.Result] =
+    if structural.replacementBody == null ||
+      ExistingUntpdMethodBodyRewriter.rawTreeGraphHasNull(structural.replacementBody)
+    then
+      Left(
+        error(
+          "ORIGIN_ADAPTATION_FAILED",
+          "the U002 replacement graph contained a null tree, child, or child sequence."
         )
-        .flatMap(validated =>
-          validateOriginalSites(validated.structural).map(_ => validated)
+      )
+    else
+      val sourceFreeNodes = Vector[untpd.Tree](
+        structural.rebuiltRoot,
+        structural.rebuiltTemplate,
+        structural.rebuiltTarget
+      ) ++ allTrees(structural.replacementBody)
+      if sourceFreeNodes.exists(tree =>
+          tree.source.exists || tree.span.exists || tree.symbol != NoSymbol ||
+            tree.isInstanceOf[untpd.TypedSplice]
         )
-        .flatMap(positionSelectedApply)
+      then
+        Left(
+          error(
+            "SOURCE_FREE_INTERMEDIATE_REQUIRED",
+            "the fresh rebuilt root/Template/method shells and complete replacement must remain source/span/symbol-free and contain no TypedSplice; exact preserved children retain their original provenance."
+          )
+        )
+      else Right(structural)
+
+  private inline def reconstructSafely(
+      reconstruction: => Either[ExistingUntpdMethodBodyRewriteOriginError, Result]
+  ): Either[ExistingUntpdMethodBodyRewriteOriginError, Result] =
+    try reconstruction
     catch
       case NonFatal(exception) =>
         Left(
@@ -100,27 +143,6 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
               .getOrElse(exception.getClass.getSimpleName)
           )
         )
-
-  private def validateSourceFreeInput(
-      structural: ExistingUntpdMethodBodyRewriter.Result
-  )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, ExistingUntpdMethodBodyRewriter.Result] =
-    val sourceFreeNodes = Vector[untpd.Tree](
-      structural.rebuiltRoot,
-      structural.rebuiltTemplate,
-      structural.rebuiltTarget
-    ) ++ allTrees(structural.replacementBody)
-    if sourceFreeNodes.exists(tree =>
-        tree.source.exists || tree.span.exists || tree.symbol != NoSymbol ||
-          tree.isInstanceOf[untpd.TypedSplice]
-      )
-    then
-      Left(
-        error(
-          "SOURCE_FREE_INTERMEDIATE_REQUIRED",
-          "the U002 rebuilt containers and complete replacement must remain source/span/symbol-free and contain no TypedSplice."
-        )
-      )
-    else Right(structural)
 
   private def validateSingleNodeReplacement(
       structural: ExistingUntpdMethodBodyRewriter.Result
@@ -219,62 +241,71 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
   ): Either[ExistingUntpdMethodBodyRewriteOriginError, ValidatedSelectedApply] =
     structural.replacementBody match
       case replacement: untpd.Apply =>
-        if replacement.args.isEmpty || replacement.args.size > MaxApplyArguments then
-          Left(
+        Option(replacement.args)
+          .toRight(
             error(
-              "SELECTED_APPLY_ARGUMENT_COUNT_REQUIRED",
-              s"U013 admits 1..$MaxApplyArguments selected Apply arguments; found ${replacement.args.size}."
+              "ORIGIN_ADAPTATION_FAILED",
+              "the U013 replacement Apply argument sequence was null."
             )
           )
-        else
-          replacement.fun match
-            case selection: untpd.Select =>
-              selection.qualifier match
-                case qualifier: untpd.Ident =>
-                  if Option(selection.name).forall(name => !name.isTermName) then
-                    Left(
-                      error(
-                        "SELECTED_APPLY_NAME_TERM_REQUIRED",
-                        s"U013 requires a non-null term-name selection; found ${Option(selection.name).fold("null")(_.toString)}."
-                      )
-                    )
-                  else
-                    replacement.args.find(argument =>
-                      Option(argument).forall(value =>
-                        !isAdmittedSelectedApplyLeafForValidation(value)
-                      )
-                    ) match
-                      case Some(argument) =>
+          .flatMap { arguments =>
+            if arguments.isEmpty || arguments.size > MaxApplyArguments then
+              Left(
+                error(
+                  "SELECTED_APPLY_ARGUMENT_COUNT_REQUIRED",
+                  s"U013 admits 1..$MaxApplyArguments selected Apply arguments; found ${arguments.size}."
+                )
+              )
+            else
+              replacement.fun match
+                case selection: untpd.Select =>
+                  selection.qualifier match
+                    case qualifier: untpd.Ident =>
+                      if Option(selection.name).forall(name => !name.isTermName) then
                         Left(
                           error(
-                            "SELECTED_APPLY_ARGUMENT_LEAF_REQUIRED",
-                            s"U013 selected Apply arguments must be direct Ident, Number, or Literal leaves; found ${nodeKind(argument)}."
+                            "SELECTED_APPLY_NAME_TERM_REQUIRED",
+                            s"U013 requires a non-null term-name selection; found ${Option(selection.name).fold("null")(_.toString)}."
                           )
                         )
-                      case None =>
-                        Right(
-                          ValidatedSelectedApply(
-                            structural,
-                            replacement,
-                            selection,
-                            qualifier,
-                            replacement.args
+                      else
+                        arguments.find(argument =>
+                          Option(argument).forall(value =>
+                            !isAdmittedSelectedApplyLeafForValidation(value)
                           )
+                        ) match
+                          case Some(argument) =>
+                            Left(
+                              error(
+                                "SELECTED_APPLY_ARGUMENT_LEAF_REQUIRED",
+                                s"U013 selected Apply arguments must be direct Ident, Number, or Literal leaves; found ${nodeKind(argument)}."
+                              )
+                            )
+                          case None =>
+                            Right(
+                              ValidatedSelectedApply(
+                                structural,
+                                replacement,
+                                selection,
+                                qualifier,
+                                arguments
+                              )
+                            )
+                    case other =>
+                      Left(
+                        error(
+                          "SELECTED_APPLY_QUALIFIER_IDENT_REQUIRED",
+                          s"U013 requires one direct Ident selection qualifier; found ${nodeKind(other)}."
                         )
+                      )
                 case other =>
                   Left(
                     error(
-                      "SELECTED_APPLY_QUALIFIER_IDENT_REQUIRED",
-                      s"U013 requires one direct Ident selection qualifier; found ${nodeKind(other)}."
+                      "SELECTED_APPLY_FUNCTION_SELECT_REQUIRED",
+                      s"U013 requires one selected-member Apply function; found ${nodeKind(other)}."
                     )
                   )
-            case other =>
-              Left(
-                error(
-                  "SELECTED_APPLY_FUNCTION_SELECT_REQUIRED",
-                  s"U013 requires one selected-member Apply function; found ${nodeKind(other)}."
-                )
-              )
+          }
       case other =>
         Left(
           error(

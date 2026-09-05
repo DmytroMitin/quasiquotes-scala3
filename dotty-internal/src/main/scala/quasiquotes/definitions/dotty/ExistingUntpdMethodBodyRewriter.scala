@@ -90,6 +90,68 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriter:
           )
         )
 
+  private[dotty] def rewriteSingleParameter(
+      view: ExistingUntpdSingleParameterMethodView.View,
+      replacementBody: untpd.Tree
+  )(using Context): Either[ExistingUntpdMethodBodyRewriteError, Result] =
+    for
+      presentView <- Option(view).toRight(
+        error("VIEW_REQUIRED", "the U028 single-parameter method view was null.")
+      )
+      _ <- ExistingUntpdSingleParameterMethodView
+        .validate(presentView)
+        .left
+        .map(problem => error("VIEW_INVALID", problem.message))
+      targetIndex <- uniqueTargetIndex(
+        presentView.captured.originalTemplate.body,
+        presentView.method
+      )
+      _ <- Either.cond(
+        targetIndex == presentView.memberIndex,
+        (),
+        error(
+          "VIEW_MEMBER_INDEX_MISMATCH",
+          "the exact method identity no longer occurs at the U028 captured direct-member index."
+        )
+      )
+      presentReplacement <- Option(replacementBody).toRight(
+        error("REPLACEMENT_BODY_REQUIRED", "the replacement body was null.")
+      )
+      _ <- Either.cond(
+        !presentReplacement.isEmpty,
+        (),
+        error("REPLACEMENT_BODY_REQUIRED", "the replacement body was EmptyTree.")
+      )
+      _ <- Either.cond(
+        !rawTreeGraphHasNull(presentReplacement),
+        (),
+        error(
+          "REPLACEMENT_GRAPH_MALFORMED",
+          "the replacement graph contained a null tree, child, or child sequence."
+        )
+      )
+      _ <- validateReplacement(presentReplacement)
+      result <- rebuild(
+        presentView.captured.originalRoot,
+        presentView.captured.originalTemplate,
+        presentView.method,
+        targetIndex,
+        presentReplacement
+      )
+      _ <- validateSingleParameterResult(presentView, result)
+    yield result
+
+  private[dotty] def rawTreeGraphHasNull(tree: untpd.Tree): Boolean =
+    def containsNull(value: Any): Boolean =
+      value match
+        case null => true
+        case current: untpd.Tree =>
+          current.productIterator.exists(containsNull)
+        case values: Iterable[?] => values.iterator.exists(containsNull)
+        case _ => false
+
+    containsNull(tree)
+
   private def uniqueTargetIndex(
       body: List[untpd.Tree],
       exactTarget: untpd.DefDef
@@ -243,6 +305,36 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriter:
       error(
         "RECONSTRUCTED_PROVENANCE_INVARIANT_FAILED",
         "the rebuilt root/template/target or preserved direct children violated the bounded identity/provenance contract."
+      )
+    )
+
+  private def validateSingleParameterResult(
+      view: ExistingUntpdSingleParameterMethodView.View,
+      result: Result
+  )(using Context): Either[ExistingUntpdMethodBodyRewriteError, Unit] =
+    val rebuiltParameter =
+      Option(result.rebuiltTarget.paramss)
+        .filter(_.size == 1)
+        .flatMap(_.headOption)
+        .filter(_ != null)
+        .filter(_.size == 1)
+        .flatMap(_.headOption)
+        .collect { case parameter: untpd.ValDef => parameter }
+    val valid =
+      result.originalRoot.eq(view.captured.originalRoot) &&
+        result.originalTemplate.eq(view.captured.originalTemplate) &&
+        result.originalTarget.eq(view.method) &&
+        rebuiltParameter.exists(parameter =>
+          parameter.eq(view.parameter) && parameter.tpt.eq(view.parameterType)
+        ) &&
+        result.rebuiltTarget.tpt.eq(view.resultType) &&
+        result.rebuiltTarget.rhs.eq(result.replacementBody)
+    Either.cond(
+      valid,
+      (),
+      error(
+        "SINGLE_PARAMETER_REWRITE_INVARIANT_FAILED",
+        "the reconstructed method did not preserve the exact U028 parameter, parameter type, result type, or captured owner identity."
       )
     )
 
