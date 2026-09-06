@@ -83,6 +83,15 @@ private[scalameta] object ScalametaDefinitionPatternMacro:
                 )(using $callerQuotes)
             }
           case Right(
+                ScalametaDefinitionFrontend.PatternKind.CapturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResult
+              ) =>
+            '{
+              ScalametaQuasiPattern
+                .capturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResultExtractor(
+                  $context
+                )(using $callerQuotes)
+            }
+          case Right(
                 ScalametaDefinitionFrontend.PatternKind.CapturedNameScala2ImplicitParameterSequenceCapturedResult
               ) =>
             '{

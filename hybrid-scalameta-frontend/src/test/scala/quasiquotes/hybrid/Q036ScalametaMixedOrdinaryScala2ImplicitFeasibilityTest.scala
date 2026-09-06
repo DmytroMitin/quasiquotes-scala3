@@ -78,7 +78,7 @@ final class Q036ScalametaMixedOrdinaryScala2ImplicitFeasibilityTest extends muni
 
     assertEquals(result, (true, true, true, true, true, true))
 
-  test("typed-Scalameta test grammar rejects unselected layouts and production keeps Q036 closed"):
+  test("typed-Scalameta test grammar rejects unselected layouts and production selects Q036 through Q037"):
     inline def messages(inline source: String): List[String] = typeCheckErrors(source).map(_.message)
     inline def candidateMessages(inline pattern: String): List[String] =
       messages(
@@ -114,4 +114,4 @@ final class Q036ScalametaMixedOrdinaryScala2ImplicitFeasibilityTest extends muni
            case dqq"$mods def $name(..$params)(implicit ..$usingParams): $result = $body" => ()
            case _ => ()"""
     )
-    assert(production.nonEmpty, production)
+    assertEquals(production, Nil)

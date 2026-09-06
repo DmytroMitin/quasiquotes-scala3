@@ -32,6 +32,7 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
     case CapturedNameScala2ImplicitParameterSequenceCapturedResult
     case CapturedModifiersNameNamedUsingParameterSequenceCapturedResult
     case CapturedModifiersNameMixedOrdinaryNamedUsingParameterSequencesCapturedResult
+    case CapturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResult
     case CapturedModifiersNameScala2ImplicitParameterSequenceCapturedResult
     case CapturedModifiersNameRankedParameterClauseSequenceCapturedResult
     case CapturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult
@@ -141,6 +142,16 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
       secondOrdinaryParameterSentinel: String,
       firstUsingParameterSentinel: String,
       secondUsingParameterSentinel: String,
+      resultSentinel: String,
+      bodySentinel: String
+  )
+
+  final case class CapturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResultProjection(
+      methodSentinel: String,
+      firstOrdinaryParameterSentinel: String,
+      secondOrdinaryParameterSentinel: String,
+      firstImplicitParameterSentinel: String,
+      secondImplicitParameterSentinel: String,
       resultSentinel: String,
       bodySentinel: String
   )
@@ -268,6 +279,13 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
                   Right(
                     PatternKind.CapturedModifiersNameMixedOrdinaryNamedUsingParameterSequencesCapturedResult
                   )
+                else if isExactCapturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResult(
+                    parts.toVector
+                  )
+                then
+                  Right(
+                    PatternKind.CapturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResult
+                  )
                 else if isExactCapturedModifiersNameScala2ImplicitParameterSequenceCapturedResult(
                     parts.toVector
                   )
@@ -388,6 +406,16 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
     CapturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResultProjection
   ] =
     projectCapturedNameMixedOrdinaryNamedUsingParameterSequencesCapturedResultPattern(parts)
+
+  def compileCapturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResultPattern(
+      parts: Seq[String]
+  ): Either[
+    Failure,
+    CapturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResultProjection
+  ] =
+    projectCapturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResultPattern(
+      parts
+    )
 
   def compileCapturedModifiersNameScala2ImplicitParameterSequenceCapturedResultPattern(
       parts: Seq[String]
@@ -1703,6 +1731,186 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
       bodySentinel
     )
 
+  private[quasiquotes] def projectCapturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResultPattern(
+      parts: Seq[String]
+  ): Either[
+    Failure,
+    CapturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResultProjection
+  ] =
+    for
+      checkedParts <- checkedParts(
+        parts,
+        7,
+        "semantic modifiers, semantic name, complete ordinary parameter sequence, complete Scala-2-implicit parameter sequence, semantic result Type, and complete body captures"
+      )
+      _ <- require(
+        isExactCapturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResult(
+          checkedParts
+        ),
+        checkedParts.mkString.length,
+        "DEFINITION_PATTERN_CAPTURE_LAYOUT_UNSUPPORTED",
+        "only `$mods def $name(..$params)(implicit ..$implicitParams): $result = $body` is supported for the mixed ordinary/Scala-2-implicit six-capture Definition shape."
+      )
+      _ <- exactSourceGuard(checkedParts)
+      literalSource = checkedParts.mkString
+      methodSentinel = freshIndexed("__qq_scmeta_definition_method_", literalSource, Set.empty)
+      firstOrdinaryParameterSentinel = freshIndexed(
+        "__qq_scmeta_definition_ordinary_parameter_",
+        literalSource,
+        Set(methodSentinel)
+      )
+      secondOrdinaryParameterSentinel = freshIndexed(
+        "__qq_scmeta_definition_ordinary_parameter_",
+        literalSource,
+        Set(methodSentinel, firstOrdinaryParameterSentinel)
+      )
+      firstImplicitParameterSentinel = freshIndexed(
+        "__qq_scmeta_definition_implicit_parameter_",
+        literalSource,
+        Set(methodSentinel, firstOrdinaryParameterSentinel, secondOrdinaryParameterSentinel)
+      )
+      secondImplicitParameterSentinel = freshIndexed(
+        "__qq_scmeta_definition_implicit_parameter_",
+        literalSource,
+        Set(
+          methodSentinel,
+          firstOrdinaryParameterSentinel,
+          secondOrdinaryParameterSentinel,
+          firstImplicitParameterSentinel
+        )
+      )
+      resultSentinel = freshIndexed(
+        "__qq_scmeta_definition_result_",
+        literalSource,
+        Set(
+          methodSentinel,
+          firstOrdinaryParameterSentinel,
+          secondOrdinaryParameterSentinel,
+          firstImplicitParameterSentinel,
+          secondImplicitParameterSentinel
+        )
+      )
+      bodySentinel = freshIndexed(
+        "__qq_scmeta_definition_body_",
+        literalSource,
+        Set(
+          methodSentinel,
+          firstOrdinaryParameterSentinel,
+          secondOrdinaryParameterSentinel,
+          firstImplicitParameterSentinel,
+          secondImplicitParameterSentinel,
+          resultSentinel
+        )
+      )
+      ordinaryMarkerOffset = checkedParts(2).lastIndexOf("..")
+      implicitMarkerOffset = checkedParts(3).lastIndexOf("..")
+      source =
+        "@deprecated(\"q037\", \"\") private[quasiquotes] final" + checkedParts(1) +
+          methodSentinel + checkedParts(2).substring(0, ordinaryMarkerOffset) +
+          s"$firstOrdinaryParameterSentinel: Int, $secondOrdinaryParameterSentinel: String" +
+          checkedParts(3).substring(0, implicitMarkerOffset) +
+          s"$firstImplicitParameterSentinel: Ordering[Int], $secondImplicitParameterSentinel: Numeric[Int]" +
+          checkedParts(4) + resultSentinel + checkedParts(5) + bodySentinel + checkedParts(6)
+      definition <- parseDefinition(source)
+      _ <- require(
+        (definition.mods match
+          case List(_: Mod.Annot, _: Mod.Private, _: Mod.Final) => true
+          case _ => false) &&
+          definition.name.value == methodSentinel &&
+          definition.name.syntax == methodSentinel,
+        source.length,
+        "DEFINITION_PATTERN_CAPTURE_LAYOUT_UNSUPPORTED",
+        "the ordered annotation/qualified-private/final probe and method-name sentinel must remain structural."
+      )
+      group <- definition.paramClauseGroups match
+        case value :: Nil => Right(value)
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_GROUP_TOPOLOGY_UNSUPPORTED",
+            "expected exactly one nongeneric parameter-clause group."
+          )
+      _ <- require(
+        group.tparamClause.values.isEmpty,
+        source.length,
+        "TYPE_PARAMETERS_UNSUPPORTED",
+        "the mixed ordinary/Scala-2-implicit probe must not contain a type-parameter clause."
+      )
+      clauses <- group.paramClauses match
+        case ordinary :: contextual :: Nil
+            if ordinary.mod.isEmpty && contextual.mod.exists(_.syntax == "implicit") =>
+          Right((ordinary, contextual))
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_CLAUSE_TOPOLOGY_UNSUPPORTED",
+            "the sentinels must occupy exactly one ordinary clause followed by one Scala-2 implicit clause."
+          )
+      (ordinaryClause, implicitClause) = clauses
+      ordinaryParameters <- ordinaryClause.values match
+        case first :: second :: Nil
+            if first.mods.isEmpty && first.default.isEmpty &&
+              second.mods.isEmpty && second.default.isEmpty =>
+          Right((first, second))
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_TOPOLOGY_UNSUPPORTED",
+            "the ordinary sentinel clause must contain two ordinary named parameters."
+          )
+      implicitParameters <- implicitClause.values match
+        case first :: second :: Nil
+            if first.mods.map(_.syntax) == List("implicit") && first.default.isEmpty &&
+              second.mods.map(_.syntax) == List("implicit") && second.default.isEmpty =>
+          Right((first, second))
+        case _ =>
+          unsupported(
+            source.length,
+            "PARAMETER_TOPOLOGY_UNSUPPORTED",
+            "the Scala-2 implicit sentinel clause must contain two authored implicit parameters."
+          )
+      (firstOrdinaryParameter, secondOrdinaryParameter) = ordinaryParameters
+      (firstImplicitParameter, secondImplicitParameter) = implicitParameters
+      _ <- require(
+        firstOrdinaryParameter.name.value == firstOrdinaryParameterSentinel &&
+          firstOrdinaryParameter.name.syntax == firstOrdinaryParameterSentinel &&
+          firstOrdinaryParameter.decltpe.exists(_.syntax == "Int") &&
+          secondOrdinaryParameter.name.value == secondOrdinaryParameterSentinel &&
+          secondOrdinaryParameter.name.syntax == secondOrdinaryParameterSentinel &&
+          secondOrdinaryParameter.decltpe.exists(_.syntax == "String") &&
+          firstImplicitParameter.name.value == firstImplicitParameterSentinel &&
+          firstImplicitParameter.name.syntax == firstImplicitParameterSentinel &&
+          firstImplicitParameter.decltpe.exists(_.syntax == "Ordering[Int]") &&
+          secondImplicitParameter.name.value == secondImplicitParameterSentinel &&
+          secondImplicitParameter.name.syntax == secondImplicitParameterSentinel &&
+          secondImplicitParameter.decltpe.exists(_.syntax == "Numeric[Int]") &&
+          definition.decltpe.exists {
+            case value: Type.Name =>
+              value.value == resultSentinel && value.syntax == resultSentinel
+            case _ => false
+          },
+        source.length,
+        "DEFINITION_PATTERN_CAPTURE_LAYOUT_UNSUPPORTED",
+        "the ordinary, Scala-2 implicit, and result sentinels must remain in their exact structural positions."
+      )
+      _ <- definition.body match
+        case value: Term.Name if value.value == bodySentinel => Right(())
+        case _ =>
+          unsupported(
+            source.length,
+            "COMPLETE_BODY_CAPTURE_REQUIRED",
+            "the body capture must occupy the complete Definition right-hand side."
+          )
+    yield CapturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResultProjection(
+      methodSentinel,
+      firstOrdinaryParameterSentinel,
+      secondOrdinaryParameterSentinel,
+      firstImplicitParameterSentinel,
+      secondImplicitParameterSentinel,
+      resultSentinel,
+      bodySentinel
+    )
+
   private[quasiquotes] def projectCapturedModifiersNameScala2ImplicitParameterSequenceCapturedResultPattern(
       parts: Seq[String]
   ): Either[
@@ -2353,6 +2561,28 @@ private[quasiquotes] object ScalametaDefinitionFrontend:
         prefix.matches("(?s)\\s*def\\s+") &&
           beforeOrdinaryParams.matches("(?s)\\s*\\(\\s*\\.\\.\\s*") &&
           beforeUsingParams.matches("(?s)\\s*\\)\\s*\\(\\s*using\\s+\\.\\.\\s*") &&
+          beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&
+          beforeBody.matches("(?s)\\s*=\\s*") &&
+          suffix.trim.isEmpty
+      case _ => false
+
+  private def isExactCapturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResult(
+      parts: Vector[String]
+  ): Boolean =
+    parts match
+      case Vector(
+            beforeModifiers,
+            beforeName,
+            beforeOrdinaryParams,
+            beforeImplicitParams,
+            beforeResult,
+            beforeBody,
+            suffix
+          ) =>
+        beforeModifiers.trim.isEmpty &&
+          beforeName.matches("(?s)\\s+def\\s+") &&
+          beforeOrdinaryParams.matches("(?s)\\s*\\(\\s*\\.\\.\\s*") &&
+          beforeImplicitParams.matches("(?s)\\s*\\)\\s*\\(\\s*implicit\\s+\\.\\.\\s*") &&
           beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&
           beforeBody.matches("(?s)\\s*=\\s*") &&
           suffix.trim.isEmpty

@@ -108,6 +108,25 @@ private[quasiquotes] object RankedDefinitionPatternExtractorFactory:
       )
     )
 
+  def capturedModifiersNameMixedOrdinaryScala2ImplicitParamsResult(using
+      q: Quotes
+  ): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      DefinitionModifiers[q.reflect.Flags, q.reflect.TypeRepr, q.reflect.Term],
+      String,
+      Seq[q.reflect.ValDef],
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    new RankedDefinitionPatternExtractor(target =>
+      RankedDefinitionPatternMatcher.extractCapturedModifiersNameMixedOrdinaryScala2ImplicitParamsResult(
+        target
+      )
+    )
+
   def capturedModifiersNameScala2ImplicitParamsResult(using q: Quotes): RankedDefinitionPatternExtractor[
     q.reflect.DefDef,
     (
@@ -295,6 +314,29 @@ private[matching] object RankedDefinitionPatternMatcher:
       (modifiers, target.name, parameters, result, body)
     }
 
+  def extractCapturedModifiersNameMixedOrdinaryScala2ImplicitParamsResult(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[
+    (
+      DefinitionModifiers[q.reflect.Flags, q.reflect.TypeRepr, q.reflect.Term],
+      String,
+      Seq[q.reflect.ValDef],
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    extractAdmittedMixedOrdinaryScala2ImplicitDefinition(target).map {
+      (ordinaryParameters, implicitParameters, result, body) =>
+        val modifiers = new DefinitionModifiers(
+          target.symbol.flags,
+          target.symbol.privateWithin,
+          target.symbol.protectedWithin,
+          target.symbol.annotations
+        )
+        (modifiers, target.name, ordinaryParameters, implicitParameters, result, body)
+    }
+
   def extractCapturedNameScala2ImplicitParamsResult(using q: Quotes)(
       target: q.reflect.DefDef
   ): Option[(String, Seq[q.reflect.ValDef], q.reflect.TypeRepr, q.reflect.Term)] =
@@ -474,6 +516,81 @@ private[matching] object RankedDefinitionPatternMatcher:
               target.rhs.map(body => (ordinaryParameters, usingParameters, result, body))
             )
         case _ => None
+
+  private def extractAdmittedMixedOrdinaryScala2ImplicitDefinition(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[
+    (
+      List[q.reflect.ValDef],
+      List[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    import q.reflect.*
+
+    if !isAdmittedNormalMethod(target) then None
+    else
+      target.paramss match
+        case List(ordinaryClause: TermParamClause, implicitClause: TermParamClause)
+            if !ordinaryClause.isImplicit &&
+              !ordinaryClause.isGiven &&
+              !ordinaryClause.isErased &&
+              implicitClause.isImplicit &&
+              !implicitClause.isGiven &&
+              !implicitClause.isErased &&
+              implicitClause.params.nonEmpty =>
+          val ordinaryParameters = ordinaryClause.params
+          val implicitParameters = implicitClause.params
+          val ordinarySymbols = ordinaryParameters.map(_.symbol)
+          val implicitSymbols = implicitParameters.map(_.symbol)
+          val allSymbols = ordinarySymbols ++ implicitSymbols
+          val admittedParameters =
+            allSymbols.forall(_ != Symbol.noSymbol) &&
+              allSymbols.distinct.size == allSymbols.size &&
+              ordinaryParameters.forall(parameter =>
+                parameter.symbol.owner == target.symbol &&
+                  parameter.symbol.annotations.isEmpty &&
+                  isStrictNonRepeatedParameter(parameter) &&
+                  !parameter.symbol.flags.is(Flags.Implicit) &&
+                  !parameter.symbol.flags.is(Flags.Given) &&
+                  !parameter.symbol.flags.is(Flags.Synthetic) &&
+                  !parameter.symbol.flags.is(Flags.Erased) &&
+                  !parameter.symbol.flags.is(Flags.HasDefault)
+              ) &&
+              implicitParameters.forall(parameter =>
+                parameter.symbol.owner == target.symbol &&
+                  parameter.symbol.annotations.isEmpty &&
+                  isStrictNonRepeatedParameter(parameter) &&
+                  parameter.symbol.flags.is(Flags.Implicit) &&
+                  !parameter.symbol.flags.is(Flags.Given) &&
+                  !parameter.symbol.flags.is(Flags.Synthetic) &&
+                  !parameter.symbol.flags.is(Flags.Erased) &&
+                  !parameter.symbol.flags.is(Flags.HasDefault)
+              ) &&
+              target.symbol.paramSymss == List(ordinarySymbols, implicitSymbols)
+
+          Option
+            .when(admittedParameters)(target.returnTpt.tpe)
+            .flatMap(result =>
+              target.rhs.map(body =>
+                (ordinaryParameters, implicitParameters, result, body)
+              )
+            )
+        case _ => None
+
+  private def isStrictNonRepeatedParameter(using q: Quotes)(
+      parameter: q.reflect.ValDef
+  ): Boolean =
+    import q.reflect.*
+
+    parameter.tpt.tpe match
+      case _: ByNameType => false
+      case AnnotatedType(AppliedType(_, List(_)), annotation)
+          if annotation.tpe.typeSymbol == defn.RepeatedAnnot => false
+      case AppliedType(constructor, List(_))
+          if constructor.typeSymbol == defn.RepeatedParamClass => false
+      case _ => true
 
   private def isAdmittedNormalMethod(using q: Quotes)(target: q.reflect.DefDef): Boolean =
     import q.reflect.*

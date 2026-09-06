@@ -307,11 +307,11 @@ final class Q036MixedOrdinaryScala2ImplicitFeasibilityTest extends munit.FunSuit
     )
     assert(dynamic.exists(_.message.contains("must be statically known")), dynamic)
 
-  test("real production dqq keeps the Q036 conceptual grammar closed"):
+  test("real production dqq now selects the Q036 conceptual grammar through Q037"):
     val errors = typeCheckErrors(
       """import scala.quoted.*; import quasiquotes.matching.DefinitionPattern.dqq
          def f(using q: Quotes)(d: q.reflect.DefDef) = d match
            case dqq"$mods def $name(..$params)(implicit ..$usingParams): $result = $body" => ()
            case _ => ()"""
     ).map(_.message)
-    assert(errors.nonEmpty, errors)
+    assertEquals(errors, Nil)

@@ -203,6 +203,7 @@ final class MixedOrdinaryNamedUsingDefinitionClauseCaptureProductionTest extends
     val accepted = patternMessages("""case dqq"$mods def $name(..$params)(using ..$usingParams): $result = $body" => ()""")
     val q028 = patternMessages("""case dqq"$mods def $name(using ..$usingParams): $result = $body" => ()""")
     val q035 = patternMessages("""case dqq"def $name(..$params)(using ..$usingParams): $result = $body" => ()""")
+    val q037 = patternMessages("""case dqq"$mods def $name(..$params)(implicit ..$implicitParams): $result = $body" => ()""")
     val rejected = List(
       patternMessages("""case dqq"private $mods def $name(..$params)(using ..$usingParams): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods final def $name(..$params)(using ..$usingParams): $result = $body" => ()"""),
@@ -219,7 +220,6 @@ final class MixedOrdinaryNamedUsingDefinitionClauseCaptureProductionTest extends
       patternMessages("""case dqq"$mods def $name(..$params)(using): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(..$params)(using ..$usingParams)(extra: Int): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name[..$tparams](..$params)(using ..$usingParams): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods def $name(..$params)(implicit ..$usingParams): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(erased ..$params)(using ..$usingParams): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(..$params)(using ..$usingParams): Int = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(..$params)(using ..$usingParams): $result = $body + 1" => ()"""),
@@ -231,6 +231,7 @@ final class MixedOrdinaryNamedUsingDefinitionClauseCaptureProductionTest extends
     assertEquals(accepted, Nil)
     assertEquals(q028, Nil)
     assertEquals(q035, Nil)
+    assertEquals(q037, Nil)
     assert(rejected.forall(_.nonEmpty), rejected)
     assert(rejected.flatten.forall(_.contains("Invalid dqq definition-pattern template")), rejected)
 
