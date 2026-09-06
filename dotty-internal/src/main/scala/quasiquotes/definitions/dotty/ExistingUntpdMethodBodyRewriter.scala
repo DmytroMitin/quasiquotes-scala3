@@ -141,6 +141,57 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriter:
       _ <- validateSingleParameterResult(presentView, result)
     yield result
 
+  private[dotty] def rewriteTwoParameter(
+      view: ExistingUntpdTwoParameterMethodView.View,
+      replacementBody: untpd.Tree
+  )(using Context): Either[ExistingUntpdMethodBodyRewriteError, Result] =
+    for
+      presentView <- Option(view).toRight(
+        error("VIEW_REQUIRED", "the U033 two-parameter method view was null.")
+      )
+      _ <- ExistingUntpdTwoParameterMethodView
+        .validate(presentView)
+        .left
+        .map(problem => error("VIEW_INVALID", problem.message))
+      targetIndex <- uniqueTargetIndex(
+        presentView.captured.originalTemplate.body,
+        presentView.method
+      )
+      _ <- Either.cond(
+        targetIndex == presentView.memberIndex,
+        (),
+        error(
+          "VIEW_MEMBER_INDEX_MISMATCH",
+          "the exact method identity no longer occurs at the U033 captured direct-member index."
+        )
+      )
+      presentReplacement <- Option(replacementBody).toRight(
+        error("REPLACEMENT_BODY_REQUIRED", "the replacement body was null.")
+      )
+      _ <- Either.cond(
+        !presentReplacement.isEmpty,
+        (),
+        error("REPLACEMENT_BODY_REQUIRED", "the replacement body was EmptyTree.")
+      )
+      _ <- Either.cond(
+        !rawTreeGraphHasNull(presentReplacement),
+        (),
+        error(
+          "REPLACEMENT_GRAPH_MALFORMED",
+          "the replacement graph contained a null tree, child, or child sequence."
+        )
+      )
+      _ <- validateReplacement(presentReplacement)
+      result <- rebuild(
+        presentView.captured.originalRoot,
+        presentView.captured.originalTemplate,
+        presentView.method,
+        targetIndex,
+        presentReplacement
+      )
+      _ <- validateTwoParameterResult(presentView, result)
+    yield result
+
   private[dotty] def rawTreeGraphHasNull(tree: untpd.Tree): Boolean =
     def containsNull(value: Any): Boolean =
       value match
@@ -335,6 +386,42 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriter:
       error(
         "SINGLE_PARAMETER_REWRITE_INVARIANT_FAILED",
         "the reconstructed method did not preserve the exact U028 parameter, parameter type, result type, or captured owner identity."
+      )
+    )
+
+  private def validateTwoParameterResult(
+      view: ExistingUntpdTwoParameterMethodView.View,
+      result: Result
+  )(using Context): Either[ExistingUntpdMethodBodyRewriteError, Unit] =
+    val rebuiltParameters =
+      Option(result.rebuiltTarget.paramss)
+        .filter(_.size == 1)
+        .flatMap(_.headOption)
+        .filter(_ != null)
+        .filter(_.size == 2)
+        .flatMap { clause =>
+          (clause(0), clause(1)) match
+            case (first: untpd.ValDef, second: untpd.ValDef) => Some((first, second))
+            case _ => None
+        }
+    val valid =
+      result.originalRoot.eq(view.captured.originalRoot) &&
+        result.originalTemplate.eq(view.captured.originalTemplate) &&
+        result.originalTarget.eq(view.method) &&
+        rebuiltParameters.exists { case (first, second) =>
+          first.eq(view.firstParameter) &&
+          first.tpt.eq(view.firstParameterType) &&
+          second.eq(view.secondParameter) &&
+          second.tpt.eq(view.secondParameterType)
+        } &&
+        result.rebuiltTarget.tpt.eq(view.resultType) &&
+        result.rebuiltTarget.rhs.eq(result.replacementBody)
+    Either.cond(
+      valid,
+      (),
+      error(
+        "TWO_PARAMETER_REWRITE_INVARIANT_FAILED",
+        "the reconstructed method did not preserve both exact U033 parameters, parameter types, result type, or captured owner identity."
       )
     )
 

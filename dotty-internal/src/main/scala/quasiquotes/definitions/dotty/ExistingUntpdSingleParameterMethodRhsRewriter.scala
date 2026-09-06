@@ -112,8 +112,9 @@ private[quasiquotes] object ExistingUntpdSingleParameterMethodRhsRewriter:
       .flatMap(_.headOption)
       .collect { case parameter: untpd.ValDef => parameter }
 
-  private def classify(
-      replacementBody: untpd.Tree
+  private[dotty] def classify(
+      replacementBody: untpd.Tree,
+      taskLabel: String = "U029"
   )(using Context): Either[ExistingUntpdSingleParameterMethodRhsRewriteError, ReplacementFamily] =
     if ExistingUntpdClassMemberFilter.allTrees(replacementBody).size == 1 then
       Right(ReplacementFamily.SingleNode)
@@ -125,16 +126,17 @@ private[quasiquotes] object ExistingUntpdSingleParameterMethodRhsRewriter:
             case selection: untpd.Select
                 if Option(selection.qualifier).exists(_.isInstanceOf[untpd.Ident]) =>
               Right(ReplacementFamily.DirectIdentQualifiedSelectedApply)
-            case _ => unsupportedFamily(replacementBody)
-        case _ => unsupportedFamily(replacementBody)
+            case _ => unsupportedFamily(replacementBody, taskLabel)
+        case _ => unsupportedFamily(replacementBody, taskLabel)
 
   private def unsupportedFamily(
-      replacementBody: untpd.Tree
+      replacementBody: untpd.Tree,
+      taskLabel: String
   ): Left[ExistingUntpdSingleParameterMethodRhsRewriteError, Nothing] =
     Left(
       error(
         "REPLACEMENT_FAMILY_UNSUPPORTED",
-        s"U029 admits only U003 single-node, U005 direct-Ident Apply, or U013 direct-Ident-qualified selected Apply replacements; found ${replacementBody.getClass.getSimpleName}."
+        s"$taskLabel admits only U003 single-node, U005 direct-Ident Apply, or U013 direct-Ident-qualified selected Apply replacements; found ${replacementBody.getClass.getSimpleName}."
       )
     )
 
