@@ -3,7 +3,6 @@ package quasiquotes.types.dotty
 import dotty.tools.dotc.ast.untpd
 
 import quasiquotes.neutral.ScalametaTypeNormalFormProjection
-import quasiquotes.terms.dotty.CompletedTypeUntypedLowerer
 
 import scala.meta.Type
 
@@ -38,13 +37,13 @@ object ScalametaTypeUntypedBridge:
           )
       )
       .flatMap(projected =>
-        CompletedTypeUntypedLowerer
+        TypeUntypedLowering
           .lower(projected.normalForm)
           .left
           .map(problem =>
             Failure(
               "EXACT_LOWERING_FAILED",
-              problem.message
+              problem.detail
             )
           )
       )
