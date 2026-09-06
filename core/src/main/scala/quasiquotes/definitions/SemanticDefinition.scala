@@ -101,6 +101,12 @@ final class DefinitionParameterScope private[quasiquotes] (
     parameters.referenceAt(clauseIndex, parameterIndex)
       .left.map(DefinitionSemanticInternals.termFailure)
 
+  private[definitions] def validateDefinitionBody(
+      expectedParameterCounts: Vector[Int],
+      body: TermShape
+  ): Either[TermBindingFailure, TermShape] =
+    parameters.validateDefinitionBody(expectedParameterCounts, body)
+
 private[definitions] object DefinitionParameterScope:
   def apply(parameters: TermBindingInternals.PersistentParameters): DefinitionParameterScope =
     new DefinitionParameterScope(parameters.asInstanceOf[AnyRef])

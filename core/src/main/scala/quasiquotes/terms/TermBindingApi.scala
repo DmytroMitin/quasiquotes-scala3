@@ -367,6 +367,28 @@ private[quasiquotes] object TermBindingInternals:
       }
 
     def complete(shape: TermShape): Either[TermBindingFailure, TermShape] =
+      validate(shape).map { present =>
+        Registry.register(present, session.graph, flattenedIds)
+        present
+      }
+
+    def validateDefinitionBody(
+        expectedParameterCounts: Vector[Int],
+        shape: TermShape
+    ): Either[TermBindingFailure, TermShape] =
+      if ids.map(_.size) != expectedParameterCounts then
+        Left(
+          failure(
+            "TERM_BINDER_SCOPE_MISMATCH",
+            "the persistent method parameter scope does not match the declared clause topology."
+          )
+        )
+      else
+        validate(shape).flatMap { present =>
+          Registry.requireOwnedBinderGraph(present, session.graph, flattenedIds).map(_ => present)
+        }
+
+    private def validate(shape: TermShape): Either[TermBindingFailure, TermShape] =
       presentShape(shape, "definition method body")
         .flatMap(validateEmbedded(_, session.graph, flattenedIds))
         .flatMap { present =>
@@ -375,10 +397,7 @@ private[quasiquotes] object TermBindingInternals:
             else TermShapeTraversal.validateSupportedInScope(present, flattenedIds)
           validation.left
             .map(_ => unsupported("the definition method body exceeds the admitted Core Term family."))
-            .map { _ =>
-              Registry.register(present, session.graph, flattenedIds)
-              present
-            }
+            .map(_ => present)
         }
 
     def alphaNormalize(shape: TermShape): TermShape =
@@ -447,6 +466,26 @@ private[quasiquotes] object TermBindingInternals:
               case TermShape.Parenthesized(expression) => loop(expression)
               case _ => false)
       loop(shape)
+    }
+
+    def requireOwnedBinderGraph(
+        shape: TermShape,
+        graph: AnyRef,
+        scope: Vector[BinderId]
+    ): Either[TermBindingFailure, Unit] = synchronized {
+      if !containsBinder(shape) then Right(())
+      else
+        contextOf(shape) match
+          case Some((owner, registeredScope))
+              if (owner eq graph) && registeredScope == scope =>
+            Right(())
+          case _ =>
+            Left(
+              failure(
+                "TERM_BINDER_SCOPE_MISMATCH",
+                "the method body is not owned by its persistent parameter graph."
+              )
+            )
     }
 
     private def remember(shape: TermShape, graph: AnyRef, scope: Vector[BinderId]): Unit =

@@ -276,6 +276,13 @@ final class PublicSemanticDefinitionApiTest extends munit.FunSuite:
         "quasiquotes.definitions.SemanticDefinition.method1"
       ).nonEmpty
     )
+    assert(
+      typeCheckErrors(
+        "quasiquotes.definitions.SemanticDefinitionShapeAdapter.adapt(null)"
+      ).nonEmpty
+    )
+    assert(typeCheckErrors("classOf[quasiquotes.definitions.DefinitionShape]").nonEmpty)
+    assert(typeCheckErrors("quasiquotes.parser.BinderId(0)").nonEmpty)
 
   private def name(source: String): DefinitionName = right(DefinitionName.fromSource(source))
 
