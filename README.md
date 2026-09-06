@@ -22,9 +22,11 @@ Type, and Definition semantics, and exact-version Dotty `untpd` for fresh raw
 lowering or identity-sensitive existing-tree transformation. The canonical
 [semantic models and conversions guide](docs/SEMANTIC_MODELS_AND_CONVERSIONS.md)
 defines Q/N/U-D/U-U/C, shows the current conversion graph, and contains
-compile-checked public Term, Type, `SemanticDefinition`, and exact-bridge hello
-worlds. Planned Definition adapters, project-model lowerers, and exact-U APIs
-are labeled there rather than presented as shipped.
+compile-checked public Term, Type, `SemanticDefinition`, Scalameta conversion,
+semantic-lowering, and exact-bridge hello worlds. The public five-family
+Definition Projection/Authoring pair and the Term/Type/Definition source-free
+lowering facades are current; exact-U transformation APIs remain internal or
+planned and are labeled accordingly.
 
 ## Quick start
 
@@ -316,8 +318,8 @@ root, unpublished experimental `neutralScalameta`, unpublished
 internals. It is generated from packaged Scaladoc search metadata for
 deterministic source/API-shape diffing; it is neither human API documentation
 nor binary, TASTy, overload-resolution, or semantic compatibility proof.
-The controller-accepted current standard candidate inventory is 793 rows,
-including the additive C026 Term-binding and C027 semantic-Definition APIs,
+The current standard candidate inventory is 793 rows,
+including the additive binder-safe Term and semantic-Definition APIs,
 while the unpublished typed-Scalameta inventory remains 43 rows / 43 groups.
 The typed exact-two selector replaces one source signature while
 retaining its historical erased JVM descriptor through a source-hidden bridge. These
@@ -352,8 +354,11 @@ ordinary parameters, and simple aliases through validated names, clauses,
 types, bodies, and typed views. Method bodies select parameters through the
 persistent opaque `DefinitionParameterScope`; a free same-text identifier is
 never captured implicitly. Public generic Scalameta Definition
-Projection/Authoring and project-semantic-to-Dotty lowering remain planned, so
-this Core model is not a source parser or placement backend.
+Projection/Authoring now converts the current five-family intersection to and
+from fresh Scalameta `Defn` values. Public Term, Type, and Definition semantic
+lowerers also produce fresh source-free exact-version `untpd` trees. These
+APIs are not source-token inverses, placement services, owner assignment, or
+typechecking backends.
 
 ## License
 
@@ -385,14 +390,14 @@ now admits exactly one literal method with one ordinary parameter, complete
 parameter/result `TypeRepr` holes, a parameter-reference body, and one following
 result; broader statements and `qq` local-definition matching remain excluded.
 
-The unpublished neutral module has separate reusable internal projectors
-for an explicitly typed immutable `val`, a true parameterless explicitly typed
+The unpublished neutral module exposes bounded public
+`ScalametaDefinitionProjection` and `ScalametaDefinitionAuthoring` facades for
+an explicitly typed immutable `val`, a true parameterless explicitly typed
 `def`, one- and two-ordinary-parameter explicitly typed `def`s, and a simple
-non-generic unbounded Type alias. One package-private dispatcher selects exactly
-those five families. The unpublished exact-version
-`ScalametaDefinitionUntypedBridge` now composes that dispatcher with the common
-Definition-shape lowerer and returns a fresh source-free `untpd.MemberDef` for
-all five families. The separate
+non-generic unbounded Type alias. Their private carrier and family dispatchers
+remain implementation details. The unpublished exact-version
+`ScalametaDefinitionUntypedBridge` remains a separate non-delegating
+composition for the same source-free five-family result. The separate
 `ScalametaDefinitionGeneratedOriginBridge` returns positioned generated-origin
 members for only the four concrete val/def families; the simple alias is
 deliberately rejected because no generic alias-origin authority is admitted.

@@ -77,9 +77,10 @@ delivery chronology.
 - Preserve the public compiler-free `SemanticDefinition` Core model with
   validated names, ordinary parameter clauses, persistent opaque parameter
   scope, smart constructors, and non-exhaustive typed views. Keep the internal
-  five-family `DefinitionShape` carrier private. Public generic Scalameta
-  Definition Projection/Authoring, public project-semantic-to-Dotty lowering,
-  and a public exact-U algebra remain separately planned rather than current.
+  five-family `DefinitionShape` carrier private. Preserve the bounded public
+  Scalameta Definition Projection/Authoring pair and the public source-free
+  Term/Type/Definition semantic lowering facades. A public exact-U algebra
+  remains separately planned rather than current.
 - Keep the compiler-coupled `hybridScalametaFrontend` experiment unpublished
   and side by side with the current engine. Its admitted typed Term, Type, and
   bounded Definition slices expand only through differential tests,
@@ -237,20 +238,22 @@ Definition work proceeds by semantic ownership rather than syntax breadth:
 6. broader clauses, Types, and bodies;
 7. class, trait, and object construction only after a reusable owner/member model exists.
 
-A package-private reusable neutral Projection/Authoring ladder now covers
-those first five families through separate family-owned implementations and a
-common internal dispatcher. Public `SemanticDefinition` adapters remain
-planned. Specialized contextual-method, refined-Type-alias, and
+A bounded public neutral Projection/Authoring pair now covers those first five
+families through `SemanticDefinition`; separate family implementations and the
+common private dispatcher remain internal. Specialized contextual-method,
+refined-Type-alias, and
 instance-factory projectors remain separate semantics; the refined-alias and
 instance-factory families also have specialized package-private reverse
 authorers, and none substitutes for the generic ladder.
 
 The existing neutral Term and Type projectors compose with bounded public
-exact-version facades for their admitted intersections. For Definitions, the
-five generic families, including the simple alias, compose through the public
-source-free exact-version bridge; the generated-origin bridge remains limited
-to the four concrete val/def families. Public adapters from
-`SemanticDefinition` remain planned.
+exact-version bridges for their admitted intersections. The public
+`TermUntypedLowering`, `TypeUntypedLowering`, and `DefinitionUntypedLowering`
+facades now accept project semantic values directly and produce fresh
+source-free raw trees. For Definitions, the five generic families, including
+the simple alias, also compose through the separate Scalameta source-free
+bridge; the generated-origin bridge remains limited to the four concrete
+val/def families.
 
 Publication policy remains a separate successor task: it must decide stable
 coordinates, supported compiler lanes, compatibility evidence, and release
@@ -278,7 +281,7 @@ umbrella-facade task's historical checkpoint, the exact accepted API delta was
 additive: standard 676 to 677 rows and hybrid 42 to 43 search rows, with one
 object addition and zero removals in each inventory. The current programme
 inventory is the current 793-row standard surface, including the additive
-C026 Term-binding and C027 semantic-Definition APIs, and the
+binder-safe Term and semantic-Definition APIs, and the
 unchanged 43-row hybrid surface recorded above.
 
 ## North-star source-like generation

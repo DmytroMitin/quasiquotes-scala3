@@ -1,6 +1,7 @@
 package external.consumer
 
-// snippet:c028-term-type:start
+// snippet:semantic-term-type:start
+import quasiquotes.definitions.*
 import quasiquotes.neutral.*
 import quasiquotes.terms.*
 import quasiquotes.types.TypeNormalForm
@@ -8,7 +9,7 @@ import quasiquotes.types.TypeNormalForm
 import scala.meta.*
 import scala.meta.dialects.Scala3
 
-object C028TermTypeHelloWorld:
+object SemanticTermTypeHelloWorld:
   def check(): Unit =
     val projectedTerm = ScalametaTermProjection.project(q"1 + 2")
     val termShape = projectedTerm.fold(error => sys.error(error.message), _.shape)
@@ -53,8 +54,30 @@ object C028TermTypeHelloWorld:
 
     assert(reprojectedType == normalForm)
     assert(authoredType.pos == Position.None)
-// snippet:c028-term-type:end
+
+    val definitions = Vector(
+      q"val foo: Int = 42".asInstanceOf[Defn],
+      q"def foo(x: Int): String = x.toString".asInstanceOf[Defn],
+      q"type T = Int".asInstanceOf[Defn]
+    )
+
+    definitions.foreach { source =>
+      val projected = ScalametaDefinitionProjection
+        .project(source)
+        .fold(error => sys.error(error.message), identity)
+      val authored = ScalametaDefinitionAuthoring
+        .author(projected.definition)
+        .fold(error => sys.error(error.message), identity)
+      val reprojected = ScalametaDefinitionProjection
+        .project(authored)
+        .fold(error => sys.error(error.message), identity)
+
+      assert(reprojected.definition == projected.definition)
+      assert(reprojected.sourceSpan.isEmpty)
+      assert(authored.pos == Position.None)
+    }
+// snippet:semantic-term-type:end
 
 final class C028TermTypeHelloWorldTest extends munit.FunSuite:
-  test("C028 public Term and Type hello world"):
-    C028TermTypeHelloWorld.check()
+  test("public Term, Type, and Definition conversion hello world"):
+    SemanticTermTypeHelloWorld.check()

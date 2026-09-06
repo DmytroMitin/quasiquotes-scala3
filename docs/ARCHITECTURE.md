@@ -251,24 +251,34 @@ needs an explicit owner/reownership contract and must fail closed until that
 contract exists. Splicing a `Symbol` as shorthand for `Ref(symbol)` is not
 planned.
 
-The compiler-free Scalameta layer has one accepted package-private dispatcher
-over reusable projectors for explicitly typed immutable vals, true
-parameterless defs, one- and two-ordinary-parameter defs, and simple
-non-generic unbounded Type aliases. A public exact-version source-free
-`ScalametaDefinitionUntypedBridge` now composes this internal projector with an
-internal five-family lowerer. The separate public generated-origin bridge
-admits only the four concrete val/def families; its simple-alias exclusion is
-not widened by specialized refined-alias authority. The accepted public Core
-`SemanticDefinition` is not yet connected to public Scalameta Definition
-Projection/Authoring or a public project-model-to-Dotty lowering facade; those
-surfaces remain planned.
+The compiler-free Scalameta layer publishes
+`ScalametaDefinitionProjection.project(Defn)` and
+`ScalametaDefinitionAuthoring.author(SemanticDefinition)` for explicitly typed
+immutable vals, true parameterless defs, one- and two-ordinary-parameter defs,
+and simple non-generic unbounded Type aliases. Projection returns
+`ProjectedDefinition(definition, sourceSpan)`; authoring creates fresh
+`Position.None` syntax and does not promise token or position recovery. The
+common dispatcher and its family-specific shape carriers remain private.
 
-On the separate U-U axis, the accepted package-private single-parameter method
-result-Type rewriter replaces only an explicit primitive `Int`, `String`, or
-`Boolean` result leaf while preserving the parameter, parameter Type, RHS,
-non-target members, and opaque owner children by exact identity. This bounded
-existing-tree seam is not a public exact-U algebra and does not imply the
-separately selected parameter-Type rewrite.
+The exact-version module now publishes three direct semantic-value facades:
+`TermUntypedLowering`, `TypeUntypedLowering`, and
+`DefinitionUntypedLowering`. They create fresh source-free raw syntax from
+`TermShape`, `TypeNormalForm`, and `SemanticDefinition`, respectively. The Term
+facade owns the richer completed/binder-safe route. The context-free
+`ScalametaTypeUntypedBridge` delegates through the Type facade, while the
+Scalameta Term and Definition source-free bridges remain separate,
+non-delegating compatibility compositions. The Definition bridge still uses
+private shape projection/lowering carriers; its generated-origin sibling
+admits only the four concrete val/def families, so the simple-alias exclusion
+is not widened by specialized refined-alias authority.
+
+On the separate U-U axis, accepted package-private operations expose one exact
+single-parameter method view, separate parameter-Type, result-Type, and RHS
+rewrites, and an atomic rewrite of all three fields. They also expose one
+exact-two-parameter view and an RHS-only rewrite that preserves both exact
+parameter/type identities, the result Type, and non-target member
+identity/order. Each operation keeps its bounded replacement-family and
+truthful-site contract. None is a public exact-U algebra.
 
 An advanced owner/definition-plan handle may eventually be justified by a
 real consumer, but symmetric `sqr`/`sqq` symbol syntax is not currently
@@ -394,8 +404,8 @@ one direct unary result/anonymous parent, and exactly two ordered overrides.
 The accepted package-private `ScalametaInstanceFactoryAuthoring` reverse edge
 can instead start from the exact `InstanceFactoryPlan`, author fresh
 `Position.None` Scalameta syntax, and require alpha-equivalent five-role
-reprojection. It remains specialized and does not implement the planned public
-generic `SemanticDefinition` authoring facade. The exact backend constructs and
+reprojection. It remains specialized and does not widen the public five-family
+`ScalametaDefinitionAuthoring` facade. The exact backend constructs and
 positions one 33-node `untpd.DefDef`.
 `InstanceFactoryPeerBridge` exposes only that complete insertion-ready result,
 deterministic generated source, effective virtual source name, and stable

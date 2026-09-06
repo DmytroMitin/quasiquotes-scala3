@@ -17,6 +17,23 @@ public `u*` syntax family.
 
 ## Current public exact-version surface
 
+Three public facades start directly from project semantic values:
+
+```text
+TermShape -> TermUntypedLowering -> fresh source-free untpd.Tree
+TypeNormalForm -> TypeUntypedLowering -> fresh source-free raw Type tree
+SemanticDefinition -> DefinitionUntypedLowering -> fresh source-free untpd.MemberDef
+```
+
+`TermUntypedLowering` uses the richer completed-Term backend and admits the
+current binder-safe Lambda1, P2 local-value, and P3 local-method families in
+addition to the direct Core intersection. `TypeUntypedLowering` is
+context-free. `DefinitionUntypedLowering` uses a private semantic-to-shape
+adapter and the private five-family exact lowerer. The Term and Definition
+facades require an active Dotty `Context`; all three reject unsupported or
+malformed semantic values through stable facade failures and return only
+fresh source-free syntax.
+
 `ScalametaTermUntypedBridge` is the public programmatic Term facade. It accepts
 one `scala.meta.Term`, mechanically calls `ScalametaTermProjection.project`,
 then passes the projected `TermShape` to the package-private
@@ -62,11 +79,12 @@ local identity-method block. It reports `MISSING_INPUT`,
 widen neutral projection or change the source-free facade. See the
 [bounded Scalameta Term generated-origin bridge page](SCALAMETA_TERM_GENERATED_ORIGIN_BRIDGE.md).
 
-`ScalametaTypeUntypedBridge` is the context-free public sibling for the
+`ScalametaTypeUntypedBridge` is the context-free public source bridge for the
 bounded Type intersection. It composes
-`ScalametaTypeNormalFormProjection.project` with the package-private
-`CompletedTypeUntypedLowerer.lower` and returns a categorized failure or a
-fresh source-free raw Type tree. Its recursive Int/String/Boolean,
+`ScalametaTypeNormalFormProjection.project` with public
+`TypeUntypedLowering.lower`, retaining its bridge-specific projection and
+exact-lowering diagnostics, and returns a fresh source-free raw Type tree. Its
+recursive Int/String/Boolean,
 List/Option/Either, Tuple2/3-syntax, and Function1/2-syntax boundary is
 documented on the
 [bounded Scalameta Type bridge page](SCALAMETA_TYPE_UNTYPED_BRIDGE.md).
@@ -95,7 +113,7 @@ codes, and placement responsibilities are documented on the
 
 ```text
 scala.meta.Defn
-  -> ScalametaDefinitionProjection.project
+  -> ScalametaDefinitionProjection.projectShape (private carrier path)
   -> DefinitionShape
   -> DefinitionShapeUntypedLowerer.lower
   -> fresh source-free untpd.MemberDef
@@ -133,15 +151,16 @@ greater than 64, and performs no lifecycle, target selection, rollback, typing,
 owner repair, multi-member insertion, or arbitrary-index editing. See the
 [bounded hybrid append guide](SCALAMETA_DEFINITION_CLASS_MEMBER_APPEND_BRIDGE.md).
 
-All Term and Definition operations other than the context-free Type bridge
-require an active Dotty `Context`. None performs target admission, insertion,
-rollback, typing, symbol ownership, or reownership.
+All Term and Definition lowering operations other than the context-free Type
+facade and bridge require an active Dotty `Context`. None performs target
+admission, insertion, rollback, typing, symbol ownership, or reownership.
 
-These current public bridges start from Scalameta syntax. Stable public facades
-that start directly from public project semantic values—including
-`TermShape`, `TypeNormalForm`, and `SemanticDefinition`—are **planned**, not
-current. The implementation lowerers remain package-private and must not be
-treated as consumer APIs.
+The Scalameta Term bridge remains deliberately narrower than
+`TermUntypedLowering` and does not delegate or fall back to it. The Scalameta
+Type bridge does delegate through `TypeUntypedLowering`. The Scalameta
+Definition bridge remains a separate, non-delegating private-shape
+composition. These distinctions are compatibility boundaries, not missing
+links.
 
 Five definition-specific production objects in this module are intentionally
 exposed to foreign packages. `ContextualMethodPeerBridge` accepts either the
@@ -217,8 +236,8 @@ The bounded instance-factory operation is documented on the
 
 ## Internal module inventory
 
-Only the documented public Term/Type/Definition facades and foreign-package definition
-bridges above are intended consumer seams. All other production owners are
+Only the documented public Term/Type/Definition facades and foreign-package
+definition bridges above are intended consumer seams. All other production owners are
 package-private or otherwise project-internal and carry no stable compatibility
 promise:
 
@@ -316,12 +335,12 @@ contexts.
 
 Accepted package-private U-U mechanisms can perform bounded method-body and
 class/Template transformations over existing raw graphs, preserving exact
-objects where their contracts say so. The accepted single-parameter method
-result-Type seam replaces only an explicit `Int`, `String`, or `Boolean` result
-leaf, preserving the original parameter, parameter Type, RHS, non-target
-members, and opaque owner children by exact identity while attributing fresh
-shells and the leaf to their exact transformation sites. Parameter-Type rewrite
-is a separate later capability. A future public programmatic exact
+objects where their contracts say so. The current single-parameter method
+family has an exact view, separate parameter-Type, result-Type, and RHS
+rewrites, and an atomic all-three rewrite. The exact-two-parameter family has
+an exact view and an RHS-only rewrite preserving both parameter/type
+identities, the result Type, non-target member identity/order, and truthful
+reconstruction linkage. A future public programmatic exact
 capture/view/rewrite algebra was selected architecturally, but no general
 public exact-U transformation API exists today; optional `u*` syntax remains a
 later decision.

@@ -24,8 +24,8 @@ The lane labels are defined before the matrix:
 | U-U | **Exact existing-tree transformation** with bounded raw identity/provenance guarantees. |
 | C | Cross-layer composition, integration, API policy, and controller ownership; not another AST. |
 
-U does not mean public `u*` syntax. No such syntax is selected today; C024
-classifies it as later optional. See the canonical
+U does not mean public `u*` syntax. No such syntax is selected today; it remains
+a later optional layer. See the canonical
 [semantic models and conversions guide](SEMANTIC_MODELS_AND_CONVERSIONS.md) for
 the three representation worlds and loss model.
 
@@ -77,20 +77,32 @@ not a universal lexical ownership marker.
 
 | Category | Public semantic value | Scalameta Projection | Scalameta Authoring |
 | --- | --- | --- | --- |
-| Term | `TermShape`, with C026 opaque binder-safe views/builders | Public, bounded | Public, bounded, fresh `Position.None`; includes accepted ascription, Lambda1, P2, and P3 families; grouping parentheses are not representable |
+| Term | `TermShape`, with opaque binder-safe views/builders | Public, bounded | Public, bounded, fresh `Position.None`; includes accepted ascription, Lambda1, P2, and P3 families; grouping parentheses are not representable |
 | Type | `TypeNormalForm` | Public, bounded | Public, bounded, fresh `Position.None` |
-| Definition | C027 `SemanticDefinition`, with smart constructors and typed views | **Planned** public facade; current five-family projector is internal | **Planned** public facade; current five-family authorer is internal |
+| Definition | `SemanticDefinition`, with smart constructors and typed views | Public `ScalametaDefinitionProjection.project(Defn)`, bounded to five families | Public `ScalametaDefinitionAuthoring.author(SemanticDefinition)`, bounded to five families and fresh `Position.None` |
 
-Public project-semantic-value-to-Dotty lowering facades are also **planned**.
+### Public project-semantic source-free lowering
+
+| Category | Public input | Public facade | `Context` | Exact output | Important boundary |
+| --- | --- | --- | --- | --- | --- |
+| Term | `TermShape` | `quasiquotes.terms.dotty.TermUntypedLowering.lower` | Required | fresh source-free `untpd.Tree` | Uses the richer completed-Term route, including admitted binder-safe Lambda1, P2, and P3 values. It is not generated-origin lowering, typing, or existing-tree rewriting. |
+| Type | `TypeNormalForm` | `quasiquotes.types.dotty.TypeUntypedLowering.lower` | Not required | fresh source-free raw Type tree | Context-free bounded recursive Int/String/Boolean, List/Option/Either, tuple, and function intersection. |
+| Definition | `SemanticDefinition` | `quasiquotes.definitions.dotty.DefinitionUntypedLowering.lower` | Required | fresh source-free `untpd.MemberDef` | Uses a private semantic adapter and private five-family exact lowerer without exposing their carriers. |
+
+All three return stable facade-owned failures. None claims source recovery,
+generated origin, owner/placement authority, typechecking, retyping, or
+transformation of an existing raw tree.
+
 The current public exact-version conveniences in the next table start from
-Scalameta and compose internal lowerers.
+Scalameta. Their delegation policy is category-specific rather than assumed
+from similar names.
 
 | Category | Source input | Projection (N) | Projected semantic value | Lowerer (U-D) | Exact output | Composed bridge | Visibility and `Context` | Status | Important boundary |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Terms (source-free) | `scala.meta.Term` | `quasiquotes.neutral.ScalametaTermProjection.project` | public `ProjectedTermShape`; project-owned `TermShape` plus truthful optional root span | package-private `quasiquotes.terms.dotty.CoreTermShapeUntypedLowerer.lower` | fresh recursively source-free `untpd.Tree` | `quasiquotes.terms.dotty.ScalametaTermUntypedBridge.lower` | projector and bridge are public source APIs; lowerer is package-private; lowering requires a Dotty `Context` | `PUBLIC` | The bridge is only the direct projector/lowerer intersection. It has no richer-backend fallback: ascription and Lambda1 project but fail exact lowering; binder-bearing local-val and local-def blocks also fail this direct route. Multiple argument lists, type arguments, named/repeated/contextual arguments, broader `new`, and unsupported syntax fail projection. |
+| Terms (source-free) | `scala.meta.Term` | `quasiquotes.neutral.ScalametaTermProjection.project` | public `ProjectedTermShape`; project-owned `TermShape` plus truthful optional root span | package-private `quasiquotes.terms.dotty.CoreTermShapeUntypedLowerer.lower` | fresh recursively source-free `untpd.Tree` | `quasiquotes.terms.dotty.ScalametaTermUntypedBridge.lower` | projector and bridge are public source APIs; lowerer is package-private; lowering requires a Dotty `Context` | `PUBLIC` | The bridge remains separate and narrower than public `TermUntypedLowering`; it does not delegate or fall back to the richer facade. Ascription, Lambda1, and binder-bearing local blocks project but fail this direct exact route. |
 | Terms (generated origin) | `scala.meta.Term` plus virtual source name | `quasiquotes.neutral.ScalametaTermProjection.project` | public `ProjectedTermShape`, then package-private completed `ConstructedTerm` | package-private `quasiquotes.terms.dotty.ConstructedTermGeneratedOriginAdapter.lower` | fresh positioned `untpd.Tree`, deterministic source, and `SourceFile` | `quasiquotes.terms.dotty.ScalametaTermGeneratedOriginBridge.lower` | projector and bridge are public source APIs; completion and adapter remain package-private; requires a Dotty `Context` | `PUBLIC` | Includes the direct intersection plus completed Int/String/Boolean ascriptions, Lambda1, P2, and P3. Non-simple completed Type sidecars fail completion; projection exclusions remain unchanged. Placement, ownership, typing, and rollback remain caller-owned. |
-| Types | `scala.meta.Type` | `quasiquotes.neutral.ScalametaTypeNormalFormProjection.project` | public `ProjectedTypeNormalForm`; project-owned `TypeNormalForm` plus truthful optional root span | package-private `quasiquotes.terms.dotty.CompletedTypeUntypedLowerer.lower` | fresh recursively source-free `untpd.Tree` representing a Type | `quasiquotes.types.dotty.ScalametaTypeUntypedBridge.lower` | projector and bridge are public source APIs; lowerer is package-private; no Dotty `Context` is required | `PUBLIC` | The exact intersection is `Int`/`String`/`Boolean`, fixed recursive `List`/`Option`/`Either`, Tuple2/3 syntax, and Function1/2 syntax. Source tuple/function syntax is preserved; names such as `Tuple2` and `Function1` are not reverse-recognized. A wider neutral success such as `AnyVal` remains an exact-lowering failure. |
-| Definitions | supported `scala.meta.Defn` root | package-private `quasiquotes.neutral.ScalametaDefinitionProjection.project` | package-private `ProjectedDefinitionShape` / `DefinitionShape`; C027 `SemanticDefinition` is public but no public adapter connects it here yet | package-private `quasiquotes.definitions.dotty.DefinitionShapeUntypedLowerer.lower` | fresh source-free `untpd.MemberDef` (`ValDef`, `DefDef`, or `TypeDef`) | `quasiquotes.definitions.dotty.ScalametaDefinitionUntypedBridge.lower` | bridge is a public source API; projector and lowerer remain package-private; lowering requires a Dotty `Context` | `PUBLIC` | Exactly five reusable internal projection/authoring families. The separate public `ScalametaDefinitionGeneratedOriginBridge` admits only the four concrete val/def families and returns deterministic generated provenance. Classes, traits, objects, generic/bounded aliases, broader clauses, modifiers, defaults, and arbitrary bodies remain unsupported. |
+| Types | `scala.meta.Type` | `quasiquotes.neutral.ScalametaTypeNormalFormProjection.project` | public `ProjectedTypeNormalForm`; project-owned `TypeNormalForm` plus truthful optional root span | public `quasiquotes.types.dotty.TypeUntypedLowering.lower` | fresh recursively source-free `untpd.Tree` representing a Type | `quasiquotes.types.dotty.ScalametaTypeUntypedBridge.lower` | projector, lowerer, and bridge are public source APIs; no Dotty `Context` is required | `PUBLIC` | The bridge delegates through `TypeUntypedLowering`, preserving its historical bridge diagnostics. The exact intersection is Int/String/Boolean, fixed List/Option/Either, tuple, and function syntax. |
+| Definitions | supported `scala.meta.Defn` root | public `quasiquotes.neutral.ScalametaDefinitionProjection.project`; the bridge retains its private shape projection path | public `ProjectedDefinition` / `SemanticDefinition`; private `DefinitionShape` remains internal | public `DefinitionUntypedLowering` for semantic callers; the bridge retains its private `DefinitionShapeUntypedLowerer` composition | fresh source-free `untpd.MemberDef` (`ValDef`, `DefDef`, or `TypeDef`) | `quasiquotes.definitions.dotty.ScalametaDefinitionUntypedBridge.lower` | public semantic projection/authoring/lowering and bridge APIs; lowering requires a Dotty `Context` | `PUBLIC` | The bridge remains separate and non-delegating. Both public routes share the same bounded five-family meaning without making the private carrier public. The generated-origin bridge still admits only four concrete val/def families. |
 
 The public Term, Type, and Definition bridges expose stable `Failure(code, detail)`
 boundaries and classify projection and exact-lowering failures separately.
@@ -101,16 +113,17 @@ still own placement and ordinary compiler lifecycle.
 
 ### Definition families in the generic seam
 
-The accepted internal Definition projector dispatches exactly these semantic
-families and returns each family projector's result unchanged:
+The public Definition projection/authoring pair and semantic lowerer admit
+exactly these families; their private dispatcher remains an implementation
+detail:
 
 | Family | Projected semantic variant | Projection status | General exact status |
 | --- | --- | --- | --- |
-| Explicitly typed immutable `val` | `DefinitionShape.ImmutableVal` | `INTERNAL_READY` | source-free `PUBLIC`; generic generated-origin `PUBLIC` |
-| True parameterless explicitly typed `def` | `DefinitionShape.ParameterlessDef` | `INTERNAL_READY` | source-free `PUBLIC`; generic generated-origin `PUBLIC` |
-| One ordinary explicitly typed parameter in one clause | `DefinitionShape.SingleParameterDef` | `INTERNAL_READY` | source-free `PUBLIC`; generic generated-origin `PUBLIC` |
-| Two ordinary explicitly typed parameters in one clause | `DefinitionShape.TwoParameterDef` | `INTERNAL_READY` | source-free `PUBLIC`; generic generated-origin `PUBLIC` |
-| Simple non-generic unbounded Type alias | `DefinitionShape.SimpleTypeAlias` | `INTERNAL_READY` | source-free `PUBLIC`; generic generated-origin `NOT_SUPPORTED` |
+| Explicitly typed immutable `val` | `SemanticDefinition` value view | `PUBLIC`, bounded | source-free `PUBLIC`; generic generated-origin `PUBLIC` |
+| True parameterless explicitly typed `def` | `SemanticDefinition` method view with zero clauses | `PUBLIC`, bounded | source-free `PUBLIC`; generic generated-origin `PUBLIC` |
+| One ordinary explicitly typed parameter in one clause | `SemanticDefinition` method view with persistent parameter scope | `PUBLIC`, bounded | source-free `PUBLIC`; generic generated-origin `PUBLIC` |
+| Two ordinary explicitly typed parameters in one clause | `SemanticDefinition` method view with persistent parameter scope | `PUBLIC`, bounded | source-free `PUBLIC`; generic generated-origin `PUBLIC` |
+| Simple non-generic unbounded Type alias | `SemanticDefinition` type-member view | `PUBLIC`, bounded | source-free `PUBLIC`; generic generated-origin `NOT_SUPPORTED` |
 
 The source-free public bridge selects the common exact lowerer for all five
 families. The generated-origin public bridge deliberately routes only the four
@@ -155,12 +168,13 @@ same syntax, that U-D can freshly lower it, or that a public bridge exists.
 Conversely, a public Scalameta-to-fresh-tree bridge says nothing about
 identity-preserving rewrites of existing compiler trees.
 
-The accepted package-private single-parameter method result-Type rewrite is one
-such U-U boundary: it replaces only an explicit primitive `Int`, `String`, or
-`Boolean` result leaf and reconstructs the method/Template/class shells at
-their exact transformation sites. The original parameter, parameter Type, RHS,
-non-target members, and opaque owner children remain exact objects. This does
-not add parameter-Type rewriting or a public exact-U facade.
+The accepted package-private single-parameter family has an exact view,
+separate parameter-Type, result-Type, and RHS rewrites, and one atomic rewrite
+of all three fields. The accepted exact-two-parameter family has an exact view
+and an RHS-only rewrite preserving both parameter/type identities, the result
+Type, non-target member identity/order, and truthful reconstruction linkage.
+Each operation reconstructs only its admitted shells at truthful
+transformation sites. None adds a public exact-U facade.
 
 ## Maintenance rule
 

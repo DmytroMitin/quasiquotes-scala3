@@ -15,7 +15,7 @@ but are not an ergonomic general-purpose authoring language.
 
 ## Programme vocabulary
 
-The internal lane letters mean:
+The architecture labels mean:
 
 - **Q** — the Quotes-aware typed quasiquote/frontend world. It operates in the
   caller's active `Quotes` universe and is the direction most directly exposed
@@ -36,7 +36,7 @@ These invariants avoid misleading syntax in diagrams:
 N != public n* syntax
 U != public u* syntax
 C != another tree universe
-public u* syntax is not currently selected; C024 classifies it as later optional
+public u* syntax is not currently selected; it remains a later optional layer
 ```
 
 ## Current conversion graph
@@ -56,8 +56,11 @@ scala.meta.Type
   -> public ScalametaTypeNormalFormAuthoring
   -> fresh scala.meta.Type
 
-public SemanticDefinition
-  -> current Core smart construction and typed views
+scala.meta.Defn
+  -> public ScalametaDefinitionProjection
+  -> public ProjectedDefinition / SemanticDefinition
+  -> public ScalametaDefinitionAuthoring
+  -> fresh scala.meta.Defn
 ```
 
 Term Projection and Authoring currently overlap across literals, identifiers,
@@ -70,19 +73,19 @@ fresh parenthesized Term therefore cannot be reconstructed from the semantic
 value. Public `TermShapeBindings` and `TermShapeBindingView` make the
 binder-bearing overlap safe without exposing private cases or raw binder IDs.
 
-`SemanticDefinition` is the current accepted public Core model. It supports
-validated smart construction and typed views for bounded immutable values,
+`SemanticDefinition` is the current public Core model. It supports validated
+smart construction and typed views for bounded immutable values,
 zero/one/two-ordinary-parameter concrete methods, and simple aliases. The
-following are **planned**, not current:
+public `ScalametaDefinitionProjection.project(Defn)` facade returns a
+`ProjectedDefinition` containing that semantic value and an optional truthful
+root `NeutralSourceSpan`. The public
+`ScalametaDefinitionAuthoring.author(SemanticDefinition)` facade constructs a
+fresh `Defn` with `Position.None` and checks semantic reprojection. These are
+semantic conversions, not token, comment, formatting, or position inverses.
 
-```text
-ScalametaDefinitionProjection public facade -> routed to N, not shipped
-ScalametaDefinitionAuthoring public facade  -> routed to N, not shipped
-```
-
-The generic five-family `ScalametaDefinitionProjection` and reverse authoring
-implementation are currently internal. Specialized contextual, instance,
-delegated, self-member, and refined-AUX projectors/authorers/bridges remain
+The private five-family `DefinitionShape` carrier and its dispatchers remain
+implementation details. Specialized contextual, instance, delegated,
+self-member, and refined-AUX projectors/authorers/bridges remain
 separate bounded contracts rather than generic fallbacks. In particular, the
 accepted package-private instance-factory reverse edge authors one fresh
 Scalameta `Defn.Def` from its five-role semantic plan and verifies
@@ -97,13 +100,27 @@ scala.meta.Type -> public ScalametaTypeUntypedBridge -> fresh source-free untpd.
 scala.meta.Defn -> public ScalametaDefinitionUntypedBridge -> fresh source-free untpd.MemberDef
 ```
 
-The implementation lowerers behind them are internal. Stable public facades
-that start from project semantic values are **planned**, not current. Likewise,
-accepted private/bounded U-U mechanisms transform selected existing raw trees,
-including the accepted package-private single-parameter method primitive
-result-Type rewrite with exact preservation of non-target children. Request 076
-selected a future public programmatic exact algebra, but no general public
-exact-U capture/rewrite API exists yet.
+The project-semantic source-free facades are also current:
+
+```text
+TermShape -> public TermUntypedLowering -> fresh source-free untpd.Tree
+TypeNormalForm -> public TypeUntypedLowering -> fresh source-free untpd.Tree
+SemanticDefinition -> public DefinitionUntypedLowering -> fresh source-free untpd.MemberDef
+```
+
+The Term facade uses the richer completed-Term path and therefore admits the
+current binder-safe Lambda/local-value/local-method semantic families. The
+older Scalameta Term bridge remains a narrower non-delegating compatibility
+surface. The context-free Scalameta Type bridge delegates through
+`TypeUntypedLowering`. The Scalameta Definition bridge remains a separate
+non-delegating five-family composition. All successful results are fresh and
+source-free; none claims generated origin, owner assignment, placement,
+typechecking, retyping, or existing-tree rewriting.
+
+Accepted package-private U-U mechanisms separately transform selected existing
+raw trees. Current examples include atomic single-parameter method rewrites and
+a two-parameter method RHS-only rewrite with exact preservation of non-target
+children. No general public exact-U capture/rewrite API exists yet.
 
 ## Loss and provenance model
 
@@ -132,8 +149,9 @@ This external-package source is compiled in `neutralScalameta/test`. The
 documentation guard compares the block byte for byte with the checked source.
 The assertions use semantic reprojection rather than original source bytes.
 
-<!-- snippet:c028-term-type:start -->
+<!-- snippet:semantic-term-type:start -->
 ```scala
+import quasiquotes.definitions.*
 import quasiquotes.neutral.*
 import quasiquotes.terms.*
 import quasiquotes.types.TypeNormalForm
@@ -141,7 +159,7 @@ import quasiquotes.types.TypeNormalForm
 import scala.meta.*
 import scala.meta.dialects.Scala3
 
-object C028TermTypeHelloWorld:
+object SemanticTermTypeHelloWorld:
   def check(): Unit =
     val projectedTerm = ScalametaTermProjection.project(q"1 + 2")
     val termShape = projectedTerm.fold(error => sys.error(error.message), _.shape)
@@ -186,8 +204,30 @@ object C028TermTypeHelloWorld:
 
     assert(reprojectedType == normalForm)
     assert(authoredType.pos == Position.None)
+
+    val definitions = Vector(
+      q"val foo: Int = 42".asInstanceOf[Defn],
+      q"def foo(x: Int): String = x.toString".asInstanceOf[Defn],
+      q"type T = Int".asInstanceOf[Defn]
+    )
+
+    definitions.foreach { source =>
+      val projected = ScalametaDefinitionProjection
+        .project(source)
+        .fold(error => sys.error(error.message), identity)
+      val authored = ScalametaDefinitionAuthoring
+        .author(projected.definition)
+        .fold(error => sys.error(error.message), identity)
+      val reprojected = ScalametaDefinitionProjection
+        .project(authored)
+        .fold(error => sys.error(error.message), identity)
+
+      assert(reprojected.definition == projected.definition)
+      assert(reprojected.sourceSpan.isEmpty)
+      assert(authored.pos == Position.None)
+    }
 ```
-<!-- snippet:c028-term-type:end -->
+<!-- snippet:semantic-term-type:end -->
 
 ## Checked public `SemanticDefinition` hello world
 
@@ -196,14 +236,14 @@ the values came from Scalameta. The method body uses the public Term semantic
 route to express the admitted `x.toString` selection, and the persistent method
 scope proves binder co-reference without spelling-based inference.
 
-<!-- snippet:c028-semantic-definition:start -->
+<!-- snippet:semantic-definition-core:start -->
 ```scala
 import quasiquotes.definitions.*
 import quasiquotes.parser.TermShape
 import quasiquotes.terms.TermShapeBindingView
 import quasiquotes.types.TypeNormalForm
 
-object C028SemanticDefinitionHelloWorld:
+object SemanticDefinitionCoreHelloWorld:
   private val intType = TypeNormalForm.STypeIdent("Int")
   private val stringType = TypeNormalForm.STypeIdent("String")
 
@@ -246,9 +286,9 @@ object C028SemanticDefinitionHelloWorld:
 
     assert(parameterBinder == bodyBinder)
 ```
-<!-- snippet:c028-semantic-definition:end -->
+<!-- snippet:semantic-definition-core:end -->
 
-## Checked source-free Scalameta-to-Dotty bridges
+## Checked source-free semantic lowerers and Scalameta bridges
 
 These APIs expose Dotty internals and therefore require the exact matching
 compiler artifact. Term and Definition lowering also require an active Dotty
@@ -259,43 +299,83 @@ source, span, owner, or symbol. In particular, a source-free `untpd.InfixOp`
 is structurally correct but is not automatically typable: the tested Dotty
 infix desugaring reads spans.
 
-<!-- snippet:c028-dotty-source-free:start -->
+<!-- snippet:dotty-source-free:start -->
 ```scala
 import dotty.tools.dotc.ast.untpd
 import dotty.tools.dotc.core.Contexts.{Context, ContextBase}
 
-import quasiquotes.definitions.dotty.ScalametaDefinitionUntypedBridge
-import quasiquotes.terms.dotty.ScalametaTermUntypedBridge
-import quasiquotes.types.dotty.ScalametaTypeUntypedBridge
+import quasiquotes.definitions.dotty.{DefinitionUntypedLowering, ScalametaDefinitionUntypedBridge}
+import quasiquotes.neutral.*
+import quasiquotes.terms.dotty.{ScalametaTermUntypedBridge, TermUntypedLowering}
+import quasiquotes.types.dotty.{ScalametaTypeUntypedBridge, TypeUntypedLowering}
 
 import scala.meta.*
 import scala.meta.dialects.Scala3
 
-object C028DottySourceFreeHelloWorld:
+object DottySourceFreeHelloWorld:
   def check(): Unit = withContext:
-    val term = ScalametaTermUntypedBridge
-      .lower(q"1 + 2")
+    val sourceTerm = q"1 + 2"
+    val termShape = ScalametaTermProjection
+      .project(sourceTerm)
+      .fold(error => sys.error(error.message), _.shape)
+    val term = TermUntypedLowering
+      .lower(termShape)
       .fold(error => sys.error(s"${error.code}: ${error.detail}"), identity)
-    val sourceType = ScalametaTypeUntypedBridge
-      .lower(t"List[Int]")
+    val bridgedTerm = ScalametaTermUntypedBridge
+      .lower(sourceTerm)
       .fold(error => sys.error(s"${error.code}: ${error.detail}"), identity)
-    val definitions = Vector(
+
+    val sourceType = t"List[Int]"
+    val normalForm = ScalametaTypeNormalFormProjection
+      .project(sourceType)
+      .fold(error => sys.error(error.message), _.normalForm)
+    val loweredType = TypeUntypedLowering
+      .lower(normalForm)
+      .fold(error => sys.error(s"${error.code}: ${error.detail}"), identity)
+    val bridgedType = ScalametaTypeUntypedBridge
+      .lower(sourceType)
+      .fold(error => sys.error(s"${error.code}: ${error.detail}"), identity)
+
+    val sourceDefinitions = Vector(
       "val foo: Int = 42",
       "def foo(x: Int): String = x.toString",
       "type T = Int"
-    ).map(parseDefinition).map { definition =>
-      ScalametaDefinitionUntypedBridge
+    ).map(parseDefinition)
+    val semanticDefinitions = sourceDefinitions.map { source =>
+      ScalametaDefinitionProjection
+        .project(source)
+        .fold(error => sys.error(error.message), _.definition)
+    }
+    val authoredDefinitions = semanticDefinitions.map { definition =>
+      ScalametaDefinitionAuthoring
+        .author(definition)
+        .fold(error => sys.error(error.message), identity)
+    }
+    val loweredDefinitions = semanticDefinitions.map { definition =>
+      DefinitionUntypedLowering
         .lower(definition)
+        .fold(error => sys.error(s"${error.code}: ${error.detail}"), identity)
+    }
+    val bridgedDefinitions = authoredDefinitions.map { source =>
+      ScalametaDefinitionUntypedBridge
+        .lower(source)
         .fold(error => sys.error(s"${error.code}: ${error.detail}"), identity)
     }
 
     assert(term.isInstanceOf[untpd.InfixOp])
-    assert(sourceType.isInstanceOf[untpd.AppliedTypeTree])
-    assert(definitions.map(_.name.toString) == Vector("foo", "foo", "T"))
-    (term +: sourceType +: definitions).foreach { tree =>
-      assert(!tree.source.exists)
-      assert(!tree.span.exists)
-    }
+    assert(bridgedTerm.isInstanceOf[untpd.InfixOp])
+    assert(loweredType.isInstanceOf[untpd.AppliedTypeTree])
+    assert(bridgedType.isInstanceOf[untpd.AppliedTypeTree])
+    assert(loweredDefinitions.map(_.name.toString) == Vector("foo", "foo", "T"))
+    assert(bridgedDefinitions.map(_.name.toString) == Vector("foo", "foo", "T"))
+    assert(loweredDefinitions(0).isInstanceOf[untpd.ValDef])
+    assert(loweredDefinitions(1).isInstanceOf[untpd.DefDef])
+    assert(loweredDefinitions(2).isInstanceOf[untpd.TypeDef])
+    (Vector(term, bridgedTerm, loweredType, bridgedType) ++ loweredDefinitions ++ bridgedDefinitions)
+      .foreach { tree =>
+        assert(!tree.source.exists)
+        assert(!tree.span.exists)
+      }
 
   private def parseDefinition(source: String): Defn =
     Scala3(source).parse[Stat].get.asInstanceOf[Defn]
@@ -304,7 +384,7 @@ object C028DottySourceFreeHelloWorld:
     val base = new ContextBase
     run(using base.initialCtx)
 ```
-<!-- snippet:c028-dotty-source-free:end -->
+<!-- snippet:dotty-source-free:end -->
 
 ## Checked generated-origin bridges
 
@@ -316,24 +396,24 @@ Definition generated origin accepts the four concrete val/def families; simple
 `type T = Int` remains unsupported even though the source-free Definition
 bridge admits it.
 
-<!-- snippet:c028-dotty-generated-origin:start -->
+<!-- snippet:dotty-generated-origin:start -->
 ```scala
 import _root_.quasiquotes.definitions.dotty.ScalametaDefinitionGeneratedOriginBridge
 import _root_.quasiquotes.terms.dotty.ScalametaTermGeneratedOriginBridge
 
-object C028DottyGeneratedOriginHelloWorld:
+object DottyGeneratedOriginHelloWorld:
   def check(): Unit = withContext:
     val term = ScalametaTermGeneratedOriginBridge
-      .lower(q"1 + 2", "C028GeneratedTerm.scala")
+      .lower(q"1 + 2", "SemanticGuideGeneratedTerm.scala")
       .fold(error => sys.error(s"${error.code}: ${error.detail}"), identity)
     val definition = ScalametaDefinitionGeneratedOriginBridge
       .lower(
         q"def foo(x: Int): String = x.toString".asInstanceOf[Defn.Def],
-        "C028GeneratedDefinition.scala"
+        "SemanticGuideGeneratedDefinition.scala"
       )
       .fold(error => sys.error(s"${error.code}: ${error.detail}"), identity)
     val aliasFailure = ScalametaDefinitionGeneratedOriginBridge
-      .lower(q"type T = Int".asInstanceOf[Defn.Type], "C028GeneratedAlias.scala")
+      .lower(q"type T = Int".asInstanceOf[Defn.Type], "SemanticGuideGeneratedAlias.scala")
       .left
       .toOption
       .get
@@ -351,7 +431,7 @@ object C028DottyGeneratedOriginHelloWorld:
     val base = new ContextBase
     run(using base.initialCtx)
 ```
-<!-- snippet:c028-dotty-generated-origin:end -->
+<!-- snippet:dotty-generated-origin:end -->
 
 ## Generic versus specialized Definition bridges
 
@@ -361,11 +441,11 @@ specialized `ContextualMethodPeerBridge` admits this exact bounded family and
 returns a positioned generated method. It is not a fallback for arbitrary
 generic Definition failures.
 
-<!-- snippet:c028-generic-specialized-definition:start -->
+<!-- snippet:generic-specialized-definition:start -->
 ```scala
 import _root_.quasiquotes.definitions.dotty.ContextualMethodPeerBridge
 
-object C028GenericVsSpecializedDefinitionHelloWorld:
+object GenericVsSpecializedDefinitionHelloWorld:
   def check(): Unit = withContext:
     val contextual =
       q"def apply[A](using inst: Show[A]): Show[A] = inst".asInstanceOf[Defn.Def]
@@ -376,7 +456,7 @@ object C028GenericVsSpecializedDefinitionHelloWorld:
       .toOption
       .get
     val specialized = ContextualMethodPeerBridge
-      .lower(contextual, "C028ContextualApply.scala")
+      .lower(contextual, "SemanticGuideContextualApply.scala")
       .fold(error => sys.error(s"${error.code}: ${error.detail}"), identity)
 
     assert(genericFailure.code == "NEUTRAL_PROJECTION_FAILED")
@@ -387,7 +467,7 @@ object C028GenericVsSpecializedDefinitionHelloWorld:
     val base = new ContextBase
     run(using base.initialCtx)
 ```
-<!-- snippet:c028-generic-specialized-definition:end -->
+<!-- snippet:generic-specialized-definition:end -->
 
 ## Current versus planned quick reference
 
@@ -396,9 +476,9 @@ object C028GenericVsSpecializedDefinitionHelloWorld:
 | Public Term/Type Scalameta Projection and fresh Authoring | Current, bounded |
 | Public binder-safe Term builders/views | Current, bounded |
 | Public Core `SemanticDefinition` smart constructors/views | Current, bounded |
+| Public generic Scalameta Definition Projection/Authoring over `SemanticDefinition` | Current, bounded to five families |
+| Public project-semantic-value-to-Dotty Term/Type/Definition lowering facades | Current, bounded, source-free, exact-version for Dotty-facing artifacts |
 | Public Scalameta-to-Dotty Term/Type/Definition bridges | Current, bounded, exact-version for Dotty-facing artifacts |
-| Public generic Scalameta Definition Projection/Authoring over `SemanticDefinition` | **Planned**, routed to N |
-| Public project-semantic-value-to-Dotty lowering facades | **Planned** |
 | Public exact existing-tree capture/rewrite algebra | **Planned** |
 | Public `u*` syntax | Later optional, not selected |
 | Remote `0.3.0` artifacts | Not released |

@@ -152,6 +152,18 @@ IDs. Authoring preserves ordered semantic children but reconstructs no source
 position, original token spelling, comment, grouping parenthesis, or child
 identity. Raw, `f`, custom, and triple-quoted interpolation remain excluded.
 
+Definitions have a separate current public pair.
+`ScalametaDefinitionProjection.project(Defn)` admits exactly the reusable
+explicitly typed immutable-val, true-parameterless method, one-parameter
+method, exact-two-parameter method, and simple non-generic unbounded-alias
+families. It returns `ProjectedDefinition`, containing the public
+`SemanticDefinition` plus a truthful optional `NeutralSourceSpan`.
+`ScalametaDefinitionAuthoring.author(SemanticDefinition)` authors the same
+five families as fresh `Position.None` syntax and requires semantic
+reprojection equivalence. The common shape dispatcher and all family carriers
+remain private; specialized contextual, refined-alias, and instance-factory
+adapters do not widen this generic pair.
+
 ## Bounded validated projection
 
 `ScalametaContextualMethodProjection.project` structurally admits exactly one
@@ -200,8 +212,8 @@ The separate package-private instance-factory route now has both directions:
 `ScalametaInstanceFactoryProjection` validates one exact anonymous-factory
 grammar, while `ScalametaInstanceFactoryAuthoring` authors fresh
 `Position.None` syntax from its five-role `InstanceFactoryPlan` and requires
-alpha-equivalent reprojection. This specialized reverse edge is not the planned
-public generic `SemanticDefinition` Authoring facade.
+alpha-equivalent reprojection. This specialized reverse edge does not widen
+the public five-family `ScalametaDefinitionAuthoring` facade.
 
 If the Scalameta input has an actual position, the result preserves its exact
 start/end offsets as `NeutralSourceSpan`. Explicitly constructed trees with
@@ -236,10 +248,13 @@ Reverse projection cannot truthfully reconstruct source tokens, comments,
 formatting, exact offsets, or compiler-normalized distinctions. Unsupported raw
 forms fail explicitly. Exact trees never appear in the neutral module's API.
 The Term route likewise does not carry Scalameta offsets through the core value
-or fabricate source. The exact-version module publishes bounded source-free and
-generated-origin `scala.meta.Term -> untpd.Tree` convenience bridges, while the
-semantic lowerers behind them remain internal. Stable public facades starting
-from project semantic values are planned, not current. Exact fresh lowering
+or fabricate source. The exact-version module publishes bounded source-free
+and generated-origin Scalameta convenience bridges. It also publishes
+source-free semantic-value facades: `TermUntypedLowering` for the richer
+completed/binder-safe Term route, context-free `TypeUntypedLowering`, and
+`DefinitionUntypedLowering` for the five `SemanticDefinition` families. The
+Type bridge delegates through its semantic facade; the older Term and
+Definition bridges remain separate and non-delegating. Exact fresh lowering
 does not absorb the separate U-U direction for identity-preserving structural
 rewrites over existing raw trees.
 

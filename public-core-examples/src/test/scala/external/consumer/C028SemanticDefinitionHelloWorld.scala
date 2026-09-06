@@ -1,12 +1,12 @@
 package external.consumer
 
-// snippet:c028-semantic-definition:start
+// snippet:semantic-definition-core:start
 import quasiquotes.definitions.*
 import quasiquotes.parser.TermShape
 import quasiquotes.terms.TermShapeBindingView
 import quasiquotes.types.TypeNormalForm
 
-object C028SemanticDefinitionHelloWorld:
+object SemanticDefinitionCoreHelloWorld:
   private val intType = TypeNormalForm.STypeIdent("Int")
   private val stringType = TypeNormalForm.STypeIdent("String")
 
@@ -48,8 +48,8 @@ object C028SemanticDefinitionHelloWorld:
       .binder
 
     assert(parameterBinder == bodyBinder)
-// snippet:c028-semantic-definition:end
+// snippet:semantic-definition-core:end
 
 final class C028SemanticDefinitionHelloWorldTest extends munit.FunSuite:
-  test("C028 public SemanticDefinition hello world"):
-    C028SemanticDefinitionHelloWorld.check()
+  test("public SemanticDefinition hello world"):
+    SemanticDefinitionCoreHelloWorld.check()

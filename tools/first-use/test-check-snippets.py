@@ -130,23 +130,23 @@ class CheckSnippetsTest(unittest.TestCase):
         neutral_sources.mkdir(parents=True)
         dotty_sources.mkdir(parents=True)
         (neutral_sources / "C028TermTypeHelloWorld.scala").write_text(
-            "// snippet:c028-term-type:start\nval c028TermType = 18\n"
-            "// snippet:c028-term-type:end\n",
+            "// snippet:semantic-term-type:start\nval c028TermType = 18\n"
+            "// snippet:semantic-term-type:end\n",
             encoding="utf-8",
         )
         (core_sources / "C028SemanticDefinitionHelloWorld.scala").write_text(
-            "// snippet:c028-semantic-definition:start\nval c028Definition = 19\n"
-            "// snippet:c028-semantic-definition:end\n",
+            "// snippet:semantic-definition-core:start\nval c028Definition = 19\n"
+            "// snippet:semantic-definition-core:end\n",
             encoding="utf-8",
         )
         (dotty_sources / "C028DottyBridgeHelloWorld.scala").write_text(
-            "// snippet:c028-dotty-source-free:start\nval c028SourceFree = 20\n"
-            "// snippet:c028-dotty-source-free:end\n"
-            "// snippet:c028-dotty-generated-origin:start\nval c028Generated = 21\n"
-            "// snippet:c028-dotty-generated-origin:end\n"
-            "// snippet:c028-generic-specialized-definition:start\n"
+            "// snippet:dotty-source-free:start\nval c028SourceFree = 20\n"
+            "// snippet:dotty-source-free:end\n"
+            "// snippet:dotty-generated-origin:start\nval c028Generated = 21\n"
+            "// snippet:dotty-generated-origin:end\n"
+            "// snippet:generic-specialized-definition:start\n"
             "val c028Specialized = 22\n"
-            "// snippet:c028-generic-specialized-definition:end\n",
+            "// snippet:generic-specialized-definition:end\n",
             encoding="utf-8",
         )
         (root / "README.md").write_text(
@@ -209,21 +209,21 @@ class CheckSnippetsTest(unittest.TestCase):
             encoding="utf-8",
         )
         (docs / "SEMANTIC_MODELS_AND_CONVERSIONS.md").write_text(
-            "<!-- snippet:c028-term-type:start -->\n```scala\n"
+            "<!-- snippet:semantic-term-type:start -->\n```scala\n"
             + documented_c028_term_type
-            + "\n```\n<!-- snippet:c028-term-type:end -->\n"
-            + "<!-- snippet:c028-semantic-definition:start -->\n```scala\n"
+            + "\n```\n<!-- snippet:semantic-term-type:end -->\n"
+            + "<!-- snippet:semantic-definition-core:start -->\n```scala\n"
             + documented_c028_semantic_definition
-            + "\n```\n<!-- snippet:c028-semantic-definition:end -->\n"
-            + "<!-- snippet:c028-dotty-source-free:start -->\n```scala\n"
+            + "\n```\n<!-- snippet:semantic-definition-core:end -->\n"
+            + "<!-- snippet:dotty-source-free:start -->\n```scala\n"
             + documented_c028_dotty_source_free
-            + "\n```\n<!-- snippet:c028-dotty-source-free:end -->\n"
-            + "<!-- snippet:c028-dotty-generated-origin:start -->\n```scala\n"
+            + "\n```\n<!-- snippet:dotty-source-free:end -->\n"
+            + "<!-- snippet:dotty-generated-origin:start -->\n```scala\n"
             + documented_c028_dotty_generated_origin
-            + "\n```\n<!-- snippet:c028-dotty-generated-origin:end -->\n"
-            + "<!-- snippet:c028-generic-specialized-definition:start -->\n```scala\n"
+            + "\n```\n<!-- snippet:dotty-generated-origin:end -->\n"
+            + "<!-- snippet:generic-specialized-definition:start -->\n```scala\n"
             + documented_c028_generic_specialized
-            + "\n```\n<!-- snippet:c028-generic-specialized-definition:end -->\n",
+            + "\n```\n<!-- snippet:generic-specialized-definition:end -->\n",
             encoding="utf-8",
         )
 
@@ -244,7 +244,7 @@ class CheckSnippetsTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(
-                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, p1-block-first-use, p2-local-val-first-use, source-owned-local-def-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start, why-quasiquotes-current, c028-term-type, c028-semantic-definition, c028-dotty-source-free, c028-dotty-generated-origin, c028-generic-specialized-definition",
+                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, p1-block-first-use, p2-local-val-first-use, source-owned-local-def-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start, why-quasiquotes-current, semantic-term-type, semantic-definition-core, dotty-source-free, dotty-generated-origin, generic-specialized-definition",
                 result.stdout,
             )
 
@@ -261,7 +261,7 @@ class CheckSnippetsTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn(
-                "First-use snippet drift: c028-semantic-definition",
+                "First-use snippet drift: semantic-definition-core",
                 result.stderr,
             )
 
