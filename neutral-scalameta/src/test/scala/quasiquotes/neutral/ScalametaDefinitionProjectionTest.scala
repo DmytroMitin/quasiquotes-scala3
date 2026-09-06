@@ -204,7 +204,7 @@ final class ScalametaDefinitionProjectionTest extends munit.FunSuite:
 
   test("reports stable missing input before family selection"):
     assertEquals(
-      ScalametaDefinitionProjection.project(null),
+      ScalametaDefinitionProjection.projectShape(null),
       Left(
         NeutralProjectionError(
           "NEUTRAL_DEFINITION_MISSING",
@@ -222,7 +222,7 @@ final class ScalametaDefinitionProjectionTest extends munit.FunSuite:
       definition: Defn,
       direct: Either[NeutralProjectionError, ProjectedDefinitionShape]
   ): Unit =
-    val dispatchedResult = ScalametaDefinitionProjection.project(definition)
+    val dispatchedResult = ScalametaDefinitionProjection.projectShape(definition)
     assertEquals(dispatchedResult, direct, clues(definition))
     (dispatchedResult, direct) match
       case (Right(dispatchedValue), Right(directValue)) =>
@@ -232,13 +232,13 @@ final class ScalametaDefinitionProjectionTest extends munit.FunSuite:
       case _ => ()
 
   private def dispatched(definition: Defn): ProjectedDefinitionShape =
-    ScalametaDefinitionProjection.project(definition) match
+    ScalametaDefinitionProjection.projectShape(definition) match
       case Right(value) => value
       case Left(problem) => fail(problem.message)
 
   private def assertErrorCode(definition: Defn, expected: String): Unit =
     assertEquals(
-      ScalametaDefinitionProjection.project(definition).left.toOption.map(_.code),
+      ScalametaDefinitionProjection.projectShape(definition).left.toOption.map(_.code),
       Some(expected),
       clues(definition)
     )

@@ -129,7 +129,7 @@ final class ScalametaTypedImmutableValAuthoringTest extends munit.FunSuite:
         expected,
         clues(fixture.label)
       )
-      assertEquals(ScalametaDefinitionProjection.project(authored), expected, clues(fixture.label))
+      assertEquals(ScalametaDefinitionProjection.projectShape(authored), expected, clues(fixture.label))
     }
 
   test("preserves an admitted backticked keyword name exactly"):

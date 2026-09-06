@@ -39,7 +39,7 @@ class DefinitionShapeUntypedLowererCompositionTest extends munit.FunSuite:
 
       fixtures.foreach { (source, shapeClass, treeClass) =>
         val projected = ScalametaDefinitionProjection
-          .project(parsed(source))
+          .projectShape(parsed(source))
           .fold(error => fail(error.message), identity)
         assert(shapeClass.isInstance(projected.shape), clues(source, projected.shape))
 
@@ -57,7 +57,7 @@ class DefinitionShapeUntypedLowererCompositionTest extends munit.FunSuite:
       val alias = DefinitionShapeUntypedLowerer
         .lower(
           ScalametaDefinitionProjection
-            .project(parsed("type Result = Option[Int]"))
+            .projectShape(parsed("type Result = Option[Int]"))
             .toOption
             .get
             .shape

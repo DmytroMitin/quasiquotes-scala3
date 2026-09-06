@@ -165,7 +165,7 @@ final class ScalametaTypedSingleParameterDefAuthoringTest extends munit.FunSuite
     fixtures.foreach { fixture =>
       val authored = author(fixture.shape)
       val direct = project(authored)
-      val dispatched = ScalametaDefinitionProjection.project(authored)
+      val dispatched = ScalametaDefinitionProjection.projectShape(authored)
 
       assertSemanticRoundTrip(fixture.shape, direct, fixture.label)
       assertEquals(dispatched, Right(direct), clues(fixture.label))

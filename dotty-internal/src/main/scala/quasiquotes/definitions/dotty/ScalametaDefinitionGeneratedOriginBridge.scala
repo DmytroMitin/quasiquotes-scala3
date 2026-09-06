@@ -41,7 +41,7 @@ object ScalametaDefinitionGeneratedOriginBridge:
         Failure("MISSING_INPUT", "the Scalameta Defn must be present.")
       )
       projected <- ScalametaDefinitionProjection
-        .project(input)
+        .projectShape(input)
         .left
         .map(problem =>
           Failure(

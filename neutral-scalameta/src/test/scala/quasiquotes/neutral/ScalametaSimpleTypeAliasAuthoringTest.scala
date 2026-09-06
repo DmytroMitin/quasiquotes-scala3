@@ -111,7 +111,7 @@ final class ScalametaSimpleTypeAliasAuthoringTest extends munit.FunSuite:
       val expected = Right(ProjectedDefinitionShape(fixture.shape, None))
 
       assertEquals(ScalametaSimpleTypeAliasProjection.project(authored), expected, clues(fixture.label))
-      assertEquals(ScalametaDefinitionProjection.project(authored), expected, clues(fixture.label))
+      assertEquals(ScalametaDefinitionProjection.projectShape(authored), expected, clues(fixture.label))
     }
 
   test("preserves a Core-admitted backticked keyword name exactly"):

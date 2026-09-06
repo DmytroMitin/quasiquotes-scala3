@@ -1,5 +1,6 @@
 package quasiquotes.neutral
 
+import quasiquotes.definitions.SemanticDefinition
 import quasiquotes.parser.TermShape
 import quasiquotes.publicapi.DefinitionResultView
 import quasiquotes.types.TypeNormalForm
@@ -25,6 +26,12 @@ final case class ProjectedTermShape(
 /** A projected Core Type normal form with truthful root source offsets. */
 final case class ProjectedTypeNormalForm(
     normalForm: TypeNormalForm,
+    sourceSpan: Option[NeutralSourceSpan]
+) derives CanEqual
+
+/** A projected public semantic Definition with truthful root source offsets. */
+final case class ProjectedDefinition(
+    definition: SemanticDefinition,
     sourceSpan: Option[NeutralSourceSpan]
 ) derives CanEqual
 
