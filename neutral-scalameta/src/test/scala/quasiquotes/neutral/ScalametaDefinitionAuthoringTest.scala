@@ -195,8 +195,8 @@ final class ScalametaDefinitionAuthoringTest extends munit.FunSuite:
 
   test("rejects a missing root at the dispatcher boundary"):
     assertEquals(
-      ScalametaDefinitionAuthoring.author(null),
-      Left(ScalametaDefinitionAuthoring.Error.Missing)
+      ScalametaDefinitionAuthoring.authorShape(null),
+      Left(ScalametaDefinitionAuthoring.ShapeError.Missing)
     )
 
   test("preserves the exact delegated simple-alias error object and family"):
@@ -204,8 +204,8 @@ final class ScalametaDefinitionAuthoringTest extends munit.FunSuite:
     val problem = ScalametaSimpleTypeAliasAuthoring.author(shape).left.toOption.get
 
     assertEquals(
-      ScalametaDefinitionAuthoring.author(shape),
-      Left(ScalametaDefinitionAuthoring.Error.SimpleTypeAlias(problem))
+      ScalametaDefinitionAuthoring.authorShape(shape),
+      Left(ScalametaDefinitionAuthoring.ShapeError.SimpleTypeAlias(problem))
     )
 
   test("preserves the exact delegated immutable-val error object and family"):
@@ -217,8 +217,8 @@ final class ScalametaDefinitionAuthoringTest extends munit.FunSuite:
     val problem = ScalametaTypedImmutableValAuthoring.author(shape).left.toOption.get
 
     assertEquals(
-      ScalametaDefinitionAuthoring.author(shape),
-      Left(ScalametaDefinitionAuthoring.Error.ImmutableVal(problem))
+      ScalametaDefinitionAuthoring.authorShape(shape),
+      Left(ScalametaDefinitionAuthoring.ShapeError.ImmutableVal(problem))
     )
 
   test("preserves the exact delegated parameterless-def error object and family"):
@@ -230,8 +230,8 @@ final class ScalametaDefinitionAuthoringTest extends munit.FunSuite:
     val problem = ScalametaTypedParameterlessDefAuthoring.author(shape).left.toOption.get
 
     assertEquals(
-      ScalametaDefinitionAuthoring.author(shape),
-      Left(ScalametaDefinitionAuthoring.Error.ParameterlessDef(problem))
+      ScalametaDefinitionAuthoring.authorShape(shape),
+      Left(ScalametaDefinitionAuthoring.ShapeError.ParameterlessDef(problem))
     )
 
   test("preserves the exact delegated single-parameter-def error object and family"):
@@ -246,8 +246,8 @@ final class ScalametaDefinitionAuthoringTest extends munit.FunSuite:
     val problem = ScalametaTypedSingleParameterDefAuthoring.author(shape).left.toOption.get
 
     assertEquals(
-      ScalametaDefinitionAuthoring.author(shape),
-      Left(ScalametaDefinitionAuthoring.Error.SingleParameterDef(problem))
+      ScalametaDefinitionAuthoring.authorShape(shape),
+      Left(ScalametaDefinitionAuthoring.ShapeError.SingleParameterDef(problem))
     )
 
   test("preserves the exact delegated two-parameter-def error object and family"):
@@ -265,8 +265,8 @@ final class ScalametaDefinitionAuthoringTest extends munit.FunSuite:
     val problem = ScalametaTypedTwoParameterDefAuthoring.author(shape).left.toOption.get
 
     assertEquals(
-      ScalametaDefinitionAuthoring.author(shape),
-      Left(ScalametaDefinitionAuthoring.Error.TwoParameterDef(problem))
+      ScalametaDefinitionAuthoring.authorShape(shape),
+      Left(ScalametaDefinitionAuthoring.ShapeError.TwoParameterDef(problem))
     )
 
   test("does not collapse or cross-classify family failures as Missing"):
@@ -282,16 +282,16 @@ final class ScalametaDefinitionAuthoringTest extends munit.FunSuite:
     )
 
     assertNotEquals(
-      ScalametaDefinitionAuthoring.author(valueShape),
-      Left(ScalametaDefinitionAuthoring.Error.SimpleTypeAlias(aliasProblem))
+      ScalametaDefinitionAuthoring.authorShape(valueShape),
+      Left(ScalametaDefinitionAuthoring.ShapeError.SimpleTypeAlias(aliasProblem))
     )
     assertNotEquals(
-      ScalametaDefinitionAuthoring.author(valueShape),
-      Left(ScalametaDefinitionAuthoring.Error.Missing)
+      ScalametaDefinitionAuthoring.authorShape(valueShape),
+      Left(ScalametaDefinitionAuthoring.ShapeError.Missing)
     )
 
   private def author(shape: DefinitionShape): Defn =
-    ScalametaDefinitionAuthoring.author(shape) match
+    ScalametaDefinitionAuthoring.authorShape(shape) match
       case Right(value) => value
       case Left(problem) => fail(problem.toString)
 

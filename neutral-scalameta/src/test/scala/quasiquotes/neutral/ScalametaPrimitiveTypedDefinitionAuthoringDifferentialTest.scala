@@ -135,7 +135,7 @@ final class ScalametaPrimitiveTypedDefinitionAuthoringDifferentialTest
     assertEquals(typed.tpe.asInstanceOf[Type.Name].value, "Int")
 
   private def dispatch(shape: DefinitionShape): Defn =
-    ScalametaDefinitionAuthoring.author(shape) match
+    ScalametaDefinitionAuthoring.authorShape(shape) match
       case Right(value) => value
       case Left(problem) => fail(problem.toString)
 
