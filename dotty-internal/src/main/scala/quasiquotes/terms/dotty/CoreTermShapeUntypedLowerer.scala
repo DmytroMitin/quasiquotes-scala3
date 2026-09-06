@@ -365,12 +365,10 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
       Left(SourceFreeInvariantViolation(nodeKind, "the node has a source."))
     else if tree.span.exists then
       Left(SourceFreeInvariantViolation(nodeKind, "the node has a span."))
-    else if tree.symbol != NoSymbol then
-      Left(SourceFreeInvariantViolation(nodeKind, "the node has a symbol."))
     else if tree.isInstanceOf[untpd.TypedSplice] then
       Left(SourceFreeInvariantViolation(nodeKind, "the tree contains TypedSplice."))
     else
-      tree match
+      val children = tree match
         case untpd.InterpolatedString(_, segments) =>
           traverse(segments)(verifySourceFree).map(_ => ())
         case untpd.Thicket(trees) =>
@@ -398,8 +396,31 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
             _ <- verifySourceFree(expression)
             _ <- verifySourceFree(typeTree)
           yield ()
+        case untpd.AppliedTypeTree(constructor, arguments) =>
+          for
+            _ <- verifySourceFree(constructor)
+            _ <- traverse(arguments)(verifySourceFree)
+          yield ()
         case untpd.Tuple(elements) =>
           traverse(elements)(verifySourceFree).map(_ => ())
+        case untpd.Function(arguments, result) =>
+          for
+            _ <- traverse(arguments)(verifySourceFree)
+            _ <- verifySourceFree(result)
+          yield ()
+        case value: untpd.ValDef =>
+          for
+            _ <- verifySourceFree(value.tpt)
+            _ <- verifySourceFree(value.rhs)
+          yield ()
+        case value: untpd.DefDef =>
+          for
+            _ <- traverse(value.paramss.flatten)(verifySourceFree)
+            _ <- verifySourceFree(value.tpt)
+            _ <- verifySourceFree(value.rhs)
+          yield ()
+        case untpd.Parens(expression) =>
+          verifySourceFree(expression)
         case untpd.If(condition, thenBranch, elseBranch) =>
           for
             _ <- verifySourceFree(condition)
@@ -412,6 +433,13 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
             _ <- verifySourceFree(result)
           yield ()
         case _ => Right(())
+      children.flatMap { _ =>
+        Either.cond(
+          tree.symbol == NoSymbol,
+          (),
+          SourceFreeInvariantViolation(nodeKind, "the node has a symbol.")
+        )
+      }
 
   private[dotty] def verifySourceFreeForTest(
       tree: untpd.Tree
