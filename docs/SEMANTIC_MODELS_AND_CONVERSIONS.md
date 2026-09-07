@@ -386,15 +386,47 @@ object DottySourceFreeHelloWorld:
 ```
 <!-- snippet:dotty-source-free:end -->
 
+## Semantic Definition generated-origin development candidate
+
+`quasiquotes.definitions.dotty.DefinitionGeneratedOriginLowering.lower(definition,
+virtualSourceName)(using Context)` is an additive development candidate in the
+exact-version Dotty-internal artifact, pending independent review. It accepts
+public `SemanticDefinition` values for an immutable value, a parameterless
+method, one or two ordinary method parameters, or a simple type alias. No
+Scalameta conversion is involved.
+
+The result is `Either[Failure, Lowered]`. `Lowered` exposes the positioned
+`untpd.MemberDef`, `generatedSource`, `sourceFile`, and `virtualSourceName`;
+callers cannot construct it directly. A simple alias such as `type T = List[Int]`
+produces a `TypeDef` with a recursively positioned RHS. Repeating a valid call
+produces identical source, path, and spans with fresh result, tree, and source
+objects. All material trees use the returned generated source, carry contained
+spans, and have no symbols or typed splices before Typer.
+
+Callers branch on `Failure.code`; `detail` is diagnostic. The codes are
+`MISSING_INPUT`, `MALFORMED_SEMANTIC_VALUE`, `UNSUPPORTED_SEMANTIC_VALUE`,
+`SEMANTIC_ADAPTER_FAILED`, `INVALID_VIRTUAL_SOURCE`, `EXACT_LOWERING_FAILED`,
+`GENERATED_ORIGIN_FAILED`, and `INTERNAL_INVARIANT_FAILED`. Validation checks a
+missing definition first, then a missing path, then invalid non-null paths,
+then semantic adaptation, exact generation, and positioned-result invariants.
+Empty paths, surrounding whitespace, NUL, CR, LF, and paths changed by the
+compiler's virtual-source authority are rejected.
+
+The operation supplies generated origin only. The caller still owns target
+admission, insertion, owner lifecycle, and typing. A generated alias can succeed
+while an existing owner-append operation rejects `TypeDef`. This candidate does
+not change the historical Scalameta bridge or add an existing-owner rewrite API.
+
 ## Checked generated-origin bridges
 
 Source-free and generated-origin are different operations, not a boolean mode.
 The generated-origin APIs return the raw tree together with deterministic
 generated source and an effective virtual source. Term generation accepts more
 completed binder/type-bearing families than the direct source-free Term facade.
-Definition generated origin accepts the four concrete val/def families; simple
-`type T = Int` remains unsupported even though the source-free Definition
-bridge admits it.
+The Scalameta Definition generated-origin bridge accepts the four concrete
+val/def families; it continues rejecting simple aliases. The separate semantic
+Definition generated-origin development candidate described above includes
+simple aliases.
 
 <!-- snippet:dotty-generated-origin:start -->
 ```scala

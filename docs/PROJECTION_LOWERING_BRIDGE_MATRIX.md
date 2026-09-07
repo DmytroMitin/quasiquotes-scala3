@@ -93,6 +93,15 @@ All three return stable facade-owned failures. None claims source recovery,
 generated origin, owner/placement authority, typechecking, retyping, or
 transformation of an existing raw tree.
 
+The additive development candidate `DefinitionGeneratedOriginLowering.lower`
+accepts `SemanticDefinition` plus a virtual source name under `Context` and
+returns `Either[Failure, Lowered]`. Its current five-family intersection includes
+simple aliases. `Lowered` carries a fresh positioned `untpd.MemberDef`, generated
+source, `SourceFile`, and effective path. The private semantic adapter dispatches
+to the existing constructed-Definition and simple-alias origin authorities.
+This candidate awaits independent review; it performs no owner placement or
+typing. See the [semantic-model guide](SEMANTIC_MODELS_AND_CONVERSIONS.md#semantic-definition-generated-origin-development-candidate).
+
 The current public exact-version conveniences in the next table start from
 Scalameta. Their delegation policy is category-specific rather than assumed
 from similar names.
@@ -111,7 +120,7 @@ symbols. Source-free results claim no provenance; generated-origin results
 carry only their deterministic virtual source and truthful spans. Consumers
 still own placement and ordinary compiler lifecycle.
 
-### Definition families in the generic seam
+### Definition families in the current Scalameta bridge seam
 
 The public Definition projection/authoring pair and semantic lowerer admit
 exactly these families; their private dispatcher remains an implementation

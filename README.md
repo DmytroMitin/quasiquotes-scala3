@@ -397,10 +397,17 @@ an explicitly typed immutable `val`, a true parameterless explicitly typed
 non-generic unbounded Type alias. Their private carrier and family dispatchers
 remain implementation details. The unpublished exact-version
 `ScalametaDefinitionUntypedBridge` remains a separate non-delegating
-composition for the same source-free five-family result. The separate
+composition for the same source-free five-family result.
+
+The additive `DefinitionGeneratedOriginLowering` development candidate takes
+public `SemanticDefinition` plus a virtual source name and returns a fresh
+positioned member with deterministic generated source. It includes simple type
+aliases and awaits independent review. Its [semantic-model guide](docs/SEMANTIC_MODELS_AND_CONVERSIONS.md#semantic-definition-generated-origin-development-candidate)
+describes failures, freshness, and the caller's placement responsibilities.
+
 `ScalametaDefinitionGeneratedOriginBridge` returns positioned generated-origin
 members for only the four concrete val/def families; the simple alias is
-deliberately rejected because no generic alias-origin authority is admitted.
+deliberately rejected at the bridge's historical compatibility boundary.
 Parameter references are resolved by project binder identity rather than
 display text. Neither bridge generalizes parameter-list syntax nor owns target
 admission, insertion, rollback, ordinary typing, or owner/reownership work. See

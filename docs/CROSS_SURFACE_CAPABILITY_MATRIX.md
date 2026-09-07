@@ -134,6 +134,7 @@ class/Template shells are fresh at their original replacement site.
 | `TermShape` -> fresh source-free `untpd.Tree` | `BOUNDED` | Public exact-version `TermUntypedLowering`; richer completed/binder-safe semantic route; requires Dotty `Context` |
 | `TypeNormalForm` -> fresh source-free raw Type tree | `BOUNDED` | Public exact-version context-free `TypeUntypedLowering` |
 | `SemanticDefinition` -> fresh source-free `untpd.MemberDef` | `BOUNDED` | Public exact-version `DefinitionUntypedLowering`; five reusable Definition families; requires Dotty `Context` |
+| `SemanticDefinition` -> generated-origin `untpd.MemberDef` | `BOUNDED`, development candidate | `DefinitionGeneratedOriginLowering`; five families including simple aliases, deterministic source and fresh positioned result; pending independent review; caller owns placement and typing |
 | `scala.meta.Defn` <-> `SemanticDefinition` | `BOUNDED` | Public `ScalametaDefinitionProjection` / `ScalametaDefinitionAuthoring`; five reusable Definition families; projection carries optional source span and authoring is fresh `Position.None` |
 | `scala.meta.Term` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTermUntypedBridge`; direct non-binder and P0/P1 intersection only; source-free result |
 | `scala.meta.Term` -> positioned generated-origin `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTermGeneratedOriginBridge`; direct family plus completable ascription, Lambda1, P2, and P3; caller owns placement and insertion |
