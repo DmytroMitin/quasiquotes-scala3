@@ -189,7 +189,6 @@ final class ScalametaDefinitionNameResultCaptureTest extends munit.FunSuite:
       patternMessages("""case dqq"def fixed(...$paramss): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(...$paramss) = $body" => ()"""),
       patternMessages("""case dqq"def $name(...$paramss): Int = $body" => ()"""),
-      patternMessages("""case dqq"def $name(..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(first: Int)(...$paramss): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(...$paramss)(last: Int): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(...$left)(...$right): $result = $body" => ()"""),

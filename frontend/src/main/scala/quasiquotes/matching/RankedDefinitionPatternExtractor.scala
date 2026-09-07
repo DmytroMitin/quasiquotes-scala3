@@ -11,6 +11,22 @@ final class RankedDefinitionPatternExtractor[Target, Captures <: Tuple](
   def unapply(value: Target): Option[Captures] = extract(value)
 
 private[quasiquotes] object RankedDefinitionPatternExtractorFactory:
+  def capturedNameOrdinaryParamsResult(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (String, Seq[q.reflect.ValDef], q.reflect.TypeRepr, q.reflect.Term)
+  ] =
+    new RankedDefinitionPatternExtractor(target =>
+      RankedDefinitionPatternMatcher.extractCapturedNameOrdinaryParamsResult(target)
+    )
+
+  def capturedNameMixedOrdinaryScala2ImplicitParamsResult(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (String, Seq[q.reflect.ValDef], Seq[q.reflect.ValDef], q.reflect.TypeRepr, q.reflect.Term)
+  ] =
+    new RankedDefinitionPatternExtractor(target =>
+      RankedDefinitionPatternMatcher.extractCapturedNameMixedOrdinaryScala2ImplicitParamsResult(target)
+    )
+
   def exactCollect(using q: Quotes): RankedDefinitionPatternExtractor[
     q.reflect.DefDef,
     (Seq[q.reflect.ValDef], q.reflect.Term)
@@ -237,6 +253,15 @@ private[matching] object RankedDefinitionPatternMatcher:
       (modifiers, target.name, clauses.map(_.params), result, body)
     }
 
+  def extractCapturedNameOrdinaryParamsResult(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[(String, Seq[q.reflect.ValDef], q.reflect.TypeRepr, q.reflect.Term)] =
+    extractAdmittedOrdinaryRank2Definition(target)
+      .filter(_ => DefinitionModifierSemantics.isSemanticallyEmpty(target.symbol))
+      .map { (parameters, result, body) =>
+        (target.name, parameters, result, body)
+      }
+
   def extractCapturedModifiersNameOrdinaryParamsResult(using q: Quotes)(
       target: q.reflect.DefDef
   ): Option[
@@ -348,6 +373,15 @@ private[matching] object RankedDefinitionPatternMatcher:
       )
       (modifiers, target.name, parameters, result, body)
     }
+
+  def extractCapturedNameMixedOrdinaryScala2ImplicitParamsResult(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[(String, Seq[q.reflect.ValDef], Seq[q.reflect.ValDef], q.reflect.TypeRepr, q.reflect.Term)] =
+    extractAdmittedMixedOrdinaryScala2ImplicitDefinition(target)
+      .filter(_ => DefinitionModifierSemantics.isSemanticallyEmpty(target.symbol))
+      .map { (ordinaryParameters, implicitParameters, result, body) =>
+        (target.name, ordinaryParameters, implicitParameters, result, body)
+      }
 
   def extractCapturedModifiersNameMixedOrdinaryScala2ImplicitParamsResult(using q: Quotes)(
       target: q.reflect.DefDef

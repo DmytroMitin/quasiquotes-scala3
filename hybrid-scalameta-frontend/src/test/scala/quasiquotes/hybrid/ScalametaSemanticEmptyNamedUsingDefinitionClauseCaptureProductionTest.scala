@@ -122,6 +122,7 @@ final class ScalametaSemanticEmptyNamedUsingDefinitionClauseCaptureProductionTes
     val q029 = patternMessages("""case dqq"def $name(using ..$params): $result = $body" => ()""")
     val q028 = patternMessages("""case dqq"$mods def $name(using ..$params): $result = $body" => ()""")
     val q031 = patternMessages("""case dqq"$mods def $name(implicit ..$params): $result = $body" => ()""")
+    assertEquals(patternMessages("""case dqq"def $name(..$params): $result = $body" => ()"""), Nil)
     val rejected = List(
       patternMessages("""case dqq"private def $name(using ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"def fixed(using ..$params): $result = $body" => ()"""),
@@ -130,7 +131,6 @@ final class ScalametaSemanticEmptyNamedUsingDefinitionClauseCaptureProductionTes
       patternMessages("""case dqq"def $name(using ..$params, fixed: Int): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(using ...$paramss): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name[..$tparams](using ..$params): $result = $body" => ()"""),
-      patternMessages("""case dqq"def $name(..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(value: Int)(using ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(using ..$first)(using ..$second): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(using erased ..$params): $result = $body" => ()"""),

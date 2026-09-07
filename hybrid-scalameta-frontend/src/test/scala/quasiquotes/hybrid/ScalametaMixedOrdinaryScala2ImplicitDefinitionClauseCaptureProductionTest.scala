@@ -152,8 +152,8 @@ final class ScalametaMixedOrdinaryScala2ImplicitDefinitionClauseCaptureProductio
       patternMessages("""case dqq"def $name(..$params)(using ..$usingParams): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(..$params): $result = $body" => ()""")
     )
+    assertEquals(patternMessages("""case dqq"def $name(..$params)(implicit ..$implicitParams): $result = $body" => ()"""), Nil)
     val rejected = List(
-      patternMessages("""case dqq"def $name(..$params)(implicit ..$implicitParams): $result = $body" => ()"""),
       patternMessages("""case dqq"private $mods def $name(..$params)(implicit ..$implicitParams): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods final def $name(..$params)(implicit ..$implicitParams): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def fixed(..$params)(implicit ..$implicitParams): $result = $body" => ()"""),

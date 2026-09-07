@@ -245,6 +245,32 @@ object ScalametaQuasiPattern:
           s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"
         )
 
+  private[scalameta] def capturedNameOrdinaryParameterSequenceCapturedResultExtractor(
+      context: StringContext
+  )(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      String,
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    if context == null then
+      q.reflect.report.errorAndAbort(
+        "Invalid Scalameta dqq definition-pattern template: StringContext must not be null."
+      )
+    ScalametaDefinitionFrontend
+      .compileCapturedNameOrdinaryParameterSequenceCapturedResultPattern(
+        context.parts
+      ) match
+      case Right(_) =>
+        RankedDefinitionPatternExtractorFactory.capturedNameOrdinaryParamsResult
+      case Left(failure) =>
+        q.reflect.report.errorAndAbort(
+          s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"
+        )
+
   private[scalameta] def capturedModifiersNameNamedUsingParameterSequenceCapturedResultExtractor(
       context: StringContext
   )(using q: Quotes): RankedDefinitionPatternExtractor[
@@ -369,6 +395,33 @@ object ScalametaQuasiPattern:
       ) match
       case Right(_) =>
         RankedDefinitionPatternExtractorFactory.capturedModifiersNameMixedOrdinaryScala2ImplicitParamsResult
+      case Left(failure) =>
+        q.reflect.report.errorAndAbort(
+          s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"
+        )
+
+  private[scalameta] def capturedNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResultExtractor(
+      context: StringContext
+  )(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      String,
+      Seq[q.reflect.ValDef],
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    if context == null then
+      q.reflect.report.errorAndAbort(
+        "Invalid Scalameta dqq definition-pattern template: StringContext must not be null."
+      )
+    ScalametaDefinitionFrontend
+      .compileCapturedNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResultPattern(
+        context.parts
+      ) match
+      case Right(_) =>
+        RankedDefinitionPatternExtractorFactory.capturedNameMixedOrdinaryScala2ImplicitParamsResult
       case Left(failure) =>
         q.reflect.report.errorAndAbort(
           s"Invalid Scalameta dqq definition-pattern template: ${failure.message}"

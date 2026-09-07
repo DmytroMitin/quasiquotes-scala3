@@ -36,8 +36,8 @@ final class Q044UnifiedOrdinaryRank2ProductionTest extends munit.FunSuite:
       )
 
     val accepted = patternMessages("""case dqq"$mods def $name(..$params): $result = $body" => ()""")
+    assertEquals(patternMessages("""case dqq"def $name(..$params): $result = $body" => ()"""), Nil)
     val rejected = List(
-      patternMessages("""case dqq"def $name(..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"final $mods def $name(..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def fixed(..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name[..$tparams](..$params): $result = $body" => ()"""),

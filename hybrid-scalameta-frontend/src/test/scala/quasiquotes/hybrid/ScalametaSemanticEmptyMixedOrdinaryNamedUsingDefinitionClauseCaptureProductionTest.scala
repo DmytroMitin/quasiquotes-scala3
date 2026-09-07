@@ -99,10 +99,11 @@ final class ScalametaSemanticEmptyMixedOrdinaryNamedUsingDefinitionClauseCapture
     val accepted = patternMessages("""case dqq"def $name(..$params)(using ..$usingParams): $result = $body" => ()""")
     val q034 = patternMessages("""case dqq"$mods def $name(..$params)(using ..$usingParams): $result = $body" => ()""")
     val q028 = patternMessages("""case dqq"def $name(using ..$usingParams): $result = $body" => ()""")
+    assertEquals(patternMessages("""case dqq"def $name(..$params): $result = $body" => ()"""), Nil)
+    assertEquals(patternMessages("""case dqq"def $name(..$params)(implicit ..$usingParams): $result = $body" => ()"""), Nil)
     val rejected = List(
       patternMessages("""case dqq"private def $name(..$params)(using ..$usingParams): $result = $body" => ()"""),
       patternMessages("""case dqq"def fixed(..$params)(using ..$usingParams): $result = $body" => ()"""),
-      patternMessages("""case dqq"def $name(..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(using ..$usingParams)(..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(..$first)(..$second): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(using ..$first)(using ..$second): $result = $body" => ()"""),
@@ -112,7 +113,6 @@ final class ScalametaSemanticEmptyMixedOrdinaryNamedUsingDefinitionClauseCapture
       patternMessages("""case dqq"def $name(..$params)(using fixed: Int, ..$usingParams): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(..$params)(using ..$usingParams)(extra: Int): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name[..$tparams](..$params)(using ..$usingParams): $result = $body" => ()"""),
-      patternMessages("""case dqq"def $name(..$params)(implicit ..$usingParams): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(erased ..$params)(using ..$usingParams): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(..$params)(using ..$usingParams): Int = $body" => ()"""),
       patternMessages("""case dqq"def $name(..$params)(using ..$usingParams): $result = $body + 1" => ()"""),

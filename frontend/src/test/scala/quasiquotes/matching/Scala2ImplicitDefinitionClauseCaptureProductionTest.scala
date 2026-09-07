@@ -286,6 +286,7 @@ final class Scala2ImplicitDefinitionClauseCaptureProductionTest extends munit.Fu
       patternMessages("""case dqq"$mods def $name[..$tparams](...$paramss): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(..$params): $result = $body" => ()""")
     )
+    assertEquals(patternMessages("""case dqq"def $name(..$params): $result = $body" => ()"""), Nil)
     val rejected = List(
       patternMessages("""case dqq"private def $name(implicit ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods final def $name(implicit ..$params): $result = $body" => ()"""),
@@ -329,7 +330,6 @@ final class Scala2ImplicitDefinitionClauseCaptureProductionTest extends munit.Fu
       patternMessages("""case dqq"def $name(implicit ..$params, fixed: Int): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(implicit ...$paramss): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name[..$tparams](implicit ..$params): $result = $body" => ()"""),
-      patternMessages("""case dqq"def $name(..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(value: Int)(implicit ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(implicit ..$first)(implicit ..$second): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name(erased implicit ..$params): $result = $body" => ()"""),

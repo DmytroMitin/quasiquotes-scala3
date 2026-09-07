@@ -35,7 +35,11 @@ object Q044UnifiedOrdinaryRank2Harness:
           q.reflect.TypeRepr,
           q.reflect.Term
         )
-      ]
+      ],
+      omitted: Option[RankedDefinitionPatternExtractor[
+        q.reflect.DefDef,
+        (String, Seq[q.reflect.ValDef], q.reflect.TypeRepr, q.reflect.Term)
+      ]] = None
   ): Q044OrdinaryRank2Report =
     import q.reflect.*
 
@@ -168,7 +172,19 @@ object Q044UnifiedOrdinaryRank2Harness:
           captured._4 =:= target.returnTpt.tpe &&
           target.rhs.exists(_ eq captured._5)
       }
-      (name, valid, actualModes.map(_._1))
+      val omissionValid = omitted.forall { extractor =>
+        val result = extractor.unapply(target)
+        if name == "modified" then result.isEmpty
+        else result.exists { (capturedName, parameters, resultType, body) =>
+          quasiquotes.matching.Q045SemanticEmptyTestEvidence.isEmpty(using q)(target.symbol) &&
+            capturedName == target.name &&
+            parameters.size == original.size &&
+            parameters.zip(original).forall((left, right) => left eq right) &&
+            parameters.map(_.symbol).toList == original.map(_.symbol) &&
+            resultType =:= target.returnTpt.tpe && target.rhs.exists(_ eq body)
+        }
+      }
+      (name, valid && omissionValid, actualModes.map(_._1))
     }
 
     val exact = named("allModes")
@@ -245,8 +261,8 @@ object Q044UnifiedOrdinaryRank2Harness:
       "case-accessor" -> flaggedAccessor("caseAccessor", Flags.CaseAccessor),
       "given" -> named("namedGiven")
     )
-    val negativeRows = negativeTargets.map((label, target) => label -> rank2.unapply(target).isEmpty) :+
-      ("null" -> rank2.unapply(new NullTargetHolder().value).isEmpty)
+    val negativeRows = negativeTargets.map((label, target) => label -> (rank2.unapply(target).isEmpty && omitted.forall(_.unapply(target).isEmpty))) :+
+      ("null" -> (rank2.unapply(new NullTargetHolder().value).isEmpty && omitted.forall(_.unapply(new NullTargetHolder().value).isEmpty)))
 
     val rank3Expected = Map(
       "strict2" -> true,

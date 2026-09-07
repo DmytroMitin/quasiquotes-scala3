@@ -91,6 +91,16 @@ private[scalameta] object ScalametaDefinitionPatternMacro:
                   $context
                 )(using $callerQuotes)
             }
+
+          case Right(
+                ScalametaDefinitionFrontend.PatternKind.CapturedNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResult
+              ) =>
+            '{
+              ScalametaQuasiPattern
+                .capturedNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResultExtractor(
+                  $context
+                )(using $callerQuotes)
+            }
           case Right(
                 ScalametaDefinitionFrontend.PatternKind.CapturedNameScala2ImplicitParameterSequenceCapturedResult
               ) =>
@@ -115,6 +125,16 @@ private[scalameta] object ScalametaDefinitionPatternMacro:
             '{
               ScalametaQuasiPattern
                 .capturedModifiersNameOrdinaryParameterSequenceCapturedResultExtractor($context)(
+                  using $callerQuotes
+                )
+            }
+
+          case Right(
+                ScalametaDefinitionFrontend.PatternKind.CapturedNameOrdinaryParameterSequenceCapturedResult
+              ) =>
+            '{
+              ScalametaQuasiPattern
+                .capturedNameOrdinaryParameterSequenceCapturedResultExtractor($context)(
                   using $callerQuotes
                 )
             }

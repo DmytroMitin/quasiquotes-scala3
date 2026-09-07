@@ -112,8 +112,12 @@ object DefinitionPattern:
     case CapturedModifiersNameNamedUsingParameterSequenceCapturedResult
     case CapturedModifiersNameMixedOrdinaryNamedUsingParameterSequencesCapturedResult
     case CapturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResult
+
+    case CapturedNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResult
     case CapturedModifiersNameScala2ImplicitParameterSequenceCapturedResult
     case CapturedModifiersNameOrdinaryParameterSequenceCapturedResult
+
+    case CapturedNameOrdinaryParameterSequenceCapturedResult
     case CapturedModifiersNameRankedParameterClauseSequenceCapturedResult
     case CapturedNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult
     case CapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult
@@ -299,6 +303,31 @@ object DefinitionPattern:
         )
       case None => abort("StringContext must not be null.")
 
+  private[matching] def capturedNameOrdinaryParameterSequenceCapturedResultExtractor(
+      sc: StringContext
+  )(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      String,
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    def abort(message: String): Nothing =
+      q.reflect.report.errorAndAbort(s"$InvalidDqqPrefix $message")
+
+    val parts = Option(sc).flatMap(value => Option(value.parts)).map(_.toList)
+    parts match
+      case Some(values)
+          if isExactCapturedNameOrdinaryParameterSequenceCapturedResult(values) =>
+        RankedDefinitionPatternExtractorFactory.capturedNameOrdinaryParamsResult
+      case Some(_) =>
+        abort(
+          "expected exactly `def $name(..$params): $result = $body` with four captures in semantic-name, complete-ordinary-parameters, semantic-result, and complete-body order"
+        )
+      case None => abort("StringContext must not be null.")
+
   private[matching] def capturedModifiersNameNamedUsingParameterSequenceCapturedResultExtractor(
       sc: StringContext
   )(using q: Quotes): RankedDefinitionPatternExtractor[
@@ -406,6 +435,34 @@ object DefinitionPattern:
       case Some(_) =>
         abort(
           "expected exactly `$mods def $name(..$params)(implicit ..$implicitParams): $result = $body` with six captures in semantic-modifiers, semantic-name, complete-ordinary-parameters, complete-Scala-2-implicit-parameters, semantic-result, and complete-body order"
+        )
+      case None => abort("StringContext must not be null.")
+
+  private[matching] def capturedNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResultExtractor(
+      sc: StringContext
+  )(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      String,
+      Seq[q.reflect.ValDef],
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    def abort(message: String): Nothing =
+      q.reflect.report.errorAndAbort(s"$InvalidDqqPrefix $message")
+
+    val parts = Option(sc).flatMap(value => Option(value.parts)).map(_.toList)
+    parts match
+      case Some(values)
+          if isExactCapturedNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResult(
+            values
+          ) =>
+        RankedDefinitionPatternExtractorFactory.capturedNameMixedOrdinaryScala2ImplicitParamsResult
+      case Some(_) =>
+        abort(
+          "expected exactly `def $name(..$params)(implicit ..$implicitParams): $result = $body` with five captures in semantic-name, complete-ordinary-parameters, complete-Scala-2-implicit-parameters, semantic-result, and complete-body order"
         )
       case None => abort("StringContext must not be null.")
 
@@ -533,10 +590,21 @@ object DefinitionPattern:
       Right(
         StaticPatternKind.CapturedModifiersNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResult
       )
+
+    else if isExactCapturedNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResult(
+        parts
+      )
+    then
+      Right(
+        StaticPatternKind.CapturedNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResult
+      )
     else if isExactCapturedModifiersNameScala2ImplicitParameterSequenceCapturedResult(parts) then
       Right(StaticPatternKind.CapturedModifiersNameScala2ImplicitParameterSequenceCapturedResult)
     else if isExactCapturedModifiersNameOrdinaryParameterSequenceCapturedResult(parts) then
       Right(StaticPatternKind.CapturedModifiersNameOrdinaryParameterSequenceCapturedResult)
+
+    else if isExactCapturedNameOrdinaryParameterSequenceCapturedResult(parts) then
+      Right(StaticPatternKind.CapturedNameOrdinaryParameterSequenceCapturedResult)
     else if isExactCapturedModifiersNameRankedParameterClauseSequenceCapturedResult(parts) then
       Right(StaticPatternKind.CapturedModifiersNameRankedParameterClauseSequenceCapturedResult)
     else if isExactCapturedModifiersNameTypeParameterSequenceRankedParameterClauseSequenceCapturedResult(
@@ -643,6 +711,18 @@ object DefinitionPattern:
           suffix.trim.isEmpty
       case _ => false
 
+  private def isExactCapturedNameOrdinaryParameterSequenceCapturedResult(
+      parts: List[String]
+  ): Boolean =
+    parts match
+      case List(prefix, beforeParams, beforeResult, beforeBody, suffix) =>
+        prefix.matches("(?s)\\s*def\\s+") &&
+          beforeParams.matches("(?s)\\s*\\(\\s*\\.\\.\\s*") &&
+          beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&
+          beforeBody.matches("(?s)\\s*=\\s*") &&
+          suffix.trim.isEmpty
+      case _ => false
+
   private def isExactCapturedModifiersNameNamedUsingParameterSequenceCapturedResult(
       parts: List[String]
   ): Boolean =
@@ -713,6 +793,26 @@ object DefinitionPattern:
           ) =>
         beforeModifiers.trim.isEmpty &&
           beforeName.matches("(?s)\\s+def\\s+") &&
+          beforeOrdinaryParams.matches("(?s)\\s*\\(\\s*\\.\\.\\s*") &&
+          beforeImplicitParams.matches("(?s)\\s*\\)\\s*\\(\\s*implicit\\s+\\.\\.\\s*") &&
+          beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&
+          beforeBody.matches("(?s)\\s*=\\s*") &&
+          suffix.trim.isEmpty
+      case _ => false
+
+  private def isExactCapturedNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResult(
+      parts: List[String]
+  ): Boolean =
+    parts match
+      case List(
+            prefix,
+            beforeOrdinaryParams,
+            beforeImplicitParams,
+            beforeResult,
+            beforeBody,
+            suffix
+          ) =>
+        prefix.matches("(?s)\\s*def\\s+") &&
           beforeOrdinaryParams.matches("(?s)\\s*\\(\\s*\\.\\.\\s*") &&
           beforeImplicitParams.matches("(?s)\\s*\\)\\s*\\(\\s*implicit\\s+\\.\\.\\s*") &&
           beforeResult.matches("(?s)\\s*\\)\\s*:\\s*") &&

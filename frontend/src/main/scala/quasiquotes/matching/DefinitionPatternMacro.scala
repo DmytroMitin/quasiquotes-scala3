@@ -89,6 +89,16 @@ private[matching] object DefinitionPatternMacro:
                   $context
                 )(using $callerQuotes)
             }
+
+          case Right(
+                DefinitionPattern.StaticPatternKind.CapturedNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResult
+              ) =>
+            '{
+              DefinitionPattern
+                .capturedNameMixedOrdinaryScala2ImplicitParameterSequencesCapturedResultExtractor(
+                  $context
+                )(using $callerQuotes)
+            }
           case Right(
                 DefinitionPattern.StaticPatternKind.CapturedNameScala2ImplicitParameterSequenceCapturedResult
               ) =>
@@ -113,6 +123,16 @@ private[matching] object DefinitionPatternMacro:
             '{
               DefinitionPattern
                 .capturedModifiersNameOrdinaryParameterSequenceCapturedResultExtractor($context)(
+                  using $callerQuotes
+                )
+            }
+
+          case Right(
+                DefinitionPattern.StaticPatternKind.CapturedNameOrdinaryParameterSequenceCapturedResult
+              ) =>
+            '{
+              DefinitionPattern
+                .capturedNameOrdinaryParameterSequenceCapturedResultExtractor($context)(
                   using $callerQuotes
                 )
             }
