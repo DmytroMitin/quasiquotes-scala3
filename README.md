@@ -5,16 +5,16 @@ repository separates compiler-free representations and algorithms from
 compiler-coupled parsing, reflection, and lowering.
 
 The project is a research proof of concept. Its API, coordinates, supported
-syntax, and compatibility policy may change. The immutable `0.2.0` `core` and
-matching 3.3.8/3.8.4 `frontend` artifacts are available from Maven Central;
-the current `0.3.0` release tree is not yet published. Its candidate release
-topology expands to eleven artifacts under an explicit fail-closed release mode;
-that local readiness is not Maven availability.
+syntax, and compatibility policy may change. The `0.3.0` release is available
+from Maven Central for Scala 3.3.8, 3.8.4, and 3.9.0. Its eleven published
+coordinates cover Core, frontend, neutral Scalameta, Dotty-internal, and typed
+Scalameta frontend roles. The annotated `v0.3.0` tag and matching GitHub
+Release identify the published source.
 
 The canonical [architecture](docs/ARCHITECTURE.md) has one project-owned,
 compiler-free semantic model with multiple source frontends. Current-Dotty is
 the released/default reference route; the Scalameta typed route is an explicit,
-unpublished experiment rather than a second quasiquote engine.
+released opt-in experiment rather than a second quasiquote engine.
 
 Choose the representation by the contract you need: Scalameta for broad source
 AST work, the project-owned compiler-free model for bounded normalized Term,
@@ -29,6 +29,18 @@ lowering facades are current; exact-U transformation APIs remain internal or
 planned and are labeled accordingly.
 
 ## Quick start
+
+### Runnable starter
+
+Generate a workspace with five small runnable examples:
+
+```sh
+sbt new DmytroMitin/quasiquotes-scala3.g8
+```
+
+The [starter repository](https://github.com/DmytroMitin/quasiquotes-scala3.g8)
+contains examples for Core, Q/frontend, N/neutral Scalameta,
+U/Dotty-internal, and Hybrid typed Scalameta.
 
 `qr` constructs a Scala 3 quoted-reflection `Term` from source-like syntax
 with structural splices.
@@ -62,7 +74,7 @@ values, converts them to low-level `quotes.reflect.Term` trees, uses `qr` for
 source-like structural construction at that reflection-tree layer, and converts
 the resulting `Term` back to `Expr[Int]`. A `quotes.reflect.Term` is generally a
 typed quoted-reflection tree in macro use; it is not the compiler-internal raw
-`dotty.tools.dotc.ast.untpd.Tree` used only by the unpublished `dottyInternal`
+`dotty.tools.dotc.ast.untpd.Tree` used only by the exact-version `dottyInternal`
 module.
 
 This exact example is compiled from an external-package fixture. See
@@ -182,7 +194,7 @@ names the concrete APIs, visibility boundaries, and current composition status.
   matching, source metadata, and stable diagnostic projections.
 - `frontend` supplies Scala 3 compiler-coupled parsing, macros, quoted
   reflection adapters, and public source-oriented conveniences.
-- `neutralScalameta` is a remotely unpublished compiler-free experiment backed by
+- `neutralScalameta` is a released compiler-free experiment backed by
   Scalameta 4.17.3. It provides direct source-AST authoring plus a bounded
   structural projection into the existing validated IR, including the accepted
   fully-qualified, non-generic, one-positional-list constructor/New family,
@@ -194,7 +206,7 @@ names the concrete APIs, visibility boundaries, and current composition status.
   exact semantic round trip. Grouping parentheses remain source-origin syntax
   rather than a distinct project Term; source-provenance reconstruction remains
   outside.
-- `hybridScalametaFrontend` is a remotely unpublished, compiler-coupled side-by-side
+- `hybridScalametaFrontend` is a released compiler-coupled side-by-side
   experiment. It contains explicit typed Term, Type, and bounded Definition
   opt-in APIs in `quasiquotes.scalameta`. They parse public Scalameta ASTs,
   lower into existing project semantics, and retain current-Dotty as the
@@ -220,10 +232,9 @@ names the concrete APIs, visibility boundaries, and current composition status.
   Type sidecars are available and the bounded P3 local-identity-definition block
   when authoritative parameter/result completed-Type sidecars are available.
   The narrower direct Core lowerer remains intentionally closed to P2 and P3.
-  Its source is present for review and testing, and its artifact remains
-  remotely unpublished. It is nevertheless a normally publishable production
-  project; consumers of any future coordinate must match the exact Scala
-  compiler version.
+  Its source is present for review and testing, and its `0.3.0` artifacts are
+  published. Consumers must match the coordinate to the exact Scala compiler
+  version.
 - `public-core-examples` and `public-api-examples` compile consumer code from
   outside the library packages.
 
@@ -265,31 +276,31 @@ class-loader layering to keep the aggregate gate deterministic.
 
 ## Latest released coordinates
 
-The latest Maven Central release is the immutable version `0.2.0`:
+The latest Maven Central release is `0.3.0`:
 
 ```scala
-libraryDependencies +=
-  "com.github.dmytromitin" %% "quasiquotes-scala3-core" % "0.2.0"
+val quasiquotesVersion = "0.3.0"
 
-libraryDependencies +=
-  "com.github.dmytromitin" %
-    "quasiquotes-scala3-frontend_3.8.4" % "0.2.0"
+libraryDependencies ++= Seq(
+  "com.github.dmytromitin" %% "quasiquotes-scala3-core" % quasiquotesVersion,
+  "com.github.dmytromitin" %% "quasiquotes-scala3-neutral-scalameta" % quasiquotesVersion,
+  ("com.github.dmytromitin" % "quasiquotes-scala3-frontend" % quasiquotesVersion)
+    .cross(CrossVersion.full),
+  ("com.github.dmytromitin" % "quasiquotes-scala3-dotty-internal" % quasiquotesVersion)
+    .cross(CrossVersion.full),
+  ("com.github.dmytromitin" % "quasiquotes-scala3-scalameta-frontend" % quasiquotesVersion)
+    .cross(CrossVersion.full)
+)
 ```
 
-`core` uses ordinary Scala 3 binary crossing. `frontend` uses full compiler
-version crossing and must match the consuming compiler line. The released set
-contains `core_3` plus frontend artifacts for Scala 3.3.8 and 3.8.4 only. The
-current source tree declares release version `0.3.0`, whose publication is
-still pending, and is not interchangeable with these released coordinates.
+`core` and `neutral-scalameta` use ordinary Scala 3 binary crossing.
+`frontend`, `dotty-internal`, and `scalameta-frontend` use full compiler
+version crossing and must match the consuming compiler line.
 
-All five production modules are normally publishable sbt projects. The
-candidate `0.3.0` topology is exactly `core_3`, binary-crossed
+The published `0.3.0` topology is exactly `core_3`, binary-crossed
 `neutral-scalameta_3`, and full-crossed `frontend`, `scalameta-frontend`, and
 `dotty-internal` for Scala 3.3.8, 3.8.4, and final 3.9.0: eleven coordinates
-total. No special property is needed to package or stage them in a task-owned
-local repository. All three compiler lines are required CI lanes, the
-binary-cross artifacts are built once with 3.3.8, the root/examples remain
-skipped, and no `0.3.0` coordinate is remotely released by this policy.
+total.
 
 See [Getting started](docs/GETTING_STARTED.md),
 [execution environments and AST representations](docs/EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md),
@@ -313,19 +324,18 @@ See [Getting started](docs/GETTING_STARTED.md),
 
 The machine-readable [0.2.0 public API baseline](docs/api-baselines/0.2.0.tsv)
 contains 305 core and 313 frontend Scaladoc-visible entries. It excludes the
-root, unpublished experimental `neutralScalameta`, unpublished
-`hybridScalametaFrontend`, unpublished `dottyInternal`, and package-private
+root, the modules that were not part of 0.2.0 (`neutralScalameta`,
+`hybridScalametaFrontend`, and `dottyInternal`), and package-private
 internals. It is generated from packaged Scaladoc search metadata for
 deterministic source/API-shape diffing; it is neither human API documentation
 nor binary, TASTy, overload-resolution, or semantic compatibility proof.
-The current standard candidate inventory is 794 rows / 775 groups,
+The 0.3.0 standard inventory is 794 rows / 775 groups,
 including the additive binder-safe Term and semantic-Definition APIs and the
 construction-only runtime-sequence `tqr` overload,
-while the unpublished typed-Scalameta inventory remains 43 rows / 43 groups.
+while the typed-Scalameta inventory remains 43 rows / 43 groups.
 The typed exact-two selector replaces one source signature while
 retaining its historical erased JVM descriptor through a source-hidden bridge. These
-development counts do not alter the immutable `0.2.0` baseline or imply a
-remote `0.3.0` release.
+0.3.0 counts do not alter the immutable `0.2.0` baseline.
 
 The structural type subset includes recursively nested `List` and `Option`
 applications plus binary `Either`, including patterns, construction, quoted
@@ -390,7 +400,7 @@ generic, imported-name, multiple-list, and anonymous-class exclusions.
 One ordinary explicitly typed Lambda1 form is also available for structural
 `qr` construction and matching. Its project-owned binder identity provides
 alpha-aware bound-reference comparison and same-text splice non-capture. The
-unpublished exact internal backend supports that same bounded Lambda1 shape in
+released exact internal backend supports that same bounded Lambda1 shape in
 source-free and generated-origin modes.
 
 Binder-free P1 blocks are also available through ordinary `qr` construction
@@ -401,12 +411,12 @@ now admits exactly one literal method with one ordinary parameter, complete
 parameter/result `TypeRepr` holes, a parameter-reference body, and one following
 result; broader statements and `qq` local-definition matching remain excluded.
 
-The unpublished neutral module exposes bounded public
+The released neutral module exposes bounded public
 `ScalametaDefinitionProjection` and `ScalametaDefinitionAuthoring` facades for
 an explicitly typed immutable `val`, a true parameterless explicitly typed
 `def`, one- and two-ordinary-parameter explicitly typed `def`s, and a simple
 non-generic unbounded Type alias. Their private carrier and family dispatchers
-remain implementation details. The unpublished exact-version
+remain implementation details. The released exact-version
 `ScalametaDefinitionUntypedBridge` remains a separate non-delegating
 composition for the same source-free five-family result.
 
