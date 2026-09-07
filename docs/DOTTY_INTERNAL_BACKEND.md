@@ -37,7 +37,7 @@ fresh source-free syntax.
 The separate `DefinitionGeneratedOriginLowering` facade accepts the five
 public semantic Definition families, including aliases, and returns a positioned
 member plus deterministic source and fresh SourceFile. `TermGeneratedOriginLowering`
-is an additive development candidate for public TermShape with a deliberately
+is an implemented public facade for public TermShape with a deliberately
 smaller generated-source admission bound than `TermUntypedLowering`. It shares
 checked completion/exact lowering once and adds source-role/grouping admission
 and strict plan/provenance checks. Its rich result and seven-code contract are

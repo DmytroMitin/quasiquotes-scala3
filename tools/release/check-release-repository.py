@@ -189,18 +189,42 @@ def pom_summary(
                 "scope": text(dependency, "scope") or "compile",
             }
         )
-    actual_compile = {
-        (dependency["group"], dependency["artifact"], dependency["version"])
-        for dependency in dependencies
-        if dependency["scope"] != "test"
-    }
-    expected_compile = expected_compile_dependencies(coordinate, profile)
-    if actual_compile != expected_compile:
-        missing = sorted(expected_compile - actual_compile)
-        unexpected = sorted(actual_compile - expected_compile)
-        errors.append(
-            f"POM_DEPENDENCY_CONTRACT_INVALID:{artifact}:missing={missing}:unexpected={unexpected}"
-        )
+    if profile.name == "0.3.0-candidate":
+        # Q046 is a frontend build permission, never a downstream runtime contract.
+        expected_dependencies = {
+            (*dependency, "compile")
+            for dependency in expected_compile_dependencies(coordinate, profile)
+        }
+        if coordinate.role == "frontend":
+            expected_dependencies.add(
+                (GROUP, "allow-experimental-annotation_3", "0.1.0", "provided")
+            )
+        actual_dependencies = [
+            (d["group"], d["artifact"], d["version"], d["scope"])
+            for d in dependencies
+            if d["scope"] != "test" or d["artifact"].startswith("allow-experimental-")
+        ]
+        actual_set = set(actual_dependencies)
+        if actual_set != expected_dependencies or len(actual_set) != len(actual_dependencies):
+            errors.append(
+                f"POM_DEPENDENCY_CONTRACT_INVALID:{artifact}:"
+                f"missing={sorted(expected_dependencies - actual_set)}:"
+                f"unexpected={sorted(actual_set - expected_dependencies)}:"
+                f"duplicates={len(actual_dependencies) - len(actual_set)}"
+            )
+    else:
+        # Preserve the historical 0.2.0 audit contract.
+        actual_compile = {
+            (d["group"], d["artifact"], d["version"])
+            for d in dependencies if d["scope"] != "test"
+        }
+        expected_compile = expected_compile_dependencies(coordinate, profile)
+        if actual_compile != expected_compile:
+            errors.append(
+                f"POM_DEPENDENCY_CONTRACT_INVALID:{artifact}:"
+                f"missing={sorted(expected_compile - actual_compile)}:"
+                f"unexpected={sorted(actual_compile - expected_compile)}"
+            )
     return sorted(dependencies, key=lambda d: (d["scope"], d["group"], d["artifact"]))
 
 
@@ -299,12 +323,12 @@ def check(
             }
         )
     manifest: dict[str, object] = {
-        "schema": "quasiquotes-release-repository-manifest-v2",
+        "schema": "quasiquotes-release-repository-manifest-v3",
         "release_set": profile.name,
         "source_identity": source_identity,
         "candidate_version": profile.version,
         "sbt_version": sbt_version,
-        "synthetic_rehearsal_fingerprint": fingerprint.upper(),
+        "signing_fingerprint": fingerprint.upper(),
         "coordinates": coordinates,
         "assertions": {
             "exact_coordinate_set": not any(e.startswith("COORDINATE_") for e in errors),
@@ -330,7 +354,7 @@ def markdown(manifest: dict[str, object]) -> str:
         f"Source: `{manifest['source_identity']}`",
         f"Version: `{manifest['candidate_version']}`",
         f"sbt: `{manifest['sbt_version']}`",
-        f"Synthetic fingerprint: `{manifest['synthetic_rehearsal_fingerprint']}`",
+        f"Signing fingerprint: `{manifest['signing_fingerprint']}`",
         "",
     ]
     for coordinate in manifest["coordinates"]:  # type: ignore[index]

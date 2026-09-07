@@ -46,6 +46,8 @@ class ReleaseRepositoryTest(unittest.TestCase):
                 coordinate, self.profile
             )
         )
+        if self.profile.name == "0.3.0-candidate" and coordinate.role == "frontend":
+            dependencies += self.annotation_dependency()
         pom = directory / f"{base}.pom"
         pom.write_text(f"""<project><groupId>{CHECKER.GROUP}</groupId><artifactId>{artifact}</artifactId><version>{version}</version><name>{artifact}</name><description>fixture</description><url>{CHECKER.PROJECT_URL}</url><licenses><license><name>{CHECKER.LICENSE_NAME}</name><url>{CHECKER.LICENSE_URL}</url><distribution>repo</distribution></license></licenses><scm><url>{CHECKER.PROJECT_URL}</url><connection>{CHECKER.SCM_CONNECTION}</connection></scm><developers><developer><id>rehearsal</id><name>Rehearsal</name><email>rehearsal@example.invalid</email><url>https://example.invalid</url></developer></developers><dependencies>{dependencies}</dependencies></project>""", encoding="utf-8")
         deployables = [pom]
@@ -62,6 +64,60 @@ class ReleaseRepositoryTest(unittest.TestCase):
                 signature.with_name(signature.name + f".{algorithm}").write_text(
                     CHECKER.digest(signature, algorithm)
                 )
+
+    @staticmethod
+    def annotation_dependency(scope="provided", version="0.1.0") -> str:
+        return ("<dependency><groupId>com.github.dmytromitin</groupId>"
+                "<artifactId>allow-experimental-annotation_3</artifactId>"
+                f"<version>{version}</version><scope>{scope}</scope></dependency>")
+
+    def dependency_errors(self, coordinate, transform) -> list[str]:
+        pom = (self.repository / CHECKER.GROUP_PATH / coordinate.artifact /
+               self.profile.version / f"{coordinate.artifact}-{self.profile.version}.pom")
+        original = pom.read_text()
+        try:
+            pom.write_text(transform(original))
+            errors = []
+            CHECKER.pom_summary(pom, coordinate, self.profile, errors)
+            return errors
+        finally:
+            pom.write_text(original)
+
+    def test_frontend_annotation_is_required_with_exact_scope_and_version(self) -> None:
+        for coordinate in self.profile.coordinates:
+            if coordinate.role != "frontend":
+                continue
+            for replacement in ("", self.annotation_dependency(version="0.2.0"),
+                                *(self.annotation_dependency(scope=scope) for scope in
+                                  ("compile", "runtime", "test", "system", "import"))):
+                with self.subTest(artifact=coordinate.artifact, replacement=replacement):
+                    errors = self.dependency_errors(coordinate, lambda text:
+                        text.replace(self.annotation_dependency(), replacement))
+                    self.assertTrue(any(e.startswith("POM_DEPENDENCY_CONTRACT_INVALID") for e in errors))
+
+    def test_annotation_cannot_leak_to_other_modules(self) -> None:
+        for coordinate in self.profile.coordinates:
+            if coordinate.role != "frontend":
+                with self.subTest(artifact=coordinate.artifact):
+                    errors = self.dependency_errors(coordinate, lambda text:
+                        text.replace("</dependencies>", self.annotation_dependency() + "</dependencies>"))
+                    self.assertTrue(any(e.startswith("POM_DEPENDENCY_CONTRACT_INVALID") for e in errors))
+
+    def test_permission_plugin_cannot_leak_in_any_scope(self) -> None:
+        for coordinate in self.profile.coordinates:
+            for scope in ("compile", "provided", "runtime", "test"):
+                with self.subTest(artifact=coordinate.artifact, scope=scope):
+                    plugin = self.annotation_dependency(scope).replace(
+                        "allow-experimental-annotation_3", f"allow-experimental-plugin_{coordinate.scala_line}")
+                    errors = self.dependency_errors(coordinate, lambda text:
+                        text.replace("</dependencies>", plugin + "</dependencies>"))
+                    self.assertTrue(any(e.startswith("POM_DEPENDENCY_CONTRACT_INVALID") for e in errors))
+
+    def test_duplicate_provided_annotation_blocks(self) -> None:
+        coordinate = next(c for c in self.profile.coordinates if c.role == "frontend")
+        errors = self.dependency_errors(coordinate, lambda text:
+            text.replace(self.annotation_dependency(), self.annotation_dependency() * 2))
+        self.assertTrue(any(e.startswith("POM_DEPENDENCY_CONTRACT_INVALID") for e in errors))
 
     def run_check(self) -> list[str]:
         _, errors = CHECKER.check(

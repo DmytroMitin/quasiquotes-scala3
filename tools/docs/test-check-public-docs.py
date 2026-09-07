@@ -58,7 +58,7 @@ class PublicDocsCheckTest(unittest.TestCase):
         (root / "ROADMAP.md").write_text(
             "[north-star checkpoints](docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md)\n\n"
             "| N1 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
-            "| N2 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
+            "| N2 | `BOUNDED_STANDARD_CONSTRUCTION_IMPLEMENTED` | broader kinds and typed-Scalameta parity remain later work |\n"
             "| N3 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
             "| N4 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
             "| N5 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n",
@@ -86,16 +86,30 @@ class PublicDocsCheckTest(unittest.TestCase):
         )
         (docs / "NORTH_STAR_QUASIQUOTE_EXAMPLES.md").write_text(
             "# North-star quasiquote examples\n\n"
-            "All conceptual quasiquote syntax in this document is future, non-current\n"
-            "notation.\n"
+            "Syntax explicitly marked conceptual remains future notation.\n"
             "CURRENT_MANUAL_BASELINE_PROVED\n"
             "DESIGN_REQUIRED\n"
             "IMPLEMENTATION_REQUIRED\n\n"
             + "".join(
                 f"## N{checkpoint}\n\n"
                 "### Manual/current baseline\n\nBaseline.\n\n"
-                "### Desired source-like shape\n\nShape.\n\n"
-                "### Required missing capabilities\n\nCapabilities.\n\n"
+                + (
+                    "### Implemented bounded source-like shape\n\n"
+                    'tqr"$constructor[..$arguments]"\n'
+                    "construction-only overload; caller-owned reflected class constructor; "
+                    "runtime-length ordered `Seq[TypeRepr]`; validates arity, kinds; "
+                    "directly in the caller's Quotes universe; exact constructor/argument identities.\n\n"
+                    "### Remaining capabilities\n\n"
+                    "General TypeLambda authoring, aliases-as-aliases, instance-dependent prefixes, "
+                    "refinements, nontrivial constrained bounds and broader kind calculus remain "
+                    "outside the selected slice. Typed-Scalameta runtime-sequence construction and "
+                    "Type sequence matching remain unimplemented. No neutral runtime-sequence "
+                    "model is implied by the direct reflection path.\n\n"
+                    if checkpoint == 2 else
+                    "### Desired source-like shape\n\nShape.\n\n"
+                    "### Required missing capabilities\n\nCapabilities.\n\n"
+                )
+                +
                 "### Checkpoint criterion\n\nCriterion.\n\n"
                 for checkpoint in range(1, 6)
             ),
@@ -493,6 +507,62 @@ class PublicDocsCheckTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn("roadmap checkpoint N5 has invalid status", result.stderr)
+
+    def test_rejects_obsolete_future_only_n2_status(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            roadmap = root / "ROADMAP.md"
+            roadmap.write_text(roadmap.read_text().replace(
+                "BOUNDED_STANDARD_CONSTRUCTION_IMPLEMENTED",
+                "DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED",
+            ))
+            result = self.run_checker(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("roadmap checkpoint N2 has invalid status", result.stderr)
+
+    def test_rejects_n2_without_direct_reflection_or_remaining_exclusions(self) -> None:
+        for text in (
+            "directly in the caller's Quotes universe",
+            "exact constructor/argument identities",
+            "General TypeLambda authoring",
+            "Type sequence matching remain unimplemented",
+            "No neutral runtime-sequence model is implied",
+        ):
+            with self.subTest(text=text), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.make_fixture(root)
+                doc = root / "docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md"
+                doc.write_text(doc.read_text().replace(text, "omitted"))
+                result = self.run_checker(root)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("north-star checkpoint N2 missing bounded contract", result.stderr)
+
+    def test_rejects_n2_promoted_to_complete(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            roadmap = root / "ROADMAP.md"
+            roadmap.write_text(roadmap.read_text().replace(
+                "BOUNDED_STANDARD_CONSTRUCTION_IMPLEMENTED",
+                "BOUNDED_STANDARD_CONSTRUCTION_IMPLEMENTED`, `CHECKPOINT_COMPLETE",
+            ))
+            result = self.run_checker(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("roadmap checkpoint N2 has invalid status", result.stderr)
+
+    def test_rejects_bounded_n2_status_applied_to_n1(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            roadmap = root / "ROADMAP.md"
+            roadmap.write_text(roadmap.read_text().replace(
+                "| N1 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |",
+                "| N1 | `BOUNDED_STANDARD_CONSTRUCTION_IMPLEMENTED` |",
+            ))
+            result = self.run_checker(root)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("roadmap checkpoint N1 has invalid status", result.stderr)
 
     def test_rejects_scalameta_status_doc_without_canonical_link(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

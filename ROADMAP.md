@@ -184,9 +184,11 @@ the text explicitly says otherwise.
    resolve through exact typed identity. Convenience for
    passing `Type[T]` or `TypeTree` directly may be considered only after the
    `TypeRepr` contract is stable.
-3. Treat other Type positions as later slices: applied or dynamic
-   constructors, method Type applications, refinements, and sequence Type
-   splices each need their own admission and failure rules.
+3. Within `qr` Term construction, other Type positions remain later slices:
+   partial constructor-Type splices, method Type applications, refinements and
+   sequence Type slots each need their own admission and failure rules. The
+   separate standard `tqr` runtime-sequence application is already implemented;
+   its result can use the existing complete-Type transport.
 
 The existing `QuasiTypeSplice(ConstructedType)` remains the compiler-free
 route. Reflected Types will not be normalized through that bounded model.
@@ -280,7 +282,7 @@ remain supported; no deep package move or deprecation is selected. At that
 umbrella-facade task's historical checkpoint, the exact accepted API delta was
 additive: standard 676 to 677 rows and hybrid 42 to 43 search rows, with one
 object addition and zero removals in each inventory. The current programme
-inventory is the current 793-row standard surface, including the additive
+inventory is the current 794-row / 775-group standard surface, including the additive
 binder-safe Term and semantic-Definition APIs, and the
 unchanged 43-row hybrid surface recorded above.
 
@@ -295,7 +297,7 @@ syntax.
 | Checkpoint | Current status | Enabling gap |
 | --- | --- | --- |
 | N1 generic subclass with override | `CURRENT_MANUAL_BASELINE_PROVED`, `BOUNDED_INTERNAL_PLAN_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | supported class syntax and broader body composition beyond the one-override internal route |
-| N2 runtime-length dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | constructor-position Type hole and sequence Type splice |
+| N2 runtime-length dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED`, `BOUNDED_STANDARD_CONSTRUCTION_IMPLEMENTED` | one caller-owned class constructor and ordered runtime `Seq[TypeRepr]`; broader kinds and typed-Scalameta parity remain later work |
 | N3 generated Type refinement members | `CURRENT_MANUAL_BASELINE_PROVED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | refinement/type-member model and sequence definition splice |
 | N4 anonymous implementation with calculated definitions | `CURRENT_MANUAL_BASELINE_PROVED`, `BOUNDED_INTERNAL_PLAN_IMPLEMENTED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | anonymous-class syntax, broader definitions, sequence splices, and composition over the bounded class-owner plan |
 | N5 dynamic `new T(..args)` for an existing type | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `BOUNDED_SEQUENCE_TERM_CONSTRUCTION_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | broader constructor/argument-clause and coercion policy |
@@ -367,13 +369,19 @@ Later releases remain separate decisions. Development continues through
 bounded language, usability, compatibility, and backend improvements without
 assuming publication.
 
-## Semantic Term generated-origin development candidate
+The intended `0.3.0` feature boundary includes semantic Term generated origin
+and the bounded standard typed runtime-sequence Type application. Public
+existing-tree transformation remains post-`0.3.0` work. The source version is
+`0.3.0-SNAPSHOT`; release-shaped local artifacts do not establish a remote
+`0.3.0` publication.
 
-The separate `TermGeneratedOriginLowering` candidate completes the current
+## Semantic Term generated-origin lowering
+
+The implemented public `TermGeneratedOriginLowering` completes the current
 semantic lowering sibling direction with a deliberately smaller source-name/
 grouping bound than source-free Term lowering. Its public result retains fresh
 positioned syntax, deterministic source and SourceFile provenance. Existing
-Scalameta bridges remain separate. Independent implementation acceptance and a
-separate exact release-readiness freeze remain required; no version change,
+Scalameta bridges remain separate. An exact release-readiness freeze and
+publication authorization remain separate requirements; no version change,
 release authorization, standalone Type origin facade or public existing-tree
 transaction is implied.

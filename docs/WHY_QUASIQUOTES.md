@@ -201,11 +201,13 @@ capture to `qq`.
 
 ## Roadmap examples are not current syntax
 
-Bare dynamic identifier holes, constructor-position Type holes, and generic class
-or anonymous-subclass definition quasiquotes would make the advantage over
-manual reflection more dramatic. They are deliberately documented as
-[north-star quasiquote checkpoints](NORTH_STAR_QUASIQUOTE_EXAMPLES.md), not as
-current support or selected final syntax. See the
+Bare dynamic identifier holes and generic class or anonymous-subclass
+definition quasiquotes remain
+[north-star quasiquote checkpoints](NORTH_STAR_QUASIQUOTE_EXAMPLES.md), rather
+than current support. Bounded complete constructor-Type transport in `qr` and
+standard runtime-sequence Type application through
+`tqr"$constructor[..$arguments]"` are implemented. Broader Type positions and
+reflection grammar remain separate future work. See the
 [syntax matrix](SYNTAX_SUPPORT_MATRIX.md) for the actual admitted language.
 
 The first step toward `new $T(...)` is now implemented and intentionally

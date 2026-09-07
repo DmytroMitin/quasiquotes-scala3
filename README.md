@@ -318,8 +318,9 @@ root, unpublished experimental `neutralScalameta`, unpublished
 internals. It is generated from packaged Scaladoc search metadata for
 deterministic source/API-shape diffing; it is neither human API documentation
 nor binary, TASTy, overload-resolution, or semantic compatibility proof.
-The current standard candidate inventory is 793 rows,
-including the additive binder-safe Term and semantic-Definition APIs,
+The current standard candidate inventory is 794 rows / 775 groups,
+including the additive binder-safe Term and semantic-Definition APIs and the
+construction-only runtime-sequence `tqr` overload,
 while the unpublished typed-Scalameta inventory remains 43 rows / 43 groups.
 The typed exact-two selector replaces one source signature while
 retaining its historical erased JVM descriptor through a source-hidden bridge. These
@@ -339,6 +340,16 @@ zero-hole canonical globally selected class terminal such as
 `java.lang.StringBuilder`, resolved through an exact typed witness; this does
 not admit aliases, stable-term paths, or selected constructor applications,
 and `tqq` remains unchanged.
+
+The standard typed frontend also constructs `tqr"$constructor[..$arguments]"`
+from one caller-owned class-constructor `TypeRepr` and one runtime-length
+ordered `Seq[TypeRepr]`. This construction-only overload validates arity, kinds
+and supported reflected forms directly in the caller's `Quotes` universe; it
+preserves constructor and argument identities without normalizing through
+`TypeNormalForm`. Scalar `tqr` and `tqq` retain their existing behavior. General
+TypeLambda authoring, aliases-as-aliases, instance-dependent prefixes,
+refinements and nontrivial constrained bounds remain outside this slice;
+typed-Scalameta runtime-sequence construction is not implemented.
 
 The canonical first-use examples, including the complete Lambda1, bounded P1
 block and single-typed-local-val P2 `qr`/`qq`, and bounded `tqr`/`tqq` macro paths, are mirrored from compiled
@@ -425,8 +436,7 @@ caller-owned.
 
 The additive [semantic Term generated-origin facade](docs/SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md)
 accepts public TermShape and a virtual source name, returning a positioned tree,
-deterministic text and fresh SourceFile. It is a development candidate with a
-smaller source-name/grouping bound than the source-free `TermUntypedLowering`;
-independent implementation acceptance remains pending. Existing Scalameta
+deterministic text and fresh SourceFile. This implemented public facade has a
+smaller source-name/grouping bound than the source-free `TermUntypedLowering`. Existing Scalameta
 bridges remain separate. No Type generated-origin sibling or public
 existing-owner transaction is included.

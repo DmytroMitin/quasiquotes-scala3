@@ -89,7 +89,7 @@ ARCHITECTURE_FACT_MARKERS = (
     "pre-typer `untpd` backend must\nemit syntax without fabricating typed symbols",
 )
 NORTH_STAR_STATUS_MARKERS = (
-    "All conceptual quasiquote syntax in this document is future, non-current",
+    "Syntax explicitly marked conceptual remains future notation.",
     "CURRENT_MANUAL_BASELINE_PROVED",
     "DESIGN_REQUIRED",
     "IMPLEMENTATION_REQUIRED",
@@ -445,17 +445,39 @@ def durable_documentation_findings(root: Path) -> list[str]:
             findings.append(f"north-star document missing checkpoint: N{checkpoint}")
         else:
             section = section_match.group(0)
-            for required_section in (
+            required_sections = (
                 "### Manual/current baseline",
-                "### Desired source-like shape",
-                "### Required missing capabilities",
+                "### Implemented bounded source-like shape" if checkpoint == 2
+                else "### Desired source-like shape",
+                "### Remaining capabilities" if checkpoint == 2
+                else "### Required missing capabilities",
                 "### Checkpoint criterion",
-            ):
+            )
+            for required_section in required_sections:
                 if required_section not in section:
                     findings.append(
                         f"north-star checkpoint N{checkpoint} missing section: "
                         f"{required_section}"
                     )
+            if checkpoint == 2:
+                normalized_section = " ".join(section.split())
+                for marker in (
+                    'tqr"$constructor[..$arguments]"',
+                    "construction-only overload",
+                    "caller-owned reflected class constructor",
+                    "runtime-length ordered `Seq[TypeRepr]`",
+                    "validates arity, kinds",
+                    "directly in the caller's Quotes universe",
+                    "exact constructor/argument identities",
+                    "General TypeLambda authoring, aliases-as-aliases, instance-dependent prefixes",
+                    "refinements, nontrivial constrained bounds and broader kind calculus remain outside the selected slice",
+                    "Typed-Scalameta runtime-sequence construction and Type sequence matching remain unimplemented",
+                    "No neutral runtime-sequence model is implied by the direct reflection path",
+                ):
+                    if marker not in normalized_section:
+                        findings.append(
+                            f"north-star checkpoint N2 missing bounded contract: {marker}"
+                        )
         rows = [
             line
             for line in roadmap.splitlines()
@@ -465,12 +487,19 @@ def durable_documentation_findings(root: Path) -> list[str]:
             findings.append(
                 f"roadmap must contain exactly one checkpoint row for N{checkpoint}"
             )
-        elif (
-            "DESIGN_REQUIRED" not in rows[0]
-            or "IMPLEMENTATION_REQUIRED" not in rows[0]
-            or "CHECKPOINT_COMPLETE" in rows[0]
-        ):
-            findings.append(f"roadmap checkpoint N{checkpoint} has invalid status")
+        else:
+            row = rows[0]
+            if checkpoint == 2:
+                valid_status = (
+                    "BOUNDED_STANDARD_CONSTRUCTION_IMPLEMENTED" in row
+                    and "broader kinds and typed-Scalameta parity remain later work" in row
+                    and "DESIGN_REQUIRED" not in row
+                    and "IMPLEMENTATION_REQUIRED" not in row
+                )
+            else:
+                valid_status = "DESIGN_REQUIRED" in row and "IMPLEMENTATION_REQUIRED" in row
+            if not valid_status or "CHECKPOINT_COMPLETE" in row:
+                findings.append(f"roadmap checkpoint N{checkpoint} has invalid status")
     return findings
 
 

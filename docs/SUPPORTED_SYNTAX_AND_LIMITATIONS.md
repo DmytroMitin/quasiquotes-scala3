@@ -59,6 +59,7 @@ compiler-version policy, source positions, owners, placement, and lifecycle.
 | `scala.meta.Defn` -> positioned generated-origin `untpd.MemberDef` | `BOUNDED` | Public exact-version `ScalametaDefinitionGeneratedOriginBridge`; four concrete val/def families only |
 | `Term` -> `qr` scalar position | `BOUNDED` | Caller-owned reflected Term in an admitted scalar slot |
 | `Seq[Term]` -> `qr` arguments | `BOUNDED` | Exactly one rank-2 carrier in an admitted Apply or one-list New argument list |
+| Class-constructor `TypeRepr` + `Seq[TypeRepr]` -> `tqr` | `BOUNDED` | Standard construction-only runtime application in the active Quotes universe |
 | `TypeRepr` / `tqr` -> `tqr` Type position | `BOUNDED` | Complete reflected Type positions only |
 | `TypeRepr` / `tqr` -> `qr` constructor Type | `BOUNDED` | Complete Type of one admitted one-list `new` |
 | `TypeRepr` / `tqr` -> Definition parameter/result | `BOUNDED` | One-parameter and exact-two Definition shapes only |
@@ -69,12 +70,33 @@ compiler-version policy, source positions, owners, placement, and lifecycle.
 | Symbol splice | `NOT_APPLICABLE` | Symbols are not public splice payloads |
 
 Rank 2 currently includes Term sequences in bounded Apply and one-list New
-argument positions plus one Definition parameter-sequence capture in a static
+argument positions, standard typed runtime-sequence Type application
+construction, plus one Definition parameter-sequence capture in a static
 ordinary `dqq` clause. That matcher returns the original ordered
-`Seq[q.reflect.ValDef]` and RHS `Term` for 0 through 5 parameters; it does not
-add construction-side parameter splicing or whole-Definition sequences. Rank 3
-is not implemented. Type sequences and whole-Definition sequences are not
-production capabilities. Symbol splicing is not planned as source syntax.
+`Seq[q.reflect.ValDef]` and RHS `Term`, preserving target cardinality and
+identity; it does not add construction-side parameter splicing or
+whole-Definition sequences. Rank 3 additionally supports bounded complete
+ordinary Definition parameter-clause matching through `...$paramss`, preserving
+ordered `Seq[Seq[q.reflect.ValDef]]` and the original RHS on both standard and
+typed-Scalameta frontends. Rank-3 Term sequences, construction-side parameter
+or parameter-clause splicing, Type sequence matching and whole-Definition
+sequences remain unsupported. Symbol splicing is not planned as source syntax.
+
+## Typed runtime-sequence Type construction
+
+The standard overload `tqr"$constructor[..$arguments]"` accepts one
+caller-owned reflected class constructor and one runtime-length ordered
+`Seq[TypeRepr]`. It checks source rank/position, constructor admissibility,
+arity, kinds, nulls and unsupported reflected forms before constructing an
+application, then verifies exact constructor and ordered argument identities.
+It uses direct caller-owned reflection rather than normalizing through
+`TypeNormalForm`; the existing scalar `tqr` and `tqq` behavior is unchanged.
+
+General TypeLambda authoring, aliases-as-aliases, path/instance-dependent
+prefixes, refinements, nontrivial constrained bounds and broader kind calculus
+remain excluded. Type sequence matching and typed-Scalameta runtime-sequence
+construction are not implemented. Core and neutral gain no corresponding
+compiler-free capability.
 
 ## Public bounded Scalameta Term lowering
 
@@ -218,9 +240,12 @@ Important limitations:
   definition backends remain package-private;
 - public static `dqq` additionally admits exactly one ordinary
   parameter-sequence capture in `def collect(..$params): Int = $body`, with 0
-  through 5 target parameters and original `ValDef`/RHS identity; multiple
-  clauses, rank 3, other capture positions, contextual/default/erased
-  parameters, and construction-side parameter splicing remain unsupported;
+  through 5 target parameters in its original finite witness matrix and
+  original `ValDef`/RHS identity. This one-clause slice is distinct from
+  implemented complete ordinary parameter-clause `...$paramss` matching;
+  construction-side parameter/paramss splicing, mixed rank-2/rank-3 captures
+  within the same term-parameter clause region, and default/erased parameters
+  remain unsupported;
 - interpolation and type support expands incrementally, so unsupported shapes
   return explicit errors rather than falling back to unchecked trees;
 - runtime-length Term construction is deliberately bounded: exactly one

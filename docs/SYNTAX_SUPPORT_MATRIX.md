@@ -68,14 +68,21 @@ forms and the Quotes-dependent interpolator/extractor overloads.
 | Function types | `Int => String`, `(Int, String) => Boolean` | Yes | Yes | `tqr`, `tqq`, structural APIs | `BOUNDED`; Function1 and Function2 |
 | Type holes | `Either[$left, $right]` | Yes | Yes | programmatic `tqr`, `tqq` | `BOUNDED`; named whole-type positions and repeated-hole structural equality |
 | Ordered reflected type construction | `tqr"Either[$left, $right]"` | Yes | No | interpolated `tqr` | `BOUNDED`; zero or more distinct ordinal `TypeRepr` slots, fixed constructors, plus zero-hole canonical globally selected class terminals such as `java.lang.StringBuilder` |
+| Runtime-sequence reflected Type application | `tqr"$constructor[..$arguments]"` | Yes | No | standard interpolated `tqr` | `BOUNDED`; one caller-owned class constructor and runtime-length ordered `Seq[TypeRepr]`, validated arity/kinds and exact identities; no typed-Scalameta sequence parity |
 | Ordered reflected type capture extractor | `case tqq"Either[$left, $right]"` | No | Yes | interpolated `tqq` | `BOUNDED`; zero or more distinct ordinal slots, original target subtrees, mismatch falls through |
 | Canonical global selected terminals | `some.pkg.TopLevel`, `some.pkg.Owner.Nested` | Yes | Yes | explicit `GlobalSelectedTypeEnvironment` + `GlobalSelectedTypeFrontend` | `EXPERIMENTAL_BOUNDED`; typed-witness-derived canonical Package/Type/Module ownership only |
 | Canonical selected fixed constructors | `scala.collection.immutable.List[Int]`, `scala.Option[String]`, `scala.util.Either[Int, String]` | Yes | Yes | explicit environment-aware programmatic surface | `EXPERIMENTAL_BOUNDED`; exact declaration identity and existing arities/child forms only |
 | Stable-term path-dependent types, aliases, alternate spellings | `value.Type`, alias source paths, import-shortened paths | No | No | — | `NOT_YET`; requires prefix identity or sound spelling validation; the zero-hole canonical class-terminal `tqr` case does not admit these forms, and ordinary `tqq` remains unchanged |
 | Wildcards, refinements, match types | `List[?]`, `A { ... }`, `T match ...` | No | No | — | `NOT_YET`; outside the bounded normal form |
 
-The interpolated forms reuse the same normal-form construction and matching
-semantics. Their Scala splice/capture binder spelling is not semantic identity:
+The scalar interpolated forms reuse the same normal-form construction and
+matching semantics. Runtime-sequence construction instead validates and applies
+caller-owned `TypeRepr` values directly, preserving exact constructor and ordered
+argument identities without passing through `TypeNormalForm`. It excludes
+general TypeLambda authoring, aliases-as-aliases, instance-dependent prefixes,
+refinements and nontrivial constrained bounds.
+
+Scalar Scala splice/capture binder spelling is not semantic identity:
 slots are assigned distinct left-to-right ordinals. The programmatic pattern
 `QuasiTypequotes.tqq("Either[$same, $same]")` retains repeated named-hole
 equality. Unsupported reflected targets return `None` from the extractor; an

@@ -4,12 +4,13 @@ These checkpoints preserve high-value cases where public Scala 3 reflection is
 substantially more mechanical than the source shape a macro author wants. They
 are design targets, not current syntax or implementation commitments.
 
-All conceptual quasiquote syntax in this document is future, non-current
-notation. It illustrates semantic roles and does not select the final syntax.
+Syntax explicitly marked conceptual remains future notation. The bounded
+implemented N2 and N5 slices are identified separately below; their remaining
+aspirations do not imply broader current support.
 
 The current public boundary remains the [syntax support matrix](SYNTAX_SUPPORT_MATRIX.md).
 Conceptual `$T`, `..$arguments`, `..$types`, and `..$definitions` spellings
-below name semantic roles only. A later design gate must select any exact
+in conceptual examples name semantic roles only. A later design gate selects
 interpolator grammar, ownership model, and error contract.
 
 ## Checkpoint status
@@ -17,7 +18,7 @@ interpolator grammar, ownership model, and error contract.
 | Checkpoint | Manual baseline | Current quasiquote coverage | Remaining status |
 | --- | --- | --- | --- |
 | N1 generic subclass with override | `CURRENT_MANUAL_BASELINE_PROVED` by a compact public-reflection fixture on all three compiler lines | bounded package-private generated-class plan and public-reflection lowerer for one override; no public class syntax | `BOUNDED_INTERNAL_PLAN_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
-| N2 dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED` | fixed constructors and fixed-arity whole-Type holes only | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
+| N2 dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED` | standard `tqr` with one caller-owned class constructor and runtime-length ordered `Seq[TypeRepr]` | `BOUNDED_STANDARD_CONSTRUCTION_IMPLEMENTED`; broader kinds and typed-Scalameta parity remain later work |
 | N3 generated Type refinement members | `CURRENT_MANUAL_BASELINE_PROVED` | parser/shape evidence only; no public refinement construction | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 | N4 anonymous implementation body | `CURRENT_MANUAL_BASELINE_PROVED` for the synthetic-class/override/constructor owner plan | the same bounded internal class-owner plan plus individual method surfaces; no anonymous-body syntax or sequence | `BOUNDED_INTERNAL_PLAN_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 | N5 dynamic existing-type construction | `CURRENT_MANUAL_BASELINE_PROVED` | caller-owned complete constructor `TypeRepr` plus one bounded runtime-length Term sequence in one ordinary argument list | `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `BOUNDED_SEQUENCE_TERM_CONSTRUCTION_IMPLEMENTED`, `BROADER_POLICY_REQUIRED` |
@@ -88,22 +89,25 @@ The external-package manual-baseline fixture constructs a binary example from
 a list whose length is observed at macro expansion. Standard type quotations
 otherwise require repeated `asType` and kind-aware existential plumbing.
 
-### Desired source-like shape
+### Implemented bounded source-like shape
 
 ```text
 tqr"$constructor[..$arguments]"
 ```
 
-This is conceptual notation. It is stronger than the current fixed-arity
-`tqr"Either[List[$left], Option[$right]]"` example.
+The standard typed frontend implements this construction-only overload with
+one caller-owned reflected class constructor and one runtime-length ordered
+`Seq[TypeRepr]`. It validates arity, kinds and supported forms, constructs
+directly in the caller's Quotes universe, and checks exact constructor/argument
+identities. Scalar construction and matching retain their existing behavior.
 
-### Required missing capabilities
+### Remaining capabilities
 
-- a Type constructor-position splice/hole;
-- a sequence or variadic Type splice;
-- constructor kind and arity validation;
-- exact capture/ownership and controlled error semantics;
-- parity on overlapping current-Dotty and Scalameta claimed slices.
+General TypeLambda authoring, aliases-as-aliases, instance-dependent prefixes,
+refinements, nontrivial constrained bounds and broader kind calculus remain
+outside the selected slice. Typed-Scalameta runtime-sequence construction and
+Type sequence matching remain unimplemented. No neutral runtime-sequence
+model is implied by the direct reflection path.
 
 ### Checkpoint criterion
 
@@ -259,6 +263,7 @@ empty/one/many sequences and fixed surrounding Terms while preserving order
 and original caller Term objects. N5 remains incomplete because broader
 dynamic applied-Type constructors, argument-clause topology, coercion policy,
 and sequence matching remain absent. Refinements, classes, and definitions
-remain separate gates. Source-owned local `def` statements are the
-next product-facing Definition-composition candidate, while external
-typed-definition splicing requires a separate explicit reownership contract.
+remain separate gates. The first source-owned local identity-method `def`
+statement is implemented in a bounded `qr` block; broader local-definition
+composition remains future work. External typed-definition splicing requires
+a separate explicit reownership contract.

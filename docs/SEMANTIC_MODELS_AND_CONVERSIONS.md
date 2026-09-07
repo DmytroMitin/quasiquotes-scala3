@@ -73,6 +73,13 @@ fresh parenthesized Term therefore cannot be reconstructed from the semantic
 value. Public `TermShapeBindings` and `TermShapeBindingView` make the
 binder-bearing overlap safe without exposing private cases or raw binder IDs.
 
+The Term pair has deliberate Type asymmetries: ascription projection accepts
+the broader unresolved recursive Type family, while ascription authoring admits
+only `Int`, `String` and `Boolean`. P2 declared-Type projection also accepts
+recursive Types, while its reverse authoring admits only `Int`, `String`,
+`Boolean` and `AnyVal`. These broader projection domains do not imply reverse
+authoring support.
+
 `SemanticDefinition` is the current public Core model. It supports validated
 smart construction and typed views for bounded immutable values,
 zero/one/two-ordinary-parameter concrete methods, and simple aliases. The
@@ -417,9 +424,16 @@ admission, insertion, owner lifecycle, and typing. A generated alias can succeed
 while an existing owner-append operation rejects `TypeDef`. This operation does
 not change the historical Scalameta bridge or add an existing-owner rewrite API.
 
+The typed runtime-sequence `tqr"$constructor[..$arguments]"` route is a
+separate caller-owned reflection construction path. It validates one reflected
+class constructor and an ordered `Seq[TypeRepr]`, then constructs directly in
+the active `Quotes` universe with exact identity postconditions. It does not
+pass through `TypeNormalForm` or add a neutral projection/authoring capability.
+Existing scalar Type construction and matching retain their normal-form rules.
+
 ## Semantic Term generated origin
 
-The additive development candidate `TermGeneratedOriginLowering.lower(term,
+The implemented public facade `TermGeneratedOriginLowering.lower(term,
 virtualSourceName)(using Context)` returns a positioned `untpd.Tree`, generated
 source, fresh `SourceFile` and effective path directly from public `TermShape`.
 It shares the richer checked source-free semantic authority once, then applies
@@ -429,7 +443,7 @@ limits. `TermUntypedLowering` remains the broader source-free facade. The
 state the seven failures, fixed precedence, binder/rich-Type limits and
 recursive source identity/freshness requirements.
 
-The Term sibling awaits independent implementation acceptance. Existing
+The Term sibling is available in the unpublished development tree. Existing
 Scalameta Term bridges remain separate; no Type generated-origin sibling or
 public existing-tree transaction is selected.
 

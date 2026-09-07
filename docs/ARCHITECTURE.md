@@ -17,7 +17,7 @@ raw object identity where promised. Whitespace alone is not the distinction.
 See the canonical [semantic models and conversions guide](SEMANTIC_MODELS_AND_CONVERSIONS.md)
 for the complete fidelity/loss model and checked public examples.
 
-The durable language pipeline is:
+The shared semantic language pipeline is:
 
 ```text
 source frontend(s)
@@ -38,8 +38,15 @@ semantics, templates, patterns, binder identities, structural construction and
 matching rules, and neutral diagnostics. The current public
 `SemanticDefinition` is a non-exhaustive semantic model with smart constructors
 and typed views; the older five-family `DefinitionShape` remains an internal
-adapter carrier. Frontends must project into shared models rather than inventing
-frontend-local equality or binding semantics.
+adapter carrier. Routes using shared semantic construction and matching project into these
+models rather than inventing frontend-local equality or binding semantics.
+The bounded typed runtime-sequence `tqr"$constructor[..$arguments]"` overload
+is a direct reflection construction route: it validates caller-owned class
+constructor and ordered argument `TypeRepr` values, constructs their application
+in the active `Quotes` universe, and verifies exact identities. It bypasses
+`TypeNormalForm` normalization; scalar construction/matching stay unchanged.
+This does not create a compiler-free runtime-sequence model or typed-Scalameta
+parity.
 
 ## Pipeline vocabulary
 
@@ -228,8 +235,10 @@ generic reflected-Type payload internally, while `core` does not import
 The admitted positions are the complete constructor Type in
 `new $typeValue(arg)` with one ordinary argument list and the complete
 parameter/result Types of the bounded source-owned local method described
-below. Ascriptions, method Type application, applied-Type constructors, other
-definition Types, and variadic Type arguments remain independent slices.
+below. Other `qr` Type slots, including ascriptions, method Type application,
+partial applied-Type constructors, other definition Types and variadic Type
+arguments, remain independent slices. This does not exclude the implemented
+standard `tqr` runtime-sequence Type application.
 Direct `TypeRepr` transport makes `tqr` to `qr` stacking a tested current
 behavior.
 The typed Scalameta route implements the same overlap and treats reflected-Type

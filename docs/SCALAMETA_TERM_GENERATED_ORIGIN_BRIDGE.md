@@ -95,7 +95,7 @@ no remote-release claim. The current source candidate is tested on exact Scala
 
 ## Project-semantic sibling
 
-`TermGeneratedOriginLowering` is a separate development candidate for public
+`TermGeneratedOriginLowering` is a separate implemented public facade for
 TermShape input with an explicitly smaller generated-source name/grouping
 bound than the broader source-free semantic facade. See its
 [contract and example](SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md).

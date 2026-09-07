@@ -33,18 +33,25 @@ reported conservatively as removal plus addition.
 
 ## Released baseline and current development candidate
 
-The current `0.3.0-SNAPSHOT` standard candidate has 793 packaged rows / 775
+The current `0.3.0-SNAPSHOT` standard candidate has 794 packaged rows / 775
 symbol groups on the modern compiler lines. Compared with released `0.2.0`,
-609 signatures and 592 groups are unchanged, 184 signatures and 174 groups
+609 signatures and 592 groups are unchanged, 185 signatures and 174 groups
 are added, nine signatures are removed/replaced, and no symbol group is removed.
 The result remains `BREAKING_API_SHAPE_DELTA_REQUIRES_NEW_0X_MINOR`.
 The released 618-row baseline remains immutable; the candidate inventory is
 generated development evidence until an actual `0.3.0` release.
 
+The standard typed runtime-sequence `tqr` overload adds one logical row to
+the previous 793-row / 775-group inventory: all 793 prior rows are unchanged,
+with no replacement, removal or symbol-group addition. Its existing umbrella
+export produces a JVM forwarder without another logical Scaladoc row. This
+additive change preserves the established new-minor classification against
+`0.2.0`; it does not erase the nine earlier replacements.
+
 The semantic Term generated-origin facade changes no Core/frontend production
 source or standard inventory declaration. Scala 3.3.8's Scaladoc spells five
 existing derived-given/context-function signatures differently from the modern
-compiler inventory, while retaining 793 rows / 775 groups. Compare exact
+compiler inventory, while retaining 794 rows / 775 groups. Compare exact
 compiler lines before interpreting a signature-rendering difference as a
 product API change.
 
@@ -66,7 +73,7 @@ the intended source contract remains the `lower` operation, categorized
 `Failure`, and the three read-only `Lowered` fields. This is an experimental
 compiler-internal API addition, not a stable-coordinate compatibility promise.
 
-The candidate [semantic Term generated-origin facade](SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md)
+The implemented [semantic Term generated-origin facade](SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md)
 adds the selected `TermGeneratedOriginLowering`, `Failure` and `Lowered` source
 contract to that same exact-version Dotty artifact. Its five class files and one TASTy entry include generated case-class/forwarder
 members whose count differs by compiler line; exact inventories are compared
