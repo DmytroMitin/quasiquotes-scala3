@@ -17,7 +17,7 @@ public `u*` syntax family.
 
 ## Current public exact-version surface
 
-Three public facades start directly from project semantic values:
+Three source-free public facades start directly from project semantic values:
 
 ```text
 TermShape -> TermUntypedLowering -> fresh source-free untpd.Tree
@@ -34,7 +34,18 @@ facades require an active Dotty `Context`; all three reject unsupported or
 malformed semantic values through stable facade failures and return only
 fresh source-free syntax.
 
-`ScalametaTermUntypedBridge` is the public programmatic Term facade. It accepts
+The separate `DefinitionGeneratedOriginLowering` facade accepts the five
+public semantic Definition families, including aliases, and returns a positioned
+member plus deterministic source and fresh SourceFile. `TermGeneratedOriginLowering`
+is an additive development candidate for public TermShape with a deliberately
+smaller generated-source admission bound than `TermUntypedLowering`. It shares
+checked completion/exact lowering once and adds source-role/grouping admission
+and strict plan/provenance checks. Its rich result and seven-code contract are
+specified in [semantic Term generated origin](SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md).
+Both require Context; neither delegates the historical Scalameta surfaces or
+supplies placement/typing. No standalone Type generated-origin facade exists.
+
+`ScalametaTermUntypedBridge` is the public Scalameta-facing Term bridge. It accepts
 one `scala.meta.Term`, mechanically calls `ScalametaTermProjection.project`,
 then passes the projected `TermShape` to the package-private
 `CoreTermShapeUntypedLowerer.lower`. It returns either a stable categorized

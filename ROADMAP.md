@@ -366,3 +366,14 @@ semantic design.
 Later releases remain separate decisions. Development continues through
 bounded language, usability, compatibility, and backend improvements without
 assuming publication.
+
+## Semantic Term generated-origin development candidate
+
+The separate `TermGeneratedOriginLowering` candidate completes the current
+semantic lowering sibling direction with a deliberately smaller source-name/
+grouping bound than source-free Term lowering. Its public result retains fresh
+positioned syntax, deterministic source and SourceFile provenance. Existing
+Scalameta bridges remain separate. Independent implementation acceptance and a
+separate exact release-readiness freeze remain required; no version change,
+release authorization, standalone Type origin facade or public existing-tree
+transaction is implied.

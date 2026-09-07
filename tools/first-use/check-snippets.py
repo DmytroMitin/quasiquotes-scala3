@@ -7,6 +7,10 @@ import sys
 
 
 SNIPPETS = {
+    "semantic-term-origin": (
+        Path("dotty-internal/src/test/scala/external/consumer/SemanticTermOriginFirstUseTest.scala"),
+        Path("docs/SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md"),
+    ),
     "core-first-use": (
         Path("public-core-examples/src/test/scala/external/consumer/CoreFirstUseSnippet.scala"),
         Path("docs/GETTING_STARTED.md"),

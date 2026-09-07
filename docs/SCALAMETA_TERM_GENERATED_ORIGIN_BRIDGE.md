@@ -92,3 +92,13 @@ This is a programmatic exact-version seam. It adds no `u*` or `n*` source
 syntax, no public raw-tree builder, no general Scalameta-to-Dotty promise, and
 no remote-release claim. The current source candidate is tested on exact Scala
 3.3.8, 3.8.4, and 3.9.0.
+
+## Project-semantic sibling
+
+`TermGeneratedOriginLowering` is a separate development candidate for public
+TermShape input with an explicitly smaller generated-source name/grouping
+bound than the broader source-free semantic facade. See its
+[contract and example](SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md).
+This historical Scalameta bridge is unchanged and does not delegate to that
+sibling. In particular, its projection/completion-before-path order and null
+path category remain part of its compatibility behavior.

@@ -227,6 +227,17 @@ class CheckSnippetsTest(unittest.TestCase):
             encoding="utf-8",
         )
 
+        term_origin = root / "dotty-internal/src/test/scala/external/consumer/SemanticTermOriginFirstUseTest.scala"
+        term_origin.parent.mkdir(parents=True, exist_ok=True)
+        term_origin.write_text(
+            "// snippet:semantic-term-origin:start\nval origin = 23\n"
+            "// snippet:semantic-term-origin:end\n", encoding="utf-8",
+        )
+        (docs / "SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md").write_text(
+            "<!-- snippet:semantic-term-origin:start -->\n```scala\nval origin = 23\n"
+            "```\n<!-- snippet:semantic-term-origin:end -->\n", encoding="utf-8",
+        )
+
     def run_checker(self, root: Path) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [sys.executable, str(CHECKER), "--root", str(root)],
@@ -244,7 +255,7 @@ class CheckSnippetsTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(
-                "First-use snippets aligned: core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, p1-block-first-use, p2-local-val-first-use, source-owned-local-def-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start, why-quasiquotes-current, semantic-term-type, semantic-definition-core, dotty-source-free, dotty-generated-origin, generic-specialized-definition",
+                "First-use snippets aligned: semantic-term-origin, core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, p1-block-first-use, p2-local-val-first-use, source-owned-local-def-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start, why-quasiquotes-current, semantic-term-type, semantic-definition-core, dotty-source-free, dotty-generated-origin, generic-specialized-definition",
                 result.stdout,
             )
 

@@ -33,32 +33,20 @@ reported conservatively as removal plus addition.
 
 ## Released baseline and current development candidate
 
-The current controller-accepted `0.3.0-SNAPSHOT` standard candidate has exactly
-679 packaged rows / 661 symbol groups. Compared with released `0.2.0`, 609
-signatures and 592 groups are unchanged, 70 signatures and 60 groups are added,
-nine signatures are removed/replaced, and no symbol group is removed. The nine
-replacements include the truthful statement-supertrait changes used by the
-block/local-value model and the accepted `dqq` Scala/TASTy selector replacement;
-later development also adds selected-Type identity, bounded definition,
-selected-member, and composition surfaces.
+The current `0.3.0-SNAPSHOT` standard candidate has 793 packaged rows / 775
+symbol groups on the modern compiler lines. Compared with released `0.2.0`,
+609 signatures and 592 groups are unchanged, 184 signatures and 174 groups
+are added, nine signatures are removed/replaced, and no symbol group is removed.
+The result remains `BREAKING_API_SHAPE_DELTA_REQUIRES_NEW_0X_MINOR`.
+The released 618-row baseline remains immutable; the candidate inventory is
+generated development evidence until an actual `0.3.0` release.
 
-The result remains
-`BREAKING_API_SHAPE_DELTA_REQUIRES_NEW_0X_MINOR`. It does not mutate the
-released 618-row file, and the 679-row candidate remains generated evidence
-until an actual `0.3.0` release.
-
-Against the preceding accepted development baseline, the scalable Definition
-pattern-extractor change moved
-677 rows / 659 groups to 679 rows / 661 groups: two groups and three signatures
-were added, no group was removed, and one signature was replaced. The accepted
-current inventory SHA-256 is
-`a9753e1e737414e2f9e431723cbeb23a18add7eb81f65735bf61ebe84d6ee9b1`.
-The additions are the scalable `DefinitionPatternExtractor` class and its
-`unapply`; the replacement is the public Scala/TASTy `dqq` declaration with a
-transparent-inline selector shape. The historical erased JVM descriptor is
-preserved separately by a source-hidden bridge on Scala 3.3.8, 3.8.4, and
-3.9.0. The current surface also adds semantic Tuple/Function single-parameter construction breadth
-without changing these rows or groups.
+The semantic Term generated-origin facade changes no Core/frontend production
+source or standard inventory declaration. Scala 3.3.8's Scaladoc spells five
+existing derived-given/context-function signatures differently from the modern
+compiler inventory, while retaining 793 rows / 775 groups. Compare exact
+compiler lines before interpreting a signature-rendering difference as a
+product API change.
 
 The unpublished hybrid typed-Scalameta inventory remains 43 rows / 43 symbol
 groups. Exact-two Definition parity replaces one Scala/TASTy selector signature
@@ -77,6 +65,18 @@ Those rows include Scala compiler-generated forwarders and case-class members;
 the intended source contract remains the `lower` operation, categorized
 `Failure`, and the three read-only `Lowered` fields. This is an experimental
 compiler-internal API addition, not a stable-coordinate compatibility promise.
+
+The candidate [semantic Term generated-origin facade](SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md)
+adds the selected `TermGeneratedOriginLowering`, `Failure` and `Lowered` source
+contract to that same exact-version Dotty artifact. Its five class files and one TASTy entry include generated case-class/forwarder
+members whose count differs by compiler line; exact inventories are compared
+within each line. The shared checked seam and source-admission helper remain
+Scala package-private; their JVM encodings are separate implementation inventory.
+The source-free Term facade keeps its public signature. Historical Scalameta Term
+bridge entries remain byte-identical; unchanged Definition facade TASTy may differ
+in serialization after clean rebuilding while decompiled declarations and JVM
+behavior remain identical. External artifact consumers check the selected public
+surface and reject direct Lowered construction and private helper access.
 
 The separate [0.2-to-0.3 statement-ADT compatibility report](STATEMENT_ADT_0_2_TO_0_3_COMPATIBILITY.md)
 proves bounded source, JVM-linkage, and TASTy consumer behavior. That evidence

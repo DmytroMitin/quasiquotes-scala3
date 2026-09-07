@@ -189,6 +189,53 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
   )(using Context): Either[ConstructedTermGeneratedOriginError, Unit] =
     validateTreeAgainstPlan(tree, fragment.root.shifted(baseOffset))
 
+  /** Verify exact plan positions and preserve the already checked raw graph's payloads. */
+  private[dotty] def validatePositionedTermAgainstCheckedRaw(
+      raw: untpd.Tree,
+      positioned: untpd.Tree,
+      fragment: TermFragment
+  )(using Context): Either[ConstructedTermGeneratedOriginError, Unit] =
+    def samePayload(left: untpd.Tree, right: untpd.Tree): Boolean =
+      left.getClass == right.getClass && ((left, right) match
+        case (a: untpd.Ident, b: untpd.Ident) => a.name == b.name
+        case (a: untpd.Select, b: untpd.Select) => a.name == b.name
+        case (untpd.Number(a, ak), untpd.Number(b, bk)) => a == b && ak == bk
+        case (untpd.Literal(a), untpd.Literal(b)) => a == b
+        case (a: untpd.InterpolatedString, b: untpd.InterpolatedString) => a.id == b.id
+        case (a: untpd.DefDef, b: untpd.DefDef) =>
+          a.name == b.name && a.mods == b.mods && a.paramss.map(_.size) == b.paramss.map(_.size)
+        case (a: untpd.ValDef, b: untpd.ValDef) =>
+          a.name == b.name && a.mods == b.mods && a.rhs.isEmpty == b.rhs.isEmpty
+        case (_: untpd.New, _: untpd.New) | (_: untpd.Apply, _: untpd.Apply) |
+            (_: untpd.InfixOp, _: untpd.InfixOp) | (_: untpd.PrefixOp, _: untpd.PrefixOp) |
+            (_: untpd.Thicket, _: untpd.Thicket) | (_: untpd.Typed, _: untpd.Typed) |
+            (_: untpd.Tuple, _: untpd.Tuple) | (_: untpd.If, _: untpd.If) |
+            (_: untpd.Block, _: untpd.Block) | (_: untpd.Function, _: untpd.Function) |
+            (_: untpd.Parens, _: untpd.Parens) | (_: untpd.AppliedTypeTree, _: untpd.AppliedTypeTree) => true
+        case _ => false)
+
+    def compare(left: untpd.Tree, right: untpd.Tree, plan: NodePlan): Either[ConstructedTermGeneratedOriginError, Unit] =
+      if plan.kind == NodeKind.SyntheticParens then
+        right match
+          case parens: untpd.Parens => oneChild(plan).flatMap(compare(left, parens.t, _))
+          case _ => Left(RawTreePlanMismatch("a planned grouping shell was absent"))
+      else if (left eq right) || !samePayload(left, right) then
+        Left(RawTreePlanMismatch("positioning changed the checked raw node payload or reused its material node"))
+      else
+        val before = directChildren(left)
+        val after = directChildren(right)
+        if before.size != after.size || after.size != plan.children.size then
+          Left(RawTreePlanMismatch("positioning changed the checked raw child topology"))
+        else
+          before.zip(after).zip(plan.children).foldLeft[Either[ConstructedTermGeneratedOriginError, Unit]](Right(())) {
+            case (checked, ((a, b), childPlan)) => checked.flatMap(_ => compare(a, b, childPlan))
+          }
+
+    for
+      _ <- validateTreeAgainstPlan(positioned, fragment.root)
+      _ <- compare(raw, positioned, fragment.root)
+    yield ()
+
   def validatePositionedTree(
       tree: untpd.Tree,
       expectedSource: SourceFile,

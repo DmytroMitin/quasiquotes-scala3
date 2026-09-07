@@ -399,10 +399,10 @@ remain implementation details. The unpublished exact-version
 `ScalametaDefinitionUntypedBridge` remains a separate non-delegating
 composition for the same source-free five-family result.
 
-The additive `DefinitionGeneratedOriginLowering` development candidate takes
+`DefinitionGeneratedOriginLowering` takes
 public `SemanticDefinition` plus a virtual source name and returns a fresh
 positioned member with deterministic generated source. It includes simple type
-aliases and awaits independent review. Its [semantic-model guide](docs/SEMANTIC_MODELS_AND_CONVERSIONS.md#semantic-definition-generated-origin-development-candidate)
+aliases. Its [semantic-model guide](docs/SEMANTIC_MODELS_AND_CONVERSIONS.md#semantic-definition-generated-origin)
 describes failures, freshness, and the caller's placement responsibilities.
 
 `ScalametaDefinitionGeneratedOriginBridge` returns positioned generated-origin
@@ -422,3 +422,11 @@ source, the new member retains its generated virtual source, and only the
 enclosing class/Template shells are fresh at their original replacement site.
 Macro/plugin lifecycle, target selection, rollback, and ordinary typing remain
 caller-owned.
+
+The additive [semantic Term generated-origin facade](docs/SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md)
+accepts public TermShape and a virtual source name, returning a positioned tree,
+deterministic text and fresh SourceFile. It is a development candidate with a
+smaller source-name/grouping bound than the source-free `TermUntypedLowering`;
+independent implementation acceptance remains pending. Existing Scalameta
+bridges remain separate. No Type generated-origin sibling or public
+existing-owner transaction is included.

@@ -112,12 +112,12 @@ final class TermUntypedLoweringInternalTest extends munit.FunSuite:
       constructed: ConstructedTerm,
       raw: untpd.Tree
   )(using Context): Either[TermUntypedLowering.Failure, Unit] =
-    val method = TermUntypedLowering.getClass.getDeclaredMethods
+    val method = CheckedTermUntypedLowering.getClass.getDeclaredMethods
       .find(method => method.getName == "validateRaw" && method.getParameterCount == 4)
       .getOrElse(fail("private Term raw validator was not found"))
     method.setAccessible(true)
     method
-      .invoke(TermUntypedLowering, constructed, raw, "term", summon[Context])
+      .invoke(CheckedTermUntypedLowering, constructed, raw, "term", summon[Context])
       .asInstanceOf[Either[TermUntypedLowering.Failure, Unit]]
 
   private def ident(name: String): TermShape =

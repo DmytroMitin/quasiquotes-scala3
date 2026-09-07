@@ -44,7 +44,11 @@ The axes are:
 For Terms, `TermUntypedLowering` is the current public semantic-value facade.
 It owns the richer completed and binder-safe source-free route. The older
 `ScalametaTermUntypedBridge` remains a separate, narrower, non-delegating
-source bridge; the generated-origin bridge is separate again.
+source bridge; the generated-origin bridge is separate again. The additive
+`TermGeneratedOriginLowering` development candidate supplies generated origin
+for the same semantic carrier with additional name-role and signed-receiver
+grouping restrictions. The [Term origin contract](SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md)
+qualifies every family below; bridge support does not imply candidate parity.
 
 | Family | Q construct | Q match | typed Scalameta construct | typed Scalameta match | N project | N author | U-D fresh lower | U-U existing rewrite |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -62,7 +66,7 @@ source bridge; the generated-origin bridge is separate again.
 | Binder-free P1 block | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — both public exact-version Term bridges | `NOT_APPLICABLE` |
 | Single typed local immutable val (P2) | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — one local immutable value with opaque binder semantics | `BOUNDED` — public binder-safe semantic facade; generated-origin bridge also admits completable declared Types, while the source-free Scalameta bridge rejects | `NOT_APPLICABLE` |
 | Source-owned local identity method (P3) | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` | `BOUNDED` — one local identity method with distinct opaque parameter/method binders | `BOUNDED` — public binder-safe semantic facade; generated-origin bridge also admits completable parameter/result Types, while the source-free Scalameta bridge rejects | `NOT_APPLICABLE` |
-| Grouping parentheses | source grammar | source grammar | source grammar | source grammar | `BOUNDED` — transparent projection to the inner semantic shape | `NOT_YET` — not representable as a distinct project Term under Scalameta 4.17.3 | `NOT_APPLICABLE` — any lowered result follows the inner semantic shape | `NOT_APPLICABLE` |
+| Grouping parentheses | source grammar | source grammar | source grammar | source grammar | `BOUNDED` — transparent projection to the inner semantic shape | `NOT_YET` — not representable as a distinct project Term under Scalameta 4.17.3 | `BOUNDED` — semantic facades preserve explicit TermShape.Parenthesized; Scalameta bridges lower their projected inner shape | `NOT_APPLICABLE` |
 | Rank-2 Term arguments in Apply / one-list New | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` — the sequence is expanded before exact lowering | `NOT_APPLICABLE` |
 | Rank-3 Term sequence | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
 | Dynamic selected-member construction | `BOUNDED` | `NOT_YET` | `BOUNDED` — validated `SelectedMemberName` in one explicit receiver-selection name field; unique accessible member only | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
@@ -76,7 +80,7 @@ bridge's projection-stage diagnostics.
 
 | Family | Q construct | Q match | typed Scalameta construct | typed Scalameta match | N project | N author | U-D fresh lower | U-U existing rewrite |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Named Type | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — Int/String/Boolean through public `TypeUntypedLowering` and its delegating Scalameta bridge | `NOT_APPLICABLE` |
+| Named Type | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — unresolved Int/String/Boolean/AnyVal; resolved identities rejected | `BOUNDED` — same unresolved family; resolved identities rejected | `BOUNDED` — Int/String/Boolean through public `TypeUntypedLowering` and its delegating Scalameta bridge | `NOT_APPLICABLE` |
 | Fixed `List` / `Option` / `Either` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — recursive fixed arities through the public exact-version facade | `NOT_APPLICABLE` |
 | Tuple2 / Tuple3 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — tuple syntax through public exact-version `ScalametaTypeUntypedBridge` | `NOT_APPLICABLE` |
 | Function1 / Function2 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — function syntax through public exact-version `ScalametaTypeUntypedBridge` | `NOT_APPLICABLE` |
@@ -132,9 +136,10 @@ class/Template shells are fresh at their original replacement site.
 | Composition | Current status | Boundary |
 | --- | --- | --- |
 | `TermShape` -> fresh source-free `untpd.Tree` | `BOUNDED` | Public exact-version `TermUntypedLowering`; richer completed/binder-safe semantic route; requires Dotty `Context` |
+| `TermShape` -> generated-origin `untpd.Tree` | `BOUNDED`, development candidate | `TermGeneratedOriginLowering`; additional decoded-name/constructor/grouping restrictions; seven failures, fresh recursive source identity and spans; pending independent acceptance |
 | `TypeNormalForm` -> fresh source-free raw Type tree | `BOUNDED` | Public exact-version context-free `TypeUntypedLowering` |
 | `SemanticDefinition` -> fresh source-free `untpd.MemberDef` | `BOUNDED` | Public exact-version `DefinitionUntypedLowering`; five reusable Definition families; requires Dotty `Context` |
-| `SemanticDefinition` -> generated-origin `untpd.MemberDef` | `BOUNDED`, development candidate | `DefinitionGeneratedOriginLowering`; five families including simple aliases, deterministic source and fresh positioned result; pending independent review; caller owns placement and typing |
+| `SemanticDefinition` -> generated-origin `untpd.MemberDef` | `BOUNDED` | `DefinitionGeneratedOriginLowering`; five families including simple aliases, deterministic source and fresh positioned result; caller owns placement and typing |
 | `scala.meta.Defn` <-> `SemanticDefinition` | `BOUNDED` | Public `ScalametaDefinitionProjection` / `ScalametaDefinitionAuthoring`; five reusable Definition families; projection carries optional source span and authoring is fresh `Position.None` |
 | `scala.meta.Term` -> fresh `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTermUntypedBridge`; direct non-binder and P0/P1 intersection only; source-free result |
 | `scala.meta.Term` -> positioned generated-origin `untpd.Tree` | `BOUNDED` | Public exact-version `ScalametaTermGeneratedOriginBridge`; direct family plus completable ascription, Lambda1, P2, and P3; caller owns placement and insertion |

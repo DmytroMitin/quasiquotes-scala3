@@ -78,7 +78,7 @@ not a universal lexical ownership marker.
 | Category | Public semantic value | Scalameta Projection | Scalameta Authoring |
 | --- | --- | --- | --- |
 | Term | `TermShape`, with opaque binder-safe views/builders | Public, bounded | Public, bounded, fresh `Position.None`; includes accepted ascription, Lambda1, P2, and P3 families; grouping parentheses are not representable |
-| Type | `TypeNormalForm` | Public, bounded | Public, bounded, fresh `Position.None` |
+| Type | `TypeNormalForm` | Public, bounded unresolved recursive subset; resolved identity rejected | Public, same bounded unresolved recursive subset, fresh `Position.None`; resolved identity rejected |
 | Definition | `SemanticDefinition`, with smart constructors and typed views | Public `ScalametaDefinitionProjection.project(Defn)`, bounded to five families | Public `ScalametaDefinitionAuthoring.author(SemanticDefinition)`, bounded to five families and fresh `Position.None` |
 
 ### Public project-semantic source-free lowering
@@ -93,14 +93,22 @@ All three return stable facade-owned failures. None claims source recovery,
 generated origin, owner/placement authority, typechecking, retyping, or
 transformation of an existing raw tree.
 
-The additive development candidate `DefinitionGeneratedOriginLowering.lower`
-accepts `SemanticDefinition` plus a virtual source name under `Context` and
-returns `Either[Failure, Lowered]`. Its current five-family intersection includes
-simple aliases. `Lowered` carries a fresh positioned `untpd.MemberDef`, generated
-source, `SourceFile`, and effective path. The private semantic adapter dispatches
-to the existing constructed-Definition and simple-alias origin authorities.
-This candidate awaits independent review; it performs no owner placement or
-typing. See the [semantic-model guide](SEMANTIC_MODELS_AND_CONVERSIONS.md#semantic-definition-generated-origin-development-candidate).
+### Project-semantic generated-origin lowering
+
+| Category | Facade | Result and status | Important boundary |
+| --- | --- | --- | --- |
+| Definition | `DefinitionGeneratedOriginLowering.lower(SemanticDefinition, String)(using Context)` | Public, unpublished; `Either[Failure, Lowered]` with positioned `untpd.MemberDef`, generated text, fresh SourceFile and effective path | Five families including simple aliases. Private semantic adapter and existing category origin authorities; no placement or typing. |
+| Term | `TermGeneratedOriginLowering.lower(TermShape, String)(using Context)` | `IN_PROGRESS` development candidate; `Either[Failure, Lowered]` with positioned `untpd.Tree`, generated text, fresh SourceFile and effective path | Same once-checked completion/raw authority as TermUntypedLowering plus narrower source-name/grouping admission. Seven stable codes; every material node has returned source identity and valid plan spans. Historical Scalameta bridge remains unchanged and nondelegating. |
+| Type | No standalone generated-origin facade selected | `PLANNED` only if separately justified | A positioned Type child or alias does not establish a standalone public Type root contract. |
+
+See the [semantic-model guide](SEMANTIC_MODELS_AND_CONVERSIONS.md#semantic-definition-generated-origin)
+and [Term generated-origin contract](SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md).
+The current Type Scalameta conversion pair is limited to unresolved
+Int/String/Boolean/AnyVal and the admitted fixed recursive constructor, tuple
+and function family. Resolved identities contain compiler-free owner segments,
+but environment-free source names cannot recover their owner kinds; conversion
+rejects them rather than guessing. Exact Type lowering remains narrower and
+rejects AnyVal as well as resolved identities.
 
 The current public exact-version conveniences in the next table start from
 Scalameta. Their delegation policy is category-specific rather than assumed
@@ -126,7 +134,7 @@ The public Definition projection/authoring pair and semantic lowerer admit
 exactly these families; their private dispatcher remains an implementation
 detail:
 
-| Family | Projected semantic variant | Projection status | General exact status |
+| Family | Projected semantic variant | Projection status | Scalameta bridge exact status |
 | --- | --- | --- | --- |
 | Explicitly typed immutable `val` | `SemanticDefinition` value view | `PUBLIC`, bounded | source-free `PUBLIC`; generic generated-origin `PUBLIC` |
 | True parameterless explicitly typed `def` | `SemanticDefinition` method view with zero clauses | `PUBLIC`, bounded | source-free `PUBLIC`; generic generated-origin `PUBLIC` |

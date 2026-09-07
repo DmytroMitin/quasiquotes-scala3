@@ -6,7 +6,7 @@ interchangeable and whitespace is not the distinction between them.
 | World | Purpose and breadth | Fidelity, identity, and resolution | Best use |
 | --- | --- | --- | --- |
 | Scalameta source AST (`scala.meta`) | Broad Scala source grammar for parsing, source-like construction, and matching. | Parsed trees can retain tokens, comments, positions, and source spelling. Freshly constructed trees normally have `Position.None`. Scalameta structure represents lexical names but does not by itself perform compiler name/type/member resolution. | Source tooling and fresh source-like authoring. |
-| Project-owned compiler-free semantic model | Deliberately bounded, validated Term, Type, and Definition meanings shared by frontends and backends. | It may normalize or forget source distinctions. `TypeNormalForm` normalizes Type structure; Term and Definition binding uses explicit opaque graph-local co-reference and alpha-aware semantics. It has no compiler symbols, owners, or ambient resolution unless a bounded explicit environment supplies it. | Portable semantic inspection, construction, matching, and composition inside admitted families. |
+| Project-owned compiler-free semantic model | Deliberately bounded, validated Term, Type, and Definition meanings shared by frontends and backends. | It may normalize or forget source distinctions. `TypeNormalForm` normalizes Type structure; Term and Definition binding uses explicit opaque graph-local co-reference and alpha-aware semantics. It has no compiler symbols or ambient resolution. Resolved Type identities can carry compiler-free owner segments; a bounded explicit environment is needed where an external source representation cannot recover their owner kinds. | Portable semantic inspection, construction, matching, and composition inside admitted families. |
 | Exact Dotty `untpd` AST | Exact pre-Typer compiler topology for one full Scala compiler version. | Raw node kinds, child topology, `SourceFile`, spans, and sometimes object identity are contractual. Fresh nodes normally have `NoSymbol`; resolution and typing require the compiler lifecycle and a matching `Context`. | Exact fresh raw-tree construction and identity-sensitive transformation of existing raw trees. |
 
 The project model is not a lossless copy of Scalameta, and Scalameta is not a
@@ -50,11 +50,11 @@ scala.meta.Term
   -> public ScalametaTermShapeAuthoring
   -> fresh scala.meta.Term
 
-scala.meta.Type
+scala.meta.Type (current unresolved recursive subset only)
   -> public ScalametaTypeNormalFormProjection
   -> public ProjectedTypeNormalForm / TypeNormalForm
   -> public ScalametaTypeNormalFormAuthoring
-  -> fresh scala.meta.Type
+  -> fresh scala.meta.Type (unresolved recursive subset; resolved identities rejected)
 
 scala.meta.Defn
   -> public ScalametaDefinitionProjection
@@ -386,11 +386,11 @@ object DottySourceFreeHelloWorld:
 ```
 <!-- snippet:dotty-source-free:end -->
 
-## Semantic Definition generated-origin development candidate
+## Semantic Definition generated origin
 
 `quasiquotes.definitions.dotty.DefinitionGeneratedOriginLowering.lower(definition,
-virtualSourceName)(using Context)` is an additive development candidate in the
-exact-version Dotty-internal artifact, pending independent review. It accepts
+virtualSourceName)(using Context)` is available in the current unpublished
+exact-version Dotty-internal artifact. It accepts
 public `SemanticDefinition` values for an immutable value, a parameterless
 method, one or two ordinary method parameters, or a simple type alias. No
 Scalameta conversion is involved.
@@ -414,18 +414,35 @@ compiler's virtual-source authority are rejected.
 
 The operation supplies generated origin only. The caller still owns target
 admission, insertion, owner lifecycle, and typing. A generated alias can succeed
-while an existing owner-append operation rejects `TypeDef`. This candidate does
+while an existing owner-append operation rejects `TypeDef`. This operation does
 not change the historical Scalameta bridge or add an existing-owner rewrite API.
+
+## Semantic Term generated origin
+
+The additive development candidate `TermGeneratedOriginLowering.lower(term,
+virtualSourceName)(using Context)` returns a positioned `untpd.Tree`, generated
+source, fresh `SourceFile` and effective path directly from public `TermShape`.
+It shares the richer checked source-free semantic authority once, then applies
+additional decoded-name, constructor-segment and signed-receiver grouping
+limits. `TermUntypedLowering` remains the broader source-free facade. The
+[complete contract and executable example](SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md)
+state the seven failures, fixed precedence, binder/rich-Type limits and
+recursive source identity/freshness requirements.
+
+The Term sibling awaits independent implementation acceptance. Existing
+Scalameta Term bridges remain separate; no Type generated-origin sibling or
+public existing-tree transaction is selected.
 
 ## Checked generated-origin bridges
 
 Source-free and generated-origin are different operations, not a boolean mode.
 The generated-origin APIs return the raw tree together with deterministic
-generated source and an effective virtual source. Term generation accepts more
-completed binder/type-bearing families than the direct source-free Term facade.
+generated source and an effective virtual source. The Scalameta generated-origin Term bridge accepts more
+completed binder/type-bearing families than the narrower source-free Scalameta
+Term bridge; this is not full parity with the broader semantic Term facade.
 The Scalameta Definition generated-origin bridge accepts the four concrete
 val/def families; it continues rejecting simple aliases. The separate semantic
-Definition generated-origin development candidate described above includes
+Definition generated-origin facade described above includes
 simple aliases.
 
 <!-- snippet:dotty-generated-origin:start -->
