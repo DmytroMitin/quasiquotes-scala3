@@ -283,7 +283,8 @@ final class Scala2ImplicitDefinitionClauseCaptureProductionTest extends munit.Fu
       patternMessages("""case dqq"def $name(...$paramss): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(...$paramss): $result = $body" => ()"""),
       patternMessages("""case dqq"def $name[..$tparams](...$paramss): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods def $name[..$tparams](...$paramss): $result = $body" => ()""")
+      patternMessages("""case dqq"$mods def $name[..$tparams](...$paramss): $result = $body" => ()"""),
+      patternMessages("""case dqq"$mods def $name(..$params): $result = $body" => ()""")
     )
     val rejected = List(
       patternMessages("""case dqq"private def $name(implicit ..$params): $result = $body" => ()"""),
@@ -292,7 +293,6 @@ final class Scala2ImplicitDefinitionClauseCaptureProductionTest extends munit.Fu
       patternMessages("""case dqq"$modsdef $name(implicit ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def fixed(implicit ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name[..$tparams](implicit ..$params): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods def $name(..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(implicit ...$paramss): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(implicit fixed: Int, ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(implicit ..$params, fixed: Int): $result = $body" => ()"""),

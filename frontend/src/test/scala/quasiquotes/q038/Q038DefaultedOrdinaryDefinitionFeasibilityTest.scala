@@ -229,7 +229,7 @@ final class Q038DefaultedOrdinaryDefinitionFeasibilityTest extends munit.FunSuit
 
     rows.foreach(row => assert(row._2, row))
 
-  test("test-only grammar is exact and real production dqq stays closed"):
+  test("test-only grammar is exact and real production dqq now selects Q044"):
     inline def messages(inline source: String): List[String] = typeCheckErrors(source).map(_.message)
     inline def candidateMessages(inline pattern: String): List[String] =
       messages(
@@ -260,7 +260,7 @@ final class Q038DefaultedOrdinaryDefinitionFeasibilityTest extends munit.FunSuit
            case dqq"$mods def $name(..$params): $result = $body" => ()
            case _ => ()"""
     )
-    assert(production.nonEmpty, production)
+    assertEquals(production, Nil)
 
     assertEquals(
       typeCheckErrors("import scala.language.experimental.erasedDefinitions; def valid(erased x: Int = 1): Int = 0"),

@@ -229,7 +229,8 @@ final class MixedOrdinaryScala2ImplicitDefinitionClauseCaptureProductionTest
     val siblings = List(
       patternMessages("""case dqq"$mods def $name(implicit ..$implicitParams): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(..$params)(using ..$usingParams): $result = $body" => ()"""),
-      patternMessages("""case dqq"def $name(..$params)(using ..$usingParams): $result = $body" => ()""")
+      patternMessages("""case dqq"def $name(..$params)(using ..$usingParams): $result = $body" => ()"""),
+      patternMessages("""case dqq"$mods def $name(..$params): $result = $body" => ()""")
     )
     val rejected = List(
       patternMessages("""case dqq"def $name(..$params)(implicit ..$implicitParams): $result = $body" => ()"""),
@@ -237,7 +238,6 @@ final class MixedOrdinaryScala2ImplicitDefinitionClauseCaptureProductionTest
       patternMessages("""case dqq"$mods final def $name(..$params)(implicit ..$implicitParams): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def fixed(..$params)(implicit ..$implicitParams): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(implicit ..$implicitParams)(..$params): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods def $name(..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(fixed: Int)(implicit ..$implicitParams): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(..$params)(implicit fixed: Int): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(..$first)(..$second): $result = $body" => ()"""),

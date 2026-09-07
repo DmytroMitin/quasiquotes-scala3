@@ -106,4 +106,4 @@ final class Q038ScalametaDefaultedOrdinaryDefinitionFeasibilityTest extends muni
            case dqq"$mods def $name(..$params): $result = $body" => ()
            case _ => ()"""
     )
-    assert(production.nonEmpty, production)
+    assertEquals(production, Nil)

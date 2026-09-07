@@ -127,11 +127,11 @@ final class ScalametaMixedOrdinaryNamedUsingDefinitionClauseCaptureProductionTes
     val q031 = patternMessages("""case dqq"$mods def $name(implicit ..$implicitParams): $result = $body" => ()""")
     val q035 = patternMessages("""case dqq"def $name(..$params)(using ..$usingParams): $result = $body" => ()""")
     val q037 = patternMessages("""case dqq"$mods def $name(..$params)(implicit ..$implicitParams): $result = $body" => ()""")
+    val q044 = patternMessages("""case dqq"$mods def $name(..$params): $result = $body" => ()""")
     val rejected = List(
       patternMessages("""case dqq"private $mods def $name(..$params)(using ..$usingParams): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods final def $name(..$params)(using ..$usingParams): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def fixed(..$params)(using ..$usingParams): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods def $name(..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(using ..$usingParams)(..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(..$first)(..$second): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(using ..$first)(using ..$second): $result = $body" => ()"""),
@@ -156,6 +156,7 @@ final class ScalametaMixedOrdinaryNamedUsingDefinitionClauseCaptureProductionTes
     assertEquals(q031, Nil)
     assertEquals(q035, Nil)
     assertEquals(q037, Nil)
+    assertEquals(q044, Nil)
     assert(rejected.forall(_.nonEmpty), rejected)
     assert(
       rejected.flatten.forall(_.contains("Invalid Scalameta dqq definition-pattern template")),

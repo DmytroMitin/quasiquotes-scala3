@@ -291,6 +291,7 @@ final class NongenericDefinitionModifierCaptureProductionTest extends munit.FunS
            case dqq"$mods def $name[..$tparams](...$paramss): $result = $body" => ()
            case _ => ()"""
     )
+    val q044 = patternMessages("""case dqq"$mods def $name(..$params): $result = $body" => ()""")
     val rejected = List(
       patternMessages("""case dqq"private def $name(...$paramss): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods final def $name(...$paramss): $result = $body" => ()"""),
@@ -298,7 +299,6 @@ final class NongenericDefinitionModifierCaptureProductionTest extends munit.FunS
       patternMessages("""case dqq"$modsdef $name(...$paramss): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def fixed(...$paramss): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name[A](...$paramss): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods def $name(..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(first: Int)(...$paramss): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(...$paramss)(last: Int): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(...$paramss): Int = $body" => ()"""),
@@ -311,6 +311,7 @@ final class NongenericDefinitionModifierCaptureProductionTest extends munit.FunS
     assertEquals(accepted, Nil)
     assertEquals(existingQ020, Nil)
     assertEquals(existingQ025, Nil)
+    assertEquals(q044, Nil)
     assert(rejected.forall(_.nonEmpty), rejected)
     assert(rejected.flatten.forall(_.contains("Invalid dqq definition-pattern template")), rejected)
 

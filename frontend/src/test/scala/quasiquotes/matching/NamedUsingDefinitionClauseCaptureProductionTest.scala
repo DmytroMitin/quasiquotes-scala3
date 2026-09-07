@@ -192,6 +192,7 @@ final class NamedUsingDefinitionClauseCaptureProductionTest extends munit.FunSui
 
     val accepted = patternMessages("""case dqq"$mods def $name(using ..$params): $result = $body" => ()""")
     val q031 = patternMessages("""case dqq"$mods def $name(implicit ..$params): $result = $body" => ()""")
+    val q044 = patternMessages("""case dqq"$mods def $name(..$params): $result = $body" => ()""")
     val rejected = List(
       patternMessages("""case dqq"private def $name(using ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods final def $name(using ..$params): $result = $body" => ()"""),
@@ -199,7 +200,6 @@ final class NamedUsingDefinitionClauseCaptureProductionTest extends munit.FunSui
       patternMessages("""case dqq"$modsdef $name(using ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def fixed(using ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name[..$tparams](using ..$params): $result = $body" => ()"""),
-      patternMessages("""case dqq"$mods def $name(..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(using ...$paramss): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(using fixed: Int, ..$params): $result = $body" => ()"""),
       patternMessages("""case dqq"$mods def $name(using ..$params, fixed: Int): $result = $body" => ()"""),
@@ -213,6 +213,7 @@ final class NamedUsingDefinitionClauseCaptureProductionTest extends munit.FunSui
 
     assertEquals(accepted, Nil)
     assertEquals(q031, Nil)
+    assertEquals(q044, Nil)
     assert(rejected.forall(_.nonEmpty), rejected)
     assert(rejected.flatten.forall(_.contains("Invalid dqq definition-pattern template")), rejected)
 

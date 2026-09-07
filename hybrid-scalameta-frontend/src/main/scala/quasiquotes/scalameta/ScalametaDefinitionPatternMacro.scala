@@ -110,6 +110,15 @@ private[scalameta] object ScalametaDefinitionPatternMacro:
                 )(using $callerQuotes)
             }
           case Right(
+                ScalametaDefinitionFrontend.PatternKind.CapturedModifiersNameOrdinaryParameterSequenceCapturedResult
+              ) =>
+            '{
+              ScalametaQuasiPattern
+                .capturedModifiersNameOrdinaryParameterSequenceCapturedResultExtractor($context)(
+                  using $callerQuotes
+                )
+            }
+          case Right(
                 ScalametaDefinitionFrontend.PatternKind.CapturedModifiersNameRankedParameterClauseSequenceCapturedResult
               ) =>
             '{

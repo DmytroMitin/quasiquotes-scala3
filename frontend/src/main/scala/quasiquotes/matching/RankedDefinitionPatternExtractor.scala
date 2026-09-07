@@ -49,6 +49,20 @@ private[quasiquotes] object RankedDefinitionPatternExtractorFactory:
       RankedDefinitionPatternMatcher.extractCapturedModifiersNameParamssResult(target)
     )
 
+  def capturedModifiersNameOrdinaryParamsResult(using q: Quotes): RankedDefinitionPatternExtractor[
+    q.reflect.DefDef,
+    (
+      DefinitionModifiers[q.reflect.Flags, q.reflect.TypeRepr, q.reflect.Term],
+      String,
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    new RankedDefinitionPatternExtractor(target =>
+      RankedDefinitionPatternMatcher.extractCapturedModifiersNameOrdinaryParamsResult(target)
+    )
+
   def capturedModifiersNameNamedUsingParamsResult(using q: Quotes): RankedDefinitionPatternExtractor[
     q.reflect.DefDef,
     (
@@ -221,6 +235,27 @@ private[matching] object RankedDefinitionPatternMatcher:
         target.symbol.annotations
       )
       (modifiers, target.name, clauses.map(_.params), result, body)
+    }
+
+  def extractCapturedModifiersNameOrdinaryParamsResult(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[
+    (
+      DefinitionModifiers[q.reflect.Flags, q.reflect.TypeRepr, q.reflect.Term],
+      String,
+      Seq[q.reflect.ValDef],
+      q.reflect.TypeRepr,
+      q.reflect.Term
+    )
+  ] =
+    extractAdmittedOrdinaryRank2Definition(target).map { (parameters, result, body) =>
+      val modifiers = new DefinitionModifiers(
+        target.symbol.flags,
+        target.symbol.privateWithin,
+        target.symbol.protectedWithin,
+        target.symbol.annotations
+      )
+      (modifiers, target.name, parameters, result, body)
     }
 
   def extractCapturedModifiersNameNamedUsingParamsResult(using q: Quotes)(
@@ -431,6 +466,88 @@ private[matching] object RankedDefinitionPatternMatcher:
             .when(admittedParameters)(target.returnTpt.tpe)
             .flatMap(result => target.rhs.map(body => (parameters, result, body)))
         case _ => None
+
+  private def extractAdmittedOrdinaryRank2Definition(using q: Quotes)(
+      target: q.reflect.DefDef
+  ): Option[(List[q.reflect.ValDef], q.reflect.TypeRepr, q.reflect.Term)] =
+    import q.reflect.*
+
+    if !isAdmittedNormalMethod(target) then None
+    else
+      target.paramss match
+        case List(clause: TermParamClause)
+            if !clause.isImplicit && !clause.isGiven && !clause.isErased =>
+          target.symbol.termRef.widen match
+            case method: MethodType if method.paramTypes.size == clause.params.size =>
+              val parameters = clause.params
+              val symbols = parameters.map(_.symbol)
+              val admittedParameters =
+                symbols.forall(_ != Symbol.noSymbol) &&
+                  symbols.distinct.size == symbols.size &&
+                  parameters.forall(parameter =>
+                    parameter.symbol.owner == target.symbol &&
+                      parameter.symbol.flags.is(Flags.Param) &&
+                      parameter.symbol.annotations.isEmpty &&
+                      parameter.rhs.isEmpty &&
+                      !parameter.symbol.flags.is(Flags.Implicit) &&
+                      !parameter.symbol.flags.is(Flags.Given) &&
+                      !parameter.symbol.flags.is(Flags.Synthetic) &&
+                      !parameter.symbol.flags.is(Flags.Erased) &&
+                      !parameter.symbol.flags.is(Flags.HasDefault)
+                  ) &&
+                  parameters.zip(method.paramTypes).zipWithIndex.forall {
+                    case ((parameter, methodType), index) =>
+                      isCoherentOrdinaryRank2Parameter(
+                        parameter,
+                        methodType,
+                        index == parameters.size - 1
+                      )
+                  } &&
+                  target.symbol.paramSymss == List(symbols)
+
+              Option
+                .when(admittedParameters)(target.returnTpt.tpe)
+                .flatMap(result => target.rhs.map(body => (parameters, result, body)))
+            case _ => None
+        case _ => None
+
+  private def isCoherentOrdinaryRank2Parameter(using q: Quotes)(
+      parameter: q.reflect.ValDef,
+      methodType: q.reflect.TypeRepr,
+      isFinal: Boolean
+  ): Boolean =
+    import q.reflect.*
+
+    def byNameElement(tpe: TypeRepr): Option[TypeRepr] = tpe match
+      case ByNameType(element) => Some(element)
+      case _ => None
+
+    def treeRepeatedElement(tpe: TypeRepr): Option[TypeRepr] = tpe match
+      case AnnotatedType(AppliedType(_, List(element)), annotation)
+          if annotation.tpe.typeSymbol == defn.RepeatedAnnot => Some(element)
+      case AppliedType(constructor, List(element))
+          if constructor.typeSymbol == defn.RepeatedParamClass => Some(element)
+      case _ => None
+
+    def methodRepeatedElement(tpe: TypeRepr): Option[TypeRepr] = tpe match
+      case AppliedType(constructor, List(element))
+          if constructor.typeSymbol == defn.RepeatedParamClass => Some(element)
+      case _ => None
+
+    val treeType = parameter.tpt.tpe
+    val treeByName = byNameElement(treeType)
+    val methodByName = byNameElement(methodType)
+    val treeRepeated = treeRepeatedElement(treeType)
+    val methodRepeated = methodRepeatedElement(methodType)
+
+    (treeByName, methodByName, treeRepeated, methodRepeated) match
+      case (Some(treeElement), Some(methodElement), None, None) =>
+        treeElement =:= methodElement && parameter.symbol.termRef.widen =:= treeElement
+      case (None, None, Some(treeElement), Some(methodElement)) =>
+        isFinal && treeElement =:= methodElement
+      case (None, None, None, None) =>
+        treeType =:= methodType && parameter.symbol.termRef.widen =:= treeType
+      case _ => false
 
   private def extractAdmittedScala2ImplicitDefinition(using q: Quotes)(
       target: q.reflect.DefDef

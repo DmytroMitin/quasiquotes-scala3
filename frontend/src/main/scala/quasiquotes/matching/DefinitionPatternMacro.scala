@@ -108,6 +108,15 @@ private[matching] object DefinitionPatternMacro:
                 )(using $callerQuotes)
             }
           case Right(
+                DefinitionPattern.StaticPatternKind.CapturedModifiersNameOrdinaryParameterSequenceCapturedResult
+              ) =>
+            '{
+              DefinitionPattern
+                .capturedModifiersNameOrdinaryParameterSequenceCapturedResultExtractor($context)(
+                  using $callerQuotes
+                )
+            }
+          case Right(
                 DefinitionPattern.StaticPatternKind.CapturedModifiersNameRankedParameterClauseSequenceCapturedResult
               ) =>
             '{
