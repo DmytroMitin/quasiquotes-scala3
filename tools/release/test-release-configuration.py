@@ -9,9 +9,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class ReleaseConfigurationTest(unittest.TestCase):
-    def test_development_version_and_tool_versions_are_pinned(self) -> None:
+    def test_release_version_and_tool_versions_are_pinned(self) -> None:
         build = (ROOT / "build.sbt").read_text()
-        self.assertIn('ThisBuild / version := "0.3.0-SNAPSHOT"', build)
+        self.assertIn('ThisBuild / version := "0.3.0"', build)
         self.assertIn('ThisBuild / scalaVersion := "3.8.4"', build)
         self.assertIn(
             'lazy val supportedScalaVersions = Vector("3.3.8", "3.8.4", "3.9.0")',

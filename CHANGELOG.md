@@ -32,8 +32,8 @@ applicable. Dates and release links are added only when a release exists.
 
 ### Changed
 
-- `0.2.0` is the immutable Maven Central release. The active source tree is the
-  unpublished `0.3.0-SNAPSHOT` development line.
+- `0.2.0` is the immutable Maven Central release. The active source tree
+  declares release version `0.3.0`; remote publication is still pending.
 - The build uses sbt 1.12.15 and sbt-pgp 2.3.1 for manual, local-only signed
   staging with fail-closed public developer metadata.
 - Experimental compatibility is documented as early-semver-style 0.x policy:

@@ -34,9 +34,9 @@ candidate topology does not describe a completed remote release or turn the
 exact backend into a stable raw-tree API.
 
 Version `0.2.0` and group `com.github.dmytromitin` identify the immutable
-released Maven Central coordinates. The current working tree is the
-unpublished `0.3.0-SNAPSHOT` development line. The selected experimental 0.x
-policy requires breaking changes to increment the minor version and expects
+released Maven Central coordinates. The current working tree declares release
+version `0.3.0`; remote publication is still pending. The selected experimental
+0.x policy requires breaking changes to increment the minor version and expects
 patch compatibility within one minor line; see
 [Versioning and stability](VERSIONING_AND_STABILITY.md).
 

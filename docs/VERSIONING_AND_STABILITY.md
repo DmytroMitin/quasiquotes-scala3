@@ -10,9 +10,9 @@ The project uses experimental 0.x `early-semver` metadata.
 - Additive overloads, givens, and extensions still require human source-review.
 - All exact-compiler `frontend` artifacts share one library version.
 
-The latest immutable release is `0.2.0`. The current source is the unpublished
-`0.3.0-SNAPSHOT` development line. Its statement-based block/local-value
-model changes public API shape and therefore requires a new experimental minor;
+The latest immutable release is `0.2.0`. The current source declares release
+version `0.3.0`; remote publication is still pending. Its statement-based
+block/local-value model changes public API shape and therefore requires a new experimental minor;
 released `0.2.0` artifacts and their
 [618-row API baseline](api-baselines/0.2.0.tsv) remain unchanged.
 

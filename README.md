@@ -7,7 +7,7 @@ compiler-coupled parsing, reflection, and lowering.
 The project is a research proof of concept. Its API, coordinates, supported
 syntax, and compatibility policy may change. The immutable `0.2.0` `core` and
 matching 3.3.8/3.8.4 `frontend` artifacts are available from Maven Central;
-the current `0.3.0-SNAPSHOT` tree is not published. Its candidate release
+the current `0.3.0` release tree is not yet published. Its candidate release
 topology expands to eleven artifacts under an explicit fail-closed release mode;
 that local readiness is not Maven availability.
 
@@ -279,8 +279,8 @@ libraryDependencies +=
 `core` uses ordinary Scala 3 binary crossing. `frontend` uses full compiler
 version crossing and must match the consuming compiler line. The released set
 contains `core_3` plus frontend artifacts for Scala 3.3.8 and 3.8.4 only. The
-current source tree is the unpublished development version `0.3.0-SNAPSHOT`
-and is not interchangeable with these released coordinates.
+current source tree declares release version `0.3.0`, whose publication is
+still pending, and is not interchangeable with these released coordinates.
 
 All five production modules are normally publishable sbt projects. The
 candidate `0.3.0` topology is exactly `core_3`, binary-crossed

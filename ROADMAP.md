@@ -372,8 +372,8 @@ assuming publication.
 The intended `0.3.0` feature boundary includes semantic Term generated origin
 and the bounded standard typed runtime-sequence Type application. Public
 existing-tree transformation remains post-`0.3.0` work. The source version is
-`0.3.0-SNAPSHOT`; release-shaped local artifacts do not establish a remote
-`0.3.0` publication.
+`0.3.0`; a release-version commit or release-shaped local artifacts do not
+establish a remote `0.3.0` publication.
 
 ## Semantic Term generated-origin lowering
 

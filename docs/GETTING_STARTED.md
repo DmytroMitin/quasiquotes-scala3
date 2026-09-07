@@ -9,9 +9,9 @@ For the distinct compile-time macro, runtime `staging.withQuotes`, runtime
 [Execution environments and AST representations](EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md).
 
 The declarations below use the latest immutable Maven Central release,
-`0.2.0`. The current source tree is the unpublished development version
-`0.3.0-SNAPSHOT`; use it only through an intentional local build or
-`publishLocal` workflow.
+`0.2.0`. The current source tree declares release version `0.3.0`, whose
+publication is still pending; use it only through an intentional local build
+or `publishLocal` workflow.
 
 The unpublished exact-version source tree also exposes bounded public
 Scalameta Term, Type, and Definition lowering facades from `dottyInternal`.

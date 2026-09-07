@@ -2,9 +2,9 @@
 
 This is a manual-first, fail-closed process. The `0.2.0` set below is already
 immutable on Maven Central. The `0.3.0` set is a candidate topology only: the
-source tree remains `0.3.0-SNAPSHOT`, and this document does not authorize a
-remote upload, tag, or GitHub release. An ordinary branch push never publishes
-artifacts.
+source tree declares release version `0.3.0`, and this document does not
+authorize a remote upload, tag, or GitHub release. An ordinary branch push never
+publishes artifacts.
 
 ## Released immutable 0.2.0 artifact set
 
@@ -88,11 +88,11 @@ for a structural rehearsal; they must never be treated as release identity.
 
 ## Local signed 0.3.0 rehearsal
 
-The committed development version stays `0.3.0-SNAPSHOT`. Each rehearsal sbt
-session applies the disposable session setting
-`set ThisBuild / version := "0.3.0"`; because it is a `ThisBuild` setting, all
-project POM identities and inter-project dependency versions change together.
-Nothing is written back to `build.sbt`.
+The committed release version is `0.3.0`. Each rehearsal sbt session retains
+the disposable session setting `set ThisBuild / version := "0.3.0"` as a
+consistency assertion; because it is a `ThisBuild` setting, all project POM
+identities and inter-project dependency versions remain aligned. Nothing is
+written back to `build.sbt`.
 
 The build pins sbt-pgp and directs `publishSigned` to the Maven-style local
 repository under `target/sona-staging`. Start from an empty staging directory,

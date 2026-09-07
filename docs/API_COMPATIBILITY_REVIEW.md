@@ -31,15 +31,15 @@ removal and requires a new experimental 0.x minor. Exit `4` means malformed
 or unsupported input and fails closed. Owner, module, or kind moves are
 reported conservatively as removal plus addition.
 
-## Released baseline and current development candidate
+## Released baseline and current release candidate
 
-The current `0.3.0-SNAPSHOT` standard candidate has 794 packaged rows / 775
+The current `0.3.0` standard release candidate has 794 packaged rows / 775
 symbol groups on the modern compiler lines. Compared with released `0.2.0`,
 609 signatures and 592 groups are unchanged, 185 signatures and 174 groups
 are added, nine signatures are removed/replaced, and no symbol group is removed.
 The result remains `BREAKING_API_SHAPE_DELTA_REQUIRES_NEW_0X_MINOR`.
 The released 618-row baseline remains immutable; the candidate inventory is
-generated development evidence until an actual `0.3.0` release.
+generated release-candidate evidence until an actual `0.3.0` publication.
 
 The standard typed runtime-sequence `tqr` overload adds one logical row to
 the previous 793-row / 775-group inventory: all 793 prior rows are unchanged,
