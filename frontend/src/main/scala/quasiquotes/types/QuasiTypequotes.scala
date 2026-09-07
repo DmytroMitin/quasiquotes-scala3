@@ -38,6 +38,10 @@ object QuasiTypequotes:
           s"Invalid tqr type template: expected $expectedArity TypeRepr splice(s), but received ${args.size}."
         )
 
+      TypeSequenceSource.scalarDiagnostic(parts).foreach(detail =>
+        report.errorAndAbort(s"Invalid tqr type template: $detail")
+      )
+
       val holeNames = Vector.tabulate(expectedArity)(index => s"tqrSlot$index")
       val source = synthesize(parts, holeNames)
       val bindings = args.zip(holeNames).foldLeft(Map.empty[String, TypeNormalForm]) {
@@ -65,6 +69,28 @@ object QuasiTypequotes:
                 case Left(error) =>
                   report.errorAndAbort(s"Invalid tqr type template: ${error.message}")
                 case Right(typeRepr) => typeRepr
+
+    /** Constructs the complete application `tqr"$constructor[..$arguments]"`.
+      *
+      * Preserves the caller's reflected constructor and ordered arguments after
+      * validating class-constructor arity and kinds. Exactly one sequence is
+      * supported; the repeated tail provides diagnostics for additional sequences.
+      * This route does not reconstruct Types through compiler-free normal forms.
+      */
+    def tqr(using q: Quotes)(
+        constructor: q.reflect.TypeRepr,
+        arguments: Seq[q.reflect.TypeRepr],
+        additionalArgumentSequences: Seq[q.reflect.TypeRepr]*
+    ): q.reflect.TypeRepr =
+      val parts = checkedParts(sc, "Invalid tqr type template:")
+      val validated = for
+        _ <- TypeSequenceSource.validate(parts, additionalArgumentSequences == null || additionalArgumentSequences.nonEmpty)
+        result <- ReflectedTypeApplication.build(using q)(constructor, arguments)
+      yield result
+      validated.fold(
+        detail => q.reflect.report.errorAndAbort(s"Invalid tqr type template: $detail"),
+        identity
+      )
 
     def tqq(using q: Quotes): TypePatternExtractor[q.reflect.TypeRepr] =
       import q.reflect.*

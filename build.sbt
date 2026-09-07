@@ -22,6 +22,7 @@ Global / concurrentRestrictions := Seq(Tags.limitAll(1))
 
 lazy val munitVersion = "1.2.4"
 lazy val scalametaVersion = "4.17.3"
+lazy val allowExperimentalVersion = "0.1.0"
 lazy val supportedScalaVersions = Vector("3.3.8", "3.8.4", "3.9.0")
 lazy val binaryArtifactBuildScalaVersion = "3.3.8"
 
@@ -211,7 +212,12 @@ lazy val frontend = (project in file("frontend"))
     crossVersion := CrossVersion.full,
     libraryDependencies ++= Seq(
       "org.scala-lang" %% "scala3-compiler" % scalaVersion.value,
-      "org.scala-lang" %% "scala3-staging" % scalaVersion.value % Test
+      "org.scala-lang" %% "scala3-staging" % scalaVersion.value % Test,
+      "com.github.dmytromitin" %% "allow-experimental-annotation" % allowExperimentalVersion % Provided,
+      compilerPlugin(
+        ("com.github.dmytromitin" % "allow-experimental-plugin" % allowExperimentalVersion)
+          .cross(CrossVersion.full)
+      )
     )
   )
 
