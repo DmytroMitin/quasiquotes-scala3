@@ -32,7 +32,7 @@ planned and are labeled accordingly.
 
 ### Runnable starter
 
-Generate a workspace with five small runnable examples:
+Generate a workspace with six small runnable examples:
 
 ```sh
 sbt new DmytroMitin/quasiquotes-scala3.g8
@@ -40,7 +40,10 @@ sbt new DmytroMitin/quasiquotes-scala3.g8
 
 The [starter repository](https://github.com/DmytroMitin/quasiquotes-scala3.g8)
 contains examples for Core, Q/frontend, N/neutral Scalameta,
-U/Dotty-internal, and Hybrid typed Scalameta.
+U/Dotty-internal, Bridge/composition, and Hybrid typed Scalameta. The Bridge
+example starts from a public source representation and composes semantic
+projection/completion with exact lowering behind one public facade. It is a
+cross-layer example, not public `c*` syntax or a sixth AST world.
 
 `qr` constructs a Scala 3 quoted-reflection `Term` from source-like syntax
 with structural splices.
