@@ -167,7 +167,7 @@ the expression.
 
 ## D6: compiler-free Scalameta source AST
 
-The unpublished `neutralScalameta` module uses Scalameta 4.17.3 directly for
+The released experimental `neutralScalameta` module uses Scalameta 4.17.3 directly for
 source construction and extractor matching. It requires neither an active
 `Quotes` nor `scala3-staging`, and its dependency boundary excludes the Scala
 compiler implementation and SemanticDB.
@@ -201,9 +201,9 @@ general Scalameta-definition conversion.
 | `TermPattern` / `MatchResult` | Public neutral structural matching data in `core`. |
 | `TermTemplate` / `ConstructedTerm` | Package-internal validated construction IR in `core`; deliberately not public. |
 | `CompletedTerm` | Public bounded definition-body payload; not the general term AST. |
-| `scala.meta.Term` | Experimental unpublished source-syntax term in `neutralScalameta`; direct construction/matching, with accepted production projection to `TermShape` for the bounded literal/infix/unary/tuple/conditional/name/select/Apply, fully-qualified one-list constructor/New, typed Lambda1, and P0/P1/P2/P3 block families. |
+| `scala.meta.Term` | Experimental source-syntax term in released `neutralScalameta`; direct construction/matching, with accepted production projection to `TermShape` for the bounded literal/infix/unary/tuple/conditional/name/select/Apply, fully-qualified one-list constructor/New, typed Lambda1, and P0/P1/P2/P3 block families. |
 | `Expr[T]` / `quotes.reflect.Term` | Caller-`Quotes` staged and reflected values used by `qr`/`qq`; compiler-coupled and universe-dependent. |
-| `dotty.tools.dotc.ast.untpd.Tree` | Exact compiler-internal value used by parsing and the unpublished exact backend; not a published AST contract. |
+| `dotty.tools.dotc.ast.untpd.Tree` | Exact compiler-internal value used by parsing and the released experimental exact backend; not a stable published AST contract. |
 
 ### Types
 
@@ -213,9 +213,9 @@ general Scalameta-definition conversion.
 | `TypeNormalForm` | Public neutral semantic structural form. |
 | `TypePattern`, `TypeTemplate`, `ConstructedType` | Public neutral matching and construction machinery. |
 | `CompletedType` | Public bounded definition payload; not the universal type AST. |
-| `scala.meta.Type` | Experimental unpublished source-syntax type in `neutralScalameta`; not semantically resolved. |
+| `scala.meta.Type` | Experimental source-syntax type in released `neutralScalameta`; not semantically resolved. |
 | `TypeRepr`, `TypeTree`, `Type[T]` | Caller-`Quotes` reflected/staged values used by the reflected type surfaces. |
-| compiler-internal type trees | Exact unpublished backend/parser values with compiler-version coupling. |
+| compiler-internal type trees | Exact experimental backend/parser values with compiler-version coupling. |
 
 ### Definitions
 
@@ -226,13 +226,13 @@ types are package-internal. Public compiler-free construction is limited to
 `SingleParameterMethodResultView`, and `TwoParameterMethodResultView`
 projections. Public reflected `dqr`/`dqq` are bounded `DefDef` surfaces in the
 caller's `Quotes`. Experimental `scala.meta.Defn` values supply direct neutral
-source construction/matching in the unpublished module. Separate
+source construction/matching in the released experimental module. Separate
 package-private neutral projectors now cover explicitly typed immutable vals,
 true parameterless defs, one- and two-ordinary-parameter defs, and simple
 non-generic unbounded aliases; the admitted specialized contextual-method
 shape separately projects into `DefinitionResultView`. These projectors do not
 yet form a public Definition bridge. The exact raw/generated-origin definition
-backend remains unpublished, and no general simple-alias exact route exists.
+backend remains experimental and exact-version coupled, and no general simple-alias exact route exists.
 
 Not every internal representation warrants another interpolation syntax. Local
 imports can rename Scalameta `q`/`t` to provisional `nqr`/`nqq`,
@@ -258,7 +258,7 @@ uses only a generic internal payload slot and retains its compiler boundary.
 The same source-level addition can be assembled at several boundaries, but
 those boundaries are not interchangeable APIs. The first three forms below
 are supported public Scala/Quasiquotes use. The last three are exact-compiler
-demonstrations used by this repository's tests and unpublished backend.
+demonstrations used by this repository's tests and experimental exact backend.
 
 ### Supported public APIs
 
@@ -298,7 +298,7 @@ External macro tests compile and execute the standard quotation, public
 reflection, and `qr` forms on every supported compiler line; each returns `3`
 for operands `1` and `2`.
 
-The unpublished exact-version `dottyInternal` artifact also has two bounded
+The released exact-version `dottyInternal` artifact also has two bounded
 public programmatic seams. `ScalametaTermUntypedBridge` requires an active
 compiler `Context`; the context-free `ScalametaTypeUntypedBridge` composes the
 compiler-free Type projector with the existing source-free exact Type lowerer.
@@ -372,7 +372,7 @@ Macro-Paradise annotation expansion operates on pre-typer `untpd` syntax.
 Its plugin and handler lifecycle owns admission, placement, insertion,
 rollback, and ordinary typing around handler output. This does not make
 Quasiquotes a Macro-Paradise product dependency; the current peer integration
-is a narrow data flow through an unpublished exact-version bridge.
+is a narrow data flow through a released experimental exact-version bridge.
 
 The typed path is a ladder inside one active compiler context:
 

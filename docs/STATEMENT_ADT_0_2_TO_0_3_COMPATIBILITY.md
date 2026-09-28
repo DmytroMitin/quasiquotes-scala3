@@ -1,10 +1,11 @@
-# Statement ADT compatibility: 0.2.0 to 0.3.0 release candidate
+# Statement ADT compatibility: 0.2.0 to 0.3.0
 
-The current source tree declares release version `0.3.0`, whose publication is
-still pending. The compatibility baseline is the immutable Maven Central `0.2.0`
-release, not a reconstructed checkout. The statement-ADT change remains an
-intentional new-minor change under `early-semver`; this qualification does not
-authorize a release or remote snapshot publication.
+Version `0.3.0` is published on Maven Central; active development is
+`0.4.0-SNAPSHOT`. The compatibility baseline for this historical qualification
+is the immutable Maven Central `0.2.0` release, not a reconstructed checkout.
+The statement-ADT change was an intentional new-minor change under
+`early-semver`; this report does not authorize any later release or remote
+snapshot publication.
 
 ## Released and development artifacts
 
@@ -115,11 +116,11 @@ later final-3.9.0 compatibility rebase is separate. The public API, first-use,
 documentation, and release-configuration tools remain separate checks.
 
 `docs/api-baselines/0.2.0.tsv` remains the immutable released 618-row
-`0.2.0` baseline. The 634-row development inventory remains generated
-candidate evidence until an actual `0.3.0` release; a redundant checked-in
-candidate snapshot was not added.
+`0.2.0` baseline. The historical 634-row development inventory remains
+generated qualification evidence; a redundant checked-in candidate snapshot
+was not added.
 
 The result is a bounded compatibility qualification for an intentional new
-experimental minor. The source release version is `0.3.0`; released `0.2.0`
+experimental minor. Version `0.3.0` is released; released `0.2.0`
 and its baseline remain immutable. Ordinary Term and Type quasiquotes continue
 to use current-Dotty. This report is evidence, not release authorization.

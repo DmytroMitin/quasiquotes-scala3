@@ -68,7 +68,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             "# Architecture\n\n"
             "The project owns one compiler-free semantic model. The current-Dotty frontend\n"
             "is the released default and the reference oracle; the typed Scalameta route is\n"
-            "an explicit, unpublished opt-in. The two typed routes must agree wherever they\n"
+            "an explicit, released opt-in. The two typed routes must agree wherever they\n"
             "both advertise support. In the hybrid route, only a Scalameta parse failure may fall back.\n\n"
             "The compiler-free model is symbol-free, and no public symbol-quasiquote family\n"
             "is currently planned. Symbols and owners that are derivable from syntax belong to\n"

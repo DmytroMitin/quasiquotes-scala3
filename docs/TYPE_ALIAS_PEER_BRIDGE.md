@@ -1,7 +1,7 @@
 # Experimental Type-alias peer bridge
 
 `quasiquotes.definitions.dotty.AuxTypeAliasPeerBridge` is an exact-Scala-version
-entry point in the remotely unpublished `dottyInternal` artifact. It accepts
+entry point in the released 0.3.0 `dottyInternal` artifact. It accepts
 one public Scalameta `Defn.Type` in the bounded three-parameter refined-alias family:
 
 ```scala

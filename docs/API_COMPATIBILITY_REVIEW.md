@@ -31,15 +31,15 @@ removal and requires a new experimental 0.x minor. Exit `4` means malformed
 or unsupported input and fails closed. Owner, module, or kind moves are
 reported conservatively as removal plus addition.
 
-## Released baseline and current release candidate
+## Released baselines and active development
 
-The current `0.3.0` standard release candidate has 794 packaged rows / 775
+The released `0.3.0` standard surface has 794 packaged rows / 775
 symbol groups on the modern compiler lines. Compared with released `0.2.0`,
 609 signatures and 592 groups are unchanged, 185 signatures and 174 groups
 are added, nine signatures are removed/replaced, and no symbol group is removed.
 The result remains `BREAKING_API_SHAPE_DELTA_REQUIRES_NEW_0X_MINOR`.
-The released 618-row baseline remains immutable; the candidate inventory is
-generated release-candidate evidence until an actual `0.3.0` publication.
+The released 618-row 0.2.0 baseline remains immutable; the 0.3.0 inventory is
+published release evidence. Active development is `0.4.0-SNAPSHOT`.
 
 The standard typed runtime-sequence `tqr` overload adds one logical row to
 the previous 793-row / 775-group inventory: all 793 prior rows are unchanged,
@@ -55,13 +55,13 @@ compiler inventory, while retaining 794 rows / 775 groups. Compare exact
 compiler lines before interpreting a signature-rendering difference as a
 product API change.
 
-The unpublished hybrid typed-Scalameta inventory remains 43 rows / 43 symbol
+The released 0.3.0 hybrid typed-Scalameta inventory is 43 rows / 43 symbol
 groups. Exact-two Definition parity replaces one Scala/TASTy selector signature
 without adding or removing a symbol group. The historical erased JVM descriptor
 is retained by a source-hidden bridge. This is no standard `core`/`frontend`
 inventory delta.
 
-The standard inventory deliberately excludes the unpublished, full-crossed
+The standard inventory deliberately excludes the released, full-crossed
 `dottyInternal` artifact, so it cannot describe that module's foreign-package
 bridge surface. An explicit Scala-3.8.4 JVM artifact comparison against launch
 commit `3ae93af527778ad1127f43ec7ffd2e325bae0008` records the new

@@ -1,6 +1,6 @@
 # Hybrid Scalameta typed frontend experiment
 
-`hybridScalametaFrontend` is an unpublished, compiler-coupled opt-in source
+`hybridScalametaFrontend` is a released experimental, compiler-coupled opt-in source
 frontend for typed Term, Type, and bounded Definition construction and
 matching. It exists beside the released/default current-Dotty frontend; public
 ordinary `qr`/`qq` and `tqr`/`tqq` still use current-Dotty.

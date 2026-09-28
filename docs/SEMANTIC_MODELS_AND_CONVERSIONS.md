@@ -396,7 +396,7 @@ object DottySourceFreeHelloWorld:
 ## Semantic Definition generated origin
 
 `quasiquotes.definitions.dotty.DefinitionGeneratedOriginLowering.lower(definition,
-virtualSourceName)(using Context)` is available in the current unpublished
+virtualSourceName)(using Context)` is available in the released 0.3.0
 exact-version Dotty-internal artifact. It accepts
 public `SemanticDefinition` values for an immutable value, a parameterless
 method, one or two ordinary method parameters, or a simple type alias. No
@@ -443,9 +443,10 @@ limits. `TermUntypedLowering` remains the broader source-free facade. The
 state the seven failures, fixed precedence, binder/rich-Type limits and
 recursive source identity/freshness requirements.
 
-The Term sibling is available in the unpublished development tree. Existing
-Scalameta Term bridges remain separate; no Type generated-origin sibling or
-public existing-tree transaction is selected.
+The Term sibling is available in the released 0.3.0 exact-version artifact.
+Existing Scalameta Term bridges remain separate; no Type generated-origin
+sibling exists. Public existing-tree transformation remains post-0.3.0 future
+work and is not implemented or automatically selected by reopening development.
 
 ## Checked generated-origin bridges
 
@@ -544,7 +545,7 @@ object GenericVsSpecializedDefinitionHelloWorld:
 | Public Scalameta-to-Dotty Term/Type/Definition bridges | Current, bounded, exact-version for Dotty-facing artifacts |
 | Public exact existing-tree capture/rewrite algebra | **Planned** |
 | Public `u*` syntax | Later optional, not selected |
-| Remote `0.3.0` artifacts | Not released |
+| Remote `0.3.0` artifacts | Released and verified; eleven coordinates |
 
 The checked snippets are one canonical copy in this page and one compiled copy
 in the owning artifact. `tools/first-use/check-snippets.py` rejects byte drift;

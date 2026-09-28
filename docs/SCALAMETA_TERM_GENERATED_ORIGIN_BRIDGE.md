@@ -1,7 +1,7 @@
 # Bounded Scalameta Term generated-origin bridge
 
-The unpublished `dottyInternal` source candidate exposes a public,
-exact-compiler-version operation for turning one admitted `scala.meta.Term`
+The released 0.3.0 `dottyInternal` artifact exposes a public exact-compiler-
+version operation for turning one admitted `scala.meta.Term`
 into a positioned fresh raw tree:
 
 ```scala
@@ -90,8 +90,8 @@ assignment, or reownership. Those remain compiler-plugin responsibilities.
 
 This is a programmatic exact-version seam. It adds no `u*` or `n*` source
 syntax, no public raw-tree builder, no general Scalameta-to-Dotty promise, and
-no remote-release claim. The current source candidate is tested on exact Scala
-3.3.8, 3.8.4, and 3.9.0.
+no authorization for a later remote release. The released artifact is tested on
+exact Scala 3.3.8, 3.8.4, and 3.9.0.
 
 ## Project-semantic sibling
 

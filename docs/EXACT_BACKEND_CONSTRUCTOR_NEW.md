@@ -1,6 +1,6 @@
 # Exact constructor/new backend
 
-The unpublished exact backend supports the same bounded constructor family as
+The released experimental exact backend supports the same bounded constructor family as
 the public frontend. The only admitted constructor identity is a
 fully-qualified plain non-generic name with one ordinary argument list, for
 example:
@@ -82,9 +82,9 @@ parser, resolver, typer, symbol, owner, or placement fallback.
 
 ## Artifact and compatibility boundary
 
-The exact backend lives in `dottyInternal`, whose artifact is deliberately
-unpublished. `core` remains compiler-free and `frontend` remains coupled to an
-exact compiler line. Backend tests across several compiler versions are
-revision-specific evidence, not a compatibility promise or remote release
-claim. The current public API inventory is maintained separately in
+The exact backend lives in the published 0.3.0 `dottyInternal` coordinates.
+`core` remains compiler-free and `frontend` remains coupled to an exact compiler
+line. Backend tests across several compiler versions are revision-specific
+evidence, not a stability promise merely because the artifact is released. The
+current public API inventory is maintained separately in
 [Public API shape compatibility review](API_COMPATIBILITY_REVIEW.md).

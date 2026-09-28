@@ -27,7 +27,7 @@ source frontend(s)
 
 The project owns one compiler-free semantic model. The current-Dotty frontend
 is the released default and the reference oracle; the typed Scalameta route is
-an explicit, unpublished opt-in. The two typed routes must agree wherever they
+an explicit, released opt-in. The two typed routes must agree wherever they
 both advertise support, but they do not have to acquire every feature in
 lock-step. In the hybrid route, only a Scalameta parse failure may fall back to
 the current parser.
@@ -127,7 +127,7 @@ encoded by recursive `TermShape.Infix` structure.
 - `frontend` is the released/default exact-compiler route. It owns parsing,
   quoted reflection, public `qr`/`qq` and `tqr`/`tqq`, and compiler-line
   lowering. It is also the first-class reference implementation and oracle.
-- `neutralScalameta` is an unpublished compiler-free Scalameta 4.17.3 AST
+- `neutralScalameta` is a released experimental compiler-free Scalameta 4.17.3 AST
   boundary and projection layer. Scalameta trees are source syntax; they are
   not the project's semantic model. Its production Term projection admits
   semantic Int/String/Boolean literals, recursive ordinary binary infix and
@@ -138,13 +138,13 @@ encoded by recursive `TermShape.Infix` structure.
   blocks, one bounded typed local-val P2 block, and one bounded source-owned
   local identity-method P3 block into core `TermShape`. Unsupported and broader
   constructor/binder/statement shapes fail closed.
-- `hybridScalametaFrontend` is an unpublished opt-in typed Term/Type/Definition
+- `hybridScalametaFrontend` is a released opt-in typed Term/Type/Definition
   frontend.
   It reuses project-owned templates, patterns, matching, and Type models where
   applicable. Term construction currently lowers Scalameta ASTs directly in
   the caller's `Quotes` universe; it does not route through the narrower
   neutral `TermShape` projector.
-- `dottyInternal` contains unpublished exact-version `untpd` adapters, the
+- `dottyInternal` contains released experimental exact-version `untpd` adapters, the
   public bounded `ScalametaTermUntypedBridge` and
   `ScalametaTermGeneratedOriginBridge`, the context-free
   `ScalametaTypeUntypedBridge`, the bounded exact-version source-free and
@@ -178,11 +178,10 @@ Term and Type slices. Differential tests remain appropriate whenever both
 routes claim a feature. This is not a lock-step promise that every future
 feature must land in both routes simultaneously. Ordinary released/default
 `qr`/`qq` and `tqr`/`tqq` remain current-Dotty; the Scalameta route remains
-explicit, experimental, and remotely unpublished today. The Scalameta and
-exact-backend modules are normally publishable production projects, so a
-task-owned local repository can stage the selected `0.3.0` candidate artifacts
-without a publishability-enabling property or any change to this semantic
-ownership model.
+explicit and experimental. The Scalameta and exact-backend roles were published
+in the eleven-coordinate 0.3.0 topology and remain normally publishable
+production projects. That publication does not change this semantic ownership
+model or turn the exact backend into a stable raw-tree API.
 
 The additive `quasiquotes.Quasiquotes` and
 `quasiquotes.scalameta.Quasiquotes` objects are direct-export import façades for

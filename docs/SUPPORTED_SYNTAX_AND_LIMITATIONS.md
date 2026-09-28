@@ -27,7 +27,7 @@ construction-only source-owned local identity method. Broader Definition and
 class families may have internal semantic or lowering components without a
 corresponding public constructor or matcher.
 
-The default current-Dotty frontend and the unpublished typed-Scalameta
+The default current-Dotty frontend and the released opt-in typed-Scalameta
 frontend are also separate. They share the project semantic model and must
 agree on their advertised overlap, but only a Scalameta parse failure may
 select current-parser fallback. A Scalameta semantic or lowering failure is
@@ -387,7 +387,7 @@ second or nested P2 local value anywhere in the quasiquote tree, P2/Lambda1
 same-name source shadowing, recursion/self-reference, binder-name hole, or
 broader local method support. A distinct-name Lambda1 may coexist with the single P2
 binder. Same-text external interpolation is not source-binder shadowing and
-retains its caller-owned symbol. The unpublished exact untyped backend also remains
+retains its caller-owned symbol. The released experimental exact untyped backend also remains
 closed to this node; it fails with its existing `Block` boundary rather than
 claiming owner-free raw-tree support.
 
@@ -487,7 +487,7 @@ scope- and owner-sensitive; it is not a detached tree that can safely be moved
 outside its original lambda. Repeated holes compare bound references relative
 to their corresponding ambient scopes and preserve free-symbol identity.
 
-The unpublished exact internal backend lowers this same bounded Lambda1 shape
+The released experimental exact internal backend lowers this same bounded Lambda1 shape
 both source-free and with generated-origin positions. It resolves bound
 references through project binder identity and consumes the completed
 parameter-type sidecar. Nested lambdas and broader lambda/block syntax remain
@@ -627,7 +627,7 @@ Richer public bodies and a source adapter are not implied. The existing located
 definition carrier cannot truthfully describe parameter and parameter-type
 spans for these variants, so it rejects them.
 
-The unpublished exact internal backend supports the single-parameter shape in
+The released experimental exact internal backend supports the single-parameter shape in
 two modes. Source-free lowering constructs one ordinary parameter `ValDef` and
 a `DefDef` directly with no source, meaningful span, symbol, owner, parser, or
 typer claim. Generated-origin lowering renders deterministic ordinary Scala
@@ -654,7 +654,7 @@ same-text references fail with `invalid-two-parameter-method-contract`.
 
 The exact-two public result preserves first/second names and types in source
 order. It remains a projection over the package-private compiler-free model.
-Its unpublished exact internal backend constructs one ordered two-parameter
+Its released experimental exact internal backend constructs one ordered two-parameter
 clause directly in source-free mode and a canonical, recursively positioned
 tree in generated-origin mode. Binder identity, rather than display text,
 selects either declaration; free same-text references remain free. This is an

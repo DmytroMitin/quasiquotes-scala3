@@ -1,7 +1,7 @@
 # Bounded Scalameta Definition bridges
 
-The unpublished `dottyInternal` source candidate exposes two public,
-exact-compiler-version operations for bounded `scala.meta.Defn` input. They are
+The released 0.3.0 `dottyInternal` artifact exposes two public exact-compiler-
+version operations for bounded `scala.meta.Defn` input. They are
 programmatic compiler-plugin seams, not new quasiquote syntax and not a general
 raw-tree toolkit. A consumer must use the same full Scala compiler version and
 provide an active Dotty `Context`.
@@ -80,7 +80,6 @@ bounded methods, broader bodies, generic/bounded aliases, classes, traits,
 objects, and arbitrary statements. The exact admitted Type and Term fragments
 remain those of the underlying project-owned models.
 
-The current source candidate is validated on exact Scala 3.3.8, 3.8.4, and
-3.9.0 lanes. The module remains remotely unpublished; local coordinate use is
-an explicit source-candidate workflow, not a Maven Central compatibility
-promise.
+The released artifact is validated on exact Scala 3.3.8, 3.8.4, and 3.9.0
+lanes. Coordinate availability is an explicit exact-version integration
+workflow, not a broad Maven Central compatibility promise.

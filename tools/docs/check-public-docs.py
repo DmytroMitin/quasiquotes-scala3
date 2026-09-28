@@ -80,7 +80,7 @@ RELATED_PROJECT_URLS = (
 ARCHITECTURE_FACT_MARKERS = (
     "The project owns one compiler-free semantic model.",
     "current-Dotty frontend\nis the released default and the reference oracle",
-    "typed Scalameta route is\nan explicit, unpublished opt-in",
+    "typed Scalameta route is\nan explicit, released opt-in",
     "must agree wherever they\nboth advertise support",
     "only a Scalameta parse failure may fall back",
     "no public symbol-quasiquote family\nis currently planned",

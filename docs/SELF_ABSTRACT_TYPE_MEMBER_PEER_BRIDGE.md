@@ -1,7 +1,7 @@
 # Experimental self abstract-Type-member peer bridge
 
 `quasiquotes.definitions.dotty.SelfAbstractTypeMemberPeerBridge` is a narrow,
-exact-Scala-version entry point in the remotely unpublished `dottyInternal`
+exact-Scala-version entry point in the released 0.3.0 `dottyInternal`
 artifact. It lowers one bounded Scalameta `Decl.Type` family:
 
 ```scala

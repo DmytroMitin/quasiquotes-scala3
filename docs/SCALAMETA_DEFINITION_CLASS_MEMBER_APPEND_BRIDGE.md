@@ -1,7 +1,7 @@
 # Bounded Scalameta Definition class-member append bridge
 
 `ScalametaDefinitionClassMemberAppendBridge` is a public exact-compiler-version
-operation in the remotely unpublished `dottyInternal` module. It composes two
+operation in the released 0.3.0 `dottyInternal` module. It composes two
 existing authorities without replacing either:
 
 ```text

@@ -1,9 +1,8 @@
 # Dotty-internal exact backend
 
-`dottyInternal` is an experimental, remotely unpublished, full-crossed
-production module for exact Scala compiler operations. It is normally
-publishable and locally stageable for the selected Scala 3.3.8/3.8.4/3.9.0
-candidate coordinates without a special property; Maven availability is not
+`dottyInternal` is an experimental, published, full-crossed production module
+for exact Scala compiler operations. Release 0.3.0 provides Scala
+3.3.8/3.8.4/3.9.0 coordinates without a special property; Maven availability is not
 API stability. It follows the project's 0.x compatibility policy and is not a
 generic public `untpd` or `tpd` toolkit. Consumers must align with the module's
 full Scala compiler version and active compiler context.
@@ -359,13 +358,13 @@ later decision.
 There is no production public bridge from arbitrary `scala.meta.Term` to
 `untpd.Tree`: the named public facade admits only the documented direct
 intersection. There is no generic raw-tree family, no placement service, and
-no stable published coordinate for this module today. A future candidate Maven
-coordinate does not widen those API boundaries or stabilize the internal
+no stable raw-tree contract. The published exact-version Maven coordinates do
+not widen those API boundaries or stabilize the internal
 machinery. The public bounded composition admits the accepted
 Int/String/Boolean literal, infix, unary, tuple, conditional, direct
 identifier/selection, one-list ordinary Apply, and transparent P0/binder-free
 P1 families through core `TermShape`.
-Typed Scalameta Term traversal instead belongs to the separate unpublished
+Typed Scalameta Term traversal instead belongs to the separate released opt-in
 `hybridScalametaFrontend` and returns caller-owned `q.reflect.Term`.
 
 The direct-lowerer support is bounded to new source-free D construction from

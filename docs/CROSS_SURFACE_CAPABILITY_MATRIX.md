@@ -31,7 +31,7 @@ The axes are:
 - **Q construct/match** — the default current-Dotty public quasiquote syntax
   and typed-facing surface; a public compiler-free Core constructor is not by
   itself a Q-syntax capability;
-- **typed Scalameta construct/match** — the unpublished opt-in typed frontend;
+- **typed Scalameta construct/match** — the released opt-in typed frontend;
 - **N project** — compiler-free `scala.meta` AST to project semantic values;
 - **N author** — project semantic values to compiler-free `scala.meta` ASTs;
 - **U-D fresh lower** — fresh exact compiler-tree lowering, public only through
@@ -136,7 +136,7 @@ class/Template shells are fresh at their original replacement site.
 | Composition | Current status | Boundary |
 | --- | --- | --- |
 | `TermShape` -> fresh source-free `untpd.Tree` | `BOUNDED` | Public exact-version `TermUntypedLowering`; richer completed/binder-safe semantic route; requires Dotty `Context` |
-| `TermShape` -> generated-origin `untpd.Tree` | `BOUNDED` | `TermGeneratedOriginLowering`; additional decoded-name/constructor/grouping restrictions; seven failures, fresh recursive source identity and spans; implemented in the unpublished development tree |
+| `TermShape` -> generated-origin `untpd.Tree` | `BOUNDED` | `TermGeneratedOriginLowering`; additional decoded-name/constructor/grouping restrictions; seven failures, fresh recursive source identity and spans; released in the 0.3.0 exact-version artifact |
 | `TypeNormalForm` -> fresh source-free raw Type tree | `BOUNDED` | Public exact-version context-free `TypeUntypedLowering` |
 | `SemanticDefinition` -> fresh source-free `untpd.MemberDef` | `BOUNDED` | Public exact-version `DefinitionUntypedLowering`; five reusable Definition families; requires Dotty `Context` |
 | `SemanticDefinition` -> generated-origin `untpd.MemberDef` | `BOUNDED` | `DefinitionGeneratedOriginLowering`; five families including simple aliases, deterministic source and fresh positioned result; caller owns placement and typing |

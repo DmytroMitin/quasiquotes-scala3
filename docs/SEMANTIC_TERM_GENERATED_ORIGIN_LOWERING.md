@@ -1,8 +1,8 @@
 # Semantic Term generated-origin lowering
 
 `quasiquotes.terms.dotty.TermGeneratedOriginLowering` is an implemented public
-facade in the existing exact-version Dotty-internal artifact of the unpublished
-development tree. It takes public `TermShape`
+facade in the released 0.3.0 exact-version Dotty-internal artifact. It takes
+public `TermShape`
 and a caller-provided virtual source name under an active Dotty `Context`.
 It returns `Either[Failure, Lowered]`, with a positioned `untpd.Tree`,
 `generatedSource`, `sourceFile`, and `virtualSourceName` derived from that file.

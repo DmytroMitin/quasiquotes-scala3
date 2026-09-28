@@ -191,6 +191,17 @@ names the concrete APIs, visibility boundaries, and current composition status.
   narrow handler paths use Scalameta source-like authoring plus
   definition-specific Quasiquotes exact lowering bridges.
 
+## Talks and presentations
+
+- **Can Scala 3 Have Macro Annotations Again? Rebuilding Macro Paradise** —
+  London Scala User Group, 9 September 2026:
+  [repository](https://github.com/DmytroMitin/macroparadise-talk-09-2026),
+  [text](https://github.com/DmytroMitin/macroparadise-talk-09-2026/blob/main/draft/draft_v8.md),
+  [slides](https://github.com/DmytroMitin/macroparadise-talk-09-2026/blob/main/macroparadise-talk-09-2026-literal-v8.pdf).
+  The talk connects Macro-Paradise, Quasiquotes, and AUXify and explains the
+  Q/N/U-D/U-U/C representation and ownership boundaries. It is an explanatory
+  resource, not a new Quasiquotes product specification.
+
 ## Modules
 
 - `core` contains compiler-free term/type/definition values, construction,

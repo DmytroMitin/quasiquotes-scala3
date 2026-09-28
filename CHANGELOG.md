@@ -6,6 +6,15 @@ applicable. Dates and release links are added only when a release exists.
 
 ## Unreleased
 
+### Changed
+
+- Active development continues as `0.4.0-SNAPSHOT` after the completed 0.3.0
+  release. No 0.4.0 artifact, tag, or GitHub release exists.
+- Public documentation now links the London Scala User Group presentation and
+  states the post-0.3.0 Q/N/U-D/U-U/C development boundaries explicitly.
+
+## 0.3.0 - 2026-09-07
+
 ### Added
 
 - Apache License 2.0 project, POM, and binary/source/documentation JAR metadata
@@ -22,25 +31,32 @@ applicable. Dates and release links are added only when a release exists.
   boundaries.
 - External-package core and frontend examples and deterministic build-boundary
   checks.
-- An unpublished binary-crossed `neutralScalameta` experiment using Scalameta
+- A binary-crossed `neutralScalameta` experiment using Scalameta
   4.17.3 for direct term/type/definition construction and matching, plus a
   bounded structural contextual-method projection into the existing validated
   IR.
-- An unpublished exact-backend bridge for the admitted contextual method in
+- Exact-version frontend, typed-Scalameta frontend, and Dotty-internal
+  coordinates for Scala 3.3.8, 3.8.4, and 3.9.0, completing the published
+  eleven-coordinate topology.
+- An exact-backend bridge for the admitted contextual method in
   both directions, including generated/no-position reverse matching without
   print/reparse.
+- Public compiler-free Term, Type, and Definition semantic models and bounded
+  projection/authoring and source-free or generated-origin lowering surfaces.
+- The bounded runtime-sequence `tqr` Type-application construction overload.
 
 ### Changed
 
-- `0.2.0` is the immutable Maven Central release. The active source tree
-  declares release version `0.3.0`; remote publication is still pending.
+- `0.2.0` remains an immutable Maven Central release and public compatibility
+  baseline. Version `0.3.0` is also published on Maven Central with an
+  annotated `v0.3.0` tag and matching GitHub release.
 - The build uses sbt 1.12.15 and sbt-pgp 2.3.1 for manual, local-only signed
   staging with fail-closed public developer metadata.
 - Experimental compatibility is documented as early-semver-style 0.x policy:
   breaking changes increment the minor version; patch releases remain
   compatible within that minor line.
-- The exact backend now depends through `neutralScalameta` to `core`; existing
-  released `core` and `frontend` API inventories remain separate and unchanged.
+- The exact backend depends through `neutralScalameta` to `core`; standard and
+  typed-Scalameta API inventories remain separate.
 
 ### Security
 

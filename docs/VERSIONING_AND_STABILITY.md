@@ -10,9 +10,9 @@ The project uses experimental 0.x `early-semver` metadata.
 - Additive overloads, givens, and extensions still require human source-review.
 - All exact-compiler `frontend` artifacts share one library version.
 
-The latest immutable release is `0.2.0`. The current source declares release
-version `0.3.0`; remote publication is still pending. Its statement-based
-block/local-value model changes public API shape and therefore requires a new experimental minor;
+The latest immutable release is `0.3.0`. Active source development is
+`0.4.0-SNAPSHOT`; no 0.4.0 artifact is published. The 0.3.0 statement-based
+block/local-value model changed public API shape as a new experimental minor;
 released `0.2.0` artifacts and their
 [618-row API baseline](api-baselines/0.2.0.tsv) remain unchanged.
 
@@ -22,10 +22,10 @@ source/API-shape evidence, not a binary guarantee. The
 separately records bounded source, JVM-linkage, and TASTy tests against real
 Maven Central `0.2.0` artifacts.
 
-The accepted current source also replaces the public Scala/TASTy declaration
+The released 0.3.0 source also replaces the public Scala/TASTy declaration
 of `dqq` with a same-spelling transparent-inline selector for scalable
 structural specialization. That is a new experimental 0.x-minor-class change
-when released even though a source-hidden bridge preserves the old erased JVM
+even though a source-hidden bridge preserves the old erased JVM
 descriptor on all three required compiler lines. The distinction is explicit:
 JVM linkage evidence does not imply Scala source or TASTy compatibility.
 
@@ -35,16 +35,15 @@ JVM linkage evidence does not imply Scala source or TASTy compatibility.
   across library minor lines.
 - `frontend` is full-crossed by exact Scala compiler version; consumers must
   use the matching compiler-line artifact.
-- `neutralScalameta` is binary-crossed but experimental and unpublished.
+- `neutralScalameta` is binary-crossed, experimental, and published in 0.3.0.
 - `hybridScalametaFrontend` is full-crossed, explicit opt-in, experimental,
-  and unpublished. Ordinary `qr`/`qq` and `tqr`/`tqq` remain current-Dotty.
-- `dottyInternal` is exact-compiler integration source and unpublished.
+  and published in 0.3.0. Ordinary `qr`/`qq` and `tqr`/`tqq` remain current-Dotty.
+- `dottyInternal` is exact-compiler integration source published in 0.3.0.
 - the aggregate and examples are non-published build-only projects.
 
-The first three experimental modules above are normally publishable production
-projects in the candidate `0.3.0` artifact topology for Scala
-3.3.8/3.8.4/3.9.0, but remain remotely unpublished. Candidate Maven
-availability would not create a 1.x-style stability promise; `dottyInternal`
+The three experimental modules above are published production projects in the
+`0.3.0` artifact topology for Scala 3.3.8/3.8.4/3.9.0. Maven availability does
+not create a 1.x-style stability promise; `dottyInternal`
 retains exact-line coupling and only its documented foreign-package bridges are
 intended consumer seams.
 

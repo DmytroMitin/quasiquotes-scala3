@@ -1,7 +1,7 @@
 # Experimental delegated forwarding-method peer bridge
 
 `DelegatedForwardingMethodPeerBridge` is an exact-version entry point in the
-remotely unpublished `dottyInternal` module. It accepts only an already-authored
+released 0.3.0 `dottyInternal` module. It accepts only an already-authored
 Scalameta method with this topology:
 
 ```scala

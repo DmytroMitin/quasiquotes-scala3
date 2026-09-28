@@ -1,7 +1,7 @@
 # Experimental instance-factory peer bridge
 
 `quasiquotes.definitions.dotty.InstanceFactoryPeerBridge` is an exact-Scala-
-version entry point in the remotely unpublished `dottyInternal` artifact. It
+version entry point in the released 0.3.0 `dottyInternal` artifact. It
 accepts one complete Scalameta `Defn.Def` in this bounded semantic family:
 
 ```scala

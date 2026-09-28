@@ -18,24 +18,25 @@ Artifact policy:
   compiler lines must match exactly (for example, a Scala 3.8.4 consumer uses
   `quasiquotes-scala3-frontend_3.8.4`, never a 3.3.8 or 3.9 artifact);
 - `neutralScalameta`: ordinary Scala 3 binary crossing, Scalameta 4.17.3,
-  experimental and unpublished; compatibility is tested on Scala 3.3.8,
+  experimental and published in 0.3.0; compatibility is tested on Scala 3.3.8,
   3.8.4, and 3.9.0 and remains bounded by Scalameta dialect support;
-- `dottyInternal`: full Scala-version crossing, unpublished, with an
+- `hybridScalametaFrontend`: full Scala-version crossing, released as an
+  explicit experimental opt-in in 0.3.0;
+- `dottyInternal`: full Scala-version crossing, published in 0.3.0, with an
   experimental family of definition-specific peer bridges whose
   compiler-internal output requires an exact producer/consumer compiler match;
 - aggregate root and example modules: unpublished.
 
-The candidate expanded `0.3.0` release set adds the binary-crossed neutral
+The published expanded `0.3.0` release set contains the binary-crossed neutral
 artifact plus 3.3.8/3.8.4/3.9.0 full-crossed frontend, Scalameta-frontend, and
-exact-backend artifacts under an explicit release-mode opt-in. The two
+exact-backend artifacts. The two
 binary-cross artifacts are built with the oldest supported line, Scala 3.3.8,
-so all three advertised compilers can consume the same `_3` bytes. This
-candidate topology does not describe a completed remote release or turn the
-exact backend into a stable raw-tree API.
+so all three advertised compilers can consume the same `_3` bytes. Publication
+does not turn the exact backend into a stable raw-tree API.
 
-Version `0.2.0` and group `com.github.dmytromitin` identify the immutable
-released Maven Central coordinates. The current working tree declares release
-version `0.3.0`; remote publication is still pending. The selected experimental
+Versions `0.2.0` and `0.3.0` under group `com.github.dmytromitin` identify
+immutable released Maven Central coordinates. The active development tree is
+`0.4.0-SNAPSHOT`; no 0.4.0 artifact is published. The selected experimental
 0.x policy requires breaking changes to increment the minor version and expects
 patch compatibility within one minor line; see
 [Versioning and stability](VERSIONING_AND_STABILITY.md).

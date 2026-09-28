@@ -1,10 +1,11 @@
 # Experimental release process
 
-This is a manual-first, fail-closed process. The `0.2.0` set below is already
-immutable on Maven Central. The `0.3.0` set is a candidate topology only: the
-source tree declares release version `0.3.0`, and this document does not
-authorize a remote upload, tag, or GitHub release. An ordinary branch push never
-publishes artifacts.
+This is a manual-first, fail-closed process. The `0.2.0` and eleven-coordinate
+`0.3.0` sets below are immutable on Maven Central; `v0.3.0` and its matching
+GitHub release identify the published source. Active development is
+`0.4.0-SNAPSHOT`. This document records the exact 0.3.0 release procedure but
+does not authorize another remote upload, tag, or GitHub release. An ordinary
+branch push never publishes artifacts.
 
 ## Released immutable 0.2.0 artifact set
 
@@ -18,9 +19,9 @@ modules were not part of `0.2.0`. The release checker retains this exact
 historical contract as release set `0.2.0`; it must not be reconstructed by
 scanning arbitrary staged content.
 
-## Candidate 0.3.0 artifact set
+## Released immutable 0.3.0 artifact set
 
-The separately authorized future release candidate contains exactly eleven
+The separately authorized and completed release contains exactly eleven
 coordinates:
 
 ```text
@@ -88,11 +89,12 @@ for a structural rehearsal; they must never be treated as release identity.
 
 ## Local signed 0.3.0 rehearsal
 
-The committed release version is `0.3.0`. Each rehearsal sbt session retains
-the disposable session setting `set ThisBuild / version := "0.3.0"` as a
-consistency assertion; because it is a `ThisBuild` setting, all project POM
-identities and inter-project dependency versions remain aligned. Nothing is
-written back to `build.sbt`.
+The release commit used version `0.3.0`; active development now uses
+`0.4.0-SNAPSHOT`. Each historical or repeat verification rehearsal retains the
+disposable session setting `set ThisBuild / version := "0.3.0"` as a consistency
+assertion; because it is a `ThisBuild` setting, all project POM identities and
+inter-project dependency versions remain aligned. Nothing is written back to
+`build.sbt`.
 
 The build pins sbt-pgp and directs `publishSigned` to the Maven-style local
 repository under `target/sona-staging`. Start from an empty staging directory,
@@ -128,7 +130,7 @@ Do not stage `core` or `neutralScalameta` in the second or third session: their
 binary-cross coordinates would be duplicates, and rebuilding the same `_3`
 coordinate with newer TASTy would violate the compatibility baseline.
 
-Validate the candidate result with the explicit checker profile:
+Validate a reconstructed 0.3.0 rehearsal with the explicit checker profile:
 
 ```text
 python3 tools/release/check-release-repository.py PROJECT STAGING \
@@ -145,9 +147,10 @@ MD5/SHA-1 sidecars for deployables and signatures; POM/developer/license/SCM
 metadata; matching JAR licenses; and absence of local paths, unexpected
 versions, root/examples, and RC coordinates.
 
-## Candidate validation and external consumers
+## 0.3.0 release validation and external consumers
 
-Before any remote-release decision:
+The completed 0.3.0 transaction satisfied these gates. Apply the same classes
+of checks to any separately authorized later release:
 
 1. Freeze an exact clean source commit and supported JDK/sbt/Scala matrix.
 2. Run full aggregate/module tests on required Scala 3.3.8, 3.8.4, and final

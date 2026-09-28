@@ -1,6 +1,6 @@
 # Neutral Scalameta experiment
 
-The `neutralScalameta` sbt project is an unpublished, compiler-free source-AST
+The `neutralScalameta` sbt project is a released experimental, compiler-free source-AST
 experiment. It depends on `core` and `org.scalameta:scalameta_3:4.17.3`, uses
 ordinary Scala 3 binary crossing, and is aggregated by the root build. It has no
 Scala compiler implementation, `scala3-staging`, or SemanticDB dependency.
@@ -221,7 +221,7 @@ start/end offsets as `NeutralSourceSpan`. Explicitly constructed trees with
 
 ## Exact backend boundary
 
-The unpublished `dottyInternal` module depends on `neutralScalameta` and owns
+The released exact-version `dottyInternal` module depends on `neutralScalameta` and owns
 the exact bridges. For the production Term route, the accepted non-binder
 literal/infix/unary/tuple/conditional/Identifier/Select/one-list Apply family,
 plus transparent P0 and binder-free P1 blocks, is consumed by package-private

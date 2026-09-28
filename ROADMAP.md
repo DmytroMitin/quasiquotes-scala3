@@ -15,8 +15,8 @@ delivery chronology.
 - Preserve the representation boundary: public `Expr` and
   `quotes.reflect.Term` APIs are distinct from exact `tpd`/`untpd` internals,
   while Scalameta and the compiler-free core form a separate neutral axis.
-  `dottyInternal` remains an unpublished exact backend, not a generic raw-tree
-  toolkit.
+  `dottyInternal` remains an experimental exact-version backend, not a generic
+  raw-tree toolkit; its documented 0.3.0 coordinates are published.
 - Keep the canonical current representation/conversion contract in
   `docs/SEMANTIC_MODELS_AND_CONVERSIONS.md`: Q is Quotes-aware typed frontend
   work, N is compiler-free/Scalameta interoperability, U-D is exact fresh
@@ -59,12 +59,13 @@ delivery chronology.
 - Preserve one semantic architecture: source frontends project into the
   project-owned compiler-free model in `core`, followed by backend-specific
   lowering or reflected matching. Keep current-Dotty as the released/default
-  reference route and Scalameta as explicit unpublished opt-in routes.
+  reference route and Scalameta as explicit released opt-in routes.
 - Keep `core` compiler-free and independently consumable.
 - Keep `frontend` compiler-version-coupled and test source parsing, matching,
   construction, diagnostics, and quoted lowering together.
-- Keep the binary-crossed `neutralScalameta` experiment unpublished and
-  isolated from compiler implementation, staging, and SemanticDB dependencies.
+- Keep the binary-crossed `neutralScalameta` experiment explicit and isolated
+  from compiler implementation, staging, and SemanticDB dependencies. Its
+  0.3.0 coordinate is published, but the API remains experimental.
   Use direct Scalameta authoring until a genuinely reusable façade can delegate
   upstream macros without forwarding or duplicating them.
 - Preserve bounded neutral reverse authoring through
@@ -81,13 +82,15 @@ delivery chronology.
   Scalameta Definition Projection/Authoring pair and the public source-free
   Term/Type/Definition semantic lowering facades. A public exact-U algebra
   remains separately planned rather than current.
-- Keep the compiler-coupled `hybridScalametaFrontend` experiment unpublished
-  and side by side with the current engine. Its admitted typed Term, Type, and
+- Keep the compiler-coupled `hybridScalametaFrontend` experiment released only
+  as an explicit opt-in and side by side with the current engine. Its admitted
+  typed Term, Type, and
   bounded Definition slices expand only through differential tests,
   exact-compiler validation, original reflected-hole/capture identity, and
   compiler-line dialect selection; do not switch the public default without a
   separate compatibility decision.
-- Keep `dottyInternal` source visible but its artifact unpublished. Preserve the
+- Keep `dottyInternal` source visible and its published exact-version artifact
+  explicitly experimental. Preserve the
   category-specific public exact-version `ScalametaTermUntypedBridge` for its
   documented direct non-binder and P0/P1 intersection, and the context-free
   sibling `ScalametaTypeUntypedBridge` for the recursive primitive,
@@ -140,7 +143,7 @@ delivery chronology.
   unique accessible `Select.unique` lowering, unchanged fixed-name matching,
   and Scalameta opt-in parity on the overlapping construction slice.
 - Preserve the bounded compiler-free one-ordinary-parameter definition core,
-  core-only public identity-method first use, and unpublished exact backend
+  core-only public identity-method first use, and experimental exact backend
   without implying a general source adapter or placement policy.
 - Preserve the accepted same-spelling current-Dotty Definition pattern
   direction: static exact-one `dqq` retains
@@ -212,7 +215,7 @@ are different source categories.
 
 ### Typed Scalameta Definitions
 
-Typed Scalameta `dqr`/`dqq` are implemented in the unpublished opt-in hybrid
+Typed Scalameta `dqr`/`dqq` are implemented in the released opt-in hybrid
 frontend for the exact current-Dotty one-ordinary-parameter and exact-two
 identity-Definition overlap. Construction delegates to the corresponding typed
 owner/binder lowerer. Matching uses `SingleParameterDefinitionPattern` for
@@ -353,6 +356,27 @@ semantic design.
 - Reconsider whether a private security-reporting channel is warranted as the
   project and its support commitments evolve; none is currently promised.
 
+## Post-0.3.0 development priorities
+
+The eleven-coordinate 0.3.0 release is published and verified. Active source
+development is `0.4.0-SNAPSHOT`. Resumed work continues the already documented
+architecture rather than inventing a new one:
+
+- **Q** broadens the Quotes-aware typed frontend within explicit supported
+  shapes;
+- **N** broadens compiler-free Term/Type/Definition semantics and Scalameta
+  projection/authoring;
+- **U-D** broadens fresh exact lowering coverage;
+- **U-U** continues bounded existing-tree capture, preservation, rewrite, and
+  reconstruction work;
+- **C** owns cross-layer integration and public API policy.
+
+Public existing-tree transformation is post-0.3.0 future work. Reopening
+development makes it eligible for controller selection; it does not implement
+it or automatically select a successor. Public `n*`, `u*`, or `c*` syntax is
+not implied. Optional neutral or exact-untyped syntax remains a later surface
+decision only if the programmatic architecture proves sound.
+
 ## Before a later artifact release
 
 - Select the next version from reviewed API and compatibility evidence and
@@ -361,19 +385,20 @@ semantic design.
 - Complete real-key signing, provenance, POM, source/Javadoc, and
   reproducibility checks.
 - Validate clean coordinate-only consumers on every promised Scala/JDK lane.
-- Publish only separately approved coordinates; keep the
-  forward-probe frontend, aggregate root, examples, `neutralScalameta`,
-  `hybridScalametaFrontend`, and `dottyInternal` unpublished.
+- Publish only separately approved coordinates. Keep the forward-probe
+  frontend, aggregate root, and examples unpublished; do not infer any future
+  coordinate set merely because the five 0.3.0 production roles were released.
 
 Later releases remain separate decisions. Development continues through
 bounded language, usability, compatibility, and backend improvements without
 assuming publication.
 
-The intended `0.3.0` feature boundary includes semantic Term generated origin
-and the bounded standard typed runtime-sequence Type application. Public
-existing-tree transformation remains post-`0.3.0` work. The source version is
-`0.3.0`; a release-version commit or release-shaped local artifacts do not
-establish a remote `0.3.0` publication.
+The released `0.3.0` feature boundary includes semantic Term generated origin
+and the bounded standard typed runtime-sequence Type application. Its eleven
+coordinates, annotated tag, and GitHub release are public and verified. Public
+existing-tree transformation remains post-`0.3.0` work. The active source
+version is `0.4.0-SNAPSHOT`; that development version does not authorize or
+imply any new artifact publication, tag, or GitHub release.
 
 ## Semantic Term generated-origin lowering
 
@@ -381,7 +406,6 @@ The implemented public `TermGeneratedOriginLowering` completes the current
 semantic lowering sibling direction with a deliberately smaller source-name/
 grouping bound than source-free Term lowering. Its public result retains fresh
 positioned syntax, deterministic source and SourceFile provenance. Existing
-Scalameta bridges remain separate. An exact release-readiness freeze and
-publication authorization remain separate requirements; no version change,
-release authorization, standalone Type origin facade or public existing-tree
-transaction is implied.
+Scalameta bridges remain separate. The 0.3.0 release is complete; no later
+release authorization, standalone Type origin facade, or public existing-tree
+transaction is implied by this implemented surface.

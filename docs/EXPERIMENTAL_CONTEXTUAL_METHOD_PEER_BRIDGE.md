@@ -6,7 +6,7 @@ The separate bounded TypeDef operation has its own
 [self abstract-Type-member bridge page](SELF_ABSTRACT_TYPE_MEMBER_PEER_BRIDGE.md).
 
 `quasiquotes.definitions.dotty.ContextualMethodPeerBridge` is a
-public-for-JVM-access entry point in the remotely unpublished `dottyInternal`
+public-for-JVM-access entry point in the released 0.3.0 `dottyInternal`
 artifact. It exists for tightly coupled peer integrations such as a
 Macro-Paradise-loaded AUXify handler that cannot truthfully claim a
 `quasiquotes.*` friend package.
@@ -46,9 +46,9 @@ use the same full Scala compiler version as the artifact; the foreign-package
 product fixture has been verified on Scala 3.3.8, 3.8.4, and final 3.9.0, while
 the disposable live AUXify build proof is specifically Scala 3.8.4.
 `dottyInternal` is a normally publishable production project, so its selected
-3.3.8, 3.8.4, and 3.9.0 candidate coordinates need no special property for
-task-owned local staging. No remote coordinate containing this bridge exists
-unless a later release gate explicitly authorizes one.
+3.3.8, 3.8.4, and 3.9.0 published coordinates need no special property for
+task-owned local staging. No later remote coordinate is authorized merely by
+the existence of the 0.3.0 release.
 
 The 037 admission does not include arbitrary Type-parameter arity, bounds,
 applications, refinements, stable paths, bodies, clauses, modifiers, or other

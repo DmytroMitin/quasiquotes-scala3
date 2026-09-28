@@ -9,11 +9,10 @@ For the distinct compile-time macro, runtime `staging.withQuotes`, runtime
 [Execution environments and AST representations](EXECUTION_ENVIRONMENTS_AND_AST_REPRESENTATIONS.md).
 
 The declarations below use the latest immutable Maven Central release,
-`0.2.0`. The current source tree declares release version `0.3.0`, whose
-publication is still pending; use it only through an intentional local build
-or `publishLocal` workflow.
+`0.3.0`. Active source development is `0.4.0-SNAPSHOT`; use that development
+version only through an intentional local build or `publishLocal` workflow.
 
-The unpublished exact-version source tree also exposes bounded public
+The released exact-version `dottyInternal` artifacts expose bounded public
 Scalameta Term, Type, and Definition lowering facades from `dottyInternal`.
 Definition consumers can choose a recursively source-free five-family result
 or a positioned generated-origin four-family val/def result. These APIs require
@@ -24,7 +23,7 @@ the [Scalameta Definition bridge guide](SCALAMETA_DEFINITION_BRIDGES.md).
 
 ```scala
 libraryDependencies +=
-  "com.github.dmytromitin" %% "quasiquotes-scala3-core" % "0.2.0"
+  "com.github.dmytromitin" %% "quasiquotes-scala3-core" % "0.3.0"
 ```
 
 The core first-use path needs only `quasiquotes.publicapi.*`. It does not put
@@ -144,7 +143,7 @@ exactly match the compiler used by the consumer build:
 libraryDependencies +=
   "com.github.dmytromitin" %
     s"quasiquotes-scala3-frontend_${scalaVersion.value}" %
-    "0.2.0"
+    "0.3.0"
 ```
 
 The following fixture is compiled from outside all `quasiquotes.*` packages.
