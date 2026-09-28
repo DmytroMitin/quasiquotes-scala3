@@ -83,14 +83,12 @@ object QuasiTypequotes:
         additionalArgumentSequences: Seq[q.reflect.TypeRepr]*
     ): q.reflect.TypeRepr =
       val parts = checkedParts(sc, "Invalid tqr type template:")
-      val validated = for
-        _ <- TypeSequenceSource.validate(parts, additionalArgumentSequences == null || additionalArgumentSequences.nonEmpty)
-        result <- ReflectedTypeApplication.build(using q)(constructor, arguments)
-      yield result
-      validated.fold(
-        detail => q.reflect.report.errorAndAbort(s"Invalid tqr type template: $detail"),
-        identity
-      )
+      RuntimeTypeApplication
+        .build(using q)(parts, constructor, arguments, additionalArgumentSequences*)
+        .fold(
+          detail => q.reflect.report.errorAndAbort(s"Invalid tqr type template: $detail"),
+          identity
+        )
 
     def tqq(using q: Quotes): TypePatternExtractor[q.reflect.TypeRepr] =
       import q.reflect.*
