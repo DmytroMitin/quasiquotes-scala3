@@ -18,63 +18,79 @@ object QuasiquoteBuilder:
       arguments: Seq[q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName |
         TermSequenceSplice[q.reflect.Term]]
   ): Either[QuasiquoteBuildFailure, q.reflect.Term] =
-    val holes: Seq[QuasiquoteHole[q.reflect.Term, q.reflect.TypeRepr]] = arguments.map {
-      case sequence: TermSequenceSplice[?] =>
-        QuasiquoteHole.TermSequence(
-          sequence.terms.asInstanceOf[Vector[q.reflect.Term]]
-        )
-      case splice: QuasiTypeSplice => QuasiquoteHole.ConstructedTypeSplice(splice.constructedType)
-      case name: SelectedMemberName => QuasiquoteHole.SelectedMemberNameSplice(name)
-      case reflectedType: Types.Type =>
-        QuasiquoteHole.ReflectedTypeSplice(
-          reflectedType.asInstanceOf[q.reflect.TypeRepr]
-        )
-      case term => QuasiquoteHole.Term(term.asInstanceOf[q.reflect.Term])
+    val nullSequenceElement = arguments.iterator.zipWithIndex.collectFirst {
+      case (sequence: TermSequenceSplice[?], argumentIndex)
+          if sequence.terms.indexWhere(_ == null) >= 0 =>
+        (argumentIndex, sequence.terms.indexWhere(_ == null))
     }
-    PlaceholderSource.synthesizeCategorized(parts, holes) match
-      case Left(error) =>
-        Left(QuasiquoteBuildFailure(error, None))
-      case Right(synthesized) =>
-        if synthesized.source.contains("s\"\"\"") then
-          Left(
-            QuasiquoteBuildFailure(
-              QuasiquoteError.UnsupportedTree(
-                "InterpolatedString",
-                "Triple-quoted interpolation is outside the bounded s tranche"
-              ),
-              None
-            )
+    nullSequenceElement match
+      case Some((argumentIndex, elementIndex)) =>
+        Left(
+          QuasiquoteBuildFailure(
+            QuasiquoteError.UnsupportedApplication(
+              s"Sequence-Term splice argument $argumentIndex contains a null Term at element $elementIndex."
+            ),
+            None
           )
-        else TinyTermParser.parse(synthesized.source) match
-          case Left(parseError) =>
-            val location = DiagnosticLocationMapper.fromParseError(parseError, synthesized.originMap)
-            Left(QuasiquoteBuildFailure(QuasiquoteError.ParseFailure(parseError), location))
-          case Right(parsed @ ParsedUnsupportedLambda(unsupported)) =>
-            Left(
-              QuasiquoteBuildFailure(
-                QuasiquoteError.UnsupportedTree(unsupported.nodeKind, unsupported.detail),
-                DottySourceSpanAdapter.fromTree(parsed.rawTree).flatMap(
-                  DiagnosticLocation.fromGeneratedMap(
-                    synthesized.originMap,
-                    _,
-                    DiagnosticPrecision.ExactOccurrence
-                  )
+        )
+      case None =>
+        val holes: Seq[QuasiquoteHole[q.reflect.Term, q.reflect.TypeRepr]] = arguments.map {
+          case sequence: TermSequenceSplice[?] =>
+            QuasiquoteHole.TermSequence(
+              sequence.terms.asInstanceOf[Vector[q.reflect.Term]]
+            )
+          case splice: QuasiTypeSplice => QuasiquoteHole.ConstructedTypeSplice(splice.constructedType)
+          case name: SelectedMemberName => QuasiquoteHole.SelectedMemberNameSplice(name)
+          case reflectedType: Types.Type =>
+            QuasiquoteHole.ReflectedTypeSplice(
+              reflectedType.asInstanceOf[q.reflect.TypeRepr]
+            )
+          case term => QuasiquoteHole.Term(term.asInstanceOf[q.reflect.Term])
+        }
+        PlaceholderSource.synthesizeCategorized(parts, holes) match
+          case Left(error) =>
+            Left(QuasiquoteBuildFailure(error, None))
+          case Right(synthesized) =>
+            if synthesized.source.contains("s\"\"\"") then
+              Left(
+                QuasiquoteBuildFailure(
+                  QuasiquoteError.UnsupportedTree(
+                    "InterpolatedString",
+                    "Triple-quoted interpolation is outside the bounded s tranche"
+                  ),
+                  None
                 )
               )
-            )
-          case Right(parsed) =>
-            ParsedTermLowerer
-              .lowerLocated(parsed.rawTree, synthesized.bindings, synthesized.literalCategorizedNames)
-              .left.map { failure =>
-                val location = failure.generatedSpan.flatMap(
-                  DiagnosticLocation.fromGeneratedMap(
-                    synthesized.originMap,
-                    _,
-                    DiagnosticPrecision.ExactOccurrence
+            else TinyTermParser.parse(synthesized.source) match
+              case Left(parseError) =>
+                val location = DiagnosticLocationMapper.fromParseError(parseError, synthesized.originMap)
+                Left(QuasiquoteBuildFailure(QuasiquoteError.ParseFailure(parseError), location))
+              case Right(parsed @ ParsedUnsupportedLambda(unsupported)) =>
+                Left(
+                  QuasiquoteBuildFailure(
+                    QuasiquoteError.UnsupportedTree(unsupported.nodeKind, unsupported.detail),
+                    DottySourceSpanAdapter.fromTree(parsed.rawTree).flatMap(
+                      DiagnosticLocation.fromGeneratedMap(
+                        synthesized.originMap,
+                        _,
+                        DiagnosticPrecision.ExactOccurrence
+                      )
+                    )
                   )
                 )
-                QuasiquoteBuildFailure(failure.error, location)
-              }
+              case Right(parsed) =>
+                ParsedTermLowerer
+                  .lowerLocated(parsed.rawTree, synthesized.bindings, synthesized.literalCategorizedNames)
+                  .left.map { failure =>
+                    val location = failure.generatedSpan.flatMap(
+                      DiagnosticLocation.fromGeneratedMap(
+                        synthesized.originMap,
+                        _,
+                        DiagnosticPrecision.ExactOccurrence
+                      )
+                    )
+                    QuasiquoteBuildFailure(failure.error, location)
+                  }
 
   private object ParsedUnsupportedLambda:
     def unapply(parsed: ParsedExpression): Option[TermShape.Unsupported] =

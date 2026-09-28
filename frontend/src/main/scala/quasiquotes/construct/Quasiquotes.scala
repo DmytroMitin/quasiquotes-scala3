@@ -17,9 +17,7 @@ object Quasiquotes:
         args: (q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName |
           TermSequenceSplice[q.reflect.Term])*
     ): q.reflect.Term =
-      QuasiquoteBuilder.buildLocated(sc.parts, args) match
-        case Right(term) => term
-        case Left(failure) => QuasiquoteDiagnosticReporter.abort(failure, args)
+      TermSequenceQuasiquote.buildOrAbort(sc.parts, args)
 
     def dqr(using q: Quotes)(args: q.reflect.TypeRepr*): q.reflect.DefDef =
       PublicDefinitionQuasiquote.build(sc, args)

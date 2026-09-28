@@ -1,8 +1,14 @@
 package quasiquotes.scalameta
 
 import scala.quoted.Quotes
+import scala.annotation.targetName
 
-import quasiquotes.construct.{QuasiTypeSplice, SelectedMemberName}
+import quasiquotes.construct.{
+  QuasiTypeSplice,
+  SelectedMemberName,
+  TermSequenceQuasiquote,
+  TermSequenceSplice
+}
 import quasiquotes.definitions.hybrid.ScalametaDefinitionFrontend
 import quasiquotes.types.RuntimeTypeApplication
 
@@ -17,6 +23,16 @@ object ScalametaQuasiquotes:
       TermFrontend.build(context.parts, arguments) match
         case Right(result) => result.term
         case Left(failure) => q.reflect.report.errorAndAbort(failure.message)
+
+    /** Direct reflected parity with the standard sequence-Term `qr` route.
+      * Scalar opt-in construction remains Scalameta-primary.
+      */
+    @targetName("qrWithTermSequence")
+    def qr(using q: Quotes)(
+        arguments: (q.reflect.Term | q.reflect.TypeRepr | QuasiTypeSplice | SelectedMemberName |
+          TermSequenceSplice[q.reflect.Term])*
+    ): q.reflect.Term =
+      TermSequenceQuasiquote.buildOrAbort(context.parts, arguments)
 
     def tqr(using q: Quotes)(arguments: q.reflect.TypeRepr*): q.reflect.TypeRepr =
       TypeFrontend.build(context.parts, arguments) match
