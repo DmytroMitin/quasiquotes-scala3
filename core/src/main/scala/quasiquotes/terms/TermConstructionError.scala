@@ -59,6 +59,37 @@ private[quasiquotes] object TermConstructionError:
     def message: String =
       s"Term hole `$name` must occupy a complete identifier term position."
 
+  final case class InvalidRepeatedTermHolePosition(name: String)
+      extends TermConstructionError:
+    def message: String =
+      "Repeated term hole " + name + " must occupy one direct Apply or New argument position."
+
+  final case class DuplicateRepeatedTermHole() extends TermConstructionError:
+    def message: String =
+      "A term template may contain exactly one repeated term-hole occurrence."
+
+  final case class RepeatedTermHoleCategoryConflict(name: String)
+      extends TermConstructionError:
+    def message: String =
+      "Term-hole name " + name + " is reused across scalar and repeated categories."
+
+  final case class MissingRepeatedTermBinding(name: String)
+      extends TermConstructionError:
+    def message: String = "Missing repeated term binding " + name + "."
+
+  final case class ExtraRepeatedTermBinding(name: String)
+      extends TermConstructionError:
+    def message: String = "Extra repeated term binding " + name + "."
+
+  final case class InvalidRepeatedTermBinding(name: String, detail: String)
+      extends TermConstructionError:
+    def message: String = "Invalid repeated term binding " + name + ": " + detail
+
+  final case class RepeatedTermScopeUnsupported(name: String)
+      extends TermConstructionError:
+    def message: String =
+      "Repeated term hole " + name + " is unsupported beneath a term binder."
+
   final case class TypedSidecarCountMismatch(expected: Int, actual: Int)
       extends TermConstructionError:
     def message: String =

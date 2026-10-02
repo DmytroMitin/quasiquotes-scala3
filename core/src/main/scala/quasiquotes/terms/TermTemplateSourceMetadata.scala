@@ -105,6 +105,13 @@ private[quasiquotes] object LocatedTermTemplate:
       expectedTypeRole: HoleRole = HoleRole.TypeTemplate
   ): Either[TermConstructionError, LocatedTermTemplate] =
     for
+      _ <- Either.cond(
+        template.repeatedTermHoleOccurrences.isEmpty,
+        (),
+        TermConstructionError.InvalidLocatedTemplateMetadata(
+          "located scalar term templates do not support repeated-term metadata"
+        )
+      )
       _ <- validateCoverage(sourceMap)
       _ <- validateTermOccurrences(
         template,
