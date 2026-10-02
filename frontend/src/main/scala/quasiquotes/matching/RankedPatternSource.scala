@@ -86,7 +86,7 @@ private[quasiquotes] object RankedPatternSource:
       identity
     )
 
-  private def validateSequencePosition(
+  private[matching] def validateSequencePosition(
       pattern: TermPattern,
       sequenceName: String
   ): Either[String, Unit] =

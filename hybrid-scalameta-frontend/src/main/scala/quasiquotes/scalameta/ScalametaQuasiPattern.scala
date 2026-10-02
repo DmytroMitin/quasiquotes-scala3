@@ -1,7 +1,7 @@
 package quasiquotes.scalameta
 
 import scala.annotation.targetName
-import scala.quoted.Quotes
+import scala.quoted.{Expr, Quotes}
 
 import quasiquotes.matching.{
   DefinitionModifiers,
@@ -12,6 +12,7 @@ import quasiquotes.matching.{
   TermMatcher
 }
 import quasiquotes.definitions.hybrid.ScalametaDefinitionFrontend
+import quasiquotes.matching.ScalametaQuasiPatternMacro
 
 /** Bounded extractor for ordered captures from the opt-in pattern frontend. */
 final class ScalametaTermPatternExtractor[T] private[scalameta] (
@@ -27,8 +28,15 @@ final class ScalametaTypePatternExtractor[T] private[scalameta] (
 
 /** Explicit opt-in matching syntax backed by the Scalameta-primary compiler. */
 object ScalametaQuasiPattern:
-  extension (context: StringContext)
-    def qq(using q: Quotes): ScalametaTermPatternExtractor[q.reflect.Term] =
+  private def qqExtractor(
+      context: Expr[StringContext],
+      callerQuotes: Expr[Quotes]
+  )(using Quotes): Expr[Any] =
+    ScalametaQuasiPatternMacro.extractor(context, callerQuotes)
+
+  private[quasiquotes] def scalarExtractor(
+      context: StringContext
+  )(using q: Quotes): ScalametaTermPatternExtractor[q.reflect.Term] =
       import q.reflect.*
 
       val captureCount = context.parts.size - 1
@@ -62,6 +70,20 @@ object ScalametaQuasiPattern:
                 }
           )
 
+  /** JVM-linkage bridge for scalar callers compiled against the pre-Q050
+    * extension method. New source calls use the transparent inline selector.
+    */
+  @targetName("qq")
+  private[scalameta] def qqLegacy(
+      context: StringContext
+  )(using q: Quotes): ScalametaTermPatternExtractor[q.reflect.Term] =
+    scalarExtractor(context)
+
+  extension (inline context: StringContext)
+    transparent inline def qq(using q: Quotes) =
+      ${ qqExtractor('context, 'q) }
+
+  extension (context: StringContext)
     def tqq(using q: Quotes): ScalametaTypePatternExtractor[q.reflect.TypeRepr] =
       import q.reflect.*
 
