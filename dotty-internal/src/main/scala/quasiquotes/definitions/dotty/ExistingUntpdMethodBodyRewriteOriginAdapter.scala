@@ -71,6 +71,120 @@ private[quasiquotes] object ExistingUntpdMethodBodyRewriteOriginAdapter:
       )
       .flatMap(value => reconstructSafely(positionSelectedApply(value)))
 
+  /** Validates and positions only one accepted replacement fragment at an old
+    * RHS transformation site. No method or owner shell is allocated.
+    */
+  private[dotty] def prepareReplacement(
+      replacement: untpd.Tree,
+      oldRhs: untpd.Tree,
+      family: ExistingUntpdSingleParameterMethodRhsRewriter.ReplacementFamily
+  )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, untpd.Tree] =
+    for
+      presentReplacement <- Option(replacement).filterNot(_.isEmpty).toRight(
+        error("REPLACEMENT_BODY_REQUIRED", "the replacement fragment was null or EmptyTree.")
+      )
+      presentOldRhs <- Option(oldRhs).filterNot(_.isEmpty).toRight(
+        error("ORIGINAL_SITE_REQUIRED", "the old RHS transformation site was null or EmptyTree.")
+      )
+      _ <- Either.cond(
+        !ExistingUntpdMethodBodyRewriter.rawTreeGraphHasNull(presentReplacement),
+        (),
+        error("ORIGIN_ADAPTATION_FAILED", "the replacement fragment contained a null tree, child, or child sequence.")
+      )
+      replacementNodes = allTrees(presentReplacement)
+      _ <- Either.cond(
+        replacementNodes.forall(tree =>
+          !tree.source.exists && !tree.span.exists && tree.symbol == NoSymbol &&
+            !tree.isInstanceOf[untpd.TypedSplice]
+        ),
+        (),
+        error("SOURCE_FREE_INTERMEDIATE_REQUIRED", "the complete replacement fragment must remain source/span/symbol-free and contain no TypedSplice.")
+      )
+      _ <- Either.cond(
+        Option(presentOldRhs.source).exists(_.exists) && presentOldRhs.span.exists,
+        (),
+        error("ORIGINAL_SITE_REQUIRED", "the old RHS transformation site must provide source and span.")
+      )
+      positioned <- family match
+        case ExistingUntpdSingleParameterMethodRhsRewriter.ReplacementFamily.SingleNode =>
+          Either.cond(
+            replacementNodes.size == 1,
+            presentReplacement.cloneIn(presentOldRhs.source).withSpan(presentOldRhs.span),
+            error("REPLACEMENT_CHILDREN_UNSUPPORTED", "the single-node family cannot contain child trees.")
+          )
+        case ExistingUntpdSingleParameterMethodRhsRewriter.ReplacementFamily.DirectIdentApply =>
+          positionPreparedApply(presentReplacement, presentOldRhs)
+        case ExistingUntpdSingleParameterMethodRhsRewriter.ReplacementFamily.DirectIdentQualifiedSelectedApply =>
+          positionPreparedSelectedApply(presentReplacement, presentOldRhs)
+      positionedNodes = allTrees(positioned)
+      _ <- Either.cond(
+        replacementNodes.size == positionedNodes.size &&
+          replacementNodes.zip(positionedNodes).forall((before, after) => !before.eq(after)) &&
+          positionedNodes.forall(tree =>
+            tree.source == presentOldRhs.source &&
+              tree.span == presentOldRhs.span &&
+              tree.symbol == NoSymbol &&
+              !tree.isInstanceOf[untpd.TypedSplice]
+          ),
+        (),
+        error("ORIGIN_ADAPTATION_INVARIANT_FAILED", "the positioned replacement fragment violated freshness or uniform old-RHS attribution.")
+      )
+    yield positioned
+
+  private def positionPreparedApply(
+      replacement: untpd.Tree,
+      oldRhs: untpd.Tree
+  )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, untpd.Tree] =
+    replacement match
+      case apply: untpd.Apply =>
+        apply.fun match
+          case function: untpd.Ident =>
+            validatePreparedArguments(apply.args, "APPLY").map { arguments =>
+              val positionedFunction = function.cloneIn(oldRhs.source).withSpan(oldRhs.span)
+              val positionedArguments = arguments.map(_.cloneIn(oldRhs.source).withSpan(oldRhs.span))
+              untpd.Apply(positionedFunction, positionedArguments)
+                .cloneIn(oldRhs.source).withSpan(oldRhs.span)
+            }
+          case other => Left(error("APPLY_FUNCTION_IDENT_REQUIRED", s"the direct Apply function was ${nodeKind(other)}."))
+      case other => Left(error("APPLY_REPLACEMENT_REQUIRED", s"the direct Apply replacement was ${nodeKind(other)}."))
+
+  private def positionPreparedSelectedApply(
+      replacement: untpd.Tree,
+      oldRhs: untpd.Tree
+  )(using Context): Either[ExistingUntpdMethodBodyRewriteOriginError, untpd.Tree] =
+    replacement match
+      case apply: untpd.Apply =>
+        apply.fun match
+          case selection: untpd.Select =>
+            selection.qualifier match
+              case qualifier: untpd.Ident if Option(selection.name).exists(_.isTermName) =>
+                validatePreparedArguments(apply.args, "SELECTED_APPLY").map { arguments =>
+                  val positionedQualifier = qualifier.cloneIn(oldRhs.source).withSpan(oldRhs.span)
+                  val positionedSelection = untpd.Select(positionedQualifier, selection.name)
+                    .cloneIn(oldRhs.source).withSpan(oldRhs.span)
+                  val positionedArguments = arguments.map(_.cloneIn(oldRhs.source).withSpan(oldRhs.span))
+                  untpd.Apply(positionedSelection, positionedArguments)
+                    .cloneIn(oldRhs.source).withSpan(oldRhs.span)
+                }
+              case other => Left(error("SELECTED_APPLY_QUALIFIER_IDENT_REQUIRED", s"the selected Apply qualifier was ${nodeKind(other)}."))
+          case other => Left(error("SELECTED_APPLY_FUNCTION_SELECT_REQUIRED", s"the selected Apply function was ${nodeKind(other)}."))
+      case other => Left(error("SELECTED_APPLY_REPLACEMENT_REQUIRED", s"the selected Apply replacement was ${nodeKind(other)}."))
+
+  private def validatePreparedArguments(
+      arguments: List[untpd.Tree],
+      label: String
+  ): Either[ExistingUntpdMethodBodyRewriteOriginError, List[untpd.Tree]] =
+    Option(arguments).toRight(
+      error("ORIGIN_ADAPTATION_FAILED", s"the $label argument sequence was null.")
+    ).flatMap { present =>
+      if present.isEmpty || present.size > MaxApplyArguments then
+        Left(error(s"${label}_ARGUMENT_COUNT_REQUIRED", s"$label requires 1..$MaxApplyArguments arguments; found ${present.size}."))
+      else
+        present.find(argument => Option(argument).forall(value => !isAdmittedApplyLeaf(value))) match
+          case Some(argument) => Left(error(s"${label}_ARGUMENT_LEAF_REQUIRED", s"$label arguments require direct Ident, Number, or Literal leaves; found ${nodeKind(argument)}."))
+          case None => Right(present)
+    }
+
   private def validateStructuralCarrier(
       structural: ExistingUntpdMethodBodyRewriter.Result
   ): Either[ExistingUntpdMethodBodyRewriteOriginError, ExistingUntpdMethodBodyRewriter.Result] =
