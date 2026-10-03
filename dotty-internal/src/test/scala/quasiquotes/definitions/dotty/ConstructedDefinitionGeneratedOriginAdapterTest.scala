@@ -223,6 +223,25 @@ class ConstructedDefinitionGeneratedOriginAdapterTest extends munit.FunSuite:
     }
   }
 
+  test("definition generated-origin rejects keyword and underscore constructor segments") {
+    withContext {
+      List("type", "_", "example.type", "example._").zipWithIndex.foreach {
+        case (constructor, index) =>
+          val constructed = value(
+            plain(s"rejected$index"),
+            STypeIdent("String"),
+            fromShape(TermShape.New(constructor, Nil))
+          )
+          val problem = ConstructedDefinitionGeneratedOriginAdapter
+            .lower(constructed, s"<generated-definition-rejected-constructor-$index>")
+            .left
+            .toOption
+            .getOrElse(fail(s"unexpected generated-origin success for `$constructor`"))
+          assert(problem.isInstanceOf[DefinitionBodyPlanningFailure], clues(constructor, problem))
+      }
+    }
+  }
+
   test("positions Tuple2 Tuple3 Tuple22 repeated text and escaped UTF-16 strings") {
     val semantic =
       "\"quote=\" slash=\\ newline=\n BMP=λ supplementary=😀\""

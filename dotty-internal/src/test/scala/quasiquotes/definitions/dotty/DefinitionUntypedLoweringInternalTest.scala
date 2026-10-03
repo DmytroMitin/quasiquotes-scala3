@@ -185,6 +185,60 @@ final class DefinitionUntypedLoweringInternalTest extends munit.FunSuite:
       assert(SemanticDefinitionShapeAdapter.adapt(candidate).isRight)
       assertEquals(lowerFailure(candidate).code, "EXACT_LOWERING_FAILED")
 
+  test("binder-aware one-segment constructor method lowers with exact co-reference and direct Type Ident"):
+    withContext:
+      val semantic = constructorMethod("A")
+      val view = semantic.asMethod.get
+      val expectedReference = view.parameterScope.reference(0, 0).toOption.get
+      val bodyReference = view.body.get match
+        case TermShape.Apply(
+              TermShape.Select(TermShape.New("A", Nil), "classMethod"),
+              List(reference: TermShape.BoundReference)
+            ) => reference
+        case other => fail(s"unexpected semantic constructor method body: $other")
+      assertEquals(bodyReference, expectedReference)
+
+      val raw = DefinitionUntypedLowering
+        .lower(semantic)
+        .fold(problem => fail(problem.message), identity)
+      raw match
+        case untpd.DefDef(_, List(List(parameter: untpd.ValDef)), _,
+              untpd.Apply(
+                untpd.Select(
+                  untpd.Apply(untpd.Select(fresh: untpd.New, constructor), Nil),
+                  member
+                ),
+                List(argument: untpd.Ident)
+              )) =>
+          assertEquals(constructor.toString, "<init>")
+          assertEquals(member.toString, "classMethod")
+          assertEquals(argument.name, parameter.name)
+          fresh.tpt match
+            case identifier: untpd.Ident =>
+              assertEquals(identifier.name.toString, "A")
+              assert(identifier.name.isTypeName)
+            case other => fail(s"one-segment Definition constructor Type must be Ident, found ${other.getClass.getSimpleName}")
+        case other => fail(s"unexpected lowered constructor Definition: ${other.show}")
+
+      definitionTrees(raw).foreach { tree =>
+        assert(!tree.source.exists)
+        assert(!tree.span.exists)
+        assertEquals(tree.symbol, NoSymbol)
+        assert(!tree.isInstanceOf[untpd.TypedSplice])
+      }
+
+      val qualified = DefinitionUntypedLowering
+        .lower(constructorMethod("example.A"))
+        .fold(problem => fail(problem.message), identity)
+      val qualifiedType = definitionTrees(qualified).collectFirst { case fresh: untpd.New => fresh.tpt }.get
+      qualifiedType match
+        case untpd.Select(qualifier: untpd.Ident, selected) =>
+          assertEquals(qualifier.name.toString, "example")
+          assert(!qualifier.name.isTypeName)
+          assertEquals(selected.toString, "A")
+          assert(selected.isTypeName)
+        case other => fail(s"qualified constructor topology changed: ${other.getClass.getSimpleName}")
+
   test("typed private lowerer failures map exact-stage versus raw-invariant codes"):
     withContext:
       val shape = immutableShape
@@ -329,6 +383,33 @@ final class DefinitionUntypedLoweringInternalTest extends munit.FunSuite:
         intType
       )(_.reference(0, 0))
     )
+
+  private def constructorMethod(constructor: String): SemanticDefinition =
+    definition(
+      SemanticDefinition.concreteMethod(
+        name("foo3"),
+        Vector(clause(parameter("x", intType))),
+        TypeNormalForm.STypeIdent("String")
+      ) { scope =>
+        scope.reference(0, 0).map { reference =>
+          TermShape.Apply(
+            TermShape.Select(TermShape.New(constructor, Nil), "classMethod"),
+            List(reference)
+          )
+        }
+      }
+    )
+
+  private def definitionTrees(tree: untpd.Tree)(using Context): Vector[untpd.Tree] =
+    tree +: (tree match
+      case value: untpd.DefDef =>
+        value.paramss.flatten.toVector ++ Vector(value.tpt, value.rhs)
+      case value: untpd.ValDef => Vector(value.tpt, value.rhs).filterNot(_.isEmpty)
+      case value: untpd.Select => Vector(value.qualifier)
+      case value: untpd.Apply => value.fun +: value.args.toVector
+      case value: untpd.New => Vector(value.tpt)
+      case _ => Vector.empty
+    ).flatMap(definitionTrees)
 
   private def forgedMethod(
       sourceView: MethodDefinitionView,

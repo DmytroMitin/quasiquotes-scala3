@@ -6,7 +6,7 @@ import dotty.tools.dotc.core.Symbols.NoSymbol
 import dotty.tools.dotc.util.SourceFile
 import dotty.tools.dotc.util.Spans.Span
 
-import quasiquotes.parser.{BinderId, BlockStatement, ConstructorNamePolicy, TermShape}
+import quasiquotes.parser.{BinderId, BlockStatement, ConstructorSourcePathPolicy, TermShape}
 import quasiquotes.terms.ConstructedTerm
 import quasiquotes.types.{AppliedTypeConstructorPolicy, TypeNormalForm}
 
@@ -705,10 +705,20 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
       builder.append("new ")
       val typeStart = builder.length
       for
-        validated <- ConstructorNamePolicy
+        validated <- ConstructorSourcePathPolicy
           .validate(constructor)
           .left
           .map(detail => InvalidConstructorName(String.valueOf(constructor), detail))
+        _ <- validated.split("\\.").toList.zipWithIndex.collectFirst {
+          case (segment, index)
+              if segment == "_" || StandardSInterpolationEncoding.isKeyword(segment) =>
+            segment -> index
+        }.toLeft(()).left.map { case (segment, index) =>
+          InvalidConstructorName(
+            String.valueOf(constructor),
+            s"generated-source constructor segment $index `$segment` cannot be `_` or a keyword."
+          )
+        }
         _ <- validateConstructorArguments(arguments)
         rawType = renderConstructorTypePath(validated, typeStart)
         rawNew = NodePlan(

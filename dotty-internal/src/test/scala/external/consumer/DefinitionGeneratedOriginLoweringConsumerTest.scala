@@ -26,9 +26,14 @@ final class DefinitionGeneratedOriginLoweringConsumerTest extends munit.FunSuite
       val source = temporary.resolve("GeneratedConsumers.scala")
       val output = Files.createDirectory(temporary.resolve("classes"))
       val cases = fixtures
-      Files.writeString(source, cases.map { fixture =>
-        s"object ${fixture.owner}:\n  def run: String = ${fixture.use}\n"
-      }.mkString("\n"), StandardCharsets.UTF_8)
+      Files.writeString(
+        source,
+        "final class A:\n  def classMethod(x: Int): String = x.toString\n\n" +
+          cases.map { fixture =>
+            s"object ${fixture.owner}:\n  def run: String = ${fixture.use}\n"
+          }.mkString("\n"),
+        StandardCharsets.UTF_8
+      )
       val driver = new ConsumerDriver(cases)
       val reporter = driver.process(Array("-classpath", compilationClasspath, "-d", output.toString, source.toString))
       assert(!reporter.hasErrors, clues(reporter.allErrors))
@@ -70,6 +75,20 @@ final class DefinitionGeneratedOriginLoweringConsumerTest extends munit.FunSuite
     def method0(n: String): SemanticDefinition = right(SemanticDefinition.concreteMethod(name(n), Vector.empty, intType)(_ => Right(TermShape.Literal("42"))))
     def method1(n: String, p: String): SemanticDefinition = right(SemanticDefinition.concreteMethod(name(n), Vector(clause(p)), stringType)(_.reference(0, 0).map(ref => TermShape.Select(ref, "toString"))))
     def method2(n: String, p: String, q: String, slot: Int): SemanticDefinition = right(SemanticDefinition.concreteMethod(name(n), Vector(clause(p, q)), intType)(_.reference(0, slot)))
+    def constructorMethod: SemanticDefinition = right(
+      SemanticDefinition.concreteMethod(
+        name("foo3"),
+        Vector(clause("x")),
+        stringType
+      ) { scope =>
+        scope.reference(0, 0).map { reference =>
+          TermShape.Apply(
+            TermShape.Select(TermShape.New("A", Nil), "classMethod"),
+            List(reference)
+          )
+        }
+      }
+    )
     def alias(n: String): SemanticDefinition = right(SemanticDefinition.typeAlias(name(n), ints))
     List(
       Fixture("GeneratedValue", value("answer"), "val answer: Int = 42", "answer.toString"),
@@ -78,6 +97,12 @@ final class DefinitionGeneratedOriginLoweringConsumerTest extends munit.FunSuite
       Fixture("GeneratedRenamedMethod", method0("result"), "def result: Int = 42", "result.toString"),
       Fixture("GeneratedOne", method1("foo", "x"), "def foo(x: Int): String = x.toString", "foo(42)"),
       Fixture("GeneratedRenamedOne", method1("render", "item"), "def render(item: Int): String = item.toString", "render(42)"),
+      Fixture(
+        "GeneratedConstructor",
+        constructorMethod,
+        "def foo3(x: Int): String = new A().classMethod(x)",
+        "foo3(42)"
+      ),
       Fixture("GeneratedTwo", method2("choose", "x", "y", 0), "def choose(x: Int, y: Int): Int = x", "choose(42, 7).toString"),
       Fixture("GeneratedRenamedTwo", method2("second", "right", "left", 1), "def second(right: Int, left: Int): Int = left", "second(7, 42).toString"),
       Fixture("GeneratedAlias", alias("T"), "type T = List[Int]", "(List(20, 22): T).sum.toString"),
@@ -141,6 +166,8 @@ final class DefinitionGeneratedOriginLoweringConsumerTest extends munit.FunSuite
       case t: untpd.DefDef => t.paramss.flatten.flatMap(allTrees) ::: allTrees(t.tpt) ::: allTrees(t.rhs)
       case t: untpd.ValDef => allTrees(t.tpt) ::: allTrees(t.rhs)
       case t: untpd.Select => allTrees(t.qualifier)
+      case t: untpd.Apply => allTrees(t.fun) ::: t.args.flatMap(allTrees)
+      case t: untpd.New => allTrees(t.tpt)
       case t: untpd.AppliedTypeTree => allTrees(t.tpt) ::: t.args.flatMap(allTrees)
       case _ => Nil)
 

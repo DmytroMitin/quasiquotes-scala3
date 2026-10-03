@@ -7,7 +7,7 @@ import dotty.tools.dotc.core.Names.{termName, typeName}
 import dotty.tools.dotc.core.Symbols.NoSymbol
 import dotty.tools.dotc.util.{NoSource, SourceFile}
 
-import quasiquotes.parser.{BlockStatement, ConstructorNamePolicy, TermShape}
+import quasiquotes.parser.{BlockStatement, ConstructorSourcePathPolicy, TermShape}
 
 private[quasiquotes] object CoreTermShapeUntypedLowerer:
   import CoreTermShapeUntypedLowererError.*
@@ -187,7 +187,7 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
       arguments: List[TermShape]
   )(using SourceFile): Either[CoreTermShapeUntypedLowererError, untpd.Tree] =
     for
-      validated <- ConstructorNamePolicy
+      validated <- ConstructorSourcePathPolicy
         .validate(constructor)
         .left
         .map(detail => InvalidConstructorName(String.valueOf(constructor), detail))
@@ -264,12 +264,14 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
       constructor: String
   )(using SourceFile): untpd.Tree =
     val segments = constructor.split("\\.").toList
-    val qualifier = segments.init.tail.foldLeft[untpd.Tree](
-      untpd.Ident(termName(segments.head))
-    ) { (prefix, segment) =>
-      untpd.Select(prefix, termName(segment))
-    }
-    untpd.Select(qualifier, typeName(segments.last))
+    if segments.tail.isEmpty then untpd.Ident(typeName(segments.head))
+    else
+      val qualifier = segments.init.tail.foldLeft[untpd.Tree](
+        untpd.Ident(termName(segments.head))
+      ) { (prefix, segment) =>
+        untpd.Select(prefix, termName(segment))
+      }
+      untpd.Select(qualifier, typeName(segments.last))
 
   private def lowerBlock(
       statements: List[BlockStatement],

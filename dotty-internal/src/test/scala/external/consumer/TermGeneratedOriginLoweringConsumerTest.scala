@@ -23,9 +23,12 @@ final class TermGeneratedOriginLoweringConsumerTest extends munit.FunSuite:
       val source = temporary.resolve("GeneratedTermConsumers.scala")
       val output = Files.createDirectory(temporary.resolve("classes"))
       Files.writeString(source,
-        """object GeneratedTermConsumers:
+        """final class A(val value: Int)
+          |
+          |object GeneratedTermConsumers:
           |  def ordinary: Int = 0
           |  def signedReceiver: Int = 0
+          |  def constructor: Int = 0
           |  def lambda: Int => Int = identity
           |  def localValue: Int = 0
           |  def localMethod: Int = 0
@@ -41,7 +44,7 @@ final class TermGeneratedOriginLoweringConsumerTest extends munit.FunSuite:
       try
         val clazz = loader.loadClass("GeneratedTermConsumers$")
         val module = clazz.getField("MODULE$").get(null)
-        for name <- List("ordinary", "signedReceiver", "localValue", "localMethod", "unusedLocalMethod") do
+        for name <- List("ordinary", "signedReceiver", "constructor", "localValue", "localMethod", "unusedLocalMethod") do
           assertEquals(clazz.getMethod(name).invoke(module), Integer.valueOf(42), clues(name))
         val lambda = clazz.getMethod("lambda").invoke(module).asInstanceOf[Int => Int]
         assertEquals(lambda(41), 42)
@@ -71,6 +74,14 @@ final class TermGeneratedOriginLoweringConsumerTest extends munit.FunSuite:
     Vector(
       ("ordinary", TermShape.If(TermShape.Literal("true"), TermShape.Literal("42"), TermShape.Literal("0")), "if true then 42 else 0"),
       ("signedReceiver", TermShape.Select(TermShape.Parenthesized(TermShape.Literal("-42")), "abs"), "(-42).abs"),
+      (
+        "constructor",
+        TermShape.Select(
+          TermShape.New("A", List(TermShape.Literal("42"))),
+          "value"
+        ),
+        "new A(42).value"
+      ),
       ("lambda", lambda, "(x: Int) => x + 1"),
       ("localValue", value, "{ val x: Int = 41; x + 1 }"),
       ("localMethod", method, "{ def increment(x: Int): Int = x + 1; increment(41) }"),
@@ -128,6 +139,7 @@ final class TermGeneratedOriginLoweringConsumerTest extends munit.FunSuite:
       case t: untpd.ValDef => allTrees(t.tpt) ::: allTrees(t.rhs)
       case t: untpd.Select => allTrees(t.qualifier)
       case t: untpd.Apply => allTrees(t.fun) ::: t.args.flatMap(allTrees)
+      case t: untpd.New => allTrees(t.tpt)
       case t: untpd.InfixOp => allTrees(t.left) ::: allTrees(t.op) ::: allTrees(t.right)
       case t: untpd.Parens => allTrees(t.t)
       case t: untpd.Function => t.args.flatMap(allTrees) ::: allTrees(t.body)

@@ -161,13 +161,16 @@ class DirectConstructorNewExactParityTest extends munit.FunSuite:
   test("direct constructor boundary reuses the exact shared name policy") {
     val invalidNames = Vector(
       null,
-      "StringBuilder",
-      ".java.lang.StringBuilder",
-      "java.lang.StringBuilder.",
-      "java..lang.StringBuilder",
-      "java.lang.StringBuilder[Int]",
-      "java.lang.`StringBuilder`",
-      "java.lang.StringBuilder$"
+      "",
+      ".A",
+      "A.",
+      "a..A",
+      "`A`",
+      "A[B]",
+      "a.A[B]",
+      "A B",
+      "A$",
+      "a.Outer$Inner"
     )
 
     withContext {
@@ -225,7 +228,7 @@ class DirectConstructorNewExactParityTest extends munit.FunSuite:
           .lower(
             TermShape.New(
               "java.lang.StringBuilder",
-              List(TermShape.New("Value", Nil))
+              List(TermShape.New("Value$", Nil))
             )
           )
           .left
@@ -282,20 +285,38 @@ class DirectConstructorNewExactParityTest extends munit.FunSuite:
     }
   }
 
-  test("one-segment New projects neutrally but remains a controlled direct-backend rejection") {
+  test("one-segment New projects and lowers to a direct Type-name Ident without a Select") {
     val projected = ScalametaTermProjection.project(
       Scala3("new A()").parse[Term].get
     ).toOption.get
     assertEquals(projected.shape, TermShape.New("A", Nil))
 
     withContext {
-      assert(
-        CoreTermShapeUntypedLowerer
-          .lower(projected.shape)
-          .left
-          .toOption
-          .exists(_.isInstanceOf[InvalidConstructorName])
-      )
+      val expected = TinyTermParser.parseOrThrow("new A()").rawTree
+      val direct = lowerOrFail(projected.shape)
+      val richer = ConstructedTermUntypedBackend
+        .lower(ConstructedTerm.fromShape(projected.shape).toOption.get)
+        .fold(error => fail(error.message), identity)
+
+      assertEquals(TermShapeInspector.rawStructure(direct), TermShapeInspector.rawStructure(expected))
+      assertEquals(TermShapeInspector.rawStructure(richer), TermShapeInspector.rawStructure(expected))
+      List(direct, richer).foreach {
+        case untpd.Apply(untpd.Select(fresh: untpd.New, constructor), Nil) =>
+          assertEquals(constructor.toString, "<init>")
+          fresh.tpt match
+            case identifier: untpd.Ident =>
+              assertEquals(identifier.name.toString, "A")
+              assert(identifier.name.isTypeName)
+            case other =>
+              fail(s"one-segment constructor Type must be a direct Ident, found ${other.getClass.getSimpleName}")
+        case other => fail(s"unexpected one-segment constructor topology: ${other.getClass.getSimpleName}")
+      }
+      List(direct, richer).flatMap(allTrees).foreach { tree =>
+        assert(!tree.source.exists)
+        assert(!tree.span.exists)
+        assertEquals(tree.symbol, NoSymbol)
+        assert(!tree.isInstanceOf[untpd.TypedSplice])
+      }
     }
   }
 

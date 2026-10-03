@@ -24,7 +24,8 @@ final class ScalametaTermGeneratedOriginBridgeTest extends munit.FunSuite:
         "new java.lang.StringBuilder(16)",
         "new java.lang.StringBuilder(16)",
         "Apply"
-      )
+      ),
+      ("new A()", "new A()", "Apply")
     )
 
     withContext:
@@ -56,6 +57,16 @@ final class ScalametaTermGeneratedOriginBridgeTest extends munit.FunSuite:
           assertEquals(constructor.toString, "<init>")
           assertEquals(argument, "16")
         case other => fail(s"expected constructor application, found $other")
+
+      lower("new A()", "<generated:term-simple-constructor>").tree match
+        case untpd.Apply(
+              untpd.Select(untpd.New(identifier: untpd.Ident), constructor),
+              Nil
+            ) =>
+          assertEquals(identifier.name.toString, "A")
+          assert(identifier.name.isTypeName)
+          assertEquals(constructor.toString, "<init>")
+        case other => fail(s"expected generated one-segment constructor, found $other")
 
   test("external consumer receives the richer completed generated-origin intersection"):
     val fixtures = Vector(
@@ -132,11 +143,6 @@ final class ScalametaTermGeneratedOriginBridgeTest extends munit.FunSuite:
         val failure = lowerFailure(source, "<generated:term-projection>")
         assertEquals(failure.code, "NEUTRAL_PROJECTION_FAILED", clues(source))
         assert(failure.detail.startsWith("NEUTRAL_"), clues(source, failure))
-
-      val simpleConstructor =
-        lowerFailure("new A()", "<generated:term-simple-constructor>")
-      assertEquals(simpleConstructor.code, "GENERATED_ORIGIN_FAILED")
-      assert(simpleConstructor.detail.contains("at least two plain identifier segments"))
 
       val completion =
         lowerFailure("(value: Option[Int])", "<generated:term-completion>")

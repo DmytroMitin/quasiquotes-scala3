@@ -225,17 +225,57 @@ class ConstructorNewBackendBoundaryTest extends munit.FunSuite:
     }
   }
 
+  test("one-segment richer and generated constructor paths use one TypeIdent and exact source") {
+    val required = Vector(
+      "new A()" -> TermShape.New("A", Nil),
+      "new A(1)" -> TermShape.New("A", List(TermShape.Literal("1"))),
+      "new A().classMethod(x)" -> TermShape.Apply(
+        TermShape.Select(TermShape.New("A", Nil), "classMethod"),
+        List(ident("x"))
+      )
+    )
+
+    required.foreach { case (source, shape) =>
+      withParserContext(source) { parsed =>
+        val constructed = ConstructedTerm.fromShape(shape).toOption.get
+        val richer = ConstructedTermUntypedBackend
+          .lower(constructed)
+          .fold(error => fail(error.message), identity)
+        val generated = ConstructedTermGeneratedOriginAdapter
+          .lower(constructed, "<u045-one-segment-constructor>")
+          .fold(error => fail(error.message), identity)
+
+        assertEquals(structure(richer), structure(parsed), clues(source, "source-free"))
+        assertEquals(generated.generatedSource, source)
+        assertEquals(snapshot(generated.tree, source), snapshot(parsed, source))
+        List(richer, generated.tree).foreach { tree =>
+          val constructorTypes = allTrees(tree).collect { case fresh: untpd.New => fresh.tpt }
+          assert(constructorTypes.nonEmpty)
+          constructorTypes.foreach {
+            case identifier: untpd.Ident =>
+              assertEquals(identifier.name.toString, "A")
+              assert(identifier.name.isTypeName)
+            case other =>
+              fail(s"one-segment constructor Type must be a direct Ident, found ${other.getClass.getSimpleName}")
+          }
+        }
+      }
+    }
+  }
+
   test("defensive constructor corruptions return bounded internal errors") {
     val invalidNames = Vector(
       null,
       "",
-      "StringBuilder",
-      ".java.lang.StringBuilder",
-      "java.lang.StringBuilder.",
-      "java..lang.StringBuilder",
-      "java.lang.StringBuilder[Int]",
-      "java.lang.`StringBuilder`",
-      "java.lang.StringBuilder$"
+      ".A",
+      "A.",
+      "a..A",
+      "`A`",
+      "A[B]",
+      "a.A[B]",
+      "A B",
+      "A$",
+      "a.Outer$Inner"
     )
     invalidNames.foreach { name =>
       val constructed = corrupt(TermShape.New(name, Nil), Vector.empty)
@@ -317,7 +357,7 @@ class ConstructorNewBackendBoundaryTest extends munit.FunSuite:
     val nestedMalformed = corrupt(
       TermShape.New(
         "java.lang.StringBuilder",
-        List(TermShape.New("Value", Nil))
+        List(TermShape.New("Value$", Nil))
       ),
       Vector.empty
     )

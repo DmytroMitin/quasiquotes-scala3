@@ -24,6 +24,7 @@ final class TermGeneratedOriginLoweringTest extends munit.FunSuite:
         TermShape.If(ident("ready"), lit("1"), lit("2")),
         TermShape.InterpolatedString("s", List("λ😀=", "!"), List(ident("x"))),
         TermShape.InterpolatedString("s", List("", ""), List(TermShape.Infix(lit("1"), "+", lit("2")))),
+        TermShape.New("A", Nil),
         TermShape.New("java.lang.StringBuilder", List(lit("16"))),
         TermShape.Typed(lit("1"), "Int"),
         TermShape.Parenthesized(ident("x")),
@@ -35,6 +36,32 @@ final class TermGeneratedOriginLoweringTest extends munit.FunSuite:
       fixtures.foreach(checkSuccess)
       val infix = lower(TermShape.Infix(lit("1"), "+", lit("2")))
       assertEquals(infix.tree.span.point, 2)
+
+  test("one-segment New uses a TypeIdent plan and exact generated source"):
+    withContext:
+      val fixtures = List(
+        TermShape.New("A", Nil) -> "new A()",
+        TermShape.New("A", List(lit("1"))) -> "new A(1)",
+        TermShape.Apply(
+          TermShape.Select(TermShape.New("A", Nil), "classMethod"),
+          List(ident("x"))
+        ) -> "new A().classMethod(x)"
+      )
+
+      fixtures.foreach { case (shape, expectedSource) =>
+        val completed = quasiquotes.terms.ConstructedTerm.fromShape(shape).toOption.get
+        val plan = GeneratedOriginFragmentSupport
+          .planTerm(completed)
+          .fold(error => fail(error.message), identity)
+        val result = lower(shape)
+
+        assertEquals(result.generatedSource, expectedSource)
+        assertEquals(plan.source, expectedSource)
+        val kinds = allPlans(plan.root).map(_.kind)
+        assertEquals(kinds.count(_ == GeneratedOriginFragmentSupport.NodeKind.TypeIdent), 1)
+        assertEquals(kinds.count(_ == GeneratedOriginFragmentSupport.NodeKind.TypeSelect), 0)
+        checkSuccess(shape)
+      }
 
   test("public binders preserve declaration references spelling and alpha topology"):
     withContext:
@@ -186,6 +213,11 @@ final class TermGeneratedOriginLoweringTest extends munit.FunSuite:
   private def alphaIdentity(tree: untpd.Tree)(using Context): String = tree match
     case untpd.Function(List(parameter: untpd.ValDef), untpd.Ident(name)) if name == parameter.name => "lambda($0)->$0"
     case _ => fail("identity binder association lost")
+
+  private def allPlans(
+      plan: GeneratedOriginFragmentSupport.NodePlan
+  ): Vector[GeneratedOriginFragmentSupport.NodePlan] =
+    plan +: plan.children.flatMap(allPlans)
 
   private def lower(term: TermShape, path: String = "generated/Term.scala")(using Context) =
     TermGeneratedOriginLowering.lower(term, path).fold(p => fail(p.message), identity)

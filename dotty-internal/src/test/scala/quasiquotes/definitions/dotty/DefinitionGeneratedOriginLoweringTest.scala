@@ -72,6 +72,63 @@ final class DefinitionGeneratedOriginLoweringTest extends munit.FunSuite:
         assertEquals(snapshot(lower(semantic).tree), snapshot(DefinitionUntypedLowering.lower(semantic).toOption.get))
       }
 
+  test("binder-aware one-segment constructor method keeps exact source spans and co-reference"):
+    withContext:
+      val simple = constructorMethod("A")
+      val view = simple.asMethod.get
+      val expectedReference = view.parameterScope.reference(0, 0).toOption.get
+      val bodyReference = view.body.get match
+        case TermShape.Apply(
+              TermShape.Select(TermShape.New("A", Nil), "classMethod"),
+              List(reference: TermShape.BoundReference)
+            ) => reference
+        case other => fail(s"unexpected semantic constructor method body: $other")
+      assertEquals(bodyReference, expectedReference)
+
+      val simpleResult = lower(simple)
+      assertEquals(
+        simpleResult.generatedSource,
+        "def foo3(x: Int): String = new A().classMethod(x)"
+      )
+      assertComplete(simpleResult)
+      assertEquals(
+        snapshot(simpleResult.tree),
+        snapshot(DefinitionUntypedLowering.lower(simple).toOption.get)
+      )
+      simpleResult.tree match
+        case untpd.DefDef(_, List(List(parameter: untpd.ValDef)), _,
+              untpd.Apply(
+                untpd.Select(
+                  untpd.Apply(untpd.Select(fresh: untpd.New, _), Nil),
+                  _
+                ),
+                List(argument: untpd.Ident)
+              )) =>
+          assertEquals(argument.name, parameter.name)
+          assert(fresh.tpt.isInstanceOf[untpd.Ident])
+          assert(fresh.tpt.asInstanceOf[untpd.Ident].name.isTypeName)
+        case other => fail(s"unexpected generated constructor Definition: ${other.show}")
+
+      val qualified = lower(constructorMethod("example.A"))
+      assertEquals(
+        qualified.generatedSource,
+        "def foo3(x: Int): String = new example.A().classMethod(x)"
+      )
+      assertComplete(qualified)
+
+  test("public Definition generated-origin rejects keyword and underscore constructor segments"):
+    withContext:
+      List("type", "_", "example.type", "example._").zipWithIndex.foreach {
+        case (constructor, index) =>
+          val semantic = right(SemanticDefinition.immutableValue(
+            name(s"rejected$index"),
+            stringType,
+            TermShape.New(constructor, Nil)
+          ))
+          val problem = failure(semantic, s"<semantic-generated-rejected-constructor-$index>")
+          assertEquals(problem.code, "GENERATED_ORIGIN_FAILED", clues(constructor, problem))
+      }
+
   test("nested alias RHS is recursively positioned and remains a TypeDef"):
     withContext:
       val semantic = right(SemanticDefinition.typeAlias(name("Nested"),
@@ -275,6 +332,16 @@ final class DefinitionGeneratedOriginLoweringTest extends munit.FunSuite:
       parameters.map(p => DefinitionParameter(name(p), intType)))))
     right(SemanticDefinition.concreteMethod(name(label), clauses, result)(body))
 
+  private def constructorMethod(constructor: String): SemanticDefinition =
+    method("foo3", Vector("x"), stringType) { scope =>
+      scope.reference(0, 0).map { reference =>
+        TermShape.Apply(
+          TermShape.Select(TermShape.New(constructor, Nil), "classMethod"),
+          List(reference)
+        )
+      }
+    }
+
   private def forgedValue(declaredType: TypeNormalForm, body: TermShape): SemanticDefinition =
     new SemanticDefinition(DefinitionKind.Value, name("forged"), DefinitionModifiers.empty, storage("ValueStorage", declaredType, body))
 
@@ -321,6 +388,7 @@ final class DefinitionGeneratedOriginLoweringTest extends munit.FunSuite:
     case value: untpd.ValDef => Vector(value.tpt, value.rhs).filterNot(_.isEmpty)
     case value: untpd.Select => Vector(value.qualifier)
     case value: untpd.Apply => value.fun +: value.args.toVector
+    case value: untpd.New => Vector(value.tpt)
     case value: untpd.AppliedTypeTree => value.tpt +: value.args.toVector
     case value: untpd.Tuple => value.trees.toVector
     case value: untpd.Function => value.args.toVector :+ value.body

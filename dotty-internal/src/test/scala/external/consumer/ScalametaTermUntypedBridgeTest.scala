@@ -89,6 +89,16 @@ class ScalametaTermUntypedBridgeTest extends munit.FunSuite:
           assertEquals(number, "16")
         case other => fail(s"expected constructor tree, found $other")
 
+      lower("new A()") match
+        case untpd.Apply(
+              untpd.Select(untpd.New(identifier: untpd.Ident), constructor),
+              Nil
+            ) =>
+          assertEquals(identifier.name.toString, "A")
+          assert(identifier.name.isTypeName)
+          assertEquals(constructor.toString, "<init>")
+        case other => fail(s"expected direct one-segment constructor tree, found $other")
+
       lower("{ first; second }") match
         case untpd.Block(List(untpd.Ident(first)), untpd.Ident(second)) =>
           assertEquals(first.toString, "first")
@@ -125,7 +135,6 @@ class ScalametaTermUntypedBridgeTest extends munit.FunSuite:
   test("external consumer receives exact-lowering failures without richer fallback") {
     withContext {
       val sources = Vector(
-        "new A()" -> "Invalid bounded exact-backend constructor name",
         "(1: Int)" -> "Unsupported core TermShape",
         "(x: Int) => x" -> "Unsupported core TermShape",
         "{ val x: Int = 1; x }" -> "Malformed bounded exact-backend P1 Block",

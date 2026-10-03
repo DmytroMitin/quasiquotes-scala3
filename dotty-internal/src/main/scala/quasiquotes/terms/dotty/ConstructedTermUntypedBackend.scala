@@ -6,7 +6,7 @@ import dotty.tools.dotc.core.Flags
 import dotty.tools.dotc.core.Names.{termName, typeName}
 import dotty.tools.dotc.util.{NoSource, SourceFile}
 
-import quasiquotes.parser.{BinderId, BlockStatement, ConstructorNamePolicy, TermShape}
+import quasiquotes.parser.{BinderId, BlockStatement, ConstructorSourcePathPolicy, TermShape}
 import quasiquotes.terms.ConstructedTerm
 import quasiquotes.types.TypeNormalForm
 
@@ -413,7 +413,7 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
     (untpd.Tree, LoweringState)
   ] =
     for
-      validated <- ConstructorNamePolicy
+      validated <- ConstructorSourcePathPolicy
         .validate(constructor)
         .left
         .map(detail => InvalidConstructorName(String.valueOf(constructor), detail))
@@ -438,12 +438,14 @@ private[quasiquotes] object ConstructedTermUntypedBackend:
       constructor: String
   )(using SourceFile): untpd.Tree =
     val segments = constructor.split("\\.").toList
-    val qualifier = segments.init.tail.foldLeft[untpd.Tree](
-      untpd.Ident(termName(segments.head))
-    ) { (prefix, segment) =>
-      untpd.Select(prefix, termName(segment))
-    }
-    untpd.Select(qualifier, typeName(segments.last))
+    if segments.tail.isEmpty then untpd.Ident(typeName(segments.head))
+    else
+      val qualifier = segments.init.tail.foldLeft[untpd.Tree](
+        untpd.Ident(termName(segments.head))
+      ) { (prefix, segment) =>
+        untpd.Select(prefix, termName(segment))
+      }
+      untpd.Select(qualifier, typeName(segments.last))
 
   private def lowerInterpolation(
       prefix: String,

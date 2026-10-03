@@ -30,6 +30,8 @@ final class TermUntypedLoweringTest extends munit.FunSuite:
           "If(Ident(ready),Number(1),Number(2))",
         TermShape.InterpolatedString("s", List("value=", ""), List(ident("value"))) ->
           "Interpolation(s,[Thicket([Literal(value=),Ident(value)]),Literal()])",
+        TermShape.New("A", Nil) ->
+          "Apply(Select(New(Ident(A)),<init>),[])",
         TermShape.New("java.lang.StringBuilder", List(TermShape.Literal("16"))) ->
           "Apply(Select(New(Select(Select(Ident(java),lang),StringBuilder)),<init>),[Number(16)])",
         TermShape.Block(List(ident("first")), ident("second")) ->
