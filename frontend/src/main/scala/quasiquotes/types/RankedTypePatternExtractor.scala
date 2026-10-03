@@ -5,34 +5,35 @@ import scala.quoted.*
 
 import quasiquotes.parser.{TinyTypeParser, TypeShape}
 import quasiquotes.syntax.RankMarkerScanner.{hasSplitDoubleDot, unquotedDotRuns}
+
 /** A typed product extractor for one bounded sequence-Type capture. */
 final class RankedTypePatternExtractor[T, Captures <: Tuple](
     extract: T => Option[Captures]
 ):
   def unapply(value: T): Option[Captures] = extract(value)
 
-private[types] final class RankedSingleSequenceTypePatternExtractor[T](
+private[quasiquotes] final class RankedSingleSequenceTypePatternExtractor[T](
     extract: T => Option[Seq[T]]
 ):
   def unapply(value: T): Option[Seq[T]] = extract(value)
 
-private[types] sealed trait TypeCaptureKind
-private[types] sealed trait ScalarTypeCapture extends TypeCaptureKind
-private[types] sealed trait SequenceTypeCapture extends TypeCaptureKind
+private[quasiquotes] sealed trait TypeCaptureKind
+private[quasiquotes] sealed trait ScalarTypeCapture extends TypeCaptureKind
+private[quasiquotes] sealed trait SequenceTypeCapture extends TypeCaptureKind
 
-private[types] type TypeCaptureTypes[T, Kinds <: Tuple] <: Tuple = Kinds match
+private[quasiquotes] type TypeCaptureTypes[T, Kinds <: Tuple] <: Tuple = Kinds match
   case EmptyTuple => EmptyTuple
   case ScalarTypeCapture *: tail => T *: TypeCaptureTypes[T, tail]
   case SequenceTypeCapture *: tail => Seq[T] *: TypeCaptureTypes[T, tail]
 
-private[types] object RankedTypePatternSupport:
-  private[types] final case class Layout(
+private[quasiquotes] object RankedTypePatternSupport:
+  final case class Layout(
       source: String,
       holeNames: Vector[String],
       sequenceIndex: Option[Int]
   )
 
-  private[types] final case class Compiled(
+  final case class Compiled(
       constructor: TypePattern,
       prefix: List[TypePattern],
       suffix: List[TypePattern],
@@ -71,7 +72,7 @@ private[types] object RankedTypePatternSupport:
       )
     )
 
-  private[types] def classify(parts: List[String]): Either[String, Layout] =
+  def classify(parts: List[String]): Either[String, Layout] =
     if parts.isEmpty then Left("StringContext must contain at least one part")
     else
       val partVector = parts.toVector
@@ -186,6 +187,85 @@ private[types] object RankedTypePatternSupport:
         }
     }
 
+  def compilePattern(
+      pattern: TypePattern,
+      holeNames: Vector[String],
+      sequenceIndex: Int
+  ): Either[String, Compiled] =
+    holeNames.lift(sequenceIndex).toRight(
+      "ranked tqq template classification changed before compilation"
+    ).flatMap { sequenceName =>
+      pattern match
+        case TypePattern.TPApply(TypePattern.TPIdent(constructorName), arguments) =>
+          AppliedTypeConstructorPolicy.named(constructorName) match
+            case None =>
+              Left(
+                s"Unsupported applied Type constructor `$constructorName` in the fixed-constructor tqq slice"
+              )
+            case Some(policy) =>
+              val sequencePositions = arguments.zipWithIndex.collect {
+                case (TypePattern.TPHole(name), index) if name == sequenceName => index
+              }
+              sequencePositions match
+                case sequencePosition :: Nil =>
+                  val fixedCount = arguments.size - 1
+                  if fixedCount > policy.requiredArity then
+                    Left(
+                      s"fixed Type arguments exceed `$constructorName` arity ${policy.requiredArity}"
+                    )
+                  else
+                    Right(
+                      Compiled(
+                        TypePattern.TPIdent(constructorName),
+                        arguments.take(sequencePosition),
+                        arguments.drop(sequencePosition + 1),
+                        holeNames,
+                        sequenceName
+                      )
+                    )
+                case _ =>
+                  Left(
+                    "rank-2 capture is supported only once in a direct fixed Type constructor argument list"
+                  )
+        case TypePattern.TPApply(TypePattern.TPHole(_), _) =>
+          Left(
+            "dynamic Type-constructor capture is outside the fixed-constructor tqq slice"
+          )
+        case TypePattern.TPApply(_, _) =>
+          Left(
+            "dynamic or selected Type constructors are outside the fixed-constructor tqq slice"
+          )
+        case _ =>
+          Left(
+            "rank-2 capture is supported only in a direct fixed Type constructor argument list"
+          )
+    }
+
+  transparent inline def singleSequenceExtractorFromPattern(
+      pattern: TypePattern,
+      holeNames: Vector[String],
+      sequenceIndex: Int
+  )(using q: Quotes): RankedSingleSequenceTypePatternExtractor[q.reflect.TypeRepr] =
+    val compiled = compilePatternOrAbort(pattern, holeNames, sequenceIndex)
+    new RankedSingleSequenceTypePatternExtractor(target =>
+      matchCompiled(using q)(compiled, target).map(_.sequence(sequenceIndex))
+    )
+
+  transparent inline def rankedExtractorFromPattern[Kinds <: Tuple](
+      pattern: TypePattern,
+      holeNames: Vector[String],
+      sequenceIndex: Int
+  )(using q: Quotes): RankedTypePatternExtractor[
+    q.reflect.TypeRepr,
+    TypeCaptureTypes[q.reflect.TypeRepr, Kinds]
+  ] =
+    val compiled = compilePatternOrAbort(pattern, holeNames, sequenceIndex)
+    new RankedTypePatternExtractor(target =>
+      matchCompiled(using q)(compiled, target).map(result =>
+        captureTuple[q.reflect.TypeRepr, Kinds](result, 0)
+      )
+    )
+
   private def compileOrAbort(using q: Quotes)(
       parts: List[String],
       sequenceIndex: Int
@@ -194,6 +274,19 @@ private[types] object RankedTypePatternSupport:
       detail =>
         q.reflect.report.errorAndAbort(
           s"Invalid tqq type-pattern template: $detail"
+        ),
+      identity
+    )
+
+  private def compilePatternOrAbort(using q: Quotes)(
+      pattern: TypePattern,
+      holeNames: Vector[String],
+      sequenceIndex: Int
+  ): Compiled =
+    compilePattern(pattern, holeNames, sequenceIndex).fold(
+      detail =>
+        q.reflect.report.errorAndAbort(
+          s"Invalid Scalameta tqq type-pattern template: $detail"
         ),
       identity
     )

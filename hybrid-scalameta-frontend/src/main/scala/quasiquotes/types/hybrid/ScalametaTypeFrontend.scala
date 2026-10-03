@@ -120,6 +120,56 @@ private[quasiquotes] object ScalametaTypeFrontend:
         )
     }
 
+  /** Rank-aware lowering for one direct fixed-constructor argument slot.
+    * Parsing and exact-syntax validation remain the ordinary Scalameta-primary
+    * path; only the root constructor arity check is deferred to the shared
+    * ranked bridge.
+    */
+  def patternRanked(
+      source: String,
+      dialect: Dialect = TypeQ3DialectPolicy.selected
+  ): Either[Failure, TypePattern] =
+    val mapped = TypePattern.rewriteSourceMapped(source)
+    parseShape(mapped.generatedSource, dialect).flatMap { shape =>
+      lowerRankedPattern(source, shape, mapped)
+    }
+
+  private[hybrid] def lowerRankedPattern(
+      source: String,
+      shape: TypeShape,
+      mapped: _root_.quasiquotes.source.MappedHoleSource
+  ): Either[Failure, TypePattern] =
+    shape match
+      case TypeShape.Apply(TypeShape.Identifier(constructorName), arguments) =>
+        val constructor =
+          mapped.generatedHoleIndex.semanticNameFor(constructorName) match
+            case Some(name) => TypePattern.TPHole(name)
+            case None => TypePattern.TPIdent(constructorName)
+        arguments
+          .foldRight[Either[Failure, List[TypePattern]]](Right(Nil)) {
+            (argument, accumulated) =>
+              for
+                head <- TypePattern
+                  .fromShapeWithHoles(argument, mapped.generatedHoleIndex)
+                  .left
+                  .map(error => Failure.unsupported(source.length, error.message))
+                tail <- accumulated
+              yield head :: tail
+          }
+          .map(TypePattern.TPApply(constructor, _))
+      case TypeShape.Apply(_, _) =>
+        Left(
+          Failure.unsupported(
+            source.length,
+            "dynamic or selected Type constructors are outside the fixed-constructor tqq slice"
+          )
+        )
+      case other =>
+        TypePattern
+          .fromShapeWithHoles(other, mapped.generatedHoleIndex)
+          .left
+          .map(error => Failure.unsupported(source.length, error.message))
+
   def patternResolved(
       source: String,
       environment: ResolvedTypeEnvironment,
@@ -222,6 +272,46 @@ private[quasiquotes] object HybridTypeFrontend:
       compileSource(source, Vector.tabulate(count)(index => s"tqqSlot$index"), dialect)
     )
 
+  def compileRanked(
+      parts: Seq[String],
+      sequenceIndex: Int,
+      dialect: Dialect = TypeQ3DialectPolicy.selected
+  ): Either[ScalametaTypeFrontend.Failure, CompiledPattern] =
+    val count = parts.size - 1
+    checkedSource(parts, count, "tqq").flatMap { source =>
+      val names = Vector.tabulate(count)(index => s"tqqSlot$index")
+      if sequenceIndex < 0 || sequenceIndex >= names.size then
+        Left(
+          ScalametaTypeFrontend.Failure.construction(
+            "ranked tqq sequence index is outside the capture layout"
+          )
+        )
+      else
+        ScalametaTypeFrontend.patternRanked(source, dialect) match
+          case Right(pattern) =>
+            Right(CompiledPattern(pattern, names, Engine.Scalameta, None))
+          case Left(primary) if primary.category == "SCALAMETA_PARSE_FAILURE" =>
+            val mapped = TypePattern.rewriteSourceMapped(source)
+            TinyTypeParser.parse(mapped.generatedSource) match
+              case Right(parsed) =>
+                ScalametaTypeFrontend
+                  .lowerRankedPattern(source, parsed.shape, mapped)
+                  .map(pattern =>
+                    CompiledPattern(
+                      pattern,
+                      names,
+                      Engine.CurrentDottyFallback,
+                      Some(primary)
+                    )
+                  )
+              case Left(fallback) =>
+                Left(
+                  primary.copy(
+                    detail = s"${primary.detail}; current parser: ${fallback.summary}"
+                  )
+                )
+          case Left(failure) => Left(failure)
+    }
   def compileProgrammatic(
       source: String,
       dialect: Dialect = TypeQ3DialectPolicy.selected

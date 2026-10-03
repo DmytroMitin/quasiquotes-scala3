@@ -13,6 +13,7 @@ import quasiquotes.matching.{
 }
 import quasiquotes.definitions.hybrid.ScalametaDefinitionFrontend
 import quasiquotes.matching.ScalametaQuasiPatternMacro
+import quasiquotes.types.ScalametaTypePatternMacro
 
 /** Bounded extractor for ordered captures from the opt-in pattern frontend. */
 final class ScalametaTermPatternExtractor[T] private[scalameta] (
@@ -83,28 +84,48 @@ object ScalametaQuasiPattern:
     transparent inline def qq(using q: Quotes) =
       ${ qqExtractor('context, 'q) }
 
-  extension (context: StringContext)
-    def tqq(using q: Quotes): ScalametaTypePatternExtractor[q.reflect.TypeRepr] =
-      import q.reflect.*
+  private def tqqExtractor(
+      context: Expr[StringContext],
+      callerQuotes: Expr[Quotes]
+  )(using Quotes): Expr[Any] =
+    ScalametaTypePatternMacro.extractor(context, callerQuotes)
 
-      if context == null || context.parts == null || context.parts.isEmpty then
+  private[quasiquotes] def scalarTypeExtractor(
+      context: StringContext
+  )(using q: Quotes): ScalametaTypePatternExtractor[q.reflect.TypeRepr] =
+    import q.reflect.*
+
+    if context == null || context.parts == null || context.parts.isEmpty then
+      report.errorAndAbort(
+        "Invalid Scalameta tqq type-pattern template: StringContext must contain at least one part."
+      )
+
+    TypeFrontend.compile(context.parts) match
+      case Left(failure) =>
         report.errorAndAbort(
-          "Invalid Scalameta tqq type-pattern template: StringContext must contain at least one part."
+          s"Invalid Scalameta tqq type-pattern template: ${failure.message}"
+        )
+      case Right(compiled) =>
+        new ScalametaTypePatternExtractor[q.reflect.TypeRepr](target =>
+          TypeFrontend
+            .matchPattern(using q)(compiled, target)
+            .toOption
+            .flatten
+            .map(_.captures)
         )
 
-      TypeFrontend.compile(context.parts) match
-        case Left(failure) =>
-          report.errorAndAbort(
-            s"Invalid Scalameta tqq type-pattern template: ${failure.message}"
-          )
-        case Right(compiled) =>
-          new ScalametaTypePatternExtractor[q.reflect.TypeRepr](target =>
-            TypeFrontend
-              .matchPattern(using q)(compiled, target)
-              .toOption
-              .flatten
-              .map(_.captures)
-          )
+  /** JVM-linkage bridge for scalar callers compiled against the pre-Q053
+    * extension method. New source calls use the transparent inline selector.
+    */
+  @targetName("tqq")
+  private[scalameta] def tqqLegacy(
+      context: StringContext
+  )(using q: Quotes): ScalametaTypePatternExtractor[q.reflect.TypeRepr] =
+    scalarTypeExtractor(context)
+
+  extension (inline context: StringContext)
+    transparent inline def tqq(using q: Quotes) =
+      ${ tqqExtractor('context, 'q) }
 
   private[scalameta] def singleParameterExtractor(
       context: StringContext

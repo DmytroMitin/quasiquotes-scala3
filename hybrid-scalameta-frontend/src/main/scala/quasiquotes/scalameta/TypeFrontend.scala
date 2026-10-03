@@ -97,6 +97,21 @@ object TypeFrontend:
       .map(fromInternalFailure)
       .map(fromInternalCompileResult)
 
+  /** Internal ranked counterpart of compile. It preserves the same
+    * Scalameta-primary/current-parser-fallback engine policy while deferring
+    * one root constructor-arity slot to the shared ranked matcher.
+    */
+  private[quasiquotes] def compileRanked(
+      parts: Seq[String],
+      sequenceIndex: Int,
+      dialect: Dialect = TypeQ3DialectPolicy.selected
+  ): Either[Failure, CompileResult] =
+    HybridTypeFrontend
+      .compileRanked(parts, sequenceIndex, dialect)
+      .left
+      .map(fromInternalFailure)
+      .map(fromInternalCompileResult)
+
   /** Compile a programmatic pattern whose `$name` holes retain semantic name
     * identity, including repeated-hole structural equality.
     */

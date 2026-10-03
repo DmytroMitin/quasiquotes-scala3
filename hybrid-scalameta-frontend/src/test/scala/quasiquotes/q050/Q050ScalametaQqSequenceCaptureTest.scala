@@ -227,7 +227,7 @@ class Q050ScalametaQqSequenceCaptureTest extends munit.FunSuite:
       assert(errors.exists(_.contains(expected)), s"$expected: ${errors.mkString(" | ")}")
     }
 
-  test("Type and Definition rank boundaries remain independent"):
+  test("Type rank admission does not widen Definition rank"):
     val typeRank = stagedAbortMessage:
       val q = summon[scala.quoted.Quotes]
       quasiquotes.scalameta.ScalametaQuasiPattern.tqq(
@@ -239,5 +239,5 @@ class Q050ScalametaQqSequenceCaptureTest extends munit.FunSuite:
           case dqq"def f(x: Int): Int = ..$body" => ()
           case _ => ()"""
     )
-    assertNotEquals(typeRank, "<no-abort>")
+    assertEquals(typeRank, "<no-abort>")
     assert(definitionRank.nonEmpty)
