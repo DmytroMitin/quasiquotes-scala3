@@ -126,6 +126,14 @@ class PublicDocsCheckTest(unittest.TestCase):
             "Any change that adds, removes, or materially alters a term, type, or definition syntax family must update this matrix.\n",
             encoding="utf-8",
         )
+        (docs / "CROSS_SURFACE_CAPABILITY_MATRIX.md").write_text(
+            "# Cross-surface capability matrix\n\n"
+            "| Family | Q construct | Q match | typed Scalameta construct | typed Scalameta match | N project | N author | U-D fresh lower | U-U existing rewrite |\n"
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
+            "| Rank-2 Term arguments in Apply / one-list New | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` | `NOT_APPLICABLE` |\n"
+            "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |\n",
+            encoding="utf-8",
+        )
         (docs / "SUPPORTED_SYNTAX_AND_LIMITATIONS.md").write_text(
             "# Supported syntax and limitations\n\n"
             "Same-spelling `dqq` uses structural specialization. Static exact-one "
@@ -273,6 +281,60 @@ class PublicDocsCheckTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("PUBLIC_DOCUMENTATION_BOUNDARY_PASS", result.stdout)
+
+    def test_rejects_stale_typed_scalameta_rank2_term_matrix_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            matrix = root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md"
+            matrix.write_text(
+                matrix.read_text(encoding="utf-8").replace(
+                    "| Rank-2 Term arguments in Apply / one-list New | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` |",
+                    "| Rank-2 Term arguments in Apply / one-list New | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` |",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("rank-2 Term matrix", result.stderr)
+
+    def test_rejects_missing_standard_rank2_type_matching_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            matrix = root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md"
+            matrix.write_text(
+                matrix.read_text(encoding="utf-8").replace(
+                    "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` |",
+                    "| Runtime-length Type application arguments | `BOUNDED` | `NOT_YET` |",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("rank-2 Type matrix", result.stderr)
+
+    def test_rejects_typed_scalameta_rank2_type_parity_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            matrix = root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md"
+            matrix.write_text(
+                matrix.read_text(encoding="utf-8").replace(
+                    "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` |",
+                    "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` |",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("rank-2 Type matrix", result.stderr)
 
     def test_rejects_missing_transparent_inline_qq_selector(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -398,6 +398,62 @@ def source_findings(root: Path) -> list[str]:
     return findings
 
 
+def markdown_table_rows(source: str) -> dict[str, list[list[str]]]:
+    rows: dict[str, list[list[str]]] = {}
+    for line in source.splitlines():
+        if not line.lstrip().startswith("|"):
+            continue
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if not cells or cells[0] in {"Family", "---"}:
+            continue
+        rows.setdefault(cells[0].strip("`"), []).append(cells)
+    return rows
+
+
+def capability_status(cell: str) -> str | None:
+    match = re.search(
+        r"\b(SUPPORTED|BOUNDED|INTERNAL|NOT_YET|NOT_APPLICABLE)\b", cell
+    )
+    return match.group(1) if match else None
+
+
+def cross_surface_rank_findings(root: Path) -> list[str]:
+    matrix = (
+        root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md"
+    ).read_text(encoding="utf-8")
+    rows = markdown_table_rows(matrix)
+    required = {
+        "Rank-2 Term arguments in Apply / one-list New": (
+            "rank-2 Term matrix",
+            ("BOUNDED", "BOUNDED", "BOUNDED", "BOUNDED"),
+        ),
+        "Runtime-length Type application arguments": (
+            "rank-2 Type matrix",
+            ("BOUNDED", "BOUNDED", "NOT_YET", "NOT_YET"),
+        ),
+    }
+    findings = []
+    for family, (description, expected) in required.items():
+        candidates = rows.get(family, [])
+        if len(candidates) != 1:
+            findings.append(
+                f"{description} requires exactly one {family!r} row; "
+                f"found {len(candidates)}"
+            )
+            continue
+        row = candidates[0]
+        if len(row) < 5:
+            findings.append(f"{description} is missing capability columns")
+            continue
+        actual = tuple(capability_status(cell) for cell in row[1:5])
+        if actual != expected:
+            findings.append(
+                f"{description} must report Q construct/match and typed-Scalameta "
+                f"construct/match as {expected}; found {actual}"
+            )
+    return findings
+
+
 def matrix_findings(root: Path) -> list[str]:
     matrix = (root / "docs/SYNTAX_SUPPORT_MATRIX.md").read_text(encoding="utf-8")
     required = (
@@ -539,6 +595,7 @@ def check(root: Path) -> list[str]:
         + api_findings(rows)
         + api_count_findings(root, rows)
         + source_findings(root)
+        + cross_surface_rank_findings(root)
         + matrix_findings(root)
         + durable_documentation_findings(root)
     )

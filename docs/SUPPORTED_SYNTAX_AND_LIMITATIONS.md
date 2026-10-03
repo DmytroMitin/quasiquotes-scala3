@@ -304,8 +304,10 @@ Important limitations:
   Arbitrary selected constructors, arbitrary labels,
   alternate/import-shortened spellings, stable-term paths, local owners,
   dynamic constructor holes, higher-kinded types, aliases, ambient semantic
-  name resolution, subtyping, and compiler equality are not supported. `tqq`
-  behavior is unchanged.
+  name resolution, subtyping, and compiler equality are not supported. This
+  selected-Type extension does not widen `tqq`: its ranked slice remains
+  limited to one direct argument capture under fixed `List`, `Option`, or
+  `Either`.
 
 ## Bounded term-pattern extractor
 
