@@ -1,6 +1,6 @@
 package quasiquotes.definitions
 
-import quasiquotes.parser.{BinderId, TermShape, TypeShape}
+import quasiquotes.parser.{BinderId, ConstructorSourcePathPolicy, TermShape, TypeShape}
 import quasiquotes.terms.TermShapeTraversal
 import quasiquotes.types.TypeNormalForm
 
@@ -269,8 +269,16 @@ private[quasiquotes] object DefinitionShape:
       case TermShape.Apply(function, arguments) =>
         firstUnsupportedTerm(function, allowedDefinitionBinders)
           .orElse(firstUnsupported(arguments, allowedDefinitionBinders))
-      case TermShape.New(_, arguments) =>
-        Some("constructor new expressions are not part of the bounded definition-body backend")
+      case TermShape.New(constructor, arguments) =>
+        ConstructorSourcePathPolicy
+          .validate(constructor)
+          .left
+          .toOption
+          .orElse {
+            if arguments == null then
+              Some("constructor new expressions require a present argument list")
+            else firstUnsupported(arguments, allowedDefinitionBinders)
+          }
       case TermShape.Infix(left, _, right) =>
         firstUnsupportedTerm(left, allowedDefinitionBinders)
           .orElse(firstUnsupportedTerm(right, allowedDefinitionBinders))

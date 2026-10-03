@@ -303,7 +303,7 @@ final class ScalametaTypedTwoParameterDefProjectionTest extends munit.FunSuite:
       ScalametaTermProjection.DefinitionBinder("y", BinderId(1))
     )
     assert(ScalametaTermProjection.projectWithDefinitionBinders(coreRejected.body, seeds).isRight)
-    assertErrorCode(coreRejected, "NEUTRAL_DEFINITION_CORE_REJECTED")
+    assert(ScalametaTypedTwoParameterDefProjection.project(coreRejected).isRight)
 
     List(
       "def answer(x: Int, y: Int): Int = answer",
@@ -319,7 +319,7 @@ final class ScalametaTypedTwoParameterDefProjectionTest extends munit.FunSuite:
     ).isRight)
     assertErrorCode(
       parsed("def answer(x: Int, y: Int): String = new java.lang.StringBuilder(answer)"),
-      "NEUTRAL_DEFINITION_CORE_REJECTED"
+      "NEUTRAL_DEFINITION_RECURSION_UNSUPPORTED"
     )
 
   test("orders missing topology names Types body Core and recursion deterministically"):
@@ -350,7 +350,7 @@ final class ScalametaTypedTwoParameterDefProjectionTest extends munit.FunSuite:
     )
     assertErrorCode(
       parsed("def answer(x: Int, y: Int): String = new java.lang.StringBuilder(answer)"),
-      "NEUTRAL_DEFINITION_CORE_REJECTED"
+      "NEUTRAL_DEFINITION_RECURSION_UNSUPPORTED"
     )
     assertErrorCode(
       parsed("def answer(x: Int, y: Int): Int = x + answer"),

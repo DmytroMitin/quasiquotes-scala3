@@ -29,3 +29,41 @@ class ConstructorNewCoreTest extends munit.FunSuite:
       "java..StringBuilder"
     ).foreach(name => assert(ConstructorNamePolicy.validate(name).isLeft))
   }
+
+  test("constructor source-path policy admits one or more plain source segments") {
+    List(
+      "A",
+      "example.A",
+      "foo.bar.Baz",
+      "_",
+      "_A",
+      "a1.B2"
+    ).foreach(path => assertEquals(ConstructorSourcePathPolicy.validate(path), Right(path)))
+
+    List[String](
+      null,
+      "",
+      ".A",
+      "A.",
+      "a..A",
+      "`A`",
+      "a.`A`",
+      "A[B]",
+      "a.A[B]",
+      "a b.A",
+      "A$",
+      "a.Outer$Inner"
+    ).foreach(path => assert(ConstructorSourcePathPolicy.validate(path).isLeft, clues(path)))
+  }
+
+  test("legacy constructor-name policy retains its qualified-only admission and diagnostics") {
+    assertEquals(
+      ConstructorNamePolicy.validate("A"),
+      Left("constructor names must be fully qualified with at least two plain identifier segments")
+    )
+    assertEquals(ConstructorNamePolicy.validate("example.A"), Right("example.A"))
+    assertEquals(
+      ConstructorNamePolicy.validate("example.`A`"),
+      Left("constructor names must use plain identifier segments without backticks, type arguments, or binary-name spelling")
+    )
+  }

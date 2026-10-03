@@ -36,6 +36,9 @@ standard single-quoted `s` interpolation; one fully-qualified non-generic
 constructor with exactly one ordinary positional argument list; transparent
 P0 parentheses; and binder-free P1 blocks.
 
+A one-segment plain constructor path is accepted by neutral projection but is
+rejected here as `EXACT_LOWERING_FAILED` by the unchanged exact consumer guard.
+
 ## Stable public failure boundary
 
 `Failure.code` has three public classes:

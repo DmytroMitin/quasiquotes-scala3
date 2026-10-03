@@ -226,18 +226,15 @@ final class ScalametaTypedSingleParameterDefAuthoringTest extends munit.FunSuite
       DefinitionShape.singleParameterDef(name, id0, parameterName, unsupportedType, intType, literal),
       DefinitionShape.singleParameterDef(name, id0, parameterName, intType, null, literal),
       DefinitionShape.singleParameterDef(name, id0, parameterName, intType, unsupportedType, literal),
-      DefinitionShape.singleParameterDef(name, id0, parameterName, intType, intType, null),
-      DefinitionShape.singleParameterDef(
-        name,
-        id0,
-        parameterName,
-        intType,
-        intType,
-        TermShape.New("synthetic.unresolved.Widget", Nil)
-      )
+      DefinitionShape.singleParameterDef(name, id0, parameterName, intType, intType, null)
     )
 
     assert(coreRejected.forall(_.isLeft))
+    val admittedNew = method(
+      "build", id0, "x", intType, intType,
+      TermShape.New("A", List(bound(id0, "x")))
+    )
+    assert(ScalametaTypedSingleParameterDefAuthoring.author(admittedNew).isRight)
 
   test("maps missing or overflowing BinderIds and malformed names without throwing"):
     val missingBinder = method(
@@ -278,7 +275,7 @@ final class ScalametaTypedSingleParameterDefAuthoringTest extends munit.FunSuite
     assertErrorCode(missingMethodName, "NEUTRAL_SINGLE_PARAMETER_DEF_AUTHORING_NAME_UNSUPPORTED")
     assertErrorCode(missingParameterName, "NEUTRAL_SINGLE_PARAMETER_DEF_AUTHORING_NAME_UNSUPPORTED")
 
-  test("keeps the remaining Core and N029 body-family intersection fail closed in both directions"):
+  test("admits New while keeping the remaining N029 body-family intersection fail closed"):
     val coreRejectedNew = DefinitionShape.singleParameterDef(
       plainName("method"),
       id0,
@@ -291,7 +288,7 @@ final class ScalametaTypedSingleParameterDefAuthoringTest extends munit.FunSuite
       TermShape.New("synthetic.unresolved.Widget", Nil),
       Vector(ScalametaTermShapeAuthoring.DefinitionBinder(id0, plainName("x")))
     ).isRight)
-    assert(coreRejectedNew.isLeft)
+    assert(coreRejectedNew.isRight)
 
     val n029Rejected = List(
       method(

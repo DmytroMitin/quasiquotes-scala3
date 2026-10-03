@@ -3,7 +3,7 @@ package quasiquotes.neutral
 import _root_.quasiquotes.parser.{
   BinderId,
   BlockStatement,
-  ConstructorNamePolicy,
+  ConstructorSourcePathPolicy,
   LocalDefDiagnosticMessages,
   P2LocalValAdmission,
   P2LocalValDiagnosticMessages,
@@ -707,7 +707,7 @@ object ScalametaTermProjection:
         "NEUTRAL_NEW_CONSTRUCTOR_NAME_UNSUPPORTED",
         "constructor names must use unquoted plain identifier segments."
       )
-      constructorName <- ConstructorNamePolicy
+      constructorName <- ConstructorSourcePathPolicy
         .validate(segments.map(_.value).mkString("."))
         .left
         .map(detail => error("NEUTRAL_NEW_CONSTRUCTOR_NAME_UNSUPPORTED", detail))

@@ -185,11 +185,8 @@ final class ScalametaTypedImmutableValAuthoringTest extends munit.FunSuite:
       )
     )
     assert(ScalametaTermShapeAuthoring.author(constructor).isRight)
-    assert(
-      DefinitionShape
-        .immutableVal(name, intType, constructor)
-        .isLeft
-    )
+    val admitted = DefinitionShape.immutableVal(name, intType, constructor).toOption.get
+    assert(ScalametaTypedImmutableValAuthoring.author(admitted).isRight)
     assert(
       DefinitionShape
         .immutableVal(

@@ -254,3 +254,92 @@ class DefinitionShapeTest extends munit.FunSuite:
       "Unsupported value right-hand side: typed bodies support only Int, String, and Boolean ascriptions."
     )
   }
+
+  test("admits recursively validated New bodies in all four body-bearing families") {
+    val parameterName = DefinitionName.plain("x").toOption.get
+    val secondParameterName = DefinitionName.plain("y").toOption.get
+    val firstBinder = BinderId(10)
+    val secondBinder = BinderId(11)
+    val simple = TermShape.New("A", Nil)
+    val oneBound = TermShape.New(
+      "example.A",
+      List(TermShape.BoundReference(firstBinder, "x"))
+    )
+    val twoBound = TermShape.New(
+      "foo.bar.Baz",
+      List(
+        TermShape.BoundReference(firstBinder, "x"),
+        TermShape.New("A", List(TermShape.BoundReference(secondBinder, "y")))
+      )
+    )
+
+    assert(DefinitionShape.immutableVal(plainName, intType, simple).isRight)
+    assert(DefinitionShape.parameterlessDef(plainName, intType, simple).isRight)
+    assert(
+      DefinitionShape.singleParameterDef(
+        plainName,
+        firstBinder,
+        parameterName,
+        intType,
+        intType,
+        oneBound
+      ).isRight
+    )
+    assert(
+      DefinitionShape.twoParameterDef(
+        plainName,
+        firstBinder,
+        parameterName,
+        intType,
+        secondBinder,
+        secondParameterName,
+        intType,
+        intType,
+        twoBound
+      ).isRight
+    )
+  }
+
+  test("New body admission rejects invalid paths malformed arguments and foreign binders") {
+    val parameterName = DefinitionName.plain("x").toOption.get
+    val binder = BinderId(20)
+    val invalidPath = DefinitionShape
+      .parameterlessDef(plainName, intType, TermShape.New("A[B]", Nil))
+      .left.toOption.get
+    assertEquals(
+      invalidPath,
+      DefinitionError.UnsupportedDefinitionBody(
+        "method body",
+        "constructor names must use plain identifier segments without backticks, type arguments, or binary-name spelling"
+      )
+    )
+
+    val missingArguments = DefinitionShape
+      .immutableVal(plainName, intType, TermShape.New("A", null))
+      .left.toOption.get
+    assertEquals(
+      missingArguments,
+      DefinitionError.UnsupportedDefinitionBody(
+        "value right-hand side",
+        "constructor new expressions require a present argument list"
+      )
+    )
+
+    val foreign = DefinitionShape.singleParameterDef(
+      plainName,
+      binder,
+      parameterName,
+      intType,
+      intType,
+      TermShape.New("A", List(TermShape.BoundReference(BinderId(21), "x")))
+    )
+    assertEquals(
+      foreign,
+      Left(
+        DefinitionError.UnsupportedDefinitionBody(
+          "method body",
+          "bound references must resolve to the single ordinary method parameter"
+        )
+      )
+    )
+  }

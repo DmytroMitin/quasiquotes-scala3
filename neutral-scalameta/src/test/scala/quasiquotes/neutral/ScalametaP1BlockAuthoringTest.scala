@@ -166,7 +166,7 @@ final class ScalametaP1BlockAuthoringTest extends munit.FunSuite:
 
     assertErrorCode(
       block(
-        List(TermShape.New("StringBuilder", Nil)),
+        List(TermShape.New("`StringBuilder`", Nil)),
         result
       ),
       "NEUTRAL_TERM_AUTHORING_STRUCTURE_UNSUPPORTED"

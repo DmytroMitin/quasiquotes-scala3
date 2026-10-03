@@ -94,6 +94,38 @@ final class ScalametaPublicSemanticDefinitionAuthoringTest extends munit.FunSuit
       Some(TermShape.Select(TermShape.Identifier("service", false), "member"))
     )
 
+  test("authors and reprojects input096 simple and qualified New bodies with fresh topology"):
+    List("A", "example.A").foreach { constructor =>
+      val definition = method("foo3", Vector("x" -> intType), stringType) { scope =>
+        scope.reference(0, 0).map { reference =>
+          TermShape.Apply(
+            TermShape.Select(TermShape.New(constructor, Nil), "classMethod"),
+            List(reference)
+          )
+        }
+      }
+
+      val authored = author(definition).asInstanceOf[Defn.Def]
+      assertEquals(allTrees(authored).forall(_.pos == Position.None), true)
+      authored.body match
+        case Term.Apply(
+              Term.Select(fresh: Term.New, member: Term.Name),
+              clause
+            ) =>
+          assertEquals(member.value, "classMethod")
+          assertEquals(clause.values.collect { case name: Term.Name => name.value }, List("x"))
+          assertEquals(clause.mod, None)
+          if constructor == "A" then assert(fresh.init.tpe.isInstanceOf[Type.Name])
+          else assert(fresh.init.tpe.isInstanceOf[Type.Select])
+        case other => fail(s"unexpected authored input096 body: ${other.structure}")
+
+      val reprojected = project(authored).definition
+      assertEquals(reprojected, definition)
+      val view = reprojected.asMethod.get
+      val expected = binder(view.parameterScope.reference(0, 0))
+      assertEquals(collectBoundBinders(view.body.get), List(expected))
+    }
+
   test("fails closed for missing input broader Core terms resolved Types and Parenthesized Outcome-B"):
     assertCode(
       ScalametaDefinitionAuthoring.author(null),

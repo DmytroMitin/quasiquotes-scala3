@@ -106,6 +106,24 @@ final class ScalametaPublicSemanticDefinitionProjectionTest extends munit.FunSui
     assertEquals(collectBoundBinders(selectedMember.body.get), Nil)
     assertEquals(selectedMember.body, Some(TermShape.Select(TermShape.Identifier("obj", false), "x")))
 
+  test("projects input096 simple and qualified New bodies with exact parameter co-reference"):
+    List("A", "example.A").foreach { constructor =>
+      val projected = project(
+        s"def foo3(x: Int): String = new $constructor().classMethod(x)"
+      )
+      val view = projected.definition.asMethod.get
+      val parameter = definitionRight(view.parameterScope.binder(0, 0))
+
+      view.body.get match
+        case TermShape.Apply(
+              TermShape.Select(TermShape.New(actualConstructor, Nil), "classMethod"),
+              List(argument)
+            ) =>
+          assertEquals(actualConstructor, constructor)
+          assert(boundBinder(argument) == parameter)
+        case other => fail(s"unexpected input096 body for $constructor: ${other.render}")
+    }
+
   test("preserves exact root provenance for parsed and fresh definitions"):
     val sources = List(
       "val answer: Int = 42",

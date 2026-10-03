@@ -262,7 +262,6 @@ class DirectConstructorNewExactParityTest extends munit.FunSuite:
 
   test("N008-owned constructor near misses remain rejected before direct lowering") {
     val cases = Vector(
-      "new StringBuilder()" -> "NEUTRAL_NEW_CONSTRUCTOR_NAME_UNSUPPORTED",
       "new java.lang.`StringBuilder`()" -> "NEUTRAL_NEW_CONSTRUCTOR_NAME_UNSUPPORTED",
       "new java.lang.StringBuilder[Int](16)" -> "NEUTRAL_NEW_CONSTRUCTOR_TYPE_UNSUPPORTED",
       "new java.lang.StringBuilder(capacity = 16)" -> "NEUTRAL_NEW_ARGUMENT_UNSUPPORTED",
@@ -279,6 +278,23 @@ class DirectConstructorNewExactParityTest extends munit.FunSuite:
         projected.left.toOption.map(_.code),
         Some(expectedCode),
         clues(source)
+      )
+    }
+  }
+
+  test("one-segment New projects neutrally but remains a controlled direct-backend rejection") {
+    val projected = ScalametaTermProjection.project(
+      Scala3("new A()").parse[Term].get
+    ).toOption.get
+    assertEquals(projected.shape, TermShape.New("A", Nil))
+
+    withContext {
+      assert(
+        CoreTermShapeUntypedLowerer
+          .lower(projected.shape)
+          .left
+          .toOption
+          .exists(_.isInstanceOf[InvalidConstructorName])
       )
     }
   }

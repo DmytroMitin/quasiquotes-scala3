@@ -311,21 +311,15 @@ final class ScalametaTypedTwoParameterDefAuthoringTest extends munit.FunSuite:
       DefinitionShape.twoParameterDef(name, id0, firstName, intType, id1, secondName, unsupportedType, intType, literal),
       DefinitionShape.twoParameterDef(name, id0, firstName, intType, id1, secondName, intType, null, literal),
       DefinitionShape.twoParameterDef(name, id0, firstName, intType, id1, secondName, intType, unsupportedType, literal),
-      DefinitionShape.twoParameterDef(name, id0, firstName, intType, id1, secondName, intType, intType, null),
-      DefinitionShape.twoParameterDef(
-        name,
-        id0,
-        firstName,
-        intType,
-        id1,
-        secondName,
-        intType,
-        intType,
-        TermShape.New("synthetic.unresolved.Widget", Nil)
-      )
+      DefinitionShape.twoParameterDef(name, id0, firstName, intType, id1, secondName, intType, intType, null)
     )
 
     assert(coreRejected.forall(_.isLeft))
+    val admittedNew = method(
+      "build", id0, "x", intType, id1, "y", intType, intType,
+      TermShape.New("A", List(bound(id0, "x"), bound(id1, "y")))
+    )
+    assert(ScalametaTypedTwoParameterDefAuthoring.author(admittedNew).isRight)
 
   test("maps missing or overflowing binders and missing names without throwing"):
     val malformed = List(
@@ -343,7 +337,7 @@ final class ScalametaTypedTwoParameterDefAuthoringTest extends munit.FunSuite:
 
     malformed.foreach { case (shape, expected) => assertErrorCode(shape, expected) }
 
-  test("keeps unknown binders and the Core versus N029 body-family intersection fail closed"):
+  test("keeps unknown binders rejected while admitting New and preserving the N029 intersection"):
     val binders = Vector(
       ScalametaTermShapeAuthoring.DefinitionBinder(id0, plainName("x")),
       ScalametaTermShapeAuthoring.DefinitionBinder(id1, plainName("y"))
@@ -363,7 +357,7 @@ final class ScalametaTypedTwoParameterDefAuthoringTest extends munit.FunSuite:
       DefinitionShape.twoParameterDef(
         plainName("method"), id0, plainName("x"), intType,
         id1, plainName("y"), intType, intType, newBody
-      ).isLeft
+      ).isRight
     )
 
     List(

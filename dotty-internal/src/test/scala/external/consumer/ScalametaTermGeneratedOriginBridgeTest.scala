@@ -127,12 +127,16 @@ final class ScalametaTermGeneratedOriginBridgeTest extends munit.FunSuite:
         "f(value = 1)",
         "f(values*)",
         "f(using value)",
-        "raw\"x=$value\"",
-        "new StringBuilder(16)"
+        "raw\"x=$value\""
       ).foreach: source =>
         val failure = lowerFailure(source, "<generated:term-projection>")
         assertEquals(failure.code, "NEUTRAL_PROJECTION_FAILED", clues(source))
         assert(failure.detail.startsWith("NEUTRAL_"), clues(source, failure))
+
+      val simpleConstructor =
+        lowerFailure("new A()", "<generated:term-simple-constructor>")
+      assertEquals(simpleConstructor.code, "GENERATED_ORIGIN_FAILED")
+      assert(simpleConstructor.detail.contains("at least two plain identifier segments"))
 
       val completion =
         lowerFailure("(value: Option[Int])", "<generated:term-completion>")

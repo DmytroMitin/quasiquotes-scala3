@@ -134,12 +134,12 @@ final class ScalametaTypedImmutableValProjectionTest extends munit.FunSuite:
 
     sources.foreach(source => assert(ScalametaTypedImmutableValProjection.project(parsed(source)).isRight, clues(source)))
 
-  test("keeps Core DefinitionShape as final body authority after general Term success"):
+  test("admits a recursively projected New body through Core DefinitionShape"):
     val definition = parsed(
       "val built: String = new java.lang.StringBuilder(16)"
     )
     assert(ScalametaTermProjection.project(definition.rhs).isRight)
-    assertErrorCode(definition, "NEUTRAL_DEFINITION_CORE_REJECTED")
+    assert(ScalametaTypedImmutableValProjection.project(definition).isRight)
 
   test("separates RHS projection failure from Core body rejection"):
     assertErrorCode(

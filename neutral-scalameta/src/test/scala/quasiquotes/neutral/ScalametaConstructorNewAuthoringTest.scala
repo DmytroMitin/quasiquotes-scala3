@@ -7,8 +7,9 @@ import scala.meta.*
 final class ScalametaConstructorNewAuthoringTest extends munit.FunSuite:
   private val free = TermShape.Identifier("x", isPlaceholder = false)
 
-  test("authors fully-qualified constructors with one ordinary positional argument clause"):
+  test("authors one-or-more-segment source-path constructors with one ordinary positional argument clause"):
     val fixtures = List(
+      TermShape.New("A", Nil),
       TermShape.New("java.lang.StringBuilder", Nil),
       TermShape.New("java.lang.StringBuilder", List(TermShape.Literal("16"))),
       TermShape.New(
@@ -19,7 +20,12 @@ final class ScalametaConstructorNewAuthoringTest extends munit.FunSuite:
 
     fixtures.foreach(shape => assertRoundTrip(shape, author(shape)))
 
-    val empty = author(fixtures.head).asInstanceOf[Term.New]
+    val simple = author(fixtures.head).asInstanceOf[Term.New]
+    assert(simple.init.tpe.isInstanceOf[Type.Name])
+    assertEquals(simple.init.tpe.asInstanceOf[Type.Name].value, "A")
+    assertEquals(allTrees(simple).forall(_.pos == Position.None), true)
+
+    val empty = author(fixtures(1)).asInstanceOf[Term.New]
     assertEquals(empty.init.name.value, "")
     assertEquals(constructorSegments(empty.init.tpe), List("java", "lang", "StringBuilder"))
     assertEquals(empty.init.argClauses.size, 1)
@@ -71,7 +77,6 @@ final class ScalametaConstructorNewAuthoringTest extends munit.FunSuite:
     List(
       null,
       "",
-      "StringBuilder",
       ".java.lang.StringBuilder",
       "java.lang.StringBuilder.",
       "java..lang.StringBuilder",
@@ -107,7 +112,7 @@ final class ScalametaConstructorNewAuthoringTest extends munit.FunSuite:
     assertErrorCode(
       TermShape.New(
         "synthetic.unresolved.Widget",
-        List(TermShape.New("Value", Nil))
+        List(TermShape.New("`Value`", Nil))
       ),
       "NEUTRAL_TERM_AUTHORING_STRUCTURE_UNSUPPORTED"
     )

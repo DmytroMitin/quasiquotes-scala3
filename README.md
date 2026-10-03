@@ -211,11 +211,12 @@ names the concrete APIs, visibility boundaries, and current composition status.
 - `neutralScalameta` is a released compiler-free experiment backed by
   Scalameta 4.17.3. It provides direct source-AST authoring plus a bounded
   structural projection into the existing validated IR, including the accepted
-  fully-qualified, non-generic, one-positional-list constructor/New family,
+  one-or-more-segment plain structural source-path, non-generic,
+  one-positional-list constructor/New family,
   without `Quotes`, compiler implementation dependencies, staging, SemanticDB,
   or exact trees. Its bounded `ScalametaTermShapeAuthoring` reverse direction
   creates fresh `Position.None` Scalameta Terms for the accepted ordinary,
-  fully-qualified `new`, standard-`s`, primitive-ascription, typed-Lambda1,
+  structural source-path `new`, standard-`s`, primitive-ascription, typed-Lambda1,
   binder-free P1, one-local-val P2, and local-identity-method P3 families with
   exact semantic round trip. Grouping parentheses remain source-origin syntax
   rather than a distinct project Term; source-provenance reconstruction remains

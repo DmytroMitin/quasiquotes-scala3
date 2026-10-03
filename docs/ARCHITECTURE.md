@@ -95,7 +95,7 @@ The production neutral Term route has two separately named exact continuations:
 
 ```text
 scala.meta.Term (bounded literals / names / select / Apply / infix / unary
-  / tuple / if / standard-s / fully-qualified one-list New / Lambda1
+  / tuple / if / standard-s / one-or-more-segment source-path one-list New / Lambda1
   / P0-P3 block families)
   -> ScalametaTermProjection
   -> core TermShape
@@ -107,6 +107,10 @@ scala.meta.Term (bounded literals / names / select / Apply / infix / unary
             -> package-private ConstructedTermGeneratedOriginAdapter
             -> positioned untpd.Tree + generated source + SourceFile
 ```
+
+Neutral projection and direct authoring admit one or more plain source-path
+segments. The two exact Term bridges intentionally retain their legacy
+two-or-more-segment consumer guard until the separately routed U lowering step.
 
 The bounded Type sibling follows the same dependency direction without a
 compiler `Context`:
@@ -133,8 +137,8 @@ encoded by recursive `TermShape.Infix` structure.
   semantic Int/String/Boolean literals, recursive ordinary binary infix and
   unary nodes, tuples, explicit three-branch conditionals, direct identifiers,
   direct selections, exactly one ordinary positional Apply argument list, one
-  bounded fully-qualified non-generic constructor with one ordinary positional
-  argument list, one explicitly typed Lambda1, transparent P0/binder-free P1
+  bounded one-or-more-segment plain source-path constructor with one ordinary
+  positional argument list, one explicitly typed Lambda1, transparent P0/binder-free P1
   blocks, one bounded typed local-val P2 block, and one bounded source-owned
   local identity-method P3 block into core `TermShape`. Unsupported and broader
   constructor/binder/statement shapes fail closed.
@@ -327,7 +331,7 @@ The reusable neutral Term route is now:
 ```text
 scala.meta Int/String/Boolean literals / ApplyInfix / unary / tuple / if
   / Term.Name / Term.Select / one ordinary Term.Apply argument list
-  / one fully-qualified non-generic Term.New with one ordinary argument list
+  / a one-or-more-segment plain source-path Term.New with one ordinary argument list
   / one typed Lambda1 / transparent P0 and bounded P1/P2/P3 blocks
   -> ScalametaTermProjection
   -> core TermShape
@@ -368,12 +372,11 @@ It preserves only a truthful root source span and performs no rendering,
 reparse, typing, symbol lookup, overload resolution, or fallback. The recursive
 result is a semantic copy; it does not preserve Scalameta child identity or raw
 Dotty subtree identity and adds no opaque raw sidecar. Nested Apply lists, Type
-application, contextual clauses, simple/import-relative or type-applied
-constructors, multiple constructor lists, named/star arguments, anonymous
+application, contextual clauses, type-applied constructors, multiple constructor lists, named/star arguments, anonymous
 templates, and broader statement/binder forms remain outside the neutral
 contract. The bounded reverse `ScalametaTermShapeAuthoring` route constructs
 fresh `Position.None` Scalameta Terms for the accepted ordinary family,
-fully-qualified `new`, standard-`s` interpolation, primitive ascription,
+structural source-path `new`, standard-`s` interpolation, primitive ascription,
 typed Lambda1, binder-free P1, one-local-val P2, and local-identity-method P3.
 Binder-bearing values are safely inspectable/constructible through public
 `TermShapeBindingView` and `TermShapeBindings`; grouping parentheses and

@@ -42,6 +42,9 @@ arity 2 through 22, explicit `if`/`else`, standard single-quoted `s`
 interpolation, and one fully-qualified non-generic constructor with one
 ordinary positional list. Transparent P0 parentheses and binder-free P1 blocks
 are also admitted.
+A one-segment plain constructor path is accepted by neutral projection but is
+then rejected as `GENERATED_ORIGIN_FAILED` by the unchanged generated-origin
+consumer guard.
 
 The completed path additionally admits bounded Type ascriptions whose Types
 can be completed by the public path (`Int`, `String`, and `Boolean`), one

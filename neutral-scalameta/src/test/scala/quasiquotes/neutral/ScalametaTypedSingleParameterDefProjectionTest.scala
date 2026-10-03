@@ -209,7 +209,7 @@ final class ScalametaTypedSingleParameterDefProjectionTest extends munit.FunSuit
     val coreRejected = parsed("def build(x: Int): String = new java.lang.StringBuilder(x)")
     val seed = ScalametaTermProjection.DefinitionBinder("x", BinderId(0))
     assert(ScalametaTermProjection.projectWithDefinitionBinders(coreRejected.body, Vector(seed)).isRight)
-    assertErrorCode(coreRejected, "NEUTRAL_DEFINITION_CORE_REJECTED")
+    assert(ScalametaTypedSingleParameterDefProjection.project(coreRejected).isRight)
 
     List(
       "def answer(x: Int): Int = answer",
@@ -225,7 +225,7 @@ final class ScalametaTypedSingleParameterDefProjectionTest extends munit.FunSuit
     ).isRight)
     assertErrorCode(
       parsed("def answer(x: Int): String = new java.lang.StringBuilder(answer)"),
-      "NEUTRAL_DEFINITION_CORE_REJECTED"
+      "NEUTRAL_DEFINITION_RECURSION_UNSUPPORTED"
     )
 
   test("orders missing topology names Types body Core and recursion deterministically"):
@@ -256,7 +256,7 @@ final class ScalametaTypedSingleParameterDefProjectionTest extends munit.FunSuit
     )
     assertErrorCode(
       parsed("def answer(x: Int): String = new java.lang.StringBuilder(answer)"),
-      "NEUTRAL_DEFINITION_CORE_REJECTED"
+      "NEUTRAL_DEFINITION_RECURSION_UNSUPPORTED"
     )
     assertErrorCode(
       parsed("def answer(x: Int): Int = x + answer"),

@@ -109,7 +109,6 @@ class ScalametaTermUntypedBridgeTest extends munit.FunSuite:
         "f(value = 1)",
         "f(values*)",
         "f(using value)",
-        "new StringBuilder(16)",
         "new Box[Int](1)",
         "new java.lang.StringBuilder(16)(32)",
         "new java.lang.Runnable { def run(): Unit = () }"
@@ -126,6 +125,7 @@ class ScalametaTermUntypedBridgeTest extends munit.FunSuite:
   test("external consumer receives exact-lowering failures without richer fallback") {
     withContext {
       val sources = Vector(
+        "new A()" -> "Invalid bounded exact-backend constructor name",
         "(1: Int)" -> "Unsupported core TermShape",
         "(x: Int) => x" -> "Unsupported core TermShape",
         "{ val x: Int = 1; x }" -> "Malformed bounded exact-backend P1 Block",

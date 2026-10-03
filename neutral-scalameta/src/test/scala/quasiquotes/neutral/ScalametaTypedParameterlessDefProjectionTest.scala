@@ -149,10 +149,10 @@ final class ScalametaTypedParameterlessDefProjectionTest extends munit.FunSuite:
       assertErrorCode(parsed(source), "NEUTRAL_DEFINITION_RECURSION_UNSUPPORTED")
     )
 
-  test("keeps Core DefinitionShape as final body authority after general Term success"):
+  test("admits a recursively projected New body through Core DefinitionShape"):
     val definition = parsed("def built: String = new java.lang.StringBuilder(16)")
     assert(ScalametaTermProjection.project(definition.body).isRight)
-    assertErrorCode(definition, "NEUTRAL_DEFINITION_CORE_REJECTED")
+    assert(ScalametaTypedParameterlessDefProjection.project(definition).isRight)
 
   test("separates body projection failure from Core rejection"):
     assertErrorCode(
@@ -160,12 +160,12 @@ final class ScalametaTypedParameterlessDefProjectionTest extends munit.FunSuite:
       "NEUTRAL_DEFINITION_BODY_UNSUPPORTED"
     )
 
-  test("checks Core rejection before recursion inside a Core-excluded body"):
+  test("checks recursion inside an admitted New body"):
     val definition = parsed(
       "def answer: String = new java.lang.StringBuilder(answer)"
     )
     assert(ScalametaTermProjection.project(definition.body).isRight)
-    assertErrorCode(definition, "NEUTRAL_DEFINITION_CORE_REJECTED")
+    assertErrorCode(definition, "NEUTRAL_DEFINITION_RECURSION_UNSUPPORTED")
 
   test("preserves positioned root span and reports no span for a fresh root"):
     val source = "def answer: Int = 42"
@@ -205,7 +205,7 @@ final class ScalametaTypedParameterlessDefProjectionTest extends munit.FunSuite:
     )
     assertErrorCode(
       parsed("def answer: String = new java.lang.StringBuilder(answer)"),
-      "NEUTRAL_DEFINITION_CORE_REJECTED"
+      "NEUTRAL_DEFINITION_RECURSION_UNSUPPORTED"
     )
     assertErrorCode(
       parsed("def answer: Int = answer"),

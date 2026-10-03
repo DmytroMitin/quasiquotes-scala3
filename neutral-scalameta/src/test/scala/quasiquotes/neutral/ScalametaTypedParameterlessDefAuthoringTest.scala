@@ -199,7 +199,8 @@ final class ScalametaTypedParameterlessDefAuthoringTest extends munit.FunSuite:
       )
     )
     assert(ScalametaTermShapeAuthoring.author(constructor).isRight)
-    assert(DefinitionShape.parameterlessDef(name, intType, constructor).isLeft)
+    val admitted = DefinitionShape.parameterlessDef(name, intType, constructor).toOption.get
+    assert(ScalametaTypedParameterlessDefAuthoring.author(admitted).isRight)
 
   test("reports remaining Core-admitted but generic-Term-authoring-rejected bodies as intersection failures"):
     val rejected = List(

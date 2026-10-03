@@ -94,6 +94,36 @@ class SemanticDefinitionShapeAdapterTest extends munit.FunSuite:
     ).asInstanceOf[DefinitionShape.SimpleTypeAlias]
     assertEquals(alias.rhs, TypeShape.Identifier("Int"))
 
+  test("adapts an input096 New body through common DefinitionShape validation"):
+    val semantic = definition(
+      SemanticDefinition.concreteMethod(
+        name("foo3"),
+        Vector(clause(parameter("x", intType))),
+        stringType
+      ) { scope =>
+        scope.reference(0, 0).map { reference =>
+          TermShape.Apply(
+            TermShape.Select(TermShape.New("A", Nil), "classMethod"),
+            List(reference)
+          )
+        }
+      }
+    )
+    val reference = semantic.asMethod.get.parameterScope.reference(0, 0).toOption.get
+    val adapted = adapt(semantic).asInstanceOf[DefinitionShape.SingleParameterDef]
+
+    assertEquals(
+      adapted.body,
+      TermShape.Apply(
+        TermShape.Select(TermShape.New("A", Nil), "classMethod"),
+        List(TermShape.BoundReference(adapted.parameterBinderId, "x"))
+      )
+    )
+    assertEquals(
+      adapted.parameterBinderId,
+      reference.asInstanceOf[TermShape.BoundReference].binderId
+    )
+
   test("structurally inverts unresolved normal forms and proves exact round-trip"):
     val forms = List[TypeNormalForm](
       TypeNormalForm.STypeApply(TypeNormalForm.STypeIdent("List"), List(intType)),

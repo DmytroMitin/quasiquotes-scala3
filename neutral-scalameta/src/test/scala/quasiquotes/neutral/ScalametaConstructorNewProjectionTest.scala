@@ -10,6 +10,7 @@ import scala.meta.dialects.Scala3
 final class ScalametaConstructorNewProjectionTest extends munit.FunSuite:
   test("Scalameta exposes the exact selected constructor-new fields"):
     val fixtures = List(
+      ("new A()", List("A"), 0),
       ("new java.lang.StringBuilder()", List("java", "lang", "StringBuilder"), 0),
       ("new java.lang.StringBuilder(16)", List("java", "lang", "StringBuilder"), 1),
       ("new synthetic.unresolved.Widget(1, x)", List("synthetic", "unresolved", "Widget"), 2)
@@ -59,6 +60,7 @@ final class ScalametaConstructorNewProjectionTest extends munit.FunSuite:
 
   test("projects empty, literal, ordered, and unresolved constructors"):
     val fixtures = List(
+      "new A()" -> TermShape.New("A", Nil),
       "new java.lang.StringBuilder()" ->
         TermShape.New("java.lang.StringBuilder", Nil),
       "new java.lang.StringBuilder(16)" ->
@@ -79,6 +81,15 @@ final class ScalametaConstructorNewProjectionTest extends munit.FunSuite:
     fixtures.foreach { (source, expected) =>
       assertEquals(project(parsed(source)).shape, expected, clues(source))
     }
+
+  test("accepts a fresh tokenless one-segment Type.Name without parser provenance"):
+    val fresh = Term.New(
+      Init(Type.Name("A"), Name.Anonymous(), List(Term.ArgClause(Nil)))
+    )
+
+    assertEquals(fresh.pos, Position.None)
+    assertEquals(fresh.init.tpe.pos, Position.None)
+    assertEquals(project(fresh), ProjectedTermShape(TermShape.New("A", Nil), None))
 
   test("recursively projects nested and composite constructor arguments"):
     val source =
@@ -135,10 +146,8 @@ final class ScalametaConstructorNewProjectionTest extends munit.FunSuite:
 
   test("rejects malformed constructor names, Types, and argument lists precisely"):
     val cases = List(
-      "new StringBuilder()" -> "NEUTRAL_NEW_CONSTRUCTOR_NAME_UNSUPPORTED",
       "new java.lang.`StringBuilder`()" -> "NEUTRAL_NEW_CONSTRUCTOR_NAME_UNSUPPORTED",
       "new java.lang.Outer$Inner()" -> "NEUTRAL_NEW_CONSTRUCTOR_NAME_UNSUPPORTED",
-      "new __qq_ctor_type_hole__(16)" -> "NEUTRAL_NEW_CONSTRUCTOR_NAME_UNSUPPORTED",
       "new java.lang.StringBuilder[Int](16)" -> "NEUTRAL_NEW_CONSTRUCTOR_TYPE_UNSUPPORTED",
       "new java.lang.StringBuilder" -> "NEUTRAL_NEW_ARGUMENT_LIST_UNSUPPORTED",
       "new java.lang.StringBuilder(16)(17)" -> "NEUTRAL_NEW_ARGUMENT_LIST_UNSUPPORTED",

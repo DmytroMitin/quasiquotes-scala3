@@ -1,7 +1,7 @@
 package quasiquotes.neutral
 
 import _root_.quasiquotes.definitions.DefinitionName
-import _root_.quasiquotes.parser.{BinderId, BlockStatement, ConstructorNamePolicy, TermShape, TypeShape}
+import _root_.quasiquotes.parser.{BinderId, BlockStatement, ConstructorSourcePathPolicy, TermShape, TypeShape}
 import _root_.quasiquotes.terms.TermShapeTraversal
 
 import scala.annotation.nowarn
@@ -149,17 +149,20 @@ object ScalametaTermShapeAuthoring:
           yield authored
         case TermShape.New(constructor, arguments) =>
           for
-            validatedConstructor <- ConstructorNamePolicy
+            validatedConstructor <- ConstructorSourcePathPolicy
               .validate(constructor)
               .left
               .map(structureError)
             authoredArguments <- traverse(arguments)(authorPresent(_, scope))
             authored <- construct("constructor-new term") {
               val segments = validatedConstructor.split("\\.", -1).toList
-              val qualifier = segments.init.tail.foldLeft[Term.Ref](Term.Name(segments.head)) {
-                case (current, segment) => Term.Select(current, Term.Name(segment))
-              }
-              val constructorType = Type.Select(qualifier, Type.Name(segments.last))
+              val constructorType = segments match
+                case segment :: Nil => Type.Name(segment)
+                case _ =>
+                  val qualifier = segments.init.tail.foldLeft[Term.Ref](Term.Name(segments.head)) {
+                    case (current, segment) => Term.Select(current, Term.Name(segment))
+                  }
+                  Type.Select(qualifier, Type.Name(segments.last))
               Term.New(
                 Init(
                   constructorType,
