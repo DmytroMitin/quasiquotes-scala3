@@ -155,7 +155,11 @@ encoded by recursive `TermShape.Infix` structure.
   generated-origin Scalameta Definition bridges, and the narrow
   `ContextualMethodPeerBridge`, `SelfAbstractTypeMemberPeerBridge`, and
   `DelegatedForwardingMethodPeerBridge`, plus the bounded
-  `AuxTypeAliasPeerBridge` and `InstanceFactoryPeerBridge`. Its package-private
+  `AuxTypeAliasPeerBridge`, `InstanceFactoryPeerBridge`, and
+  `ExtensionModulePeerBridge`. The last composes the exact one-object,
+  one-extension-group AUXify input045 family into a positioned `ModuleDef`; it
+  is not general object or extension lowering, and peer placement/lifecycle
+  remains consumer-owned. Its package-private
   `CoreTermShapeUntypedLowerer` consumes the accepted neutral non-binder family
   (Int/String/Boolean literals, infix, unary, tuple, conditional,
   Identifier/Select/one-list Apply) plus transparent P0 and binder-free P1

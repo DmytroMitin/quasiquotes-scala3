@@ -172,7 +172,7 @@ Definition bridge remains a separate, non-delegating private-shape
 composition. These distinctions are compatibility boundaries, not missing
 links.
 
-Five definition-specific production objects in this module are intentionally
+Six definition-specific production objects in this module are intentionally
 exposed to foreign packages. `ContextualMethodPeerBridge` accepts either the
 legacy single-unbounded-parameter contextual method or the exact bounded
 two-parameter bounded `Add.Out` method. The separate
@@ -184,7 +184,10 @@ forwarder whose body calls the contextual instance with the ordinary argument.
 two-target-reference, one-refinement-alias family. `InstanceFactoryPeerBridge`
 accepts only the complete bounded generic factory with a by-name carrier, a
 binary-function carrier, one matching anonymous parent, and two ordered
-overrides. All five require a virtual
+overrides. `ExtensionModulePeerBridge` accepts only the exact AUXify input045
+object/extension family, composes its package-private Scalameta projection and
+bounded plan adapter, and returns a positioned `untpd.ModuleDef`; it does not claim general
+object or extension lowering. All six require a virtual
 source name and return a categorized
 failure or a positioned tree with deterministic generated source and the
 effective virtual source name.
@@ -232,6 +235,27 @@ The projector is the sole authority for the factory grammar and binder roles;
 the exact backend does not repeat a spelling-based semantic validator. The
 bridge returns only after the complete raw tree and generated-origin gates
 pass, so malformed input never yields a partial factory.
+
+The bounded extension-module path is separately composed as:
+
+```text
+scala.meta.Defn.Object
+  -> ScalametaExtensionModuleProjection
+  -> package-private ExtensionModulePlan
+  -> bounded plan adapter
+  -> BoundedExtensionModuleGeneratedOriginAdapter
+  -> ExtensionModulePeerBridge.Lowered
+       -> positioned untpd.ModuleDef
+       -> generated source
+       -> virtual source name
+```
+
+The projector remains the exact source-topology and role authority, while the
+bounded plan adapter and accepted generated-origin backend own mechanical exact
+lowering and provenance. The public bridge adds only stable outer failure mapping and the final
+`ModuleDef` invariant. Companion placement, lifecycle, insertion, rollback,
+typing, and owner repair remain peer-owned. See the
+[bounded extension-module bridge page](EXTENSION_MODULE_PEER_BRIDGE.md).
 
 The focused API and failure contract remain documented on the
 [experimental contextual-method peer bridge page](EXPERIMENTAL_CONTEXTUAL_METHOD_PEER_BRIDGE.md).

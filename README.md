@@ -240,11 +240,14 @@ names the concrete APIs, visibility boundaries, and current composition status.
   `ScalametaTypeUntypedBridge`, the public bounded exact-version
   `ScalametaTermGeneratedOriginBridge`, the bounded exact-version source-free
   and generated-origin Scalameta Definition bridges, the public bounded hybrid
-  `ScalametaDefinitionClassMemberAppendBridge`, and five narrow experimental
+  `ScalametaDefinitionClassMemberAppendBridge`, and six narrow experimental
   foreign-package peer bridges: contextual-method lowering,
   bounded AUXify self abstract-Type-member lowering, delegated forwarding, and
-  the bounded three-parameter refined Type alias, plus the exact bounded
-  instance-factory bridge. Its richer package-private Term backend
+  the bounded three-parameter refined Type alias, the exact bounded
+  instance-factory bridge, and `ExtensionModulePeerBridge` for one exact
+  object/extension-module family. The extension bridge is not general object
+  or extension lowering; placement and lifecycle stay consumer-owned. Its
+  richer package-private Term backend
   also accepts the bounded one-local-val P2 block when authoritative completed
   Type sidecars are available and the bounded P3 local-identity-definition block
   when authoritative parameter/result completed-Type sidecars are available.
