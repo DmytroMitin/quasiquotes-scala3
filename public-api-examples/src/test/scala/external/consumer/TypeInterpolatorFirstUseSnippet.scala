@@ -9,6 +9,7 @@ import quasiquotes.types.QuasiTypequotes.*
 object TypeInterpolatorFirstUseSnippet:
   inline def constructionSummary: String = ${ constructionSummaryImpl }
   inline def captureSummary[T]: String = ${ captureSummaryImpl[T] }
+  inline def sequenceCaptureSummary[T]: String = ${ sequenceCaptureSummaryImpl[T] }
   inline def zeroHoleMatches[T]: Boolean = ${ zeroHoleMatchesImpl[T] }
   inline def unsupportedTargetFallsThrough: Boolean = ${ unsupportedTargetFallsThroughImpl }
   inline def ordinaryApisCoexist: Boolean = ${ ordinaryApisCoexistImpl }
@@ -28,6 +29,21 @@ object TypeInterpolatorFirstUseSnippet:
       case tqq"Either[$left, $right]" =>
         Expr(
           List(left, right)
+            .map(TargetTypeReprInspector.inspect(_).fold(_.message, _.render))
+            .mkString(" then ")
+        )
+      case _ => Expr("no-match")
+
+  private def sequenceCaptureSummaryImpl[T: Type](using q: Quotes): Expr[String] =
+    import q.reflect.*
+
+    val target: q.reflect.TypeRepr = TypeRepr.of[T]
+    target match
+      case tqq"Either[$head, ..$tail]" =>
+        val _: q.reflect.TypeRepr = head
+        val _: Seq[q.reflect.TypeRepr] = tail
+        Expr(
+          (head +: tail)
             .map(TargetTypeReprInspector.inspect(_).fold(_.message, _.render))
             .mkString(" then ")
         )

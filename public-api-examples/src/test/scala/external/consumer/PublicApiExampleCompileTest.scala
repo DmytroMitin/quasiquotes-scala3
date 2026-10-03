@@ -205,6 +205,10 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
       TypeInterpolatorFirstUseSnippet.captureSummary[Either[Int, Boolean]],
       "STypeIdent(Int) then STypeIdent(Boolean)"
     )
+    assertEquals(
+      TypeInterpolatorFirstUseSnippet.sequenceCaptureSummary[Either[Int, Boolean]],
+      "STypeIdent(Int) then STypeIdent(Boolean)"
+    )
     assert(TypeInterpolatorFirstUseSnippet.zeroHoleMatches[Int])
     assert(!TypeInterpolatorFirstUseSnippet.zeroHoleMatches[String])
     assert(TypeInterpolatorFirstUseSnippet.unsupportedTargetFallsThrough)

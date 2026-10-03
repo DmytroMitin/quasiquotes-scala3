@@ -237,12 +237,22 @@ class PublicDocsCheckTest(unittest.TestCase):
         (types / "QuasiTypequotes.scala").write_text(
             "object QuasiTypequotes:\n"
             "  def tqr(using q: Quotes)(args: q.reflect.TypeRepr*): q.reflect.TypeRepr = ???\n"
-            "  def tqq(using q: Quotes): TypePatternExtractor[q.reflect.TypeRepr] = ???\n",
+            "  private[types] def scalarExtractor(sc: StringContext)(using q: Quotes): TypePatternExtractor[q.reflect.TypeRepr] = ???\n"
+            "  extension (inline sc: StringContext)\n"
+            "    transparent inline def tqq(using q: Quotes) = extractor(sc)\n"
+            "  @targetName(\"tqq\")\n"
+            "  private[types] def tqqLegacy(sc: StringContext)(using q: Quotes): TypePatternExtractor[q.reflect.TypeRepr] =\n"
+            "    scalarExtractor(sc)\n",
             encoding="utf-8",
         )
         (types / "TypePatternExtractor.scala").write_text(
             "final class TypePatternExtractor[T]:\n"
             "  def unapplySeq(value: T): Option[Seq[T]] = ???\n",
+            encoding="utf-8",
+        )
+        (types / "RankedTypePatternExtractor.scala").write_text(
+            "final class RankedTypePatternExtractor[T, Captures <: Tuple](extract: T => Option[Captures]):\n"
+            "  def unapply(value: T): Option[Captures] = extract(value)\n",
             encoding="utf-8",
         )
 
@@ -367,6 +377,58 @@ class PublicDocsCheckTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("scalar/ranked documentation contract", result.stderr)
 
+
+    def test_rejects_missing_transparent_inline_tqq_selector(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            source = root / "frontend/src/main/scala/quasiquotes/types/QuasiTypequotes.scala"
+            source.write_text(
+                source.read_text(encoding="utf-8").replace(
+                    "transparent inline def tqq(using q: Quotes) = extractor(sc)",
+                    "def tqqCurrent(using q: Quotes) = extractor(sc)",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("tqq transparent-inline selector contract", result.stderr)
+
+    def test_rejects_missing_legacy_tqq_jvm_bridge(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            source = root / "frontend/src/main/scala/quasiquotes/types/QuasiTypequotes.scala"
+            source.write_text(
+                source.read_text(encoding="utf-8").replace(
+                    "@targetName(\"tqq\")", "@targetName(\"tqqRemoved\")"
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("tqq legacy JVM bridge contract", result.stderr)
+
+    def test_rejects_missing_ranked_tqq_extractor_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            source = root / "frontend/src/main/scala/quasiquotes/types/RankedTypePatternExtractor.scala"
+            source.write_text(
+                source.read_text(encoding="utf-8").replace(
+                    "final class RankedTypePatternExtractor", "final class RemovedRankedTypeExtractor"
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("ranked tqq extractor contract", result.stderr)
     def test_rejects_missing_relative_documentation_link(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

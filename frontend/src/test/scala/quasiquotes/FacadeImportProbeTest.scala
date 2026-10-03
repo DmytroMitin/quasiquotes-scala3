@@ -13,3 +13,6 @@ final class FacadeImportProbeTest extends munit.FunSuite:
   test("a forwarding facade preserves transparent ranked qq extraction"):
     assert(FacadeImportProbeMacros.rankedFacadeWorks)
     assert(FacadeImportProbeMacros.rankedNewFacadeWorks)
+
+  test("a plain export preserves transparent ranked tqq extraction"):
+    assert(FacadeImportProbeMacros.rankedTypeFacadeWorks)

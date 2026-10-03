@@ -128,7 +128,9 @@ splice ranks, additional clauses, and target vararg-star semantics are absent.
 The type names are intentionally layered overloads. Inside an active `Quotes`,
 `tqr"..."` accepts caller-owned `TypeRepr` splices and returns a caller-owned
 `TypeRepr`; `case tqq"..."` returns original target subtrees in source-slot
-order. The same imports retain the recoverable neutral functions
+order. One `..$slot` may capture the direct argument sequence of a fixed
+`List`, `Option`, or `Either` pattern as `Seq[q.reflect.TypeRepr]`; scalar
+slots in the same pattern remain exact `q.reflect.TypeRepr` values. The same imports retain the recoverable neutral functions
 `QuasiTypequotes.tqr(...)` and `QuasiTypequotes.tqq(...)`. The interpolated
 slots are distinct ordinal positions, while named and repeated-hole semantics
 remain available through the programmatic API. `DefinitionConstruction.*` is
@@ -364,14 +366,14 @@ stable-term paths, or ambient lookup. Interpolated `tqr` additionally admits a
 zero-hole canonical globally selected class terminal such as
 `java.lang.StringBuilder`, resolved through an exact typed witness; this does
 not admit aliases, stable-term paths, or selected constructor applications,
-and `tqq` remains unchanged.
+while selected constructors remain programmatic-only. Standard `tqq` admits one direct rank-2 argument capture for fixed `List`, `Option`, and `Either`; selected/path-dependent constructors remain outside that slice.
 
 The standard typed frontend also constructs `tqr"$constructor[..$arguments]"`
 from one caller-owned class-constructor `TypeRepr` and one runtime-length
 ordered `Seq[TypeRepr]`. This construction-only overload validates arity, kinds
 and supported reflected forms directly in the caller's `Quotes` universe; it
 preserves constructor and argument identities without normalizing through
-`TypeNormalForm`. Scalar `tqr` and `tqq` retain their existing behavior. General
+`TypeNormalForm`. Scalar `tqr` and scalar `tqq` retain their existing behavior. Standard `tqq` also admits exactly one direct `..$arguments` capture in a fixed `List`, `Option`, or `Either` argument list and returns the original ordered `Seq[TypeRepr]`. General
 TypeLambda authoring, aliases-as-aliases, instance-dependent prefixes,
 refinements and nontrivial constrained bounds remain outside this slice;
 typed-Scalameta runtime-sequence construction is not implemented.

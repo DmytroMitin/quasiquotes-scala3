@@ -90,34 +90,49 @@ object QuasiTypequotes:
           identity
         )
 
-    def tqq(using q: Quotes): TypePatternExtractor[q.reflect.TypeRepr] =
-      import q.reflect.*
+  extension (inline sc: StringContext)
+    transparent inline def tqq(using q: Quotes) =
+      ${ QuasiTypePatternMacro.extractor('sc, 'q) }
 
-      val parts = checkedParts(sc, "Invalid tqq type-pattern template:")
-      RankedPatternSource
-        .unsupportedFamilyRankDiagnostic(parts, "Type")
-        .foreach(detail => report.errorAndAbort(s"Invalid tqq type-pattern template: $detail"))
-      val holeNames = Vector.tabulate(parts.size - 1)(index => s"tqqSlot$index")
-      val source = synthesize(parts, holeNames)
+  private[types] def scalarExtractor(
+      sc: StringContext
+  )(using q: Quotes): TypePatternExtractor[q.reflect.TypeRepr] =
+    import q.reflect.*
 
-      QuasiTypePattern.patternLocated(source) match
-        case Left(failure) =>
-          report.errorAndAbort(
-            s"Invalid tqq type-pattern template: ${failure.diagnostic.message}"
-          )
-        case Right(pattern) =>
-          new TypePatternExtractor[q.reflect.TypeRepr](target =>
-            TargetTypeReprInspector.inspectWithOrigins(target).toOption.flatMap { inspection =>
-              TypePattern.matchNormalFormWithPaths(pattern.typePattern, inspection.normalForm).flatMap { trace =>
-                holeNames.foldLeft(Option(Vector.empty[q.reflect.TypeRepr])) {
-                  case (captures, name) =>
-                    captures.flatMap { current =>
-                      trace.holePaths.get(name).flatMap(inspection.originalsByPath.get).map(current :+ _)
-                    }
-                }
+    val parts = checkedParts(sc, "Invalid tqq type-pattern template:")
+    RankedPatternSource
+      .unsupportedFamilyRankDiagnostic(parts, "Type")
+      .foreach(detail => report.errorAndAbort(s"Invalid tqq type-pattern template: $detail"))
+    val holeNames = Vector.tabulate(parts.size - 1)(index => s"tqqSlot$index")
+    val source = synthesize(parts, holeNames)
+
+    QuasiTypePattern.patternLocated(source) match
+      case Left(failure) =>
+        report.errorAndAbort(
+          s"Invalid tqq type-pattern template: ${failure.diagnostic.message}"
+        )
+      case Right(pattern) =>
+        new TypePatternExtractor[q.reflect.TypeRepr](target =>
+          TargetTypeReprInspector.inspectWithOrigins(target).toOption.flatMap { inspection =>
+            TypePattern.matchNormalFormWithPaths(pattern.typePattern, inspection.normalForm).flatMap { trace =>
+              holeNames.foldLeft(Option(Vector.empty[q.reflect.TypeRepr])) {
+                case (captures, name) =>
+                  captures.flatMap { current =>
+                    trace.holePaths.get(name).flatMap(inspection.originalsByPath.get).map(current :+ _)
+                  }
               }
             }
-          )
+          }
+        )
+
+  /** JVM-linkage bridge for scalar callers compiled against the pre-selector
+    * extension method. New source calls use the transparent inline selector.
+    */
+  @targetName("tqq")
+  private[types] def tqqLegacy(
+      sc: StringContext
+  )(using q: Quotes): TypePatternExtractor[q.reflect.TypeRepr] =
+    scalarExtractor(sc)
 
   private def checkedParts(sc: StringContext, prefix: String)(using q: Quotes): Seq[String] =
     import q.reflect.report

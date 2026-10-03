@@ -85,7 +85,7 @@ bridge's projection-stage diagnostics.
 | Tuple2 / Tuple3 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — tuple syntax through public exact-version `ScalametaTypeUntypedBridge` | `NOT_APPLICABLE` |
 | Function1 / Function2 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — function syntax through public exact-version `ScalametaTypeUntypedBridge` | `NOT_APPLICABLE` |
 | Reflected complete-Type holes / captures | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `INTERNAL` — completed semantic Types only | `NOT_APPLICABLE` |
-| Runtime-length Type application arguments | `BOUNDED` — standard `tqr`, one caller-owned class constructor and ordered `Seq[TypeRepr]` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
+| Runtime-length Type application arguments | `BOUNDED` — standard `tqr`, one caller-owned class constructor and ordered `Seq[TypeRepr]` | `BOUNDED` — standard `tqq`, one direct sequence under fixed `List`/`Option`/`Either` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
 
 ## Definitions
 
@@ -150,6 +150,7 @@ class/Template shells are fresh at their original replacement site.
 | `Term` -> `qr` scalar position | `BOUNDED` | Caller-owned reflected Term transport in admitted scalar positions |
 | `Seq[Term]` -> `qr` Apply / one-list New arguments | `BOUNDED` | Exactly one rank-2 carrier in the admitted ordinary argument list |
 | Class-constructor `TypeRepr` + `Seq[TypeRepr]` -> `tqr` | `BOUNDED` | Standard construction-only runtime application; direct caller-universe reflection, arity/kind checks and ordered identity preservation |
+| fixed `List`/`Option`/`Either` target arguments -> `tqq` | `BOUNDED` | Standard matching-only one-rank-2 slice; exact original ordered `Seq[TypeRepr]`, scalar prefix/suffix, atomic mismatch |
 | `TypeRepr` / `tqr` -> `tqr` Type position | `BOUNDED` | Complete reflected Type slots in admitted templates |
 | `TypeRepr` / `tqr` -> `qr` complete constructor Type | `BOUNDED` | Complete Type of one fixed one-list `new`; no partial constructor-Type splice |
 | `TypeRepr` / `tqr` -> bounded Definition parameter/result Types | `BOUNDED` | One-parameter and exact-two public Definition families only |
@@ -161,15 +162,17 @@ class/Template shells are fresh at their original replacement site.
 
 Rank 2 currently includes Term sequences in bounded Apply and one-list New
 argument positions, standard typed runtime-sequence Type application
-construction, and Definition parameter-sequence matching in one static
+construction, one direct fixed-constructor Type-argument capture in standard
+`tqq`, and Definition parameter-sequence matching in one static
 ordinary `dqq` clause. The Definition matcher captures the original ordered
 `Seq[ValDef]` plus RHS; it is not construction-side parameter splicing or a
 sequence of whole Definitions. Rank 3 supports bounded complete ordinary
 Definition parameter-clause matching through `...$paramss` on standard and
 typed-Scalameta frontends, preserving ordered `Seq[Seq[ValDef]]` and the RHS.
 Rank-3 Term sequences, construction-side parameter/paramss splicing, mixed
-rank-2/rank-3 captures within the same term-parameter clause region, Type
-sequence matching and whole-Definition sequences remain unsupported. Symbol
+rank-2/rank-3 captures within the same term-parameter clause region, multiple
+or non-direct Type sequence positions, typed-Scalameta Type sequence matching,
+and whole-Definition sequences remain unsupported. Symbol
 splicing is not planned as source syntax.
 
 The user-facing Q syntax view remains the

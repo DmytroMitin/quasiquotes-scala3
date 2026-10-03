@@ -253,6 +253,10 @@ def source_findings(root: Path) -> list[str]:
     type_extractor_source = (
         root / "frontend/src/main/scala/quasiquotes/types/TypePatternExtractor.scala"
     ).read_text(encoding="utf-8")
+    ranked_type_extractor_source = (
+        root
+        / "frontend/src/main/scala/quasiquotes/types/RankedTypePatternExtractor.scala"
+    ).read_text(encoding="utf-8")
     construct_surface_source = (
         root / "frontend/src/main/scala/quasiquotes/construct/Quasiquotes.scala"
     ).read_text(encoding="utf-8")
@@ -332,10 +336,34 @@ def source_findings(root: Path) -> list[str]:
         findings.append("public qq scalar/ranked documentation contract is absent")
     if "def tqr(using q: Quotes)(args: q.reflect.TypeRepr*): q.reflect.TypeRepr" not in type_surface_source:
         findings.append("public tqr interpolator signature no longer matches documentation")
-    if "def tqq(using q: Quotes): TypePatternExtractor[q.reflect.TypeRepr]" not in type_surface_source:
-        findings.append("public tqq extractor signature no longer matches documentation")
+    if not source_contract_present(
+        type_surface_source,
+        r"extension\s*\(\s*inline\s+[A-Za-z_]\w*\s*:\s*StringContext\s*\)\s*"
+        r"transparent\s+inline\s+def\s+tqq\s*"
+        r"\(\s*using\s+[A-Za-z_]\w*\s*:\s*Quotes\s*\)\s*=",
+    ):
+        findings.append("public tqq transparent-inline selector contract is absent")
+    if not source_contract_present(
+        type_surface_source,
+        r"@targetName\s*\(\s*\"tqq\"\s*\)\s*"
+        r"private\s*\[\s*types\s*\]\s+def\s+tqqLegacy\s*"
+        r"\(\s*(?P<context>[A-Za-z_]\w*)\s*:\s*StringContext\s*\)\s*"
+        r"\(\s*using\s+(?P<quotes>[A-Za-z_]\w*)\s*:\s*Quotes\s*\)\s*:\s*"
+        r"TypePatternExtractor\s*\[\s*(?P=quotes)\.reflect\.TypeRepr\s*\]\s*=\s*"
+        r"scalarExtractor\s*\(\s*(?P=context)\s*\)",
+    ):
+        findings.append("public tqq legacy JVM bridge contract is absent")
     if "def unapplySeq(value: T): Option[Seq[T]]" not in type_extractor_source:
-        findings.append("public tqq extractor protocol no longer matches documentation")
+        findings.append("public scalar tqq extractor protocol no longer matches documentation")
+    if not source_contract_present(
+        ranked_type_extractor_source,
+        r"final\s+class\s+RankedTypePatternExtractor\s*"
+        r"\[\s*(?P<target>[A-Za-z_]\w*)\s*,\s*"
+        r"(?P<captures>[A-Za-z_]\w*)\s*<:\s*Tuple\s*\].*?"
+        r"def\s+unapply\s*\(\s*[A-Za-z_]\w*\s*:\s*(?P=target)\s*\)\s*:\s*"
+        r"Option\s*\[\s*(?P=captures)\s*\]",
+    ):
+        findings.append("public ranked tqq extractor contract is absent")
     if "def singleParameter(" not in definition_pattern_source:
         findings.append("public definition-pattern factory no longer matches documentation")
     if "def matchDefinition(using q: Quotes)(" not in definition_pattern_source:

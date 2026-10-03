@@ -49,11 +49,17 @@ The bounded public `qq` extractor begins in the `0.2.x` source line. Code or
 TASTy compiled against the former `qq: Nothing` signature must be rebuilt and
 adapted; the intentional replacement is not a patch-compatible `0.1.x` change.
 
-The bounded public `tqr` interpolator and `tqq` extractor are additive in the
+The bounded public `tqr` interpolator and scalar `tqq` extractor entered the
 `0.2.x` source line. A sequence-shaped `tqr` overload preserves the existing
 varargs function's eta-expanded method-value shape beside the same-named
-interpolator. Reflected construction results and captures remain owned by the
-caller's active `Quotes`; they are not cross-compiler or cross-Quotes portable.
+interpolator. The active ranked-Type change makes the public Scala/TASTy `tqq` declaration to a
+same-spelling transparent-inline selector so one static fixed-constructor
+argument slot can bind `Seq[q.reflect.TypeRepr]`, while scalar slots still bind
+exact `q.reflect.TypeRepr`. The historical scalar JVM descriptor returning
+`TypePatternExtractor` is preserved through a source-hidden bridge; this does
+not preserve TASTy identity. Reflected construction results and captures remain
+owned by the caller's active `Quotes`; they are not cross-compiler or
+cross-Quotes portable.
 
 The bounded public `dqr` interpolator is additive in the `0.2.x` source line.
 Its result is a caller-owned `DefDef` under the current `Symbol.spliceOwner`,

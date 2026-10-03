@@ -760,8 +760,11 @@ infix shape, and `literalAndCapture` keeps the literal identifier
 
 This external-package fixture runs inside the caller's active `Quotes` path.
 `tqr` constructs a reflected type from zero or more caller-owned `TypeRepr`
-splices. `tqq` matches through the existing bounded normal form and returns the
-original reflected target subtrees in left-to-right slot order. Unsupported
+splices. Scalar `tqq` matches through the existing bounded normal form and
+returns original reflected target subtrees in left-to-right slot order. One
+direct `..$slot` under fixed `List`, `Option`, or `Either` binds the original
+ordered `Seq[q.reflect.TypeRepr]`; scalar siblings retain exact
+`q.reflect.TypeRepr` typing. Unsupported
 targets fall through; malformed or unsupported templates are controlled
 macro-expansion failures. The ordinary recoverable functions remain available
 under the same wildcard import.
@@ -776,6 +779,7 @@ import quasiquotes.types.QuasiTypequotes.*
 object TypeInterpolatorFirstUseSnippet:
   inline def constructionSummary: String = ${ constructionSummaryImpl }
   inline def captureSummary[T]: String = ${ captureSummaryImpl[T] }
+  inline def sequenceCaptureSummary[T]: String = ${ sequenceCaptureSummaryImpl[T] }
   inline def zeroHoleMatches[T]: Boolean = ${ zeroHoleMatchesImpl[T] }
   inline def unsupportedTargetFallsThrough: Boolean = ${ unsupportedTargetFallsThroughImpl }
   inline def ordinaryApisCoexist: Boolean = ${ ordinaryApisCoexistImpl }
@@ -795,6 +799,21 @@ object TypeInterpolatorFirstUseSnippet:
       case tqq"Either[$left, $right]" =>
         Expr(
           List(left, right)
+            .map(TargetTypeReprInspector.inspect(_).fold(_.message, _.render))
+            .mkString(" then ")
+        )
+      case _ => Expr("no-match")
+
+  private def sequenceCaptureSummaryImpl[T: Type](using q: Quotes): Expr[String] =
+    import q.reflect.*
+
+    val target: q.reflect.TypeRepr = TypeRepr.of[T]
+    target match
+      case tqq"Either[$head, ..$tail]" =>
+        val _: q.reflect.TypeRepr = head
+        val _: Seq[q.reflect.TypeRepr] = tail
+        Expr(
+          (head +: tail)
             .map(TargetTypeReprInspector.inspect(_).fold(_.message, _.render))
             .mkString(" then ")
         )

@@ -78,11 +78,12 @@ identity; it does not add construction-side parameter splicing or
 whole-Definition sequences. Rank 3 additionally supports bounded complete
 ordinary Definition parameter-clause matching through `...$paramss`, preserving
 ordered `Seq[Seq[q.reflect.ValDef]]` and the original RHS on both standard and
-typed-Scalameta frontends. Rank-3 Term sequences, construction-side parameter
-or parameter-clause splicing, Type sequence matching and whole-Definition
-sequences remain unsupported. Symbol splicing is not planned as source syntax.
+typed-Scalameta frontends. Rank-3 Term sequences, construction-side parameter or parameter-clause splicing,
+multiple/nested/tuple/function Type sequence positions, and whole-Definition
+sequences remain unsupported. Standard `tqq` admits one direct fixed-constructor
+Type-argument sequence; typed-Scalameta Type matching does not yet have parity. Symbol splicing is not planned as source syntax.
 
-## Typed runtime-sequence Type construction
+## Typed runtime-sequence Type construction and matching
 
 The standard overload `tqr"$constructor[..$arguments]"` accepts one
 caller-owned reflected class constructor and one runtime-length ordered
@@ -90,12 +91,17 @@ caller-owned reflected class constructor and one runtime-length ordered
 arity, kinds, nulls and unsupported reflected forms before constructing an
 application, then verifies exact constructor and ordered argument identities.
 It uses direct caller-owned reflection rather than normalizing through
-`TypeNormalForm`; the existing scalar `tqr` and `tqq` behavior is unchanged.
+`TypeNormalForm`; existing scalar `tqr` behavior is unchanged. Standard `tqq`
+also admits exactly one `..$arguments` in the direct argument list of fixed
+`List`, `Option`, or `Either`. The sequence binds the exact original ordered
+`Seq[q.reflect.TypeRepr]`; scalar prefix/suffix slots remain exact
+`q.reflect.TypeRepr` values and failed fixed sides fall through atomically.
 
 General TypeLambda authoring, aliases-as-aliases, path/instance-dependent
 prefixes, refinements, nontrivial constrained bounds and broader kind calculus
-remain excluded. Type sequence matching and typed-Scalameta runtime-sequence
-construction are not implemented. Core and neutral gain no corresponding
+remain excluded. Multiple rank-2 holes, rank 3, root/tuple/function positions,
+dynamic or selected constructors, and typed-Scalameta runtime-sequence
+construction or matching are not implemented. Core and neutral gain no corresponding
 compiler-free capability.
 
 ## Public bounded Scalameta Term lowering
@@ -276,11 +282,14 @@ Important limitations:
   structural positions, dynamic/type-applied/multi-clause constructors, rank 3,
   type/definition ranks, and scalar/sequence role reuse fail closed. Templates
   do not capture or accept dynamic selected-member names;
-- public `tqr` and `tqq` type templates use zero or more distinct ordinal
-  whole-type slots; zero-hole `tqr` also admits canonical globally selected
-  class terminals such as `java.lang.StringBuilder`. They do not admit dynamic
-  constructor, higher-kinded, wildcard, sequence, binder-name, or
-  mixed-category slots;
+- public `tqr` and scalar `tqq` type templates use zero or more distinct
+  ordinal whole-type slots; zero-hole `tqr` also admits canonical globally
+  selected class terminals such as `java.lang.StringBuilder`. Standard `tqq`
+  additionally admits exactly one direct `..$slot` under fixed `List`,
+  `Option`, or `Either`, binding `Seq[q.reflect.TypeRepr]`. Dynamic or selected
+  constructors, higher-kinded or wildcard slots, multiple/rank-3 sequences,
+  tuple/function ranked positions, and mixed scalar/sequence name reuse remain
+  excluded;
 - ordinary quoted standard-`s` interpolation has a bounded exact internal
   backend with canonical escaping and generated-origin spans; `raw`, `f`,
   custom interpolators, and triple-quoted `s` remain unsupported;
@@ -441,6 +450,16 @@ semantics:
 target match
   case tqq"Either[$left, $right]" =>
     // left and right are the original q.reflect.TypeRepr target subtrees
+  case _ =>
+```
+
+Exactly one fixed-constructor argument sequence is also available:
+
+```scala
+target match
+  case tqq"Either[$head, ..$tail]" =>
+    val _: q.reflect.TypeRepr = head
+    val _: Seq[q.reflect.TypeRepr] = tail
   case _ =>
 ```
 

@@ -19,6 +19,8 @@ object FacadeImportProbeMacros:
 
   inline def rankedNewFacadeWorks: Boolean = ${ rankedNewFacadeWorksImpl }
 
+  inline def rankedTypeFacadeWorks: Boolean = ${ rankedTypeFacadeWorksImpl }
+
   private def umbrellaWorksImpl(using q: Quotes): Expr[Boolean] =
     import q.reflect.*
     import FacadeProbe.*
@@ -96,4 +98,19 @@ object FacadeImportProbeMacros:
       case qq"new quasiquotes.FacadeRankedConstructor(..$arguments)" =>
         val _: Seq[q.reflect.Term] = arguments
         Expr(arguments.size == 3)
+      case _ => Expr(false)
+
+  private def rankedTypeFacadeWorksImpl(using q: Quotes): Expr[Boolean] =
+    import q.reflect.*
+    import PlainExportFacadeProbe.*
+
+    TypeRepr.of[Either[Int, String]] match
+      case tqq"Either[$head, ..$tail]" =>
+        val _: q.reflect.TypeRepr = head
+        val _: Seq[q.reflect.TypeRepr] = tail
+        Expr(
+          head =:= TypeRepr.of[Int] &&
+            tail.size == 1 &&
+            tail.head =:= TypeRepr.of[String]
+        )
       case _ => Expr(false)

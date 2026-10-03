@@ -170,7 +170,11 @@ Invalid tqr type template:
 Invalid tqq type-pattern template:
 ```
 
-Malformed or unsupported templates abort during macro expansion. `tqr` also
+Malformed or unsupported templates abort during macro expansion. Ranked `tqq`
+templates fail deliberately for multiple rank-2 holes, rank 3, malformed markers,
+root/tuple/function positions, unsupported or selected constructors, dynamic
+constructor holes, scalar/sequence role reuse, and excess fixed arguments.
+`tqr` also
 rejects a wrong `StringContext` arity, a null context, and any splice whose
 `TypeRepr` is outside the bounded inspector. It does not fall back to direct
 compiler-tree construction. `tqq` treats unsupported target `TypeRepr` values

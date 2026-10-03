@@ -93,9 +93,14 @@ class Q002RankDiagnosticTest extends munit.FunSuite:
           case _ => ()
       """
     )
-    val typeRank = stagedAbortMessage:
-      val q = summon[scala.quoted.Quotes]
-      quasiquotes.types.QuasiTypequotes.tqq(StringContext("List[..", "]"))(using q)
+    val typeRank = messages(
+      """import scala.quoted.*
+        import quasiquotes.types.QuasiTypequotes.*
+        def attempt(using q: Quotes)(target: q.reflect.TypeRepr) = target match
+          case tqq"..$arguments" => ()
+          case _ => ()
+      """
+    )
     val definitionRank = messages(
       """import scala.quoted.*
         import quasiquotes.matching.DefinitionPattern.*
@@ -110,8 +115,12 @@ class Q002RankDiagnosticTest extends munit.FunSuite:
       splitDots.mkString(" | ")
     )
     assert(
-      typeRank.contains("rank-2 captures are not supported for Type patterns"),
-      typeRank
+      typeRank.exists(
+        _.contains(
+          "rank-2 capture is supported only in a direct fixed Type constructor argument list"
+        )
+      ),
+      typeRank.mkString(" | ")
     )
     assert(
       definitionRank.exists(_.contains("rank-2 captures are not supported for Definition patterns")),
