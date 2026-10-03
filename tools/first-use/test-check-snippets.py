@@ -33,6 +33,7 @@ class CheckSnippetsTest(unittest.TestCase):
         documented_c028_dotty_source_free: str = "val c028SourceFree = 20",
         documented_c028_dotty_generated_origin: str = "val c028Generated = 21",
         documented_c028_generic_specialized: str = "val c028Specialized = 22",
+        documented_existing_class_rewrite: str = "val existingClassRewrite = 24",
     ) -> None:
         docs = root / "docs"
         sources = root / "public-api-examples/src/test/scala/external/consumer"
@@ -149,6 +150,12 @@ class CheckSnippetsTest(unittest.TestCase):
             "// snippet:generic-specialized-definition:end\n",
             encoding="utf-8",
         )
+        (dotty_sources / "ExistingClassUntypedRewriteFirstUse.scala").write_text(
+            "// snippet:existing-class-untyped-rewrite-first-use:start\n"
+            "val existingClassRewrite = 24\n"
+            "// snippet:existing-class-untyped-rewrite-first-use:end\n",
+            encoding="utf-8",
+        )
         (root / "README.md").write_text(
             "<!-- snippet:readme-quick-start:start -->\n```scala\n"
             + documented_quick_start
@@ -237,6 +244,12 @@ class CheckSnippetsTest(unittest.TestCase):
             "<!-- snippet:semantic-term-origin:start -->\n```scala\nval origin = 23\n"
             "```\n<!-- snippet:semantic-term-origin:end -->\n", encoding="utf-8",
         )
+        (docs / "EXISTING_CLASS_UNTYPED_REWRITE.md").write_text(
+            "<!-- snippet:existing-class-untyped-rewrite-first-use:start -->\n"
+            "```scala\n" + documented_existing_class_rewrite + "\n```\n"
+            "<!-- snippet:existing-class-untyped-rewrite-first-use:end -->\n",
+            encoding="utf-8",
+        )
 
     def run_checker(self, root: Path) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -255,10 +268,27 @@ class CheckSnippetsTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(
-                "First-use snippets aligned: semantic-term-origin, core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, p1-block-first-use, p2-local-val-first-use, source-owned-local-def-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start, why-quasiquotes-current, semantic-term-type, semantic-definition-core, dotty-source-free, dotty-generated-origin, generic-specialized-definition",
+                "First-use snippets aligned: semantic-term-origin, existing-class-untyped-rewrite-first-use, core-first-use, definition-first-use, two-parameter-definition-first-use, frontend-first-use, lambda1-first-use, p1-block-first-use, p2-local-val-first-use, source-owned-local-def-first-use, qq-extractor-first-use, type-interpolator-first-use, dqr-first-use, definition-pattern-first-use, runtime-term-shape, runtime-parser, readme-quick-start, why-quasiquotes-current, semantic-term-type, semantic-definition-core, dotty-source-free, dotty-generated-origin, generic-specialized-definition",
                 result.stdout,
             )
 
+
+    def test_rejects_existing_class_rewrite_documentation_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(
+                root,
+                documented_lambda="val lambda = 3",
+                documented_existing_class_rewrite="val existingClassRewrite = 25",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn(
+                "First-use snippet drift: existing-class-untyped-rewrite-first-use",
+                result.stderr,
+            )
     def test_rejects_c028_semantic_definition_drift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

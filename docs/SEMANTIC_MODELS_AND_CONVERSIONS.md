@@ -124,10 +124,13 @@ non-delegating five-family composition. All successful results are fresh and
 source-free; none claims generated origin, owner assignment, placement,
 typechecking, retyping, or existing-tree rewriting.
 
-Accepted package-private U-U mechanisms separately transform selected existing
-raw trees. Current examples include atomic single-parameter method rewrites and
-a two-parameter method RHS-only rewrite with exact preservation of non-target
-children. No general public exact-U capture/rewrite API exists yet.
+The public exact-version `ExistingClassUntypedRewrite` facade composes the
+accepted package-private U-U mechanisms for one bounded pre-Typer class. It
+captures ordered direct members, exposes opaque capture-local refs and exact
+identity handles, builds an immutable plan, and applies method Type/body edits,
+omission, and generated Definition append in one owner transaction. Its
+[complete contract and compiled first use](EXISTING_CLASS_UNTYPED_REWRITE.md)
+make the one-/two-parameter and fail-closed limits explicit.
 
 ## Loss and provenance model
 
@@ -445,8 +448,9 @@ recursive source identity/freshness requirements.
 
 The Term sibling is available in the released 0.3.0 exact-version artifact.
 Existing Scalameta Term bridges remain separate; no Type generated-origin
-sibling exists. Public existing-tree transformation remains post-0.3.0 future
-work and is not implemented or automatically selected by reopening development.
+sibling exists. Bounded public existing-tree transformation is implemented
+separately by `ExistingClassUntypedRewrite` in the active 0.4.0-SNAPSHOT tree;
+it is not part of the released 0.3.0 artifacts.
 
 ## Checked generated-origin bridges
 
@@ -543,7 +547,7 @@ object GenericVsSpecializedDefinitionHelloWorld:
 | Public generic Scalameta Definition Projection/Authoring over `SemanticDefinition` | Current, bounded to five families |
 | Public project-semantic-value-to-Dotty Term/Type/Definition lowering facades | Current, bounded, source-free, exact-version for Dotty-facing artifacts |
 | Public Scalameta-to-Dotty Term/Type/Definition bridges | Current, bounded, exact-version for Dotty-facing artifacts |
-| Public exact existing-tree capture/rewrite algebra | **Planned** |
+| Public exact existing-tree capture/rewrite algebra | Current in 0.4.0-SNAPSHOT, bounded to one admitted pre-Typer class transaction |
 | Public `u*` syntax | Later optional, not selected |
 | Remote `0.3.0` artifacts | Released and verified; eleven coordinates |
 

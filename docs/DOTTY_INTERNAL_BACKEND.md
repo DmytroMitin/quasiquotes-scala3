@@ -44,6 +44,16 @@ specified in [semantic Term generated origin](SEMANTIC_TERM_GENERATED_ORIGIN_LOW
 Both require Context; neither delegates the historical Scalameta surfaces or
 supplies placement/typing. No standalone Type generated-origin facade exists.
 
+`ExistingClassUntypedRewrite` is the separate public U-U facade in the active
+0.4.0-SNAPSHOT tree. It captures one existing pre-Typer class, exposes ordered
+read-only member/method/parameter views and opaque exact identities, accumulates
+capture-local edits in an immutable plan, and applies omission, admitted method
+Type/body replacements, and generated semantic Definitions through one owner
+transaction. Its [existing-class rewrite guide](EXISTING_CLASS_UNTYPED_REWRITE.md)
+defines the one-/two-parameter topology, binder-scope rules, failures, identity
+postconditions, and caller-owned Macro-Paradise lifecycle. It is not in the
+released 0.3.0 artifacts.
+
 `ScalametaTermUntypedBridge` is the public Scalameta-facing Term bridge. It accepts
 one `scala.meta.Term`, mechanically calls `ScalametaTermProjection.project`,
 then passes the projected `TermShape` to the package-private
@@ -367,17 +377,18 @@ contexts.
 
 ## Deliberate exclusions
 
-Accepted package-private U-U mechanisms can perform bounded method-body and
-class/Template transformations over existing raw graphs, preserving exact
-objects where their contracts say so. The current single-parameter method
-family has an exact view, separate parameter-Type, result-Type, and RHS
-rewrites, and an atomic all-three rewrite. The exact-two-parameter family has
-an exact view and an RHS-only rewrite preserving both parameter/type
-identities, the result Type, non-target member identity/order, and truthful
-reconstruction linkage. A future public programmatic exact
-capture/view/rewrite algebra was selected architecturally, but no general
-public exact-U transformation API exists today; optional `u*` syntax remains a
-later decision.
+The public `ExistingClassUntypedRewrite` facade exposes only the bounded
+composition described above. Its delegated package-private U-U mechanisms can
+perform admitted method-body and class/Template transformations while
+preserving exact objects where their contracts say so. The public method view
+admits exactly one ordinary clause of one or two parameters; semantic slot
+projection is bounded; replacement grammar is bounded; direct-member indices
+and capture-local refs are authority. There is still no arbitrary raw-tree
+editor, numeric-selector edit API, post-Typer rewriter, owner/symbol repair, or
+placement/lifecycle service. Optional `u*` syntax remains a later decision.
+The older specialized parameterless/single/two-parameter internal operations
+remain implementation authorities and do not independently widen the public
+contract.
 
 There is no production public bridge from arbitrary `scala.meta.Term` to
 `untpd.Tree`: the named public facade admits only the documented direct

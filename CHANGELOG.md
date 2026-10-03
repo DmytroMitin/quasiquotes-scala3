@@ -7,6 +7,11 @@ applicable. Dates and release links are added only when a release exists.
 ## Unreleased
 
 ### Changed
+### Added
+
+- A bounded public exact-version `ExistingClassUntypedRewrite` facade for one
+  pre-Typer class transaction in the active 0.4.0-SNAPSHOT source tree.
+
 
 - Active development continues as `0.4.0-SNAPSHOT` after the completed 0.3.0
   release. No 0.4.0 artifact, tag, or GitHub release exists.

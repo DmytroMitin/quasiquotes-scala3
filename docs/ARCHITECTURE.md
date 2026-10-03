@@ -288,13 +288,16 @@ private shape projection/lowering carriers; its generated-origin sibling
 admits only the four concrete val/def families, so the simple-alias exclusion
 is not widened by specialized refined-alias authority.
 
-On the separate U-U axis, accepted package-private operations expose one exact
-single-parameter method view, separate parameter-Type, result-Type, and RHS
-rewrites, and an atomic rewrite of all three fields. They also expose one
-exact-two-parameter view and an RHS-only rewrite that preserves both exact
-parameter/type identities, the result Type, and non-target member
-identity/order. Each operation keeps its bounded replacement-family and
-truthful-site contract. None is a public exact-U algebra.
+On the separate U-U axis, `ExistingClassUntypedRewrite` is the public
+exact-version facade for one bounded pre-Typer class transaction. It exposes
+ordered direct-member views, opaque capture-local refs, exact-object identity
+handles, binder-aware one- or two-parameter method Type/body edits, omission,
+and ordered semantic Definition append through one immutable plan and one final
+owner transaction. It delegates the accepted package-private capture,
+projection, preparation, reconstruction, and transaction authorities rather
+than exposing their carriers. Unsupported shapes fail closed. It is not
+arbitrary raw-tree rewriting, owner/symbol repair, lifecycle/placement, or
+public `u*` syntax.
 
 An advanced owner/definition-plan handle may eventually be justified by a
 real consumer, but symmetric `sqr`/`sqq` symbol syntax is not currently

@@ -25,8 +25,9 @@ defines Q/N/U-D/U-U/C, shows the current conversion graph, and contains
 compile-checked public Term, Type, `SemanticDefinition`, Scalameta conversion,
 semantic-lowering, and exact-bridge hello worlds. The public five-family
 Definition Projection/Authoring pair and the Term/Type/Definition source-free
-lowering facades are current; exact-U transformation APIs remain internal or
-planned and are labeled accordingly.
+lowering facades are current. The active 0.4.0-SNAPSHOT tree also has a bounded
+public exact-U existing-class rewrite facade; internal-only and planned families
+remain labeled accordingly.
 
 ## Quick start
 
@@ -464,9 +465,19 @@ enclosing class/Template shells are fresh at their original replacement site.
 Macro/plugin lifecycle, target selection, rollback, and ordinary typing remain
 caller-owned.
 
+The active 0.4.0-SNAPSHOT tree adds
+[`ExistingClassUntypedRewrite`](docs/EXISTING_CLASS_UNTYPED_REWRITE.md), a
+bounded public exact-version transaction for one already parsed pre-Typer
+class. It exposes ordered direct-member views, opaque capture-local refs,
+binder-aware one- or two-parameter method edits, omission, and ordered
+`SemanticDefinition` append through one immutable plan and one final owner
+transaction. It does not provide arbitrary AST rewriting, public `u*` syntax,
+owner/symbol repair, target selection, or plugin lifecycle.
+
 The additive [semantic Term generated-origin facade](docs/SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md)
 accepts public TermShape and a virtual source name, returning a positioned tree,
 deterministic text and fresh SourceFile. This implemented public facade has a
 smaller source-name/grouping bound than the source-free `TermUntypedLowering`. Existing Scalameta
-bridges remain separate. No Type generated-origin sibling or public
-existing-owner transaction is included.
+bridges remain separate. No Type generated-origin sibling is included. The
+existing-owner rewrite facade is a separate bounded U-U operation, not a mode
+of generated-origin lowering.

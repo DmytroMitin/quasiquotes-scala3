@@ -11,6 +11,10 @@ SNIPPETS = {
         Path("dotty-internal/src/test/scala/external/consumer/SemanticTermOriginFirstUseTest.scala"),
         Path("docs/SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md"),
     ),
+    "existing-class-untyped-rewrite-first-use": (
+        Path("dotty-internal/src/test/scala/external/consumer/ExistingClassUntypedRewriteFirstUse.scala"),
+        Path("docs/EXISTING_CLASS_UNTYPED_REWRITE.md"),
+    ),
     "core-first-use": (
         Path("public-core-examples/src/test/scala/external/consumer/CoreFirstUseSnippet.scala"),
         Path("docs/GETTING_STARTED.md"),

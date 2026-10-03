@@ -162,6 +162,7 @@ are narrower and richer than `DefinitionShape`.
 | Instance factory | package-private `ScalametaInstanceFactoryProjection.project`; package-private `ScalametaInstanceFactoryAuthoring.author` is the accepted reverse edge | package-private `InstanceFactoryPlan` with explicit five-role binder semantics and alpha-equivalent reprojection | `InstanceFactoryPlanUntypedLowerer` plus generated-origin adapter behind public-for-JVM `InstanceFactoryPeerBridge.lower` | fresh `Position.None` Scalameta `Defn.Def` on the N reverse edge; positioned `untpd.DefDef` plus deterministic generated source on U-D | `SPECIALIZED` | Models one anonymous implementation factory with fixed member and binder roles; neither reverse edge is a general Definition carrier or public `SemanticDefinition` adapter. |
 | Refined AUX Type alias | package-private `ScalametaAuxTypeAliasProjection.project` plus explicit expectations | package-private `AuxTypeAliasPlan` with three Type binders, bounds, target, and refinement member | plan adapter and alias lowerer plus generated-origin adapter behind public-for-JVM `AuxTypeAliasPeerBridge.lower` | positioned `untpd.TypeDef` plus deterministic generated source | `SPECIALIZED` | Its parameter, bound, refinement, provenance, and peer-diagnostic contract is deliberately richer than a simple non-generic unbounded alias. |
 | Hybrid existing-class member append | one admitted existing pre-Typer ordinary class plus one supported `scala.meta.Defn` and virtual source name | existing Definition projection/completion and existing-class capture/reconstruction authorities | public exact-version `ScalametaDefinitionClassMemberAppendBridge.append` composes `ScalametaDefinitionGeneratedOriginBridge` with package-private `ExistingUntpdClassMemberAppender` | fresh same-site class/Template shells, exact old members, exact appended generated `DefDef`/`ValDef`, and its generated source | `PUBLIC` | Exactly one generated member appended last. It is neither general class authoring nor a public universal tree editor; Macro-Paradise lifecycle/placement remains caller-owned. |
+| Public existing-class transaction | one admitted existing pre-Typer ordinary class, capture-local refs, bounded `TypeNormalForm`/`TermShape` replacements, and ordered `SemanticDefinition` appends | public views and immutable EditPlan over accepted exact-U authorities | public exact-version `ExistingClassUntypedRewrite.capture/apply`; one final private U044 transaction | exact no-op identity or fresh same-site class/Template shells with preserved untouched members, reconstructed methods, omissions, and ordered generated members | `PUBLIC` | One ordinary clause of one or two parameters; unsupported projections and structures fail closed. No arbitrary AST rewrite, owner/symbol repair, lifecycle, placement, or public `u*` syntax. |
 
 These exact-version bridges require a Dotty `Context`. Their public-for-JVM
 visibility supports tightly coupled compiler/plugin consumers; it does not make
@@ -182,17 +183,18 @@ existing untpd tree
 ```
 
 An internal existing-tree rewrite result does not imply that N can project the
-same syntax, that U-D can freshly lower it, or that a public bridge exists.
-Conversely, a public Scalameta-to-fresh-tree bridge says nothing about
-identity-preserving rewrites of existing compiler trees.
+same syntax or that U-D can freshly lower it. Conversely, a public
+Scalameta-to-fresh-tree bridge says nothing about identity-preserving rewrites
+of existing compiler trees.
 
-The accepted package-private single-parameter family has an exact view,
-separate parameter-Type, result-Type, and RHS rewrites, and one atomic rewrite
-of all three fields. The accepted exact-two-parameter family has an exact view
-and an RHS-only rewrite preserving both parameter/type identities, the result
-Type, non-target member identity/order, and truthful reconstruction linkage.
-Each operation reconstructs only its admitted shells at truthful
-transformation sites. None adds a public exact-U facade.
+`ExistingClassUntypedRewrite` is the named public exact-version facade for the
+bounded U-U composition above. It reuses the accepted private one- and
+two-parameter capture/projection/preparation/reconstruction authorities and the
+single atomic owner transaction. It exposes only ordered views, opaque
+capture-local refs, `ExactIdentity`, binder-aware semantic replacements, and
+an immutable plan. Each operation reconstructs only admitted shells at truthful
+sites; unsupported structures fail closed. Specialized private operations do
+not widen this public contract.
 
 ## Maintenance rule
 
