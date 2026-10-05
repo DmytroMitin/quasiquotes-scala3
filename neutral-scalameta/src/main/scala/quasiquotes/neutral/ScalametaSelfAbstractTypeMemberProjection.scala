@@ -9,7 +9,7 @@ private[quasiquotes] final case class ProjectedSelfAbstractTypeMember(
     sourceSpan: Option[NeutralSourceSpan]
 )
 
-/** Exact Scalameta 4.17.3 projector for the bounded AUXify-046 family. */
+/** Exact Scalameta 4.17.3 projector for the closed AUXify-046/086 family. */
 private[quasiquotes] object ScalametaSelfAbstractTypeMemberProjection:
   def project(
       declaration: Decl.Type,
@@ -24,10 +24,96 @@ private[quasiquotes] object ScalametaSelfAbstractTypeMemberProjection:
     )
 
     for
-      _ <- SelfAbstractTypeMemberPlan
-        .validateExpectation(expectation)
+      _ <- validateExpectation(expectation)
+      present <- validateHeader(declaration, expectedMemberName)
+      lower <- parseLower(present.bounds.lo, expectedSelfAliasName)
+      _ <- lower.toRight(
+        error(
+          "NEUTRAL_SELF_MEMBER_LOWER_BOUND_MISSING",
+          "the singleton lower bound must be present."
+        )
+      )
+      upper <- present.bounds.hi.toRight(
+        error(
+          "NEUTRAL_SELF_MEMBER_UPPER_BOUND_MISSING",
+          "the refined upper bound must be present."
+        )
+      )
+      _ <- upper match
+        case _: Type.Refine => Right(())
+        case _ =>
+          Left(
+            error(
+              "NEUTRAL_SELF_MEMBER_UPPER_REFINEMENT_MISSING",
+              "the upper bound must be exactly one named-base refinement."
+            )
+          )
+      projected <- projectValidatedMatrix(present, expectation)
+    yield projected
+
+  def projectMatrix(
+      declaration: Decl.Type,
+      expectedMemberName: String,
+      expectedSelfAliasName: String,
+      expectedUpperBaseName: String
+  ): Either[NeutralProjectionError, ProjectedSelfAbstractTypeMember] =
+    val expectation = SelfAbstractTypeMemberExpectation(
+      expectedMemberName,
+      expectedSelfAliasName,
+      expectedUpperBaseName
+    )
+
+    for
+      _ <- validateExpectation(expectation)
+      present <- validateHeader(declaration, expectedMemberName)
+      projected <- projectValidatedMatrix(present, expectation)
+    yield projected
+
+  private def projectValidatedMatrix(
+      declaration: Decl.Type,
+      expectation: SelfAbstractTypeMemberExpectation
+  ): Either[NeutralProjectionError, ProjectedSelfAbstractTypeMember] =
+    for
+      lowerAlias <- parseLower(
+        declaration.bounds.lo,
+        expectation.selfAliasName
+      )
+      upper <- parseUpper(
+        declaration.bounds.hi,
+        expectation.memberName,
+        expectation.selfAliasName,
+        expectation.upperBaseName
+      )
+      observed = ObservedSelfAbstractTypeMemberMatrix(
+        declaration.name.value,
+        lowerAlias,
+        upper._1,
+        upper._2
+      )
+      plan <- SelfAbstractTypeMemberPlan
+        .createMatrix(observed, expectation)
         .left
-        .map(classifyExpectationFailure)
+        .map(problem =>
+          error(
+            "NEUTRAL_SELF_MEMBER_PLAN_REJECTED",
+            problem.message
+          )
+        )
+    yield ProjectedSelfAbstractTypeMember(plan, truthfulSpan(declaration))
+
+  private def validateExpectation(
+      expectation: SelfAbstractTypeMemberExpectation
+  ): Either[NeutralProjectionError, Unit] =
+    SelfAbstractTypeMemberPlan
+      .validateExpectation(expectation)
+      .left
+      .map(classifyExpectationFailure)
+
+  private def validateHeader(
+      declaration: Decl.Type,
+      expectedMemberName: String
+  ): Either[NeutralProjectionError, Decl.Type] =
+    for
       present <- Option(declaration).toRight(
         error(
           "NEUTRAL_SELF_MEMBER_DECLARATION_MISSING",
@@ -54,41 +140,73 @@ private[quasiquotes] object ScalametaSelfAbstractTypeMemberProjection:
         "NEUTRAL_SELF_MEMBER_OUTER_NAME_MISMATCH",
         "the outer member name must equal the explicit member expectation."
       )
-      lower <- present.bounds.lo.toRight(
-        error(
-          "NEUTRAL_SELF_MEMBER_LOWER_BOUND_MISSING",
-          "the singleton lower bound must be present."
-        )
-      )
-      lowerAlias <- lower match
-        case Type.Singleton(name: Term.Name) => Right(name.value)
-        case _ =>
-          Left(
-            error(
-              "NEUTRAL_SELF_MEMBER_LOWER_BOUND_NOT_SINGLETON",
-              "the lower bound must be exactly Type.Singleton(Term.Name(alias))."
-            )
+    yield present
+
+  private def parseLower(
+      lower: Option[Type],
+      expectedSelfAliasName: String
+  ): Either[NeutralProjectionError, Option[String]] =
+    lower match
+      case None => Right(None)
+      case Some(Type.Singleton(name: Term.Name)) =>
+        require(
+          name.value == expectedSelfAliasName,
+          "NEUTRAL_SELF_MEMBER_LOWER_ALIAS_MISMATCH",
+          "the singleton lower-bound alias must equal the prepared self-alias expectation."
+        ).map(_ => Some(name.value))
+      case Some(_) =>
+        Left(
+          error(
+            "NEUTRAL_SELF_MEMBER_LOWER_BOUND_NOT_SINGLETON",
+            "the lower bound must be exactly Type.Singleton(Term.Name(alias))."
           )
-      _ <- require(
-        lowerAlias == expectedSelfAliasName,
-        "NEUTRAL_SELF_MEMBER_LOWER_ALIAS_MISMATCH",
-        "the singleton lower-bound alias must equal the prepared self-alias expectation."
-      )
-      upper <- present.bounds.hi.toRight(
-        error(
-          "NEUTRAL_SELF_MEMBER_UPPER_BOUND_MISSING",
-          "the refined upper bound must be present."
         )
-      )
-      refined <- upper match
-        case value: Type.Refine => Right(value)
-        case _ =>
-          Left(
-            error(
-              "NEUTRAL_SELF_MEMBER_UPPER_REFINEMENT_MISSING",
-              "the upper bound must be exactly one named-base refinement."
-            )
+
+  private def parseUpper(
+      upper: Option[Type],
+      expectedMemberName: String,
+      expectedSelfAliasName: String,
+      expectedUpperBaseName: String
+  ): Either[
+    NeutralProjectionError,
+    (String, Option[ObservedSelfAbstractTypeMemberRefinement])
+  ] =
+    upper match
+      case None =>
+        Left(
+          error(
+            "NEUTRAL_SELF_MEMBER_UPPER_BOUND_MISSING",
+            "the upper bound must be present."
           )
+        )
+      case Some(base: Type.Name) =>
+        require(
+          base.value == expectedUpperBaseName,
+          "NEUTRAL_SELF_MEMBER_UPPER_BASE_MISMATCH",
+          "the direct upper base must equal the explicit upper-base expectation."
+        ).map(_ => (base.value, None))
+      case Some(refined: Type.Refine) =>
+        parseRefinement(
+          refined,
+          expectedMemberName,
+          expectedSelfAliasName,
+          expectedUpperBaseName
+        ).map(observed => (expectedUpperBaseName, Some(observed)))
+      case Some(_) =>
+        Left(
+          error(
+            "NEUTRAL_SELF_MEMBER_UPPER_BASE_UNSUPPORTED",
+            "the upper bound must be one direct Type.Name or one exact named-base refinement."
+          )
+        )
+
+  private def parseRefinement(
+      refined: Type.Refine,
+      expectedMemberName: String,
+      expectedSelfAliasName: String,
+      expectedUpperBaseName: String
+  ): Either[NeutralProjectionError, ObservedSelfAbstractTypeMemberRefinement] =
+    for
       baseName <- refined.tpe match
         case Some(name: Type.Name) => Right(name.value)
         case _ =>
@@ -131,7 +249,7 @@ private[quasiquotes] object ScalametaSelfAbstractTypeMemberProjection:
         "the refinement alias has no auxiliary bounds."
       )
       _ <- require(
-        alias.name.value == present.name.value,
+        alias.name.value == expectedMemberName,
         "NEUTRAL_SELF_MEMBER_REFINEMENT_NAME_MISMATCH",
         "the refinement alias name must equal the outer member name."
       )
@@ -154,9 +272,9 @@ private[quasiquotes] object ScalametaSelfAbstractTypeMemberProjection:
             )
           )
       _ <- require(
-        selectedPrefix == lowerAlias && selectedPrefix == expectedSelfAliasName,
+        selectedPrefix == expectedSelfAliasName,
         "NEUTRAL_SELF_MEMBER_SELECTED_PREFIX_MISMATCH",
-        "the selected Type prefix must equal the singleton alias and explicit expectation."
+        "the selected Type prefix must equal the prepared self-alias expectation."
       )
       _ <- require(
         selected.name.value == alias.name.value &&
@@ -164,24 +282,11 @@ private[quasiquotes] object ScalametaSelfAbstractTypeMemberProjection:
         "NEUTRAL_SELF_MEMBER_SELECTED_MEMBER_MISMATCH",
         "the selected Type member must equal the refinement alias and outer expectation."
       )
-      observed = ObservedSelfAbstractTypeMember(
-        present.name.value,
-        lowerAlias,
-        baseName,
-        alias.name.value,
-        selectedPrefix,
-        selected.name.value
-      )
-      plan <- SelfAbstractTypeMemberPlan
-        .create(observed, expectation)
-        .left
-        .map(problem =>
-          error(
-            "NEUTRAL_SELF_MEMBER_PLAN_REJECTED",
-            problem.message
-          )
-        )
-    yield ProjectedSelfAbstractTypeMember(plan, truthfulSpan(present))
+    yield ObservedSelfAbstractTypeMemberRefinement(
+      alias.name.value,
+      selectedPrefix,
+      selected.name.value
+    )
 
   private def classifyExpectationFailure(
       problem: SelfAbstractTypeMemberPlanError

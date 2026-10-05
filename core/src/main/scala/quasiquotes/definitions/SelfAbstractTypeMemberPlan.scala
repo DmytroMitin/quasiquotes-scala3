@@ -1,5 +1,7 @@
 package quasiquotes.definitions
 
+import scala.util.control.NonFatal
+
 private[quasiquotes] final case class SelfAbstractTypeMemberPlanError(
     code: String,
     detail: String
@@ -19,6 +21,19 @@ private[quasiquotes] final case class ObservedSelfAbstractTypeMember(
     refinementAliasName: String,
     selectedPrefixName: String,
     selectedMemberName: String
+) derives CanEqual
+
+private[quasiquotes] final case class ObservedSelfAbstractTypeMemberRefinement(
+    aliasName: String,
+    selectedPrefixName: String,
+    selectedMemberName: String
+) derives CanEqual
+
+private[quasiquotes] final case class ObservedSelfAbstractTypeMemberMatrix(
+    outerMemberName: String,
+    lowerAliasName: Option[String],
+    upperBaseName: String,
+    refinement: Option[ObservedSelfAbstractTypeMemberRefinement]
 ) derives CanEqual
 
 private[quasiquotes] final case class ExternalStableAliasExpectation private[definitions] (
@@ -41,19 +56,71 @@ private[quasiquotes] final case class SingleAliasUpperRefinement(
     rhs: DirectExternalStableSelected
 ) derives CanEqual
 
-/** Compiler-free validated carrier for the exact AUXify-046 member family.
+private[quasiquotes] final case class SelfAbstractTypeMemberRoleSnapshot(
+    memberName: String,
+    selfAliasName: String,
+    upperBaseName: String,
+    lowerPresent: Boolean,
+    fBoundPresent: Boolean,
+    lowerAliasRole: Option[String],
+    refinementBaseRole: Option[String],
+    refinementAliasRole: Option[String],
+    selectedPrefixRole: Option[String],
+    selectedMemberRole: Option[String]
+) derives CanEqual
+
+/** Compiler-free validated carrier for the closed AUXify-046/086 member family.
   *
   * The prepared self alias is an external source-name expectation. It is not
   * represented by a project binder identity or a compiler symbol.
+  *
+  * `lowerBound` and `upperBound` remain the legacy both-present
+  * compatibility view used by the current U backend. They never invent an
+  * absent edge.
   */
 private[quasiquotes] final class SelfAbstractTypeMemberPlan private (
     val memberName: String,
     val selfAlias: ExternalStableAliasExpectation,
-    val lowerBound: SingletonLowerBound,
-    val upperBound: SingleAliasUpperRefinement
+    val upperBaseName: String,
+    val lowerBoundOption: Option[SingletonLowerBound],
+    val fBoundRefinementOption: Option[SingleAliasUpperRefinement]
 ):
+  def lowerBound: SingletonLowerBound =
+    lowerBoundOption.getOrElse(
+      throw new IllegalStateException(
+        "SELF_MEMBER_LEGACY_LOWER_BOUND_ABSENT: the legacy both-present lower-bound view cannot represent this matrix row."
+      )
+    )
+
+  def upperBound: SingleAliasUpperRefinement =
+    fBoundRefinementOption.getOrElse(
+      throw new IllegalStateException(
+        "SELF_MEMBER_LEGACY_UPPER_REFINEMENT_ABSENT: the legacy both-present upper-refinement view cannot represent this matrix row."
+      )
+    )
+
+  def roleSnapshot: SelfAbstractTypeMemberRoleSnapshot =
+    SelfAbstractTypeMemberRoleSnapshot(
+      memberName,
+      selfAlias.source,
+      upperBaseName,
+      lowerBoundOption.nonEmpty,
+      fBoundRefinementOption.nonEmpty,
+      lowerBoundOption.map(_.alias.source),
+      fBoundRefinementOption.map(_.baseName),
+      fBoundRefinementOption.map(_.aliasName),
+      fBoundRefinementOption.map(_.rhs.alias.source),
+      fBoundRefinementOption.map(_.rhs.memberName)
+    )
+
   def productIterator: Iterator[Any] =
-    Iterator(memberName, selfAlias, lowerBound, upperBound)
+    Iterator(
+      memberName,
+      selfAlias,
+      upperBaseName,
+      lowerBoundOption,
+      fBoundRefinementOption
+    )
 
 private[quasiquotes] object SelfAbstractTypeMemberPlan:
   def validateExpectation(
@@ -132,13 +199,174 @@ private[quasiquotes] object SelfAbstractTypeMemberPlan:
     yield new SelfAbstractTypeMemberPlan(
       presentExpected.memberName,
       alias,
-      SingletonLowerBound(alias),
-      SingleAliasUpperRefinement(
-        presentExpected.upperBaseName,
-        presentExpected.memberName,
-        selected
+      presentExpected.upperBaseName,
+      Some(SingletonLowerBound(alias)),
+      Some(
+        SingleAliasUpperRefinement(
+          presentExpected.upperBaseName,
+          presentExpected.memberName,
+          selected
+        )
       )
     )
+
+  def createMatrix(
+      observed: ObservedSelfAbstractTypeMemberMatrix,
+      expected: SelfAbstractTypeMemberExpectation
+  ): Either[SelfAbstractTypeMemberPlanError, SelfAbstractTypeMemberPlan] =
+    for
+      presentObserved <- Option(observed).toRight(
+        error(
+          "OBSERVED_SELF_MEMBER_MISSING",
+          "the observed self abstract-Type-member matrix must be present."
+        )
+      )
+      presentExpected <- Option(expected).toRight(
+        error(
+          "EXPECTED_SELF_MEMBER_MISSING",
+          "the expected self abstract-Type-member names must be present."
+        )
+      )
+      _ <- validateExpectation(presentExpected)
+      alias <- validateExternalAlias(presentExpected.selfAliasName)
+      lowerAliasOption <- Option(presentObserved.lowerAliasName).toRight(
+        error(
+          "OBSERVED_SELF_MEMBER_MATRIX_INVALID",
+          "the observed lower-bound option must be present as an Option."
+        )
+      )
+      refinementOption <- Option(presentObserved.refinement).toRight(
+        error(
+          "OBSERVED_SELF_MEMBER_MATRIX_INVALID",
+          "the observed refinement option must be present as an Option."
+        )
+      )
+      _ <- require(
+        presentObserved.outerMemberName == presentExpected.memberName,
+        "OUTER_MEMBER_NAME_MISMATCH",
+        "the outer member name must equal the explicit member expectation."
+      )
+      _ <- lowerAliasOption match
+        case Some(lowerAlias) =>
+          require(
+            lowerAlias == presentExpected.selfAliasName,
+            "SINGLETON_LOWER_ALIAS_MISMATCH",
+            "the singleton lower-bound alias must equal the prepared self-alias expectation."
+          )
+        case None => Right(())
+      _ <- require(
+        presentObserved.upperBaseName == presentExpected.upperBaseName,
+        "UPPER_BASE_NAME_MISMATCH",
+        "the upper base must equal the explicit upper-base expectation."
+      )
+      _ <- refinementOption match
+        case Some(refinement) => validateRefinement(refinement, presentExpected)
+        case None => Right(())
+      selected = DirectExternalStableSelected(alias, presentExpected.memberName)
+      lower = lowerAliasOption.map(_ => SingletonLowerBound(alias))
+      refinement = refinementOption.map(_ =>
+        SingleAliasUpperRefinement(
+          presentExpected.upperBaseName,
+          presentExpected.memberName,
+          selected
+        )
+      )
+    yield new SelfAbstractTypeMemberPlan(
+      presentExpected.memberName,
+      alias,
+      presentExpected.upperBaseName,
+      lower,
+      refinement
+    )
+
+  def validate(
+      plan: SelfAbstractTypeMemberPlan
+  ): Either[SelfAbstractTypeMemberPlanError, Unit] =
+    Option(plan)
+      .toRight(
+        error(
+          "SELF_MEMBER_PLAN_MISSING",
+          "the self abstract-Type-member plan must be present."
+        )
+      )
+      .flatMap { present =>
+        try
+          val lowerOption = Option(present.lowerBoundOption).toRight(
+            error(
+              "SELF_MEMBER_PLAN_INVALID",
+              "the lower-bound option must be present as an Option."
+            )
+          )
+          val refinementOption = Option(present.fBoundRefinementOption).toRight(
+            error(
+              "SELF_MEMBER_PLAN_INVALID",
+              "the refinement option must be present as an Option."
+            )
+          )
+          for
+            lower <- lowerOption
+            refinement <- refinementOption
+            expected = SelfAbstractTypeMemberExpectation(
+              present.memberName,
+              present.selfAlias.source,
+              present.upperBaseName
+            )
+            observed = ObservedSelfAbstractTypeMemberMatrix(
+              present.memberName,
+              lower.map(_.alias.source),
+              present.upperBaseName,
+              refinement.map(value =>
+                ObservedSelfAbstractTypeMemberRefinement(
+                  value.aliasName,
+                  value.rhs.alias.source,
+                  value.rhs.memberName
+                )
+              )
+            )
+            recreated <- createMatrix(observed, expected)
+            _ <- require(
+              recreated.roleSnapshot == present.roleSnapshot,
+              "SELF_MEMBER_PLAN_INVALID",
+              "the plan does not preserve the complete closed-matrix role snapshot."
+            )
+          yield ()
+        catch
+          case NonFatal(_) =>
+            Left(
+              error(
+                "SELF_MEMBER_PLAN_INVALID",
+                "the plan contains a corrupt or unsupported closed-matrix state."
+              )
+            )
+      }
+
+  private def validateRefinement(
+      refinement: ObservedSelfAbstractTypeMemberRefinement,
+      expected: SelfAbstractTypeMemberExpectation
+  ): Either[SelfAbstractTypeMemberPlanError, Unit] =
+    for
+      present <- Option(refinement).toRight(
+        error(
+          "OBSERVED_SELF_MEMBER_REFINEMENT_MISSING",
+          "the present refinement observation must be non-null."
+        )
+      )
+      _ <- require(
+        present.aliasName == expected.memberName,
+        "REFINEMENT_ALIAS_NAME_MISMATCH",
+        "the refinement alias must equal the outer member name."
+      )
+      _ <- require(
+        present.selectedPrefixName == expected.selfAliasName,
+        "SELECTED_PREFIX_ALIAS_MISMATCH",
+        "the selected-Type prefix must equal the prepared self-alias expectation."
+      )
+      _ <- require(
+        present.selectedMemberName == expected.memberName,
+        "SELECTED_MEMBER_NAME_MISMATCH",
+        "the selected Type member must equal the outer member name."
+      )
+    yield ()
 
   private def validateDefinitionName(
       value: String,

@@ -71,6 +71,22 @@ class SelfAbstractTypeMemberPeerBridgeTest extends munit.FunSuite:
         "Generated.scala",
         "UNSUPPORTED_SCALAMETA_SELF_TYPE_MEMBER"
       )
+      assertFailure(
+        q"type Self >: self.type <: Nat".asInstanceOf[Decl.Type],
+        "Self",
+        "self",
+        "Nat",
+        "Generated.scala",
+        "UNSUPPORTED_SCALAMETA_SELF_TYPE_MEMBER"
+      )
+      assertFailure(
+        q"type Self <: Nat".asInstanceOf[Decl.Type],
+        "Self",
+        "self",
+        "Nat",
+        "Generated.scala",
+        "UNSUPPORTED_SCALAMETA_SELF_TYPE_MEMBER"
+      )
       assertFailure(canonical, "Self", "self", "Nat", "Bad\nName.scala", "INVALID_VIRTUAL_SOURCE_NAME")
       assertFailure(canonical, "Self", "self", "Nat", null, "INVALID_VIRTUAL_SOURCE_NAME")
     }

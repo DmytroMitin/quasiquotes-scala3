@@ -112,6 +112,136 @@ class SelfAbstractTypeMemberPlanTest extends munit.FunSuite:
     )
   }
 
+  test("models the closed lower and F-bound option matrix with stable distinct role snapshots") {
+    val expected = SelfAbstractTypeMemberExpectation("Element", "owner$2", "Domain")
+    val rows = Vector((true, true), (true, false), (false, true), (false, false))
+
+    val snapshots = rows.map { case (lowerPresent, fBoundPresent) =>
+      val first = SelfAbstractTypeMemberPlan
+        .createMatrix(
+          observedMatrix("Element", "owner$2", "Domain", lowerPresent, fBoundPresent),
+          expected
+        )
+        .fold(problem => fail(problem.message), identity)
+      val repeated = SelfAbstractTypeMemberPlan
+        .createMatrix(
+          observedMatrix("Element", "owner$2", "Domain", lowerPresent, fBoundPresent),
+          expected
+        )
+        .fold(problem => fail(problem.message), identity)
+
+      assertEquals(first.memberName, "Element")
+      assertEquals(first.selfAlias.source, "owner$2")
+      assertEquals(first.upperBaseName, "Domain")
+      assertEquals(first.lowerBoundOption.nonEmpty, lowerPresent)
+      assertEquals(first.fBoundRefinementOption.nonEmpty, fBoundPresent)
+      assertEquals(first.roleSnapshot, repeated.roleSnapshot)
+      assertEquals(first.roleSnapshot.lowerPresent, lowerPresent)
+      assertEquals(first.roleSnapshot.fBoundPresent, fBoundPresent)
+      assertEquals(first.roleSnapshot.lowerAliasRole, Option.when(lowerPresent)("owner$2"))
+      assertEquals(first.roleSnapshot.refinementBaseRole, Option.when(fBoundPresent)("Domain"))
+      assertEquals(first.roleSnapshot.refinementAliasRole, Option.when(fBoundPresent)("Element"))
+      assertEquals(first.roleSnapshot.selectedPrefixRole, Option.when(fBoundPresent)("owner$2"))
+      assertEquals(first.roleSnapshot.selectedMemberRole, Option.when(fBoundPresent)("Element"))
+      first.roleSnapshot
+    }
+
+    assertEquals(snapshots.distinct.size, 4)
+  }
+
+  test("matrix validation rejects incoherent present edges without fabricating absent edges") {
+    val expected = SelfAbstractTypeMemberExpectation("Self", "self", "Nat")
+    assertMatrixRejected(
+      observedMatrix("Other", "self", "Nat", lowerPresent = false, fBoundPresent = false),
+      expected,
+      "OUTER_MEMBER_NAME_MISMATCH"
+    )
+    assertMatrixRejected(
+      observedMatrix("Self", "other", "Nat", lowerPresent = true, fBoundPresent = false),
+      expected,
+      "SINGLETON_LOWER_ALIAS_MISMATCH"
+    )
+    assertMatrixRejected(
+      observedMatrix("Self", "self", "Other", lowerPresent = false, fBoundPresent = false),
+      expected,
+      "UPPER_BASE_NAME_MISMATCH"
+    )
+    assertMatrixRejected(
+      observedMatrix("Self", "self", "Nat", lowerPresent = false, fBoundPresent = true)
+        .copy(refinement = Some(ObservedSelfAbstractTypeMemberRefinement("Other", "self", "Self"))),
+      expected,
+      "REFINEMENT_ALIAS_NAME_MISMATCH"
+    )
+    assertMatrixRejected(
+      observedMatrix("Self", "self", "Nat", lowerPresent = false, fBoundPresent = true)
+        .copy(refinement = Some(ObservedSelfAbstractTypeMemberRefinement("Self", "other", "Self"))),
+      expected,
+      "SELECTED_PREFIX_ALIAS_MISMATCH"
+    )
+    assertMatrixRejected(
+      observedMatrix("Self", "self", "Nat", lowerPresent = false, fBoundPresent = true)
+        .copy(refinement = Some(ObservedSelfAbstractTypeMemberRefinement("Self", "self", "Other"))),
+      expected,
+      "SELECTED_MEMBER_NAME_MISMATCH"
+    )
+  }
+
+  test("legacy both-present accessors fail deterministically for absent matrix edges") {
+    val expected = SelfAbstractTypeMemberExpectation("Self", "self", "Nat")
+    val lowerOnly = SelfAbstractTypeMemberPlan
+      .createMatrix(
+        observedMatrix("Self", "self", "Nat", lowerPresent = true, fBoundPresent = false),
+        expected
+      )
+      .fold(problem => fail(problem.message), identity)
+    val fBoundOnly = SelfAbstractTypeMemberPlan
+      .createMatrix(
+        observedMatrix("Self", "self", "Nat", lowerPresent = false, fBoundPresent = true),
+        expected
+      )
+      .fold(problem => fail(problem.message), identity)
+
+    assert(SelfAbstractTypeMemberPlan.validate(lowerOnly).isRight)
+    assert(SelfAbstractTypeMemberPlan.validate(fBoundOnly).isRight)
+    assert(
+      intercept[IllegalStateException](lowerOnly.upperBound)
+        .getMessage
+        .startsWith("SELF_MEMBER_LEGACY_UPPER_REFINEMENT_ABSENT")
+    )
+    assert(
+      intercept[IllegalStateException](fBoundOnly.lowerBound)
+        .getMessage
+        .startsWith("SELF_MEMBER_LEGACY_LOWER_BOUND_ABSENT")
+    )
+  }
+
+  test("complete validation rejects null and forged corrupt option storage") {
+    assertEquals(
+      SelfAbstractTypeMemberPlan.validate(null).left.toOption.map(_.code),
+      Some("SELF_MEMBER_PLAN_MISSING")
+    )
+
+    val constructor = classOf[SelfAbstractTypeMemberPlan]
+      .getDeclaredConstructors
+      .find(_.getParameterCount == 5)
+      .getOrElse(fail("expected the closed-matrix plan constructor"))
+    constructor.setAccessible(true)
+    val corrupt = constructor
+      .newInstance(
+        "Self",
+        new ExternalStableAliasExpectation("self"),
+        "Nat",
+        null,
+        None
+      )
+      .asInstanceOf[SelfAbstractTypeMemberPlan]
+
+    assertEquals(
+      SelfAbstractTypeMemberPlan.validate(corrupt).left.toOption.map(_.code),
+      Some("SELF_MEMBER_PLAN_INVALID")
+    )
+  }
+
   private def observed(
       member: String,
       selfAlias: String,
@@ -126,6 +256,22 @@ class SelfAbstractTypeMemberPlanTest extends munit.FunSuite:
       member
     )
 
+  private def observedMatrix(
+      member: String,
+      selfAlias: String,
+      upperBase: String,
+      lowerPresent: Boolean,
+      fBoundPresent: Boolean
+  ): ObservedSelfAbstractTypeMemberMatrix =
+    ObservedSelfAbstractTypeMemberMatrix(
+      member,
+      Option.when(lowerPresent)(selfAlias),
+      upperBase,
+      Option.when(fBoundPresent)(
+        ObservedSelfAbstractTypeMemberRefinement(member, selfAlias, member)
+      )
+    )
+
   private def assertRejected(
       observed: ObservedSelfAbstractTypeMember,
       expected: SelfAbstractTypeMemberExpectation,
@@ -133,5 +279,19 @@ class SelfAbstractTypeMemberPlanTest extends munit.FunSuite:
   ): Unit =
     assertEquals(
       SelfAbstractTypeMemberPlan.create(observed, expected).left.toOption.map(_.code),
+      Some(code)
+    )
+
+  private def assertMatrixRejected(
+      observed: ObservedSelfAbstractTypeMemberMatrix,
+      expected: SelfAbstractTypeMemberExpectation,
+      code: String
+  ): Unit =
+    assertEquals(
+      SelfAbstractTypeMemberPlan
+        .createMatrix(observed, expected)
+        .left
+        .toOption
+        .map(_.code),
       Some(code)
     )

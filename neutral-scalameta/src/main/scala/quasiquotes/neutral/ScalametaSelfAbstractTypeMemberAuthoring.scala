@@ -6,21 +6,11 @@ import scala.annotation.nowarn
 import scala.meta.*
 import scala.util.control.NonFatal
 
-/** Direct structural authoring for the exact bounded AUXify-046 self member. */
+/** Direct structural authoring for the exact bounded AUXify-046/086 family. */
 @nowarn("cat=deprecation")
 private[quasiquotes] object ScalametaSelfAbstractTypeMemberAuthoring:
   final case class Error(code: String, detail: String) derives CanEqual:
     def message: String = s"$code: $detail"
-
-  private final case class SemanticSourceSnapshot(
-      outerMemberName: String,
-      selfAliasExpectation: String,
-      lowerBoundAlias: String,
-      upperBaseName: String,
-      refinementAliasName: String,
-      selectedPrefixAlias: String,
-      selectedMemberName: String
-  ) derives CanEqual
 
   def author(plan: SelfAbstractTypeMemberPlan): Either[Error, Decl.Type] =
     Option(plan)
@@ -44,23 +34,11 @@ private[quasiquotes] object ScalametaSelfAbstractTypeMemberAuthoring:
       plan: SelfAbstractTypeMemberPlan
   ): Either[Error, SelfAbstractTypeMemberPlan] =
     try
-      val expectation = SelfAbstractTypeMemberExpectation(
-        plan.memberName,
-        plan.selfAlias.source,
-        plan.upperBound.baseName
-      )
-      val observed = ObservedSelfAbstractTypeMember(
-        plan.memberName,
-        plan.lowerBound.alias.source,
-        plan.upperBound.baseName,
-        plan.upperBound.aliasName,
-        plan.upperBound.rhs.alias.source,
-        plan.upperBound.rhs.memberName
-      )
       SelfAbstractTypeMemberPlan
-        .create(observed, expectation)
+        .validate(plan)
         .left
         .map(_ => planUnsupported)
+        .map(_ => plan)
     catch case NonFatal(_) => Left(planUnsupported)
 
   private def requireRepresentableNames(
@@ -70,7 +48,7 @@ private[quasiquotes] object ScalametaSelfAbstractTypeMemberAuthoring:
       for
         _ <- requireFreshTypeName(plan.memberName)
         _ <- requireFreshExternalAlias(plan.selfAlias.source)
-        _ <- requireFreshTypeName(plan.upperBound.baseName)
+        _ <- requireFreshTypeName(plan.upperBaseName)
       yield ()
     catch case NonFatal(_) => Left(nameUnsupported)
 
@@ -103,7 +81,7 @@ private[quasiquotes] object ScalametaSelfAbstractTypeMemberAuthoring:
   ): Either[Error, Unit] =
     try
       Either.cond(
-        plan.upperBound.baseName != plan.memberName,
+        plan.upperBaseName != plan.memberName,
         (),
         lexicalRoleUnsupported
       )
@@ -115,26 +93,32 @@ private[quasiquotes] object ScalametaSelfAbstractTypeMemberAuthoring:
     try
       val memberName = plan.memberName
       val selfAlias = plan.selfAlias.source
-      val refinementAlias = Defn.Type(
-        Nil,
-        Type.Name(memberName),
-        Type.ParamClause(Nil),
-        Type.Select(Term.Name(selfAlias), Type.Name(memberName)),
-        Type.Bounds.empty
+      val lower = plan.lowerBoundOption.map(_ =>
+        Type.Singleton(Term.Name(selfAlias))
       )
+      val upper: Type = plan.fBoundRefinementOption match
+        case Some(_) =>
+          val refinementAlias = Defn.Type(
+            Nil,
+            Type.Name(memberName),
+            Type.ParamClause(Nil),
+            Type.Select(Term.Name(selfAlias), Type.Name(memberName)),
+            Type.Bounds.empty
+          )
+          Type.Refine(
+            Some(Type.Name(plan.upperBaseName)),
+            Stat.Block(List(refinementAlias))
+          )
+        case None => Type.Name(plan.upperBaseName)
+
       Right(
         Decl.Type(
           Nil,
           Type.Name(memberName),
           Type.ParamClause(Nil),
           Type.Bounds(
-            Some(Type.Singleton(Term.Name(selfAlias))),
-            Some(
-              Type.Refine(
-                Some(Type.Name(plan.upperBound.baseName)),
-                Stat.Block(List(refinementAlias))
-              )
-            ),
+            lower,
+            Some(upper),
             Nil,
             Nil
           )
@@ -154,14 +138,14 @@ private[quasiquotes] object ScalametaSelfAbstractTypeMemberAuthoring:
   private def requireExactRoundTrip(
       authored: Decl.Type,
       plan: SelfAbstractTypeMemberPlan,
-      expected: SemanticSourceSnapshot
+      expected: SelfAbstractTypeMemberRoleSnapshot
   ): Either[Error, Unit] =
     try
-      ScalametaSelfAbstractTypeMemberProjection.project(
+      ScalametaSelfAbstractTypeMemberProjection.projectMatrix(
         authored,
         plan.memberName,
         plan.selfAlias.source,
-        plan.upperBound.baseName
+        plan.upperBaseName
       ) match
         case Right(ProjectedSelfAbstractTypeMember(projected, None)) =>
           snapshot(projected) match
@@ -173,19 +157,8 @@ private[quasiquotes] object ScalametaSelfAbstractTypeMemberAuthoring:
 
   private def snapshot(
       plan: SelfAbstractTypeMemberPlan
-  ): Either[Error, SemanticSourceSnapshot] =
-    try
-      Right(
-        SemanticSourceSnapshot(
-          plan.memberName,
-          plan.selfAlias.source,
-          plan.lowerBound.alias.source,
-          plan.upperBound.baseName,
-          plan.upperBound.aliasName,
-          plan.upperBound.rhs.alias.source,
-          plan.upperBound.rhs.memberName
-        )
-      )
+  ): Either[Error, SelfAbstractTypeMemberRoleSnapshot] =
+    try Right(plan.roleSnapshot)
     catch case NonFatal(_) => Left(planUnsupported)
 
   private def allTrees(root: Tree): List[Tree] =
@@ -200,7 +173,7 @@ private[quasiquotes] object ScalametaSelfAbstractTypeMemberAuthoring:
   private def planUnsupported: Error =
     error(
       "NEUTRAL_SELF_MEMBER_AUTHORING_PLAN_UNSUPPORTED",
-      "the input is outside the existing SelfAbstractTypeMemberPlan.create contract."
+      "the input is outside the closed SelfAbstractTypeMemberPlan matrix contract."
     )
 
   private def nameUnsupported: Error =
@@ -224,7 +197,7 @@ private[quasiquotes] object ScalametaSelfAbstractTypeMemberAuthoring:
   private def roundTripFailed: Error =
     error(
       "NEUTRAL_SELF_MEMBER_AUTHORING_ROUNDTRIP_FAILED",
-      "the authored declaration did not reproject with the same complete source semantics and no provenance."
+      "the authored declaration did not reproject with the same complete matrix semantics and no provenance."
     )
 
   private def error(code: String, detail: String): Error =
