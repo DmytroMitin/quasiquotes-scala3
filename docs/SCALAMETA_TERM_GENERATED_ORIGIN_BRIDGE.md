@@ -16,6 +16,10 @@ def lowerForInsertion(term: Term, virtualSource: String)(using Context) =
 The consumer must use the `dottyInternal` artifact for the same full Scala
 compiler version as its active `Context`.
 
+The immutable 0.3.0 release does not contain the later one-segment constructor
+widening described below. That widening is current 0.4.0-SNAPSHOT source
+development and is not a Maven Central release.
+
 ## Owned composition
 
 The facade is a mechanical composition of existing bounded authorities:
@@ -39,12 +43,13 @@ The generated-origin bridge admits the neutral projector's ordinary direct
 family: Int/String/Boolean literals, identifiers, recursive selections, one
 ordinary positional Apply list, recursive infix and unary terms, tuples of
 arity 2 through 22, explicit `if`/`else`, standard single-quoted `s`
-interpolation, and one fully-qualified non-generic constructor with one
-ordinary positional list. Transparent P0 parentheses and binder-free P1 blocks
-are also admitted.
-A one-segment plain constructor path is accepted by neutral projection but is
-then rejected as `GENERATED_ORIGIN_FAILED` by the unchanged generated-origin
-consumer guard.
+interpolation, and one plain unresolved non-generic constructor source path
+with one ordinary positional list. Transparent P0 parentheses and binder-free
+P1 blocks are also admitted. Constructor source paths admit one or more plain
+segments. A one-segment path such as `A` generates the exact spelling
+`new A(...)` and a direct Type-name `untpd.Ident`; qualified paths retain their
+selected-Type topology. Invalid keyword and underscore generated-source
+segments fail closed.
 
 The completed path additionally admits bounded Type ascriptions whose Types
 can be completed by the public path (`Int`, `String`, and `Boolean`), one
@@ -55,11 +60,17 @@ generated source is deterministic and may be canonical rather than byte-equal
 to the input; for example `(1: Int)` becomes `(1): Int`.
 
 Projection still rejects multiple Apply lists, Type application,
-named/repeated/contextual arguments, non-`s` interpolation, simple or generic
-constructor names, multiple constructor lists, anonymous templates, and
-broader binders or statements. A projectable ascription such as
-`(value: Option[Int])` fails completion because this facade does not accept an
-external completed-Type sidecar.
+named/repeated/contextual arguments, non-`s` interpolation, generic constructor
+types, multiple constructor lists, anonymous templates, and broader binders or
+statements. A projectable ascription such as `(value: Option[Int])` fails
+completion because this facade does not accept an external completed-Type
+sidecar.
+
+The accepted constructor spelling is not a resolution service: no import or
+environment lookup, alias expansion, stable-prefix semantics, Type arguments,
+multiple constructor argument lists, or arbitrary constructor grammar is
+implied. Q/frontend/hybrid fixed-name constructor syntax remains on its
+separate legacy two-or-more-segment policy.
 
 ## Result and stable failures
 

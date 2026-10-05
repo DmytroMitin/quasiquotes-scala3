@@ -32,12 +32,13 @@ The admitted intersection is the direct non-binder family shared by both
 layers: semantic Int/String/Boolean literals; direct identifiers; recursive
 selections; one ordinary positional Apply list; recursive ordinary infix and
 unary terms; tuples of arity 2 through 22; an `if` with an explicit `else`;
-standard single-quoted `s` interpolation; one fully-qualified non-generic
-constructor with exactly one ordinary positional argument list; transparent
-P0 parentheses; and binder-free P1 blocks.
+standard single-quoted `s` interpolation; one plain unresolved non-generic
+constructor source path with exactly one ordinary positional argument list;
+transparent P0 parentheses; and binder-free P1 blocks.
 
-A one-segment plain constructor path is accepted by neutral projection but is
-rejected here as `EXACT_LOWERING_FAILED` by the unchanged exact consumer guard.
+Constructor source paths admit one or more plain segments. A one-segment path
+such as `A` lowers to a direct Type-name `untpd.Ident` under `untpd.New`;
+qualified paths retain their selected-Type topology.
 
 ## Stable public failure boundary
 
@@ -52,11 +53,16 @@ rejected here as `EXACT_LOWERING_FAILED` by the unchanged exact consumer guard.
 branch on `code` rather than exact prose.
 
 Nested Apply lists, Type application, named or repeated arguments, contextual
-argument clauses, simple/import-relative or type-applied constructors,
-multiple constructor lists, anonymous templates, Type ascription, Lambda1,
-P2/P3 binder blocks, and broader statement families fail closed. In
-particular, the facade does not route P2/P3 through the richer internal backend
-that accepts completed-Type sidecars.
+argument clauses, type-applied constructors, multiple constructor lists,
+anonymous templates, Type ascription, Lambda1, P2/P3 binder blocks, and broader
+statement families fail closed. In particular, the facade does not route P2/P3
+through the richer internal backend that accepts completed-Type sidecars.
+
+The accepted constructor spelling is not a resolution service: no import or
+environment lookup, alias expansion, stable-prefix semantics, Type arguments,
+multiple constructor argument lists, or arbitrary constructor grammar is
+implied. Q/frontend/hybrid fixed-name constructor syntax remains on its
+separate legacy two-or-more-segment policy.
 
 ## Source-free result contract
 
