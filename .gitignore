@@ -2,6 +2,7 @@
 .idea/
 .agents/
 .codex/
+.superpowers/
 .metals/
 .scala-build/
 .vscode/
