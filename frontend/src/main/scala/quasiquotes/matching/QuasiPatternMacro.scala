@@ -15,6 +15,16 @@ private[matching] object QuasiPatternMacro:
       case _ =>
         return '{ QuasiPattern.scalarExtractor($context)(using $callerQuotes) }
 
+    SelectedMemberPatternSource.classify(parts) match
+      case Left(detail) =>
+        quotes.reflect.report.errorAndAbort(
+          s"Invalid qq term-pattern template: $detail",
+          context
+        )
+      case Right(Some(compiled)) =>
+        return selectedMemberExtractor(compiled, callerQuotes)
+      case Right(None) => ()
+
     RankedPatternSource.classify(parts) match
       case Left(detail) =>
         quotes.reflect.report.errorAndAbort(
@@ -63,6 +73,40 @@ private[matching] object QuasiPatternMacro:
                         RankedTermPatternExtractorFactory
                           .extractor[captureKinds & Tuple]($context, ${ Expr(sequenceIndex) })(using $callerQuotes)
                       }
+
+  private def selectedMemberExtractor(
+      compiled: SelectedMemberCompiledPattern,
+      callerQuotes: Expr[Quotes]
+  )(using Quotes): Expr[Any] =
+    val pattern = RankedTermPatternBridge.patternExpr(compiled.pattern)
+    val holeNames = RankedTermPatternBridge.holeNamesExpr(compiled.holeNames)
+    val placeholder = Expr(compiled.selectedNamePlaceholder)
+
+    compiled.layout match
+      case SelectedMemberPatternLayout.Direct =>
+        '{
+          TermPatternProductExtractorFactory.direct(using $callerQuotes)(
+            $pattern,
+            $holeNames,
+            $placeholder
+          )
+        }
+      case SelectedMemberPatternLayout.Nullary =>
+        '{
+          TermPatternProductExtractorFactory.nullary(using $callerQuotes)(
+            $pattern,
+            $holeNames,
+            $placeholder
+          )
+        }
+      case SelectedMemberPatternLayout.Unary =>
+        '{
+          TermPatternProductExtractorFactory.unary(using $callerQuotes)(
+            $pattern,
+            $holeNames,
+            $placeholder
+          )
+        }
 
   private def containsDirectNewSequenceHole(pattern: TermPattern, sequenceName: String): Boolean =
     pattern match
