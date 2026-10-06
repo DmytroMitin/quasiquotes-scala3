@@ -156,15 +156,6 @@ class Q052TypeArgumentSequenceCaptureTest extends munit.FunSuite:
             case _ => ()
       """
     )
-    val dynamic = messages(
-      """import scala.quoted.*
-        import quasiquotes.types.QuasiTypequotes.*
-        def attempt(using q: Quotes)(target: q.reflect.TypeRepr) =
-          target match
-            case tqq"$constructor[..$arguments]" => ()
-            case _ => ()
-      """
-    )
     val exceedsArity = messages(
       """import scala.quoted.*
         import quasiquotes.types.QuasiTypequotes.*
@@ -183,5 +174,4 @@ class Q052TypeArgumentSequenceCaptureTest extends munit.FunSuite:
     assert(function.exists(_.contains("direct fixed Type constructor argument list")))
     assert(unsupported.exists(_.contains("Unsupported applied Type constructor")))
     assert(selected.exists(_.contains("dynamic or selected Type constructors")))
-    assert(dynamic.exists(_.contains("dynamic Type-constructor capture")))
     assert(exceedsArity.exists(_.contains("exceed")))

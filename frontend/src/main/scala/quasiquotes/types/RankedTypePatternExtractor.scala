@@ -41,6 +41,14 @@ private[quasiquotes] object RankedTypePatternSupport:
       sequenceHoleName: String
   )
 
+  final case class DynamicCompiled(
+      constructorHoleName: String,
+      prefix: List[TypePattern],
+      suffix: List[TypePattern],
+      holeNames: Vector[String],
+      sequenceHoleName: String
+  )
+
   private final case class MatchData[T](
       scalarBindings: Map[String, T],
       sequenceBindings: Map[String, Seq[T]],
@@ -68,6 +76,20 @@ private[quasiquotes] object RankedTypePatternSupport:
     val compiled = compileOrAbort(context.parts.toList, sequenceIndex)
     new RankedTypePatternExtractor(target =>
       matchCompiled(using q)(compiled, target).map(result =>
+        captureTuple[q.reflect.TypeRepr, Kinds](result, 0)
+      )
+    )
+
+  private[types] transparent inline def dynamicRankedExtractor[Kinds <: Tuple](
+      context: StringContext,
+      sequenceIndex: Int
+  )(using q: Quotes): RankedTypePatternExtractor[
+    q.reflect.TypeRepr,
+    TypeCaptureTypes[q.reflect.TypeRepr, Kinds]
+  ] =
+    val compiled = compileDynamicOrAbort(context.parts.toList, sequenceIndex)
+    new RankedTypePatternExtractor(target =>
+      matchDynamicCompiled(using q)(compiled, target).map(result =>
         captureTuple[q.reflect.TypeRepr, Kinds](result, 0)
       )
     )
@@ -187,6 +209,95 @@ private[quasiquotes] object RankedTypePatternSupport:
         }
     }
 
+  private[types] def hasDynamicRootConstructor(
+      parts: List[String],
+      sequenceIndex: Int
+  ): Either[String, Boolean] =
+    classify(parts).flatMap { layout =>
+      if layout.sequenceIndex != Some(sequenceIndex) then
+        Left("ranked tqq template classification changed before compilation")
+      else
+        val mapped = TypePattern.rewriteSourceMapped(layout.source)
+        TinyTypeParser.parse(mapped.generatedSource).left.map(_.summary).map { parsed =>
+          parsed.shape match
+            case TypeShape.Apply(TypeShape.Identifier(constructorName), _) =>
+              mapped.generatedHoleIndex.semanticNameFor(constructorName).isDefined
+            case _ => false
+        }
+    }
+
+  private[types] def hasDynamicRootConstructorWithoutSequence(
+      parts: List[String]
+  ): Either[String, Boolean] =
+    classify(parts).flatMap { layout =>
+      if layout.sequenceIndex.nonEmpty then
+        Left("ranked tqq template classification changed before scalar dispatch")
+      else
+        val mapped = TypePattern.rewriteSourceMapped(layout.source)
+        Right(
+          TinyTypeParser.parse(mapped.generatedSource).toOption.exists { parsed =>
+            parsed.shape match
+              case TypeShape.Apply(TypeShape.Identifier(constructorName), _) =>
+                mapped.generatedHoleIndex.semanticNameFor(constructorName).isDefined
+              case _ => false
+          }
+        )
+    }
+
+  private[types] def compileDynamic(
+      parts: List[String],
+      sequenceIndex: Int
+  ): Either[String, DynamicCompiled] =
+    classify(parts).flatMap { layout =>
+      if layout.sequenceIndex != Some(sequenceIndex) then
+        Left("ranked tqq template classification changed before compilation")
+      else
+        val mapped = TypePattern.rewriteSourceMapped(layout.source)
+        TinyTypeParser.parse(mapped.generatedSource).left.map(_.summary).flatMap { parsed =>
+          val sequenceName = layout.holeNames(sequenceIndex)
+          val generatedSequenceName =
+            mapped.generatedHoleIndex.generatedNameFor(sequenceName).getOrElse("")
+          parsed.shape match
+            case TypeShape.Apply(TypeShape.Identifier(constructorName), arguments) =>
+              mapped.generatedHoleIndex.semanticNameFor(constructorName) match
+                case None =>
+                  Left("dynamic Type-constructor capture requires a root constructor hole")
+                case Some(constructorHoleName) =>
+                  val sequencePositions = arguments.zipWithIndex.collect {
+                    case (TypeShape.Identifier(name), index)
+                        if name == generatedSequenceName => index
+                  }
+                  sequencePositions match
+                    case sequencePosition :: Nil =>
+                      val fixed = arguments.zipWithIndex.collect {
+                        case (argument, index) if index != sequencePosition =>
+                          TypePattern
+                            .fromShapeWithHoles(argument, mapped.generatedHoleIndex)
+                            .left
+                            .map(_.message)
+                      }
+                      collect(fixed).map { compiledArguments =>
+                        DynamicCompiled(
+                          constructorHoleName,
+                          compiledArguments.take(sequencePosition),
+                          compiledArguments.drop(sequencePosition),
+                          layout.holeNames,
+                          sequenceName
+                        )
+                      }
+                    case _ =>
+                      Left(
+                        "rank-2 capture is supported only once in the root applied Type argument list"
+                      )
+            case TypeShape.Apply(_, _) =>
+              Left("dynamic Type-constructor capture requires a direct root constructor hole")
+            case _ =>
+              Left(
+                "dynamic Type-constructor capture is supported only in the root applied Type position"
+              )
+        }
+    }
+
   def compilePattern(
       pattern: TypePattern,
       holeNames: Vector[String],
@@ -291,6 +402,18 @@ private[quasiquotes] object RankedTypePatternSupport:
       identity
     )
 
+  private def compileDynamicOrAbort(using q: Quotes)(
+      parts: List[String],
+      sequenceIndex: Int
+  ): DynamicCompiled =
+    compileDynamic(parts, sequenceIndex).fold(
+      detail =>
+        q.reflect.report.errorAndAbort(
+          s"Invalid tqq type-pattern template: $detail"
+        ),
+      identity
+    )
+
   private def matchCompiled(using q: Quotes)(
       compiled: Compiled,
       target: q.reflect.TypeRepr
@@ -319,7 +442,15 @@ private[quasiquotes] object RankedTypePatternSupport:
                 .zipWithIndex
                 .foldLeft(initial) {
                   case (state, ((pattern, normalForm), index)) =>
-                    state.flatMap(matchChild(inspection, pattern, normalForm, index, _))
+                    state.flatMap(
+                      matchChild(
+                        pattern,
+                        normalForm,
+                        inspection.originalsByPath,
+                        Vector(index),
+                        _
+                      )
+                    )
                 }
             val afterSuffix =
               compiled.suffix
@@ -329,10 +460,10 @@ private[quasiquotes] object RankedTypePatternSupport:
                   case (state, ((pattern, normalForm), offset)) =>
                     state.flatMap(
                       matchChild(
-                        inspection,
                         pattern,
                         normalForm,
-                        suffixStart + offset,
+                        inspection.originalsByPath,
+                        Vector(suffixStart + offset),
                         _
                       )
                     )
@@ -359,11 +490,65 @@ private[quasiquotes] object RankedTypePatternSupport:
           case _ => None
     }
 
+  private def matchDynamicCompiled(using q: Quotes)(
+      compiled: DynamicCompiled,
+      target: q.reflect.TypeRepr
+  ): Option[MatchData[q.reflect.TypeRepr]] =
+    import q.reflect.*
+
+    Option(target).flatMap {
+      case AppliedType(constructor, arguments)
+          if arguments.size >= compiled.prefix.size + compiled.suffix.size =>
+        val initial = Option(
+          (
+            Map.empty[String, TypeNormalForm],
+            Map(compiled.constructorHoleName -> constructor)
+          )
+        )
+        val prefixTargets = arguments.take(compiled.prefix.size)
+        val suffixStart = arguments.size - compiled.suffix.size
+        val suffixTargets = arguments.drop(suffixStart)
+        val afterPrefix = compiled.prefix.zip(prefixTargets).foldLeft(initial) {
+          case (state, (pattern, argument)) =>
+            state.flatMap(matchReflectedChild(using q)(pattern, argument, _))
+        }
+        val afterSuffix = compiled.suffix.zip(suffixTargets).foldLeft(afterPrefix) {
+          case (state, (pattern, argument)) =>
+            state.flatMap(matchReflectedChild(using q)(pattern, argument, _))
+        }
+        afterSuffix.map { case (_, scalarBindings) =>
+          MatchData(
+            scalarBindings,
+            Map(
+              compiled.sequenceHoleName ->
+                arguments.slice(compiled.prefix.size, suffixStart)
+            ),
+            compiled.holeNames
+          )
+        }
+      case _ => None
+    }
+
+  private def matchReflectedChild(using q: Quotes)(
+      pattern: TypePattern,
+      target: q.reflect.TypeRepr,
+      state: (Map[String, TypeNormalForm], Map[String, q.reflect.TypeRepr])
+  ): Option[(Map[String, TypeNormalForm], Map[String, q.reflect.TypeRepr])] =
+    TargetTypeReprInspector.inspectWithOrigins(target).toOption.flatMap { inspection =>
+      matchChild(
+        pattern,
+        inspection.normalForm,
+        inspection.originalsByPath,
+        Vector.empty,
+        state
+      )
+    }
+
   private def matchChild[T](
-      inspection: TargetTypeReprInspector.Inspection[T],
       pattern: TypePattern,
       target: TypeNormalForm,
-      targetIndex: Int,
+      originalsByPath: Map[Vector[Int], T],
+      originPrefix: Vector[Int],
       state: (Map[String, TypeNormalForm], Map[String, T])
   ): Option[(Map[String, TypeNormalForm], Map[String, T])] =
     TypePattern.matchNormalFormWithPaths(pattern, target).flatMap { trace =>
@@ -378,8 +563,8 @@ private[quasiquotes] object RankedTypePatternSupport:
       mergedNormalForms.flatMap { normalForms =>
         trace.holePaths.foldLeft(Option(state._2)) {
           case (Some(current), (name, relativePath)) =>
-            inspection.originalsByPath
-              .get(Vector(targetIndex) ++ relativePath)
+            originalsByPath
+              .get(originPrefix ++ relativePath)
               .map(value => current.updated(name, value))
           case (None, _) => None
         }.map(normalForms -> _)
@@ -430,20 +615,60 @@ private[types] object QuasiTypePatternMacro:
       case Right(layout) =>
         layout.sequenceIndex match
           case None =>
-            '{
-              QuasiTypequotes.scalarExtractor($context)(using $callerQuotes)
-            }
-          case Some(sequenceIndex) =>
             RankedTypePatternSupport
-              .compile(parts, sequenceIndex)
+              .hasDynamicRootConstructorWithoutSequence(parts)
               .fold(
                 detail =>
                   report.errorAndAbort(
                     s"Invalid tqq type-pattern template: $detail",
                     context
                   ),
-                _ => ()
-              )
+                identity
+              ) match
+              case true =>
+                report.errorAndAbort(
+                  "Invalid tqq type-pattern template: dynamic Type-constructor capture requires one rank-2 Type-argument capture",
+                  context
+                )
+              case false =>
+                '{
+                  QuasiTypequotes.scalarExtractor($context)(using $callerQuotes)
+                }
+
+          case Some(sequenceIndex) =>
+            val dynamicRoot =
+              RankedTypePatternSupport
+                .hasDynamicRootConstructor(parts, sequenceIndex)
+                .fold(
+                  detail =>
+                    report.errorAndAbort(
+                      s"Invalid tqq type-pattern template: $detail",
+                      context
+                    ),
+                  identity
+                )
+            if dynamicRoot then
+              RankedTypePatternSupport
+                .compileDynamic(parts, sequenceIndex)
+                .fold(
+                  detail =>
+                    report.errorAndAbort(
+                      s"Invalid tqq type-pattern template: $detail",
+                      context
+                    ),
+                  _ => ()
+                )
+            else
+              RankedTypePatternSupport
+                .compile(parts, sequenceIndex)
+                .fold(
+                  detail =>
+                    report.errorAndAbort(
+                      s"Invalid tqq type-pattern template: $detail",
+                      context
+                    ),
+                  _ => ()
+                )
             val tupleCons = TypeRepr.of[Any *: EmptyTuple] match
               case AppliedType(constructor, _) => constructor
               case other =>
@@ -461,7 +686,16 @@ private[types] object QuasiTypePatternMacro:
             }
             kinds.asType match
               case '[captureKinds] =>
-                if holeCount == 1 then
+                if dynamicRoot then
+                  '{
+                    RankedTypePatternSupport.dynamicRankedExtractor[
+                      captureKinds & Tuple
+                    ](
+                      $context,
+                      ${ Expr(sequenceIndex) }
+                    )(using $callerQuotes)
+                  }
+                else if holeCount == 1 then
                   '{
                     RankedTypePatternSupport.singleSequenceExtractor(
                       $context,

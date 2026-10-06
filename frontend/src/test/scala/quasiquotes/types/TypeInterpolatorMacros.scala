@@ -18,7 +18,6 @@ object TypeInterpolatorMacros:
   inline def unsupportedTqrTemplate: Unit = ${ unsupportedTqrTemplateImpl }
   inline def unsupportedTqrSplice: Unit = ${ unsupportedTqrSpliceImpl }
   inline def unsupportedTqqTemplate: Unit = ${ unsupportedTqqTemplateImpl }
-  inline def constructorHoleTqq: Unit = ${ constructorHoleTqqImpl }
   inline def hostileTqrArity: Unit = ${ hostileTqrArityImpl }
   inline def nullTqrContext: Unit = ${ nullTqrContextImpl }
   inline def nullTqqContext: Unit = ${ nullTqqContextImpl }
@@ -163,13 +162,6 @@ object TypeInterpolatorMacros:
     import QuasiTypequotes.*
     TypeRepr.of[Int] match
       case tqq"Map[Int, String]" => '{ () }
-      case _ => '{ () }
-
-  private def constructorHoleTqqImpl(using q: Quotes): Expr[Unit] =
-    import q.reflect.*
-    import QuasiTypequotes.*
-    TypeRepr.of[List[Int]] match
-      case tqq"$constructor[Int]" => '{ () }
       case _ => '{ () }
 
   private def hostileTqrArityImpl(using q: Quotes): Expr[Unit] =
