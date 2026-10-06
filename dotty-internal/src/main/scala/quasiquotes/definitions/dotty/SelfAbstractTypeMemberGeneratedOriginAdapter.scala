@@ -15,7 +15,7 @@ private[quasiquotes] final case class SelfAbstractTypeMemberGeneratedOriginError
 ) derives CanEqual:
   def message: String = s"$code: $detail"
 
-/** Deterministic generated source and complete nine-node positioning for 046. */
+/** Deterministic generated source and complete closed-matrix positioning for 046/086. */
 private[quasiquotes] object SelfAbstractTypeMemberGeneratedOriginAdapter:
   private enum PlanKind:
     case OuterTypeDef
@@ -49,6 +49,10 @@ private[quasiquotes] object SelfAbstractTypeMemberGeneratedOriginAdapter:
       present <- Option(plan).toRight(
         error("INTERNAL_INVARIANT_FAILED", "the validated plan was null.")
       )
+      _ <- SelfAbstractTypeMemberPlan
+        .validate(present)
+        .left
+        .map(problem => error("EXACT_PLAN_VALIDATION_FAILED", problem.message))
       _ <- Option(virtualSourceName).toRight(
         error(
           "INVALID_VIRTUAL_SOURCE_NAME",
@@ -84,70 +88,76 @@ private[quasiquotes] object SelfAbstractTypeMemberGeneratedOriginAdapter:
     val builder = new StringBuilder("type ")
     val outerPoint = builder.length
     builder.append(plan.memberName)
-    builder.append(" >: ")
-    val lowerStart = builder.length
-    val lowerIdentifier = appendIdentifier(
-      builder,
-      plan.selfAlias.source,
-      PlanKind.TermIdentifier
-    )
-    builder.append(".type")
-    val lower = TreePlan(
-      PlanKind.SingletonType,
-      lowerStart,
-      builder.length,
-      lowerStart,
-      Vector(lowerIdentifier)
-    )
+    val lower = plan.lowerBoundOption.map { value =>
+      builder.append(" >: ")
+      val lowerStart = builder.length
+      val lowerIdentifier = appendIdentifier(
+        builder,
+        value.alias.source,
+        PlanKind.TermIdentifier
+      )
+      builder.append(".type")
+      TreePlan(
+        PlanKind.SingletonType,
+        lowerStart,
+        builder.length,
+        lowerStart,
+        Vector(lowerIdentifier)
+      )
+    }
     builder.append(" <: ")
     val base = appendIdentifier(
       builder,
-      plan.upperBound.baseName,
+      plan.upperBaseName,
       PlanKind.TypeIdentifier
     )
-    val refinementStart = base.start
-    builder.append(" { type ")
-    val aliasPoint = builder.length
-    val aliasStart = aliasPoint - "type ".length
-    builder.append(plan.upperBound.aliasName)
-    builder.append(" = ")
-    val selectedStart = builder.length
-    val selectedPrefix = appendIdentifier(
-      builder,
-      plan.upperBound.rhs.alias.source,
-      PlanKind.TermIdentifier
-    )
-    builder.append('.')
-    val selectedPoint = builder.length
-    builder.append(plan.upperBound.rhs.memberName)
-    val selected = TreePlan(
-      PlanKind.SelectedType,
-      selectedStart,
-      builder.length,
-      selectedPoint,
-      Vector(selectedPrefix)
-    )
-    val alias = TreePlan(
-      PlanKind.RefinementAlias,
-      aliasStart,
-      selected.end,
-      aliasPoint,
-      Vector(selected)
-    )
-    builder.append(" }")
-    val refinement = TreePlan(
-      PlanKind.Refinement,
-      refinementStart,
-      builder.length,
-      refinementStart,
-      Vector(base, alias)
-    )
+    val upper = plan.fBoundRefinementOption match
+      case Some(value) =>
+        val refinementStart = base.start
+        builder.append(" { type ")
+        val aliasPoint = builder.length
+        val aliasStart = aliasPoint - "type ".length
+        builder.append(value.aliasName)
+        builder.append(" = ")
+        val selectedStart = builder.length
+        val selectedPrefix = appendIdentifier(
+          builder,
+          value.rhs.alias.source,
+          PlanKind.TermIdentifier
+        )
+        builder.append('.')
+        val selectedPoint = builder.length
+        builder.append(value.rhs.memberName)
+        val selected = TreePlan(
+          PlanKind.SelectedType,
+          selectedStart,
+          builder.length,
+          selectedPoint,
+          Vector(selectedPrefix)
+        )
+        val alias = TreePlan(
+          PlanKind.RefinementAlias,
+          aliasStart,
+          selected.end,
+          aliasPoint,
+          Vector(selected)
+        )
+        builder.append(" }")
+        TreePlan(
+          PlanKind.Refinement,
+          refinementStart,
+          builder.length,
+          refinementStart,
+          Vector(base, alias)
+        )
+      case None => base
+    val boundsChildren = lower.toVector :+ upper
     val bounds = TreePlan(
       PlanKind.TypeBounds,
-      lower.start,
-      refinement.end,
-      lower.point,
-      Vector(lower, refinement)
+      boundsChildren.head.start,
+      upper.end,
+      boundsChildren.head.point,
+      boundsChildren
     )
     val root = TreePlan(
       PlanKind.OuterTypeDef,
@@ -214,7 +224,15 @@ private[quasiquotes] object SelfAbstractTypeMemberGeneratedOriginAdapter:
             .withSpan(plan.span)
         }
       case (bounds: untpd.TypeBoundsTree, PlanKind.TypeBounds)
-          if plan.children.size == 2 && bounds.alias.isEmpty =>
+          if bounds.alias.isEmpty && bounds.lo.isEmpty && plan.children.size == 1 =>
+        position(bounds.hi, plan.children.head, source).map { upper =>
+          untpd
+            .TypeBoundsTree(untpd.EmptyTree, upper)
+            .cloneIn(source)
+            .withSpan(plan.span)
+        }
+      case (bounds: untpd.TypeBoundsTree, PlanKind.TypeBounds)
+          if bounds.alias.isEmpty && !bounds.lo.isEmpty && plan.children.size == 2 =>
         for
           lower <- position(bounds.lo, plan.children.head, source)
           upper <- position(bounds.hi, plan.children(1), source)
@@ -275,8 +293,9 @@ private[quasiquotes] object SelfAbstractTypeMemberGeneratedOriginAdapter:
     val errors = Vector.newBuilder[String]
     validateTreeAgainstPlan(tree, generated.root, source, generated.source, errors)
     val trees = allTrees(tree)
-    if trees.size != 9 then
-      errors += s"positioned tree has ${trees.size} nonempty nodes instead of 9"
+    val expectedCount = countPlanNodes(generated.root)
+    if trees.size != expectedCount then
+      errors += s"positioned tree has ${trees.size} nonempty nodes instead of $expectedCount"
     trees.foreach { current =>
       if !current.source.exists || current.source.path != source.path ||
           current.source.content.mkString != generated.source
@@ -337,6 +356,9 @@ private[quasiquotes] object SelfAbstractTypeMemberGeneratedOriginAdapter:
       case value: untpd.RefinedTypeTree => value.tpt +: value.refinements.toVector
       case value: untpd.Select => Vector(value.qualifier)
       case _ => Vector.empty
+
+  private def countPlanNodes(plan: TreePlan): Int =
+    1 + plan.children.map(countPlanNodes).sum
 
   private def error(
       code: String,
