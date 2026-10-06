@@ -1,8 +1,12 @@
 # Experimental instance-factory peer bridge
 
 `quasiquotes.definitions.dotty.InstanceFactoryPeerBridge` is an exact-Scala-
-version entry point in the released 0.3.0 `dottyInternal` artifact. It
-accepts one complete Scalameta `Defn.Def` in this bounded semantic family:
+version entry point in the `dottyInternal` artifact. Its single public
+`lower` operation accepts one complete Scalameta `Defn.Def` from exactly
+three closed semantic families.
+
+The two-method family has a by-name value carrier, a binary-function carrier,
+and two ordered method overrides:
 
 ```scala
 def instance[A](
@@ -15,13 +19,28 @@ def instance[A](
       combineFunction(a, a1)
 ```
 
-All source names may be coherently renamed. The structure remains exact: one
-unbounded invariant type parameter, one ordinary two-parameter clause, a
-by-name first carrier, a structural binary-function second carrier, one direct
-unary result and matching anonymous parent, and exactly two ordered override
-members. The empty body must reference the first outer carrier. The combine
-callee and its two ordered arguments must resolve to the exact outer function
-carrier and nested parameter binders.
+The one-value family has one strict carrier and one immutable override:
+
+```scala
+def instance[A](valueValue: A): HasValue[A] =
+  new HasValue[A]:
+    override val value: A = valueValue
+```
+
+The Type-member family has two Type parameters, no value clause, and the same
+single concrete Type equality in its result refinement and anonymous body:
+
+```scala
+def instance[A, Out0]: HasOut[A] { type Out = Out0 } =
+  new HasOut[A]:
+    type Out = Out0
+```
+
+All source names may be coherently renamed. Each family keeps its exact
+parameter, result, parent, member, binder-reference, and lexical-safety rules.
+The one-value carrier and member names must remain distinct so the initializer
+references the outer carrier. The Type-member alias name and second Type
+parameter must also remain distinct so the equality is not cyclic.
 
 ```scala
 InstanceFactoryPeerBridge.lower(definition, virtualSourceName)
@@ -29,38 +48,32 @@ InstanceFactoryPeerBridge.lower(definition, virtualSourceName)
 
 returns either a categorized `Failure` or a `Lowered` value containing one
 positioned insertion-ready `untpd.DefDef`, its deterministic generated source,
-and the effective virtual source name. The internal semantic plan and its
-projector/lowerer error types are not part of the public boundary.
+and the effective virtual source name. The public operation and result/error
+carriers are unchanged; private family selection, semantic plans, projectors,
+lowerers, and their private error types are not part of the public boundary.
 
-The implementation composes existing authorities mechanically:
+The existing two-method projector runs first. Only after it fails does a
+shallow, structural, mutually exclusive envelope select either sibling family;
+the selected complete projector remains authoritative for topology, lexical
+scope, Type roles, and binder references. If neither sibling envelope matches,
+the exact original two-method public failure is returned.
 
-```text
-scala.meta.Defn.Def
-  -> exact compiler-free factory projection
-  -> package-private binder-aware factory plan
-  -> source-free exact raw lowering
-  -> deterministic generated-origin positioning
-  -> positioned untpd.DefDef
-```
-
-The projector owns the complete source topology, lexical scope, collision,
-Type-role, and Term-reference rules. The exact backend owns compiler-line raw
-shape, source-free invariants, rendering, positions, and generated provenance.
-The bridge maps both boundaries into stable categories for missing input,
-unsupported topology, invalid names, Type-role failures, Term/binder-role
-failures, invalid virtual-source input, exact lowering, generated origin, and
-internal invariants. It has no permissive fallback and returns no partial
-factory.
+Each accepted private path then performs source-free exact raw lowering and
+deterministic generated-origin positioning. The bridge maps those boundaries
+into the same stable public categories for missing input, unsupported topology,
+invalid names, Type-role failures, actual Term/binder-role failures, invalid
+virtual-source input, exact lowering, generated origin, and internal
+invariants. It has no permissive fallback and returns no partial factory.
 
 Every generated nonempty node belongs to the same virtual source, has a
 contained deterministic span, remains `NoSymbol`, and contains no
-`TypedSplice` before ordinary typing. The result is tested for pre-Typer
-insertion, class and TASTy emission, and runtime behavior on Scala 3.3.8,
-3.8.4, and 3.9.0. The standard runtime control yields `empty == 7` and
-`combine(20, 22) == 42`.
+`TypedSplice` before ordinary typing. The three families are exercised
+together through the same public bridge for pre-Typer insertion, class and
+TASTy emission, runtime behavior, and Type-member refinement use across the
+supported Scala compiler lines.
 
 The caller retains target admission, companion creation or merge, insertion,
 conflict policy, rollback, and typing. Source inspection and Scalameta
 authoring likewise remain consumer responsibilities. This bridge does not
-implement an annotation lifecycle and is not a general `Defn.Def`, anonymous-
+implement an annotation lifecycle and is not a generic `Defn.Def`, anonymous-
 class, template, or raw-tree API.

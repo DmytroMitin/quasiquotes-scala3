@@ -207,11 +207,11 @@ stable `NeutralProjectionError` categories. It performs no source rendering,
 reparsing, name resolution, typechecking, symbol lookup, owner inference, or
 compiler-context synthesis.
 
-The separate package-private instance-factory route now has both directions:
-`ScalametaInstanceFactoryProjection` validates one exact anonymous-factory
-grammar, while `ScalametaInstanceFactoryAuthoring` authors fresh
-`Position.None` syntax from its five-role `InstanceFactoryPlan` and requires
-alpha-equivalent reprojection. This specialized reverse edge does not widen
+The separate package-private instance-factory routes have both directions for
+three closed grammars: the two-method factory, the one-value factory, and the
+Type-member factory. Each complete projector validates its own binder roles;
+the matching authorer produces fresh `Position.None` syntax and requires
+alpha-equivalent reprojection. These specialized reverse edges do not widen
 the public five-family `ScalametaDefinitionAuthoring` facade.
 
 If the Scalameta input has an actual position, the result preserves its exact

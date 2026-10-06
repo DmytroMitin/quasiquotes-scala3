@@ -415,22 +415,26 @@ and uses `DelegatedForwardingMethodPeerBridge` to obtain a positioned
 owns source inspection, companion lifecycle, placement, conflict policy, and
 rollback. This operation is not a general method or Term bridge.
 
-The bounded instance-factory path accepts one complete authored Scalameta
-`Defn.Def` with a by-name value carrier, a structural binary-function carrier,
-one direct unary result/anonymous parent, and exactly two ordered overrides.
-`ScalametaInstanceFactoryProjection` validates the complete binder-role graph,
-The accepted package-private `ScalametaInstanceFactoryAuthoring` reverse edge
-can instead start from the exact `InstanceFactoryPlan`, author fresh
-`Position.None` Scalameta syntax, and require alpha-equivalent five-role
-reprojection. It remains specialized and does not widen the public five-family
-`ScalametaDefinitionAuthoring` facade. The exact backend constructs and
-positions one 33-node `untpd.DefDef`.
-`InstanceFactoryPeerBridge` exposes only that complete insertion-ready result,
-deterministic generated source, effective virtual source name, and stable
-bounded failures. It does not expose the internal plan or admit arbitrary
-definitions, templates, or anonymous implementations. AUXify retains source
-inspection and consumer-side integration; Macro-Paradise retains lifecycle, companion
-placement, atomic rollback, and typing.
+The bounded instance-factory path accepts three complete authored Scalameta
+`Defn.Def` families through one unchanged `InstanceFactoryPeerBridge.lower`
+operation: the original by-name-plus-binary-function factory with two ordered
+method overrides, a one-strict-carrier factory with one immutable override, and
+a no-value-clause factory whose refined result and anonymous body repeat one
+concrete Type equality. Their private projectors retain the complete
+family-specific topology, lexical, Type-role, and binder-reference authority;
+their package-private authoring reverse edges remain specialized and do not
+widen the public five-family `ScalametaDefinitionAuthoring` facade. The exact
+backends construct and position 33-node, 17-node, and 19-node `untpd.DefDef`
+trees respectively.
+
+The bridge always tries the original family first, selects a sibling only
+through a shallow disjoint structural envelope, and preserves the exact
+original failure if neither sibling is selected. It exposes only the complete
+insertion-ready result, deterministic generated source, effective virtual
+source name, and stable bounded failures. It does not expose any private plan
+or admit arbitrary definitions, templates, or anonymous implementations.
+AUXify retains source inspection and consumer-side integration; Macro-Paradise
+retains lifecycle, companion placement, atomic rollback, and typing.
 
 The bounded Type-alias path accepts one already-authored Scalameta
 `Defn.Type` plus explicit alias, three parameter, three bound, target, and

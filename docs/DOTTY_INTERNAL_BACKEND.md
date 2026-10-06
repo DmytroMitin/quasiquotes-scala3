@@ -192,9 +192,10 @@ one-type-parameter, ordinary-parameter, final-using-parameter
 forwarder whose body calls the contextual instance with the ordinary argument.
 `AuxTypeAliasPeerBridge` accepts only the exact three-parameter,
 two-target-reference, one-refinement-alias family. `InstanceFactoryPeerBridge`
-accepts only the complete bounded generic factory with a by-name carrier, a
-binary-function carrier, one matching anonymous parent, and two ordered
-overrides. `ExtensionModulePeerBridge` accepts only the exact AUXify input045
+accepts exactly three complete bounded factory families through one operation:
+the by-name-plus-binary-function/two-method family, the strict-carrier/one-val
+family, and the no-value-clause/refined-Type-member family.
+`ExtensionModulePeerBridge` accepts only the exact AUXify input045
 object/extension family, composes its package-private Scalameta projection and
 bounded plan adapter, and returns a positioned `untpd.ModuleDef`; it does not claim general
 object or extension lowering. All six require a virtual
@@ -231,20 +232,22 @@ The bounded instance-factory path is separately composed as:
 
 ```text
 scala.meta.Defn.Def
-  -> ScalametaInstanceFactoryProjection
-  -> package-private InstanceFactoryPlan
-  -> InstanceFactoryPlanUntypedLowerer
-  -> InstanceFactoryGeneratedOriginAdapter
+  -> original two-method projection first
+  -> otherwise one shallow disjoint private family envelope
+       -> one-value full projection, lowering, and generated-origin adapter
+       -> Type-member full projection, lowering, and generated-origin adapter
   -> InstanceFactoryPeerBridge.Lowered
        -> positioned untpd.DefDef
        -> generated source
        -> virtual source name
 ```
 
-The projector is the sole authority for the factory grammar and binder roles;
-the exact backend does not repeat a spelling-based semantic validator. The
-bridge returns only after the complete raw tree and generated-origin gates
-pass, so malformed input never yields a partial factory.
+Each complete projector is the sole authority for its family grammar and
+binder roles; the shallow private discriminator does not repeat those
+semantics. If neither sibling envelope matches, the bridge returns the exact
+original two-method failure. It returns `Lowered` only after the selected
+complete raw-tree and generated-origin gates pass, so malformed input never
+yields a partial factory.
 
 The bounded extension-module path is separately composed as:
 

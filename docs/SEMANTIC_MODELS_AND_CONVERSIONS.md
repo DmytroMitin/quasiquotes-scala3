@@ -92,12 +92,12 @@ semantic conversions, not token, comment, formatting, or position inverses.
 
 The private five-family `DefinitionShape` carrier and its dispatchers remain
 implementation details. Specialized contextual, instance, delegated,
-self-member, and refined-AUX projectors/authorers/bridges remain
-separate bounded contracts rather than generic fallbacks. In particular, the
-accepted package-private instance-factory reverse edge authors one fresh
-Scalameta `Defn.Def` from its five-role semantic plan and verifies
-alpha-equivalent reprojection; it is not a public generic
-`SemanticDefinition` authorer.
+self-member, and refined-AUX projectors/authorers/bridges remain separate
+bounded contracts rather than generic fallbacks. In particular, the three
+package-private instance-factory reverse edges author fresh Scalameta
+`Defn.Def` values for only the two-method, one-value, and Type-member
+grammars, and each verifies alpha-equivalent reprojection. None is a public
+generic `SemanticDefinition` authorer.
 
 The public exact-version conveniences currently accept Scalameta inputs:
 
