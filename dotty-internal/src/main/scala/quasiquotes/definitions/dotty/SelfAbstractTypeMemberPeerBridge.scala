@@ -43,7 +43,7 @@ object SelfAbstractTypeMemberPeerBridge:
   )(using Context): Either[Failure, Lowered] =
     for
       projected <- ScalametaSelfAbstractTypeMemberProjection
-        .project(
+        .projectMatrix(
           declaration,
           expectedMemberName,
           expectedSelfAliasName,

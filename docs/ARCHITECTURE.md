@@ -405,8 +405,13 @@ should use Scalameta.
 
 The bounded `@self` member path uses a typed Scalameta `Decl.Type` and
 `SelfAbstractTypeMemberPeerBridge` to obtain one positioned `untpd.TypeDef`.
-The prepared self alias remains peer-owned external syntax: Quasiquotes
-validates its repeated uses but does not allocate a binder or create the alias.
+The unchanged public operation admits exactly the closed matrix of a present or
+structurally absent singleton lower edge and a present refined or absent
+direct-base F-bound edge, with raw node counts 9, 5, 7, and 3. The prepared self
+alias remains a required peer-owned expectation for every row: Quasiquotes
+validates its source role and any present uses but does not allocate a binder or
+create the alias. This is not arbitrary abstract-Type-member or refinement
+lowering.
 
 The bounded delegated-forwarder path accepts two already-authored Scalameta
 `Defn.Def` shapes through one `DelegatedForwardingMethodPeerBridge` operation:

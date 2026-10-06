@@ -187,8 +187,12 @@ exposed to foreign packages. `ContextualMethodPeerBridge` accepts either the
 legacy single-unbounded-parameter contextual method or the exact bounded
 two-parameter bounded `Add.Out` method. The separate
 `SelfAbstractTypeMemberPeerBridge` accepts only the bounded self-Type abstract
-member family. `DelegatedForwardingMethodPeerBridge` accepts only the exact
-one-Type-parameter delegated-forwarding families: either one ordinary argument
+member closed matrix: the singleton lower edge and self-member F-bound refinement
+are independently present or structurally absent. An absent lower is
+`untpd.EmptyTree`; an absent F-bound is the direct upper-base `Ident`. The same
+three expected names and unchanged public operation govern all four rows.
+`DelegatedForwardingMethodPeerBridge` accepts only the exact one-Type-parameter
+delegated-forwarding families: either one ordinary argument
 plus a final using parameter with an applied delegated call, or no ordinary
 argument plus one using parameter with a direct stable delegated selection.
 `AuxTypeAliasPeerBridge` accepts only the exact three-parameter,
