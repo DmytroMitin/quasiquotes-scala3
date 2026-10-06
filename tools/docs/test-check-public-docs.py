@@ -58,7 +58,7 @@ class PublicDocsCheckTest(unittest.TestCase):
         (root / "ROADMAP.md").write_text(
             "[north-star checkpoints](docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md)\n\n"
             "| N1 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
-            "| N2 | `BOUNDED_STANDARD_CONSTRUCTION_IMPLEMENTED` | broader kinds and typed-Scalameta parity remain later work |\n"
+            "| N2 | `BOUNDED_STANDARD_AND_TYPED_SCALAMETA_CONSTRUCTION_IMPLEMENTED` | fixed-constructor ranked `tqq` parity is also implemented; broader kinds remain later work |\n"
             "| N3 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
             "| N4 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
             "| N5 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n",
@@ -102,9 +102,11 @@ class PublicDocsCheckTest(unittest.TestCase):
                     "### Remaining capabilities\n\n"
                     "General TypeLambda authoring, aliases-as-aliases, instance-dependent prefixes, "
                     "refinements, nontrivial constrained bounds and broader kind calculus remain "
-                    "outside the selected slice. Typed-Scalameta runtime-sequence construction and "
-                    "Type sequence matching remain unimplemented. No neutral runtime-sequence "
-                    "model is implied by the direct reflection path.\n\n"
+                    "outside the selected slice. Both `tqq` frontends also match exactly one direct "
+                    "rank-2 argument slot; scalar captures remain `TypeRepr` and the ranked capture "
+                    "is the original ordered `Seq[TypeRepr]`. Multiple rank-2 holes, rank 3, "
+                    "non-direct tuple/function positions, and dynamic or selected constructors remain "
+                    "unsupported. No neutral runtime-sequence model is implied by the direct reflection path.\n\n"
                     if checkpoint == 2 else
                     "### Desired source-like shape\n\nShape.\n\n"
                     "### Required missing capabilities\n\nCapabilities.\n\n"
@@ -131,7 +133,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             "| Family | Q construct | Q match | typed Scalameta construct | typed Scalameta match | N project | N author | U-D fresh lower | U-U existing rewrite |\n"
             "| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
             "| Rank-2 Term arguments in Apply / one-list New | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` | `NOT_APPLICABLE` |\n"
-            "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |\n",
+            "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |\n",
             encoding="utf-8",
         )
         (docs / "SUPPORTED_SYNTAX_AND_LIMITATIONS.md").write_text(
@@ -318,23 +320,27 @@ class PublicDocsCheckTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("rank-2 Type matrix", result.stderr)
 
-    def test_rejects_typed_scalameta_rank2_type_parity_claim(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            self.make_fixture(root)
-            matrix = root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md"
-            matrix.write_text(
-                matrix.read_text(encoding="utf-8").replace(
-                    "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` |",
-                    "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` |",
-                ),
-                encoding="utf-8",
-            )
+    def test_rejects_missing_typed_scalameta_rank2_type_parity_claim(self) -> None:
+        for replacement in (
+            "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` | `NOT_YET` | `BOUNDED` |",
+            "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` |",
+        ):
+            with self.subTest(replacement=replacement), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.make_fixture(root)
+                matrix = root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md"
+                matrix.write_text(
+                    matrix.read_text(encoding="utf-8").replace(
+                        "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` |",
+                        replacement,
+                    ),
+                    encoding="utf-8",
+                )
 
-            result = self.run_checker(root)
+                result = self.run_checker(root)
 
-            self.assertEqual(result.returncode, 1)
-            self.assertIn("rank-2 Type matrix", result.stderr)
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("rank-2 Type matrix", result.stderr)
 
     def test_rejects_missing_transparent_inline_qq_selector(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -638,7 +644,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             self.make_fixture(root)
             roadmap = root / "ROADMAP.md"
             roadmap.write_text(roadmap.read_text().replace(
-                "BOUNDED_STANDARD_CONSTRUCTION_IMPLEMENTED",
+                "BOUNDED_STANDARD_AND_TYPED_SCALAMETA_CONSTRUCTION_IMPLEMENTED",
                 "DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED",
             ))
             result = self.run_checker(root)
@@ -650,7 +656,9 @@ class PublicDocsCheckTest(unittest.TestCase):
             "directly in the caller's Quotes universe",
             "exact constructor/argument identities",
             "General TypeLambda authoring",
-            "Type sequence matching remain unimplemented",
+            "Both `tqq` frontends also match exactly one direct rank-2 argument slot",
+            "scalar captures remain `TypeRepr` and the ranked capture is the original ordered `Seq[TypeRepr]`",
+            "Multiple rank-2 holes, rank 3, non-direct tuple/function positions",
             "No neutral runtime-sequence model is implied",
         ):
             with self.subTest(text=text), tempfile.TemporaryDirectory() as directory:
@@ -668,8 +676,8 @@ class PublicDocsCheckTest(unittest.TestCase):
             self.make_fixture(root)
             roadmap = root / "ROADMAP.md"
             roadmap.write_text(roadmap.read_text().replace(
-                "BOUNDED_STANDARD_CONSTRUCTION_IMPLEMENTED",
-                "BOUNDED_STANDARD_CONSTRUCTION_IMPLEMENTED`, `CHECKPOINT_COMPLETE",
+                "BOUNDED_STANDARD_AND_TYPED_SCALAMETA_CONSTRUCTION_IMPLEMENTED",
+                "BOUNDED_STANDARD_AND_TYPED_SCALAMETA_CONSTRUCTION_IMPLEMENTED`, `CHECKPOINT_COMPLETE",
             ))
             result = self.run_checker(root)
             self.assertEqual(result.returncode, 1)
@@ -682,7 +690,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             roadmap = root / "ROADMAP.md"
             roadmap.write_text(roadmap.read_text().replace(
                 "| N1 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |",
-                "| N1 | `BOUNDED_STANDARD_CONSTRUCTION_IMPLEMENTED` |",
+                "| N1 | `BOUNDED_STANDARD_AND_TYPED_SCALAMETA_CONSTRUCTION_IMPLEMENTED` |",
             ))
             result = self.run_checker(root)
             self.assertEqual(result.returncode, 1)

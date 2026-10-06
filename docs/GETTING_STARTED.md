@@ -857,6 +857,40 @@ each interpolated slot has a distinct ordinal identity. Use the programmatic
 equality is intended. Captures are compiler-owned reflected values and should
 not be treated as detached portable types.
 
+### Opt-in typed-Scalameta ranked Type matching
+
+The explicit typed-Scalameta coordinate exposes the same bounded static
+`tqq` spelling. Its transparent selector uses the existing public
+`RankedTypePatternExtractor`: scalar binders have the exact static type
+`q.reflect.TypeRepr`, while the single direct ranked binder has the exact
+static type `Seq[q.reflect.TypeRepr]`.
+
+```scala
+import scala.quoted.*
+
+import quasiquotes.scalameta.ScalametaQuasiPattern.tqq
+
+object TypedScalametaTypeSequenceFirstUse:
+  inline def argumentNames[T: Type]: List[String] =
+    ${ argumentNamesImpl[T] }
+
+  private def argumentNamesImpl[T: Type](using q: Quotes): Expr[List[String]] =
+    import q.reflect.*
+
+    TypeRepr.of[T] match
+      case tqq"Either[$head, ..$tail]" =>
+        val _: q.reflect.TypeRepr = head
+        val _: Seq[q.reflect.TypeRepr] = tail
+        Expr.ofList((head +: tail).toList.map(value => Expr(value.show)))
+      case _ =>
+        Expr.ofList(List.empty[Expr[String]])
+```
+
+This ranked slice is Scalameta-primary for admitted static templates and is
+limited to exactly one direct rank-2 capture under fixed `List`, `Option`,
+or `Either`. It does not admit a dynamic constructor capture, multiple
+rank-2 holes, rank 3, or ranked tuple/function positions.
+
 `TypeNormalFormSource.equalSources`, `TypePatternSource.fromSourceLocated`, and
 `TypeTemplateSource.fromSource` are available for the corresponding focused
 operations. Prefer the `Located` form when reporting source failures to a

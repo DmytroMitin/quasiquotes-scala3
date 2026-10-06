@@ -44,7 +44,9 @@ inventory from 794 rows / 775 groups to 796 rows / 777 groups: the scalar
 `tqq` signature is replaced by the transparent `Any` selector declaration, and
 the public `RankedTypePatternExtractor` class constructor plus `unapply` add two
 groups. The legacy scalar JVM descriptor is retained separately. The hybrid
-inventory remains byte-identical at 45 rows / 43 groups.
+inventory remains 45 rows / 43 groups, with exactly one `tqq` source/TASTy
+signature replacement and no new public carrier or helper group. Its legacy
+scalar JVM descriptor remains preserved.
 
 The standard typed runtime-sequence `tqr` overload adds one logical row to
 the previous 793-row / 775-group inventory: all 793 prior rows are unchanged,

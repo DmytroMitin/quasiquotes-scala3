@@ -370,17 +370,24 @@ stable-term paths, or ambient lookup. Interpolated `tqr` additionally admits a
 zero-hole canonical globally selected class terminal such as
 `java.lang.StringBuilder`, resolved through an exact typed witness; this does
 not admit aliases, stable-term paths, or selected constructor applications,
-while selected constructors remain programmatic-only. Standard `tqq` admits one direct rank-2 argument capture for fixed `List`, `Option`, and `Either`; selected/path-dependent constructors remain outside that slice.
+while selected constructors remain programmatic-only. Standard and opt-in
+typed-Scalameta `tqq` admit one direct rank-2 argument capture for fixed
+`List`, `Option`, and `Either`; selected/path-dependent constructors remain
+outside that slice.
 
-The standard typed frontend also constructs `tqr"$constructor[..$arguments]"`
-from one caller-owned class-constructor `TypeRepr` and one runtime-length
-ordered `Seq[TypeRepr]`. This construction-only overload validates arity, kinds
-and supported reflected forms directly in the caller's `Quotes` universe; it
-preserves constructor and argument identities without normalizing through
-`TypeNormalForm`. Scalar `tqr` and scalar `tqq` retain their existing behavior. Standard `tqq` also admits exactly one direct `..$arguments` capture in a fixed `List`, `Option`, or `Either` argument list and returns the original ordered `Seq[TypeRepr]`. General
+The standard and opt-in typed-Scalameta frontends also construct
+`tqr"$constructor[..$arguments]"` from one caller-owned class-constructor
+`TypeRepr` and one runtime-length ordered `Seq[TypeRepr]`. This
+construction-only overload validates arity, kinds and supported reflected
+forms directly in the caller's `Quotes` universe; it preserves constructor and
+argument identities without normalizing through `TypeNormalForm`. Scalar
+`tqr` and scalar `tqq` retain their existing behavior. Both `tqq` frontends
+also admit exactly one direct `..$arguments` capture in a fixed `List`,
+`Option`, or `Either` argument list and return the original ordered
+`Seq[TypeRepr]`; scalar siblings bind exact `TypeRepr` values. General
 TypeLambda authoring, aliases-as-aliases, instance-dependent prefixes,
-refinements and nontrivial constrained bounds remain outside this slice;
-typed-Scalameta runtime-sequence construction is not implemented.
+refinements, nontrivial constrained bounds, multiple rank-2 holes, rank 3, and
+dynamic or selected constructors remain outside this slice.
 
 The canonical first-use examples, including the complete Lambda1, bounded P1
 block and single-typed-local-val P2 `qr`/`qq`, and bounded `tqr`/`tqq` macro paths, are mirrored from compiled

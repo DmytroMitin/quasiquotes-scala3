@@ -429,7 +429,7 @@ def cross_surface_rank_findings(root: Path) -> list[str]:
         ),
         "Runtime-length Type application arguments": (
             "rank-2 Type matrix",
-            ("BOUNDED", "BOUNDED", "NOT_YET", "NOT_YET"),
+            ("BOUNDED", "BOUNDED", "BOUNDED", "BOUNDED"),
         ),
     }
     findings = []
@@ -555,7 +555,9 @@ def durable_documentation_findings(root: Path) -> list[str]:
                     "exact constructor/argument identities",
                     "General TypeLambda authoring, aliases-as-aliases, instance-dependent prefixes",
                     "refinements, nontrivial constrained bounds and broader kind calculus remain outside the selected slice",
-                    "Typed-Scalameta runtime-sequence construction and Type sequence matching remain unimplemented",
+                    "Both `tqq` frontends also match exactly one direct rank-2 argument slot",
+                    "scalar captures remain `TypeRepr` and the ranked capture is the original ordered `Seq[TypeRepr]`",
+                    "Multiple rank-2 holes, rank 3, non-direct tuple/function positions, and dynamic or selected constructors remain unsupported",
                     "No neutral runtime-sequence model is implied by the direct reflection path",
                 ):
                     if marker not in normalized_section:
@@ -575,8 +577,9 @@ def durable_documentation_findings(root: Path) -> list[str]:
             row = rows[0]
             if checkpoint == 2:
                 valid_status = (
-                    "BOUNDED_STANDARD_CONSTRUCTION_IMPLEMENTED" in row
-                    and "broader kinds and typed-Scalameta parity remain later work" in row
+                    "BOUNDED_STANDARD_AND_TYPED_SCALAMETA_CONSTRUCTION_IMPLEMENTED" in row
+                    and "fixed-constructor ranked `tqq` parity is also implemented" in row
+                    and "broader kinds remain later work" in row
                     and "DESIGN_REQUIRED" not in row
                     and "IMPLEMENTATION_REQUIRED" not in row
                 )

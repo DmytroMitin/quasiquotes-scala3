@@ -163,11 +163,12 @@ than widening through parse-failure fallback.
 
 ## `tqr` and `tqq` diagnostics
 
-The reflected type syntax has two controlled macro-expansion prefixes:
+The reflected type syntax has these controlled macro-expansion prefixes:
 
 ```text
 Invalid tqr type template:
 Invalid tqq type-pattern template:
+Invalid Scalameta tqq type-pattern template:
 ```
 
 Malformed or unsupported templates abort during macro expansion. Ranked `tqq`

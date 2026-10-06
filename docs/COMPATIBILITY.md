@@ -61,6 +61,14 @@ not preserve TASTy identity. Reflected construction results and captures remain
 owned by the caller's active `Quotes`; they are not cross-compiler or
 cross-Quotes portable.
 
+The opt-in typed-Scalameta frontend mirrors that bounded selector change. Its
+hybrid inventory remains 45 rows / 43 groups: exactly one existing `tqq`
+source/TASTy signature is replaced, with no hybrid-specific public carrier or
+helper. The historical erased JVM descriptor remains
+`(Lscala/StringContext;Lscala/quoted/Quotes;)Lquasiquotes/scalameta/ScalametaTypePatternExtractor;`.
+As on the standard frontend, this preserves scalar JVM linkage but not the old
+TASTy declaration identity.
+
 The bounded public `dqr` interpolator is additive in the `0.2.x` source line.
 Its result is a caller-owned `DefDef` under the current `Symbol.spliceOwner`,
 tested only for immediate same-Quotes local-block placement. It is not a binary

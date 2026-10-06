@@ -80,29 +80,31 @@ ordinary Definition parameter-clause matching through `...$paramss`, preserving
 ordered `Seq[Seq[q.reflect.ValDef]]` and the original RHS on both standard and
 typed-Scalameta frontends. Rank-3 Term sequences, construction-side parameter or parameter-clause splicing,
 multiple/nested/tuple/function Type sequence positions, and whole-Definition
-sequences remain unsupported. Standard `tqq` admits one direct fixed-constructor
-Type-argument sequence; typed-Scalameta Type matching does not yet have parity. Symbol splicing is not planned as source syntax.
+sequences remain unsupported. Standard and typed-Scalameta `tqq` admit one
+direct fixed-constructor Type-argument sequence. Symbol splicing is not planned
+as source syntax.
 
 ## Typed runtime-sequence Type construction and matching
 
-The standard overload `tqr"$constructor[..$arguments]"` accepts one
-caller-owned reflected class constructor and one runtime-length ordered
-`Seq[TypeRepr]`. It checks source rank/position, constructor admissibility,
-arity, kinds, nulls and unsupported reflected forms before constructing an
-application, then verifies exact constructor and ordered argument identities.
-It uses direct caller-owned reflection rather than normalizing through
-`TypeNormalForm`; existing scalar `tqr` behavior is unchanged. Standard `tqq`
-also admits exactly one `..$arguments` in the direct argument list of fixed
-`List`, `Option`, or `Either`. The sequence binds the exact original ordered
+The standard and typed-Scalameta overloads
+`tqr"$constructor[..$arguments]"` accept one caller-owned reflected class
+constructor and one runtime-length ordered `Seq[TypeRepr]`. They check source
+rank/position, constructor admissibility, arity, kinds, nulls and unsupported
+reflected forms before constructing an application, then verify exact
+constructor and ordered argument identities. They use direct caller-owned
+reflection rather than normalizing through `TypeNormalForm`; existing scalar
+`tqr` behavior is unchanged. Standard and typed-Scalameta `tqq` also admit
+exactly one `..$arguments` in the direct argument list of fixed `List`,
+`Option`, or `Either`. The public `RankedTypePatternExtractor` carries the
+static specialization: the sequence binds the exact original ordered
 `Seq[q.reflect.TypeRepr]`; scalar prefix/suffix slots remain exact
 `q.reflect.TypeRepr` values and failed fixed sides fall through atomically.
 
 General TypeLambda authoring, aliases-as-aliases, path/instance-dependent
 prefixes, refinements, nontrivial constrained bounds and broader kind calculus
 remain excluded. Multiple rank-2 holes, rank 3, root/tuple/function positions,
-dynamic or selected constructors, and typed-Scalameta runtime-sequence
-construction or matching are not implemented. Core and neutral gain no corresponding
-compiler-free capability.
+and dynamic or selected constructors are not implemented. Core and neutral
+gain no corresponding compiler-free capability.
 
 ## Public bounded Scalameta Term lowering
 
@@ -285,8 +287,9 @@ Important limitations:
 - public `tqr` and scalar `tqq` type templates use zero or more distinct
   ordinal whole-type slots; zero-hole `tqr` also admits canonical globally
   selected class terminals such as `java.lang.StringBuilder`. Standard `tqq`
-  additionally admits exactly one direct `..$slot` under fixed `List`,
-  `Option`, or `Either`, binding `Seq[q.reflect.TypeRepr]`. Dynamic or selected
+  and typed-Scalameta `tqq` additionally admit exactly one direct `..$slot`
+  under fixed `List`, `Option`, or `Either`, binding
+  `Seq[q.reflect.TypeRepr]`. Dynamic or selected
   constructors, higher-kinded or wildcard slots, multiple/rank-3 sequences,
   tuple/function ranked positions, and mixed scalar/sequence name reuse remain
   excluded;
