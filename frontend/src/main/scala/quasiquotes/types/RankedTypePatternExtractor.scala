@@ -352,6 +352,45 @@ private[quasiquotes] object RankedTypePatternSupport:
           )
     }
 
+  def compileDynamicPattern(
+      pattern: TypePattern,
+      holeNames: Vector[String],
+      sequenceIndex: Int
+  ): Either[String, DynamicCompiled] =
+    holeNames.lift(sequenceIndex).toRight(
+      "ranked tqq template classification changed before compilation"
+    ).flatMap { sequenceName =>
+      pattern match
+        case TypePattern.TPApply(
+              TypePattern.TPHole(constructorHoleName),
+              arguments
+            ) =>
+          val sequencePositions = arguments.zipWithIndex.collect {
+            case (TypePattern.TPHole(name), index) if name == sequenceName => index
+          }
+          sequencePositions match
+            case sequencePosition :: Nil =>
+              Right(
+                DynamicCompiled(
+                  constructorHoleName,
+                  arguments.take(sequencePosition),
+                  arguments.drop(sequencePosition + 1),
+                  holeNames,
+                  sequenceName
+                )
+              )
+            case _ =>
+              Left(
+                "rank-2 capture is supported only once in the root applied Type argument list"
+              )
+        case TypePattern.TPApply(_, _) =>
+          Left("dynamic Type-constructor capture requires a direct root constructor hole")
+        case _ =>
+          Left(
+            "dynamic Type-constructor capture is supported only in the root applied Type position"
+          )
+    }
+
   transparent inline def singleSequenceExtractorFromPattern(
       pattern: TypePattern,
       holeNames: Vector[String],
@@ -377,6 +416,21 @@ private[quasiquotes] object RankedTypePatternSupport:
       )
     )
 
+  transparent inline def dynamicRankedExtractorFromPattern[Kinds <: Tuple](
+      pattern: TypePattern,
+      holeNames: Vector[String],
+      sequenceIndex: Int
+  )(using q: Quotes): RankedTypePatternExtractor[
+    q.reflect.TypeRepr,
+    TypeCaptureTypes[q.reflect.TypeRepr, Kinds]
+  ] =
+    val compiled = compileDynamicPatternOrAbort(pattern, holeNames, sequenceIndex)
+    new RankedTypePatternExtractor(target =>
+      matchDynamicCompiled(using q)(compiled, target).map(result =>
+        captureTuple[q.reflect.TypeRepr, Kinds](result, 0)
+      )
+    )
+
   private def compileOrAbort(using q: Quotes)(
       parts: List[String],
       sequenceIndex: Int
@@ -395,6 +449,19 @@ private[quasiquotes] object RankedTypePatternSupport:
       sequenceIndex: Int
   ): Compiled =
     compilePattern(pattern, holeNames, sequenceIndex).fold(
+      detail =>
+        q.reflect.report.errorAndAbort(
+          s"Invalid Scalameta tqq type-pattern template: $detail"
+        ),
+      identity
+    )
+
+  private def compileDynamicPatternOrAbort(using q: Quotes)(
+      pattern: TypePattern,
+      holeNames: Vector[String],
+      sequenceIndex: Int
+  ): DynamicCompiled =
+    compileDynamicPattern(pattern, holeNames, sequenceIndex).fold(
       detail =>
         q.reflect.report.errorAndAbort(
           s"Invalid Scalameta tqq type-pattern template: $detail"

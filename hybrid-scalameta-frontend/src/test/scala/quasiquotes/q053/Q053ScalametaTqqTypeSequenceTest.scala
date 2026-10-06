@@ -130,12 +130,6 @@ class Q053ScalametaTqqTypeSequenceTest extends munit.FunSuite:
       messages(
         """import scala.quoted.*; import quasiquotes.scalameta.ScalametaQuasiPattern.tqq
           def attempt(using q: Quotes)(target: q.reflect.TypeRepr) = target match
-            case tqq"$constructor[..$arguments]" => ()
-            case _ => ()"""
-      ) -> "dynamic Type-constructor capture",
-      messages(
-        """import scala.quoted.*; import quasiquotes.scalameta.ScalametaQuasiPattern.tqq
-          def attempt(using q: Quotes)(target: q.reflect.TypeRepr) = target match
             case tqq"Either[Int, ..$middle, String, Boolean]" => ()
             case _ => ()"""
       ) -> "exceed"

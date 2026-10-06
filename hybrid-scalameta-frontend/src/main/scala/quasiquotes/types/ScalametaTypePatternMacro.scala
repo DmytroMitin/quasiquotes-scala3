@@ -24,6 +24,15 @@ private[quasiquotes] object ScalametaTypePatternMacro:
       case Right(layout) =>
         layout.sequenceIndex match
           case None =>
+            TypeFrontend.compileRanked(parts, 0).foreach { compiled =>
+              compiled.pattern match
+                case TypePattern.TPApply(TypePattern.TPHole(_), _) =>
+                  abort(
+                    "dynamic Type-constructor capture requires one rank-2 Type-argument capture",
+                    context
+                  )
+                case _ => ()
+            }
             '{
               ScalametaQuasiPattern.scalarTypeExtractor($context)(using $callerQuotes)
             }
@@ -34,9 +43,31 @@ private[quasiquotes] object ScalametaTypePatternMacro:
               failure => abort(failure.message, context),
               identity
             )
-            RankedTypePatternSupport
-              .compilePattern(compiled.pattern, compiled.captureNames, sequenceIndex)
-              .fold(detail => abort(detail, context), identity)
+            val dynamicRoot = compiled.pattern match
+              case TypePattern.TPApply(TypePattern.TPHole(_), _) => true
+              case TypePattern.TPApply(TypePattern.TPIdent(_), _) => false
+              case TypePattern.TPApply(_, _) =>
+                abort(
+                  "dynamic or selected Type constructors are outside the fixed-constructor tqq slice",
+                  context
+                )
+              case _ =>
+                abort(
+                  "rank-2 capture is supported only in a direct fixed Type constructor argument list",
+                  context
+                )
+            if dynamicRoot then
+              RankedTypePatternSupport
+                .compileDynamicPattern(
+                  compiled.pattern,
+                  compiled.captureNames,
+                  sequenceIndex
+                )
+                .fold(detail => abort(detail, context), identity)
+            else
+              RankedTypePatternSupport
+                .compilePattern(compiled.pattern, compiled.captureNames, sequenceIndex)
+                .fold(detail => abort(detail, context), identity)
 
             val tupleCons = TypeRepr.of[Any *: EmptyTuple] match
               case AppliedType(constructor, _) => constructor
@@ -57,7 +88,17 @@ private[quasiquotes] object ScalametaTypePatternMacro:
               '{ Vector.from(${ Expr.ofList(compiled.captureNames.toList.map(Expr(_))) }) }
             kinds.asType match
               case '[captureKinds] =>
-                if compiled.captureNames.size == 1 then
+                if dynamicRoot then
+                  '{
+                    RankedTypePatternSupport.dynamicRankedExtractorFromPattern[
+                      captureKinds & Tuple
+                    ](
+                      $pattern,
+                      $holeNames,
+                      ${ Expr(sequenceIndex) }
+                    )(using $callerQuotes)
+                  }
+                else if compiled.captureNames.size == 1 then
                   '{
                     RankedTypePatternSupport.singleSequenceExtractorFromPattern(
                       $pattern,
