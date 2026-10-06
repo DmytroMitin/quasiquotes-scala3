@@ -4,20 +4,20 @@ import scala.quoted.*
 
 import quasiquotes.construct.SelectedMemberName
 
-private[matching] enum SelectedMemberPatternLayout:
+private[quasiquotes] enum SelectedMemberPatternLayout:
   case Direct, Nullary, Unary
 
-private[matching] final case class SelectedMemberCompiledPattern(
+private[quasiquotes] final case class SelectedMemberPatternPlan(
     layout: SelectedMemberPatternLayout,
-    pattern: TermPattern,
+    effectiveSource: String,
     holeNames: Vector[String],
     selectedNamePlaceholder: String
 )
 
-private[matching] object SelectedMemberPatternSource:
+private[quasiquotes] object SelectedMemberPatternSource:
   private val PlaceholderBase = "__qq_selected_name_placeholder"
 
-  def classify(parts: List[String]): Either[String, Option[SelectedMemberCompiledPattern]] =
+  def classify(parts: List[String]): Either[String, Option[SelectedMemberPatternPlan]] =
     if !isDirectRootSelectedCandidate(parts) then Right(None)
     else
       RankedPatternSource.classify(parts).flatMap { ranked =>
@@ -32,7 +32,7 @@ private[matching] object SelectedMemberPatternSource:
                 "selected-name capture is supported only as $receiver.$selectedName, " +
                   "$receiver.$selectedName(), or $receiver.$selectedName($argument)"
               )
-            case Some(layout) => compile(parts, ranked.holeNames, layout).map(Some(_))
+            case Some(layout) => Right(Some(plan(parts, ranked.holeNames, layout)))
       }
 
   private def isDirectRootSelectedCandidate(parts: List[String]): Boolean =
@@ -47,11 +47,11 @@ private[matching] object SelectedMemberPatternSource:
       case List("", ".", "(", ")") => Some(SelectedMemberPatternLayout.Unary)
       case _ => None
 
-  private def compile(
+  private def plan(
       parts: List[String],
       holeNames: Vector[String],
       layout: SelectedMemberPatternLayout
-  ): Either[String, SelectedMemberCompiledPattern] =
+  ): SelectedMemberPatternPlan =
     val placeholder = collisionSafePlaceholder(parts, holeNames)
     val receiver = "$" + holeNames(0)
     val source = layout match
@@ -61,9 +61,7 @@ private[matching] object SelectedMemberPatternSource:
         val argument = "$" + holeNames(2)
         s"$receiver.$placeholder($argument)"
 
-    QuasiPattern.term(source).left.map(_.message).map(pattern =>
-      SelectedMemberCompiledPattern(layout, pattern.pattern, holeNames, placeholder)
-    )
+    SelectedMemberPatternPlan(layout, source, holeNames, placeholder)
 
   private def collisionSafePlaceholder(
       parts: List[String],
@@ -86,6 +84,46 @@ private[matching] object SelectedMemberPatternSource:
   * pattern and retained the direct-root selected-name role as a sidecar.
   */
 private[quasiquotes] object SelectedMemberPatternBridge:
+  def validatePlan(
+      plan: SelectedMemberPatternPlan,
+      pattern: TermPattern
+  ): Either[String, Unit] =
+    val receiverName = plan.holeNames.headOption
+    val argumentName = plan.holeNames.lift(2)
+    val valid = (plan.layout, pattern) match
+      case (
+            SelectedMemberPatternLayout.Direct,
+            TermPattern.Select(TermPattern.Hole(receiver), selected)
+          ) =>
+        receiverName.contains(receiver) && selected == plan.selectedNamePlaceholder
+      case (
+            SelectedMemberPatternLayout.Nullary,
+            TermPattern.Apply(
+              TermPattern.Select(TermPattern.Hole(receiver), selected),
+              Nil
+            )
+          ) =>
+        receiverName.contains(receiver) && selected == plan.selectedNamePlaceholder
+      case (
+            SelectedMemberPatternLayout.Unary,
+            TermPattern.Apply(
+              TermPattern.Select(TermPattern.Hole(receiver), selected),
+              TermPattern.Hole(argument) :: Nil
+            )
+          ) =>
+        receiverName.contains(receiver) &&
+          argumentName.contains(argument) &&
+          selected == plan.selectedNamePlaceholder
+      case _ => false
+
+    Either.cond(
+      valid,
+      (),
+      "compiled selected-name pattern topology does not match " +
+        plan.layout.toString.toLowerCase +
+        " source role"
+    )
+
   def matchSelected(using q: Quotes)(
       pattern: TermPattern,
       selectedNamePlaceholder: String,
@@ -133,7 +171,7 @@ private[quasiquotes] object SelectedMemberPatternBridge:
         Some(TermPattern.Apply(TermPattern.Select(qualifier, decoded), arguments))
       case _ => None
 
-private[matching] object TermPatternProductExtractorFactory:
+private[quasiquotes] object TermPatternProductExtractorFactory:
   def direct(using q: Quotes)(
       pattern: TermPattern,
       holeNames: Vector[String],

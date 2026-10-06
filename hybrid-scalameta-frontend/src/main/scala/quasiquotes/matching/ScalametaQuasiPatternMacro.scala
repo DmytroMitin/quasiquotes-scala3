@@ -17,6 +17,19 @@ private[quasiquotes] object ScalametaQuasiPatternMacro:
       case _ =>
         return '{ ScalametaQuasiPattern.scalarExtractor($context)(using $callerQuotes) }
 
+    SelectedMemberPatternSource.classify(parts) match
+      case Left(detail) => abort(detail, context)
+      case Right(Some(plan)) =>
+        val compiled = TermFrontend.compile(plan.effectiveSource).fold(
+          failure => abort(failure.message, context),
+          identity
+        )
+        SelectedMemberPatternBridge
+          .validatePlan(plan, compiled.pattern)
+          .fold(detail => abort(detail, context), identity)
+        return selectedMemberExtractor(plan, compiled.pattern, callerQuotes)
+      case Right(None) => ()
+
     RankedTermPatternBridge.classify(parts) match
       case Left(detail) => abort(detail, context)
       case Right(layout) =>
@@ -79,6 +92,41 @@ private[quasiquotes] object ScalametaQuasiPatternMacro:
                       $sequenceName
                     )(using $callerQuotes)
                   }
+
+  private def selectedMemberExtractor(
+      plan: SelectedMemberPatternPlan,
+      compiledPattern: TermPattern,
+      callerQuotes: Expr[Quotes]
+  )(using Quotes): Expr[Any] =
+    val pattern = RankedTermPatternBridge.patternExpr(compiledPattern)
+    val holeNames = RankedTermPatternBridge.holeNamesExpr(plan.holeNames)
+    val placeholder = Expr(plan.selectedNamePlaceholder)
+
+    plan.layout match
+      case SelectedMemberPatternLayout.Direct =>
+        '{
+          TermPatternProductExtractorFactory.direct(using $callerQuotes)(
+            $pattern,
+            $holeNames,
+            $placeholder
+          )
+        }
+      case SelectedMemberPatternLayout.Nullary =>
+        '{
+          TermPatternProductExtractorFactory.nullary(using $callerQuotes)(
+            $pattern,
+            $holeNames,
+            $placeholder
+          )
+        }
+      case SelectedMemberPatternLayout.Unary =>
+        '{
+          TermPatternProductExtractorFactory.unary(using $callerQuotes)(
+            $pattern,
+            $holeNames,
+            $placeholder
+          )
+        }
 
   private def abort(detail: String, context: Expr[StringContext])(using Quotes): Nothing =
     quotes.reflect.report.errorAndAbort(

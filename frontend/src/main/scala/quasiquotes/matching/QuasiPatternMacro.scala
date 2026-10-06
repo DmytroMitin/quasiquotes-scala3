@@ -21,8 +21,26 @@ private[matching] object QuasiPatternMacro:
           s"Invalid qq term-pattern template: $detail",
           context
         )
-      case Right(Some(compiled)) =>
-        return selectedMemberExtractor(compiled, callerQuotes)
+      case Right(Some(plan)) =>
+        val pattern = QuasiPattern.term(plan.effectiveSource).fold(
+          failure =>
+            quotes.reflect.report.errorAndAbort(
+              "Invalid qq term-pattern template: " + failure.message,
+              context
+            ),
+          _.pattern
+        )
+        SelectedMemberPatternBridge
+          .validatePlan(plan, pattern)
+          .fold(
+            detail =>
+              quotes.reflect.report.errorAndAbort(
+                "Invalid qq term-pattern template: " + detail,
+                context
+              ),
+            identity
+          )
+        return selectedMemberExtractor(plan, pattern, callerQuotes)
       case Right(None) => ()
 
     RankedPatternSource.classify(parts) match
@@ -75,14 +93,15 @@ private[matching] object QuasiPatternMacro:
                       }
 
   private def selectedMemberExtractor(
-      compiled: SelectedMemberCompiledPattern,
+      plan: SelectedMemberPatternPlan,
+      compiledPattern: TermPattern,
       callerQuotes: Expr[Quotes]
   )(using Quotes): Expr[Any] =
-    val pattern = RankedTermPatternBridge.patternExpr(compiled.pattern)
-    val holeNames = RankedTermPatternBridge.holeNamesExpr(compiled.holeNames)
-    val placeholder = Expr(compiled.selectedNamePlaceholder)
+    val pattern = RankedTermPatternBridge.patternExpr(compiledPattern)
+    val holeNames = RankedTermPatternBridge.holeNamesExpr(plan.holeNames)
+    val placeholder = Expr(plan.selectedNamePlaceholder)
 
-    compiled.layout match
+    plan.layout match
       case SelectedMemberPatternLayout.Direct =>
         '{
           TermPatternProductExtractorFactory.direct(using $callerQuotes)(
