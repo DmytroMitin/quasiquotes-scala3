@@ -16,7 +16,7 @@ import dotty.tools.dotc.core.Symbols.NoSymbol
 import dotty.tools.dotc.parsing.Parser
 
 class DelegatedForwardingMethodTyperRuntimeTest extends munit.FunSuite:
-  test("positioned canonical and renamed bridges survive ordinary Typer and execute") {
+  test("both forwarding families survive Typer, TASTy emission, and runtime") {
     val temporary = Files.createTempDirectory("phase144-delegated-forwarding-")
     try
       val source = temporary.resolve("Phase144DelegatedForwardingRuntime.scala")
@@ -30,6 +30,12 @@ class DelegatedForwardingMethodTyperRuntimeTest extends munit.FunSuite:
           |trait Display[A]:
           |  def render(value: A): Text
           |
+          |trait Empty[A]:
+          |  def empty: A
+          |
+          |trait Provider[A]:
+          |  def obtain: A
+          |
           |final class Text(val value: String)
           |
           |object Phase144CanonicalRuntime:
@@ -41,6 +47,16 @@ class DelegatedForwardingMethodTyperRuntimeTest extends munit.FunSuite:
           |  given Display[Int] with
           |    def render(value: Int): Text = new Text("render:" + value)
           |  def renamedResult: Text = render(9)
+          |
+          |object C061ParameterlessCanonicalRuntime:
+          |  given Empty[Int] with
+          |    def empty: Int = 42
+          |  def parameterlessCanonicalResult: Int = empty[Int]
+          |
+          |object C061ParameterlessRenamedRuntime:
+          |  given Provider[String] with
+          |    def obtain: String = "ready"
+          |  def parameterlessRenamedResult: String = obtain[String]
           |""".stripMargin,
         StandardCharsets.UTF_8
       )
@@ -61,10 +77,26 @@ class DelegatedForwardingMethodTyperRuntimeTest extends munit.FunSuite:
         driver.generatedSources,
         Vector(
           "def show[A](a: A)(using inst: Show[A]): String = inst.show(a)",
-          "def render[Element](value: Element)(using evidence: Display[Element]): Text = evidence.render(value)"
+          "def render[Element](value: Element)(using evidence: Display[Element]): Text = evidence.render(value)",
+          "def empty[A](using inst: Empty[A]): A = inst.empty",
+          "def obtain[Element](using evidence: Provider[Element]): Element = evidence.obtain"
         )
       )
       assert(driver.beforeTyperInsertionReady)
+
+      val emitted =
+        val stream = Files.walk(output)
+        try stream.filter(Files.isRegularFile(_)).iterator().asScala.toVector
+        finally stream.close()
+      val emittedNames = emitted.map(_.getFileName.toString).toSet
+      assert(emittedNames.contains("C061ParameterlessCanonicalRuntime.tasty"), clues(emittedNames))
+      assert(emittedNames.contains("C061ParameterlessRenamedRuntime.tasty"), clues(emittedNames))
+      List(
+        "Phase144CanonicalRuntime$.class",
+        "Phase144RenamedRuntime$.class",
+        "C061ParameterlessCanonicalRuntime$.class",
+        "C061ParameterlessRenamedRuntime$.class"
+      ).foreach(name => assert(emittedNames.contains(name), clues(name, emittedNames)))
 
       val loader = new URLClassLoader(Array(output.toUri.toURL), getClass.getClassLoader)
       try
@@ -79,6 +111,20 @@ class DelegatedForwardingMethodTyperRuntimeTest extends munit.FunSuite:
         val renamed = renamedClass.getField("MODULE$").get(null)
         val text = renamedClass.getMethod("renamedResult").invoke(renamed)
         assertEquals(text.getClass.getMethod("value").invoke(text), "render:9")
+
+        val parameterlessCanonicalClass =
+          loader.loadClass("C061ParameterlessCanonicalRuntime$")
+        val parameterlessCanonical =
+          parameterlessCanonicalClass.getField("MODULE$").get(null)
+        assertEquals(
+          parameterlessCanonicalClass
+            .getMethod("parameterlessCanonicalResult")
+            .invoke(parameterlessCanonical),
+          Integer.valueOf(42)
+        )
+        val parameterlessRenamedClass = loader.loadClass("C061ParameterlessRenamedRuntime$")
+        val parameterlessRenamed = parameterlessRenamedClass.getField("MODULE$").get(null)
+        assertEquals(parameterlessRenamedClass.getMethod("parameterlessRenamedResult").invoke(parameterlessRenamed), "ready")
       finally loader.close()
     finally deleteRecursively(temporary)
   }
@@ -113,11 +159,21 @@ class DelegatedForwardingMethodTyperRuntimeTest extends munit.FunSuite:
             ),
             "<quasiquotes-generated:phase144-render>"
           )
-        yield canonical -> renamed
+          parameterlessCanonical <- DelegatedForwardingMethodPeerBridge.lower(
+            parse("def empty[A](using inst: Empty[A]): A = inst.empty"),
+            "<quasiquotes-generated:c061-empty>"
+          )
+          parameterlessRenamed <- DelegatedForwardingMethodPeerBridge.lower(
+            parse(
+              "def obtain[Element](using evidence: Provider[Element]): Element = evidence.obtain"
+            ),
+            "<quasiquotes-generated:c061-obtain>"
+          )
+        yield (canonical, renamed, parameterlessCanonical, parameterlessRenamed)
 
       lowered match
         case Left(problem) => report.error(s"${problem.code}: ${problem.detail}")
-        case Right((canonical, renamed)) =>
+        case Right((canonical, renamed, parameterlessCanonical, parameterlessRenamed)) =>
           val transformer = new untpd.UntypedTreeMap:
             override def transform(tree: untpd.Tree)(using Context): untpd.Tree =
               tree match
@@ -147,12 +203,35 @@ class DelegatedForwardingMethodTyperRuntimeTest extends munit.FunSuite:
                           module.impl.body :+ renamed.tree
                         )
                       )
+                    case Some("parameterlessCanonicalResult") =>
+                      untpd.cpy.ModuleDef(module)(
+                        module.name,
+                        untpd.cpy.Template(module.impl)(
+                          module.impl.constr,
+                          module.impl.parentsOrDerived,
+                          module.impl.derived,
+                          module.impl.self,
+                          module.impl.body :+ parameterlessCanonical.tree
+                        )
+                      )
+                    case Some("parameterlessRenamedResult") =>
+                      untpd.cpy.ModuleDef(module)(
+                        module.name,
+                        untpd.cpy.Template(module.impl)(
+                          module.impl.constr,
+                          module.impl.parentsOrDerived,
+                          module.impl.derived,
+                          module.impl.self,
+                          module.impl.body :+ parameterlessRenamed.tree
+                        )
+                      )
                     case _ => super.transform(tree)
                 case _ => super.transform(tree)
 
           summon[Context].compilationUnit.untpdTree =
             transformer.transform(summon[Context].compilationUnit.untpdTree)
-          val results = Vector(canonical, renamed)
+          val results =
+            Vector(canonical, renamed, parameterlessCanonical, parameterlessRenamed)
           evidence.generatedSources = results.map(_.generatedSource)
           evidence.beforeTyperInsertionReady = results.forall(result =>
             allTrees(result.tree).forall(tree =>

@@ -188,8 +188,9 @@ legacy single-unbounded-parameter contextual method or the exact bounded
 two-parameter bounded `Add.Out` method. The separate
 `SelfAbstractTypeMemberPeerBridge` accepts only the bounded self-Type abstract
 member family. `DelegatedForwardingMethodPeerBridge` accepts only the exact
-one-type-parameter, ordinary-parameter, final-using-parameter
-forwarder whose body calls the contextual instance with the ordinary argument.
+one-Type-parameter delegated-forwarding families: either one ordinary argument
+plus a final using parameter with an applied delegated call, or no ordinary
+argument plus one using parameter with a direct stable delegated selection.
 `AuxTypeAliasPeerBridge` accepts only the exact three-parameter,
 two-target-reference, one-refinement-alias family. `InstanceFactoryPeerBridge`
 accepts exactly three complete bounded factory families through one operation:

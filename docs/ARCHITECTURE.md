@@ -408,10 +408,12 @@ The bounded `@self` member path uses a typed Scalameta `Decl.Type` and
 The prepared self alias remains peer-owned external syntax: Quasiquotes
 validates its repeated uses but does not allocate a binder or create the alias.
 
-The bounded delegated-forwarder path accepts one already-authored Scalameta
-`Defn.Def`, validates three distinct declaration roles and their references,
-and uses `DelegatedForwardingMethodPeerBridge` to obtain a positioned
-`untpd.DefDef`. AUXify still owns method derivation, and Macro-Paradise still
+The bounded delegated-forwarder path accepts two already-authored Scalameta
+`Defn.Def` shapes through one `DelegatedForwardingMethodPeerBridge` operation:
+one ordinary argument plus using evidence and an applied delegated call, or no
+ordinary argument plus using evidence and a stable delegated selection. Each
+private family validates its exact roles and references before the bridge
+returns a positioned `untpd.DefDef`. AUXify still owns method derivation, and Macro-Paradise still
 owns source inspection, companion lifecycle, placement, conflict policy, and
 rollback. This operation is not a general method or Term bridge.
 
