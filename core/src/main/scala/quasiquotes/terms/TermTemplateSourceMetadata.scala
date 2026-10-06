@@ -112,6 +112,13 @@ private[quasiquotes] object LocatedTermTemplate:
           "located scalar term templates do not support repeated-term metadata"
         )
       )
+      _ <- Either.cond(
+        template.selectedNameHoleOccurrences.isEmpty,
+        (),
+        TermConstructionError.InvalidLocatedTemplateMetadata(
+          "located scalar term templates do not support selected-name metadata"
+        )
+      )
       _ <- validateCoverage(sourceMap)
       _ <- validateTermOccurrences(
         template,

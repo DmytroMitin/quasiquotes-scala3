@@ -12,6 +12,11 @@ private[quasiquotes] object TermShapeTraversal:
       isPlaceholder: Boolean
   )
 
+  final case class SelectEntry(
+      ordinal: Int,
+      name: String
+  )
+
   def validateSupported(shape: TermShape): Either[TermConstructionError, Unit] =
     validateAdmission(shape).flatMap(_ => validateSupportedUsingScope(shape, Nil))
 
@@ -161,6 +166,54 @@ private[quasiquotes] object TermShapeTraversal:
         case TermShape.Parenthesized(expression) =>
           loop(expression)
         case TermShape.Unsupported(_, _) =>
+          ()
+
+    loop(shape)
+    builder.result()
+
+  def selectEntries(shape: TermShape): Vector[SelectEntry] =
+    val builder = Vector.newBuilder[SelectEntry]
+    var ordinal = 0
+
+    def loop(current: TermShape): Unit =
+      current match
+        case TermShape.Select(qualifier, name) =>
+          builder += SelectEntry(ordinal, name)
+          ordinal += 1
+          loop(qualifier)
+        case TermShape.Lambda1(_, _, _, body) =>
+          loop(body)
+        case TermShape.Apply(function, arguments) =>
+          loop(function)
+          arguments.foreach(loop)
+        case TermShape.New(_, arguments) =>
+          arguments.foreach(loop)
+        case TermShape.Infix(left, _, right) =>
+          loop(left)
+          loop(right)
+        case TermShape.Unary(_, operand) =>
+          loop(operand)
+        case TermShape.InterpolatedString(_, _, arguments) =>
+          arguments.foreach(loop)
+        case TermShape.Typed(expression, _) =>
+          loop(expression)
+        case TermShape.Tuple(elements) =>
+          elements.foreach(loop)
+        case TermShape.If(condition, thenBranch, elseBranch) =>
+          loop(condition)
+          loop(thenBranch)
+          loop(elseBranch)
+        case TermShape.Block(statements, result) =>
+          statements.foreach {
+            case BlockStatement.LocalVal(_, _, _, initializer) => loop(initializer)
+            case BlockStatement.LocalDef(_, _, _, _, _, _, body) => loop(body)
+            case term: TermShape => loop(term)
+          }
+          loop(result)
+        case TermShape.Parenthesized(expression) =>
+          loop(expression)
+        case TermShape.Identifier(_, _) | TermShape.BoundReference(_, _) | TermShape.Literal(_) |
+            TermShape.Unsupported(_, _) =>
           ()
 
     loop(shape)

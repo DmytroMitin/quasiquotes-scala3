@@ -1,5 +1,7 @@
 package quasiquotes.terms
 
+import quasiquotes.construct.SelectedMemberName
+import quasiquotes.definitions.DefinitionName
 import quasiquotes.parser.{BinderId, BlockStatement, TermShape}
 import quasiquotes.source.GeneratedHoleIndex
 import quasiquotes.types.{TypeNormalForm, TypeTemplate}
@@ -12,8 +14,18 @@ private[quasiquotes] final case class RepeatedTermHoleOccurrence(
     name: String,
     identifierOrdinal: Int
 ) derives CanEqual
+private[quasiquotes] final case class SelectedNameHoleOccurrence(
+    name: String,
+    selectOrdinal: Int
+) derives CanEqual
 
 private sealed trait SemanticTermKey derives CanEqual
+
+private sealed trait SemanticSelectedNameKey derives CanEqual
+
+private object SemanticSelectedNameKey:
+  final case class Fixed(name: String) extends SemanticSelectedNameKey
+  final case class Hole(name: String) extends SemanticSelectedNameKey
 
 private sealed trait SemanticBlockStatementKey derives CanEqual
 
@@ -37,7 +49,10 @@ private object SemanticTermKey:
   final case class TermHole(name: String) extends SemanticTermKey
   final case class RepeatedTermHole(name: String) extends SemanticTermKey
   final case class Literal(value: String) extends SemanticTermKey
-  final case class Select(qualifier: SemanticTermKey, name: String)
+  final case class Select(
+      qualifier: SemanticTermKey,
+      name: SemanticSelectedNameKey
+  )
       extends SemanticTermKey
   final case class Apply(
       function: SemanticTermKey,
@@ -85,6 +100,8 @@ private[quasiquotes] final class TermTemplate private (
     val termHoleOccurrences: Vector[TermHoleOccurrence],
     val repeatedTermHoleIndex: GeneratedHoleIndex,
     val repeatedTermHoleOccurrences: Vector[RepeatedTermHoleOccurrence],
+    val selectedNameHoleIndex: GeneratedHoleIndex,
+    val selectedNameHoleOccurrences: Vector[SelectedNameHoleOccurrence],
     val typeHoleIndex: GeneratedHoleIndex,
     val ascriptionTypes: Vector[TypeTemplate],
     private val enclosingBinderIds: Vector[BinderId]
@@ -97,6 +114,11 @@ private[quasiquotes] final class TermTemplate private (
   private lazy val repeatedOccurrenceByOrdinal: Map[Int, String] =
     repeatedTermHoleOccurrences.map(occurrence =>
       occurrence.identifierOrdinal -> occurrence.name
+    ).toMap
+
+  private lazy val selectedNameOccurrenceByOrdinal: Map[Int, String] =
+    selectedNameHoleOccurrences.map(occurrence =>
+      occurrence.selectOrdinal -> occurrence.name
     ).toMap
 
   private lazy val semanticKey: SemanticTermKey =
@@ -118,6 +140,14 @@ private[quasiquotes] final class TermTemplate private (
   def requiredRepeatedTermBindings: Vector[String] =
     repeatedTermHoleOccurrences.map(_.name).distinct
 
+  /** Logical selected-name hole names in Select preorder.
+    *
+    * This is deterministic internal traversal evidence, not a stable public
+    * ordering promise.
+    */
+  def requiredSelectedNameBindings: Vector[String] =
+    selectedNameHoleOccurrences.map(_.name).distinct
+
   /** Logical type-hole names in first typed-sidecar occurrence order.
     *
     * This is deterministic internal traversal evidence, not a stable public
@@ -130,24 +160,51 @@ private[quasiquotes] final class TermTemplate private (
       termBindings: Map[String, ConstructedTerm],
       typeBindings: Map[String, TypeNormalForm]
   ): Either[TermConstructionError, ConstructedTerm] =
-    completeUsing(termBindings, Map.empty, typeBindings)
+    completeUsing(termBindings, Map.empty, Map.empty, typeBindings)
 
   def completeWithRepeatedTerms(
       scalarTermBindings: Map[String, ConstructedTerm],
       repeatedTermBindings: Map[String, Vector[ConstructedTerm]],
       typeBindings: Map[String, TypeNormalForm]
   ): Either[TermConstructionError, ConstructedTerm] =
-    completeUsing(scalarTermBindings, repeatedTermBindings, typeBindings)
+    completeUsing(scalarTermBindings, repeatedTermBindings, Map.empty, typeBindings)
+
+  def completeWithSelectedNames(
+      scalarTermBindings: Map[String, ConstructedTerm],
+      repeatedTermBindings: Map[String, Vector[ConstructedTerm]],
+      selectedNameBindings: Map[String, SelectedMemberName],
+      typeBindings: Map[String, TypeNormalForm]
+  ): Either[TermConstructionError, ConstructedTerm] =
+    completeUsing(
+      scalarTermBindings,
+      repeatedTermBindings,
+      selectedNameBindings,
+      typeBindings
+    )
 
   private def completeUsing(
       termBindings: Map[String, ConstructedTerm],
       repeatedTermBindings: Map[String, Vector[ConstructedTerm]],
+      selectedNameBindings: Map[String, SelectedMemberName],
       typeBindings: Map[String, TypeNormalForm]
   ): Either[TermConstructionError, ConstructedTerm] =
+    given selectedNameCursor: SelectedNameCompletionCursor =
+      new SelectedNameCompletionCursor(selectedNameBindings)
     for
-      _ <- validateBindingMaps(termBindings, repeatedTermBindings, typeBindings)
-      _ <- validateBindingSets(termBindings, repeatedTermBindings, typeBindings)
+      _ <- validateBindingMaps(
+        termBindings,
+        repeatedTermBindings,
+        selectedNameBindings,
+        typeBindings
+      )
+      _ <- validateBindingSets(
+        termBindings,
+        repeatedTermBindings,
+        selectedNameBindings,
+        typeBindings
+      )
       _ <- validateRepeatedBindings(repeatedTermBindings)
+      _ <- validateSelectedNameBindings(selectedNameBindings)
       _ <- validateTypeBindings(typeBindings)
       completed <- completeSubtree(
         root,
@@ -172,6 +229,14 @@ private[quasiquotes] final class TermTemplate private (
           "typed-node preorder was not consumed exactly once"
         )
       )
+      _ <- Either.cond(
+        selectedNameCursor.nextSelectOrdinal ==
+          TermShapeTraversal.selectEntries(root).size,
+        (),
+        TermConstructionError.CompletionInvariantFailure(
+          "Select preorder was not consumed exactly once"
+        )
+      )
       result <-
         if enclosingBinderIds.isEmpty then
           ConstructedTerm.create(completed.shape, completed.ascriptions)
@@ -194,10 +259,17 @@ private[quasiquotes] final class TermTemplate private (
         repeatedTermHoleOccurrences
           .map(occurrence => occurrence.name + "@" + occurrence.identifierOrdinal)
           .mkString(", repeatedTermHoles=[", ", ", "]")
+    val selectedNameHoles =
+      if selectedNameHoleOccurrences.isEmpty then ""
+      else
+        selectedNameHoleOccurrences
+          .map(occurrence => occurrence.name + "@" + occurrence.selectOrdinal)
+          .mkString(", selectedNameHoles=[", ", ", "]")
     val typeSidecars =
       ascriptionTypes.map(TermShapeTraversal.renderLogicalTypeTemplate).mkString(", ")
     "TermTemplate(root=" + root.render + ", termHoles=[" + termHoles + "]" +
-      repeatedTermHoles + ", typeSidecars=[" + typeSidecars + "])"
+      repeatedTermHoles + selectedNameHoles +
+      ", typeSidecars=[" + typeSidecars + "])"
 
   override def equals(other: Any): Boolean =
     other match
@@ -219,6 +291,25 @@ private[quasiquotes] final class TermTemplate private (
       nextTypedOrdinal: Int
   )
 
+  private final class SelectedNameCompletionCursor(
+      bindings: Map[String, SelectedMemberName]
+  ):
+    private var nextOrdinal = 0
+
+    def nextSelectOrdinal: Int = nextOrdinal
+
+    def consume(fixedName: String): Either[TermConstructionError, String] =
+      val ordinal = nextOrdinal
+      nextOrdinal += 1
+      selectedNameOccurrenceByOrdinal.get(ordinal) match
+        case Some(holeName) =>
+          bindings
+            .get(holeName)
+            .toRight(TermConstructionError.MissingSelectedNameBinding(holeName))
+            .map(_.decoded)
+        case None =>
+          Right(fixedName)
+
   private def completeSubtree(
       shape: TermShape,
       identifierOrdinal: Int,
@@ -226,6 +317,8 @@ private[quasiquotes] final class TermTemplate private (
       termBindings: Map[String, ConstructedTerm],
       repeatedTermBindings: Map[String, Vector[ConstructedTerm]],
       typeBindings: Map[String, TypeNormalForm]
+  )(using
+      SelectedNameCompletionCursor
   ): Either[TermConstructionError, CompletedSubtree] =
     shape match
       case TermShape.Identifier(name, _) =>
@@ -313,15 +406,18 @@ private[quasiquotes] final class TermTemplate private (
           )
         )
       case TermShape.Select(qualifier, name) =>
-        completeSubtree(
-          qualifier,
-          identifierOrdinal,
-          typedOrdinal,
-          termBindings,
-          repeatedTermBindings,
-          typeBindings
-        ).map(completed =>
-          completed.copy(shape = TermShape.Select(completed.shape, name))
+        for
+          completedName <- summon[SelectedNameCompletionCursor].consume(name)
+          completed <- completeSubtree(
+            qualifier,
+            identifierOrdinal,
+            typedOrdinal,
+            termBindings,
+            repeatedTermBindings,
+            typeBindings
+          )
+        yield completed.copy(
+          shape = TermShape.Select(completed.shape, completedName)
         )
       case TermShape.Apply(function, arguments) =>
         for
@@ -624,6 +720,8 @@ private[quasiquotes] final class TermTemplate private (
       repeatedTermBindings: Map[String, Vector[ConstructedTerm]],
       typeBindings: Map[String, TypeNormalForm],
       spliceRepeatedTerms: Boolean = false
+  )(using
+      SelectedNameCompletionCursor
   ): Either[TermConstructionError, CompletedChildren] =
     shapes.foldLeft[
       Either[TermConstructionError, CompletedChildren]
@@ -675,6 +773,7 @@ private[quasiquotes] final class TermTemplate private (
   private def validateBindingMaps(
       termBindings: Map[String, ConstructedTerm],
       repeatedTermBindings: Map[String, Vector[ConstructedTerm]],
+      selectedNameBindings: Map[String, SelectedMemberName],
       typeBindings: Map[String, TypeNormalForm]
   ): Either[TermConstructionError, Unit] =
     if termBindings == null then
@@ -690,6 +789,13 @@ private[quasiquotes] final class TermTemplate private (
           "repeated term binding map is null"
         )
       )
+    else if selectedNameBindings == null then
+      Left(
+        TermConstructionError.InvalidSelectedNameBinding(
+          "<bindings>",
+          "selected-name binding map is null"
+        )
+      )
     else if typeBindings == null then
       Left(
         TermConstructionError.CompletionInvariantFailure(
@@ -701,15 +807,26 @@ private[quasiquotes] final class TermTemplate private (
   private def validateBindingSets(
       termBindings: Map[String, ConstructedTerm],
       repeatedTermBindings: Map[String, Vector[ConstructedTerm]],
+      selectedNameBindings: Map[String, SelectedMemberName],
       typeBindings: Map[String, TypeNormalForm]
   ): Either[TermConstructionError, Unit] =
     val requiredTerms = termHoleIndex.semanticNames
     val requiredRepeatedTerms = repeatedTermHoleIndex.semanticNames
+    val requiredSelectedNames = selectedNameHoleIndex.semanticNames
     val requiredTypes = typeHoleIndex.semanticNames
     firstSorted(requiredRepeatedTerms intersect termBindings.keySet)
       .orElse(firstSorted(requiredTerms intersect repeatedTermBindings.keySet))
       .map(name =>
         Left(TermConstructionError.RepeatedTermHoleCategoryConflict(name))
+      )
+      .orElse(
+        firstSorted(requiredSelectedNames intersect termBindings.keySet)
+          .orElse(firstSorted(requiredSelectedNames intersect repeatedTermBindings.keySet))
+          .orElse(firstSorted(requiredTerms intersect selectedNameBindings.keySet))
+          .orElse(firstSorted(requiredRepeatedTerms intersect selectedNameBindings.keySet))
+          .map(name =>
+            Left(TermConstructionError.SelectedNameHoleCategoryConflict(name))
+          )
       )
       .orElse(
         firstSorted(requiredTerms -- termBindings.keySet)
@@ -726,6 +843,14 @@ private[quasiquotes] final class TermTemplate private (
       .orElse(
         firstSorted(repeatedTermBindings.keySet -- requiredRepeatedTerms)
           .map(name => Left(TermConstructionError.ExtraRepeatedTermBinding(name)))
+      )
+      .orElse(
+        firstSorted(requiredSelectedNames -- selectedNameBindings.keySet)
+          .map(name => Left(TermConstructionError.MissingSelectedNameBinding(name)))
+      )
+      .orElse(
+        firstSorted(selectedNameBindings.keySet -- requiredSelectedNames)
+          .map(name => Left(TermConstructionError.ExtraSelectedNameBinding(name)))
       )
       .orElse(
         firstSorted(requiredTypes -- typeBindings.keySet)
@@ -780,6 +905,29 @@ private[quasiquotes] final class TermTemplate private (
       }
     }
 
+  private def validateSelectedNameBindings(
+      bindings: Map[String, SelectedMemberName]
+  ): Either[TermConstructionError, Unit] =
+    bindings.toVector.sortBy(_._1).foldLeft[
+      Either[TermConstructionError, Unit]
+    ](Right(())) { case (result, (name, selectedName)) =>
+      result.flatMap { _ =>
+        if selectedName == null then
+          Left(
+            TermConstructionError.InvalidSelectedNameBinding(
+              name,
+              "binding value is null"
+            )
+          )
+        else if DefinitionName.plain(selectedName.decoded).isLeft then
+          Left(
+            TermConstructionError.SelectedNameLexicalUnsupported(
+              selectedName.decoded
+            )
+          )
+        else Right(())
+      }
+    }
   private def validateTypeBindings(
       typeBindings: Map[String, TypeNormalForm]
   ): Either[TermConstructionError, Unit] =
@@ -840,8 +988,12 @@ private[quasiquotes] final class TermTemplate private (
       case TermShape.Select(qualifier, name) =>
         val (qualifierKey, nextIdentifier, nextTyped) =
           semanticShapeKey(qualifier, identifierOrdinal, typedOrdinal, scope)
+        val semanticName = selectedNameHoleIndex
+          .semanticNameFor(name)
+          .map(SemanticSelectedNameKey.Hole.apply)
+          .getOrElse(SemanticSelectedNameKey.Fixed(name))
         (
-          SemanticTermKey.Select(qualifierKey, name),
+          SemanticTermKey.Select(qualifierKey, semanticName),
           nextIdentifier,
           nextTyped
         )
@@ -1050,6 +1202,8 @@ private[quasiquotes] object TermTemplate:
       termHoleOccurrences,
       GeneratedHoleIndex.empty,
       Vector.empty,
+      GeneratedHoleIndex.empty,
+      Vector.empty,
       typeHoleIndex,
       ascriptionTypes
     )
@@ -1070,6 +1224,32 @@ private[quasiquotes] object TermTemplate:
       termHoleOccurrences,
       repeatedTermHoleIndex,
       repeatedTermHoleOccurrences,
+      GeneratedHoleIndex.empty,
+      Vector.empty,
+      typeHoleIndex,
+      ascriptionTypes
+    )
+
+  def createWithSelectedNameHole(
+      root: TermShape,
+      termHoleIndex: GeneratedHoleIndex,
+      termHoleOccurrences: Vector[TermHoleOccurrence],
+      repeatedTermHoleIndex: GeneratedHoleIndex,
+      repeatedTermHoleOccurrences: Vector[RepeatedTermHoleOccurrence],
+      selectedNameHoleIndex: GeneratedHoleIndex,
+      selectedNameHoleOccurrences: Vector[SelectedNameHoleOccurrence],
+      typeHoleIndex: GeneratedHoleIndex,
+      ascriptionTypes: Vector[TypeTemplate]
+  ): Either[TermConstructionError, TermTemplate] =
+    createUsingScope(
+      root,
+      Vector.empty,
+      termHoleIndex,
+      termHoleOccurrences,
+      repeatedTermHoleIndex,
+      repeatedTermHoleOccurrences,
+      selectedNameHoleIndex,
+      selectedNameHoleOccurrences,
       typeHoleIndex,
       ascriptionTypes
     )
@@ -1089,6 +1269,8 @@ private[quasiquotes] object TermTemplate:
       termHoleOccurrences,
       GeneratedHoleIndex.empty,
       Vector.empty,
+      GeneratedHoleIndex.empty,
+      Vector.empty,
       typeHoleIndex,
       ascriptionTypes
     )
@@ -1106,6 +1288,8 @@ private[quasiquotes] object TermTemplate:
       binderIds,
       termHoleIndex,
       termHoleOccurrences,
+      GeneratedHoleIndex.empty,
+      Vector.empty,
       GeneratedHoleIndex.empty,
       Vector.empty,
       typeHoleIndex,
@@ -1131,6 +1315,8 @@ private[quasiquotes] object TermTemplate:
       termHoleOccurrences: Vector[TermHoleOccurrence],
       repeatedTermHoleIndex: GeneratedHoleIndex,
       repeatedTermHoleOccurrences: Vector[RepeatedTermHoleOccurrence],
+      selectedNameHoleIndex: GeneratedHoleIndex,
+      selectedNameHoleOccurrences: Vector[SelectedNameHoleOccurrence],
       typeHoleIndex: GeneratedHoleIndex,
       ascriptionTypes: Vector[TypeTemplate]
   ): Either[TermConstructionError, TermTemplate] =
@@ -1142,14 +1328,17 @@ private[quasiquotes] object TermTemplate:
           TermShapeTraversal.validateSupportedInScope(root, enclosingBinderIds)
       _ <- validateHoleNames(termHoleIndex.semanticNames)
       _ <- validateHoleNames(repeatedTermHoleIndex.semanticNames)
+      _ <- validateHoleNames(selectedNameHoleIndex.semanticNames)
       _ <- validateHoleNames(typeHoleIndex.semanticNames)
       _ <- validateSemanticCategorySeparation(
         termHoleIndex,
-        repeatedTermHoleIndex
+        repeatedTermHoleIndex,
+        selectedNameHoleIndex
       )
       _ <- validateGeneratedCategorySeparation(
         termHoleIndex,
         repeatedTermHoleIndex,
+        selectedNameHoleIndex,
         typeHoleIndex
       )
       _ <- validateTermHolePositions(root, termHoleIndex)
@@ -1167,6 +1356,11 @@ private[quasiquotes] object TermTemplate:
         repeatedTermHoleIndex,
         repeatedTermHoleOccurrences
       )
+      _ <- validateSelectedNameOccurrence(
+        root,
+        selectedNameHoleIndex,
+        selectedNameHoleOccurrences
+      )
       _ <- validateTypeSidecars(
         root,
         typeHoleIndex,
@@ -1179,6 +1373,8 @@ private[quasiquotes] object TermTemplate:
       termHoleOccurrences,
       repeatedTermHoleIndex,
       repeatedTermHoleOccurrences,
+      selectedNameHoleIndex,
+      selectedNameHoleOccurrences,
       typeHoleIndex,
       ascriptionTypes,
       enclosingBinderIds
@@ -1208,25 +1404,36 @@ private[quasiquotes] object TermTemplate:
 
   private def validateSemanticCategorySeparation(
       termHoleIndex: GeneratedHoleIndex,
-      repeatedTermHoleIndex: GeneratedHoleIndex
+      repeatedTermHoleIndex: GeneratedHoleIndex,
+      selectedNameHoleIndex: GeneratedHoleIndex
   ): Either[TermConstructionError, Unit] =
-    (termHoleIndex.semanticNames intersect repeatedTermHoleIndex.semanticNames)
-      .toVector
-      .sorted
-      .headOption
-      .toLeft(())
-      .left
-      .map(TermConstructionError.RepeatedTermHoleCategoryConflict.apply)
+    val scalarRepeatedConflict =
+      termHoleIndex.semanticNames intersect repeatedTermHoleIndex.semanticNames
+    val selectedConflict =
+      selectedNameHoleIndex.semanticNames intersect
+        (termHoleIndex.semanticNames ++ repeatedTermHoleIndex.semanticNames)
+    scalarRepeatedConflict.toVector.sorted.headOption match
+      case Some(name) =>
+        Left(TermConstructionError.RepeatedTermHoleCategoryConflict(name))
+      case None =>
+        selectedConflict.toVector.sorted.headOption
+          .toLeft(())
+          .left
+          .map(TermConstructionError.SelectedNameHoleCategoryConflict.apply)
 
   private def validateGeneratedCategorySeparation(
       termHoleIndex: GeneratedHoleIndex,
       repeatedTermHoleIndex: GeneratedHoleIndex,
+      selectedNameHoleIndex: GeneratedHoleIndex,
       typeHoleIndex: GeneratedHoleIndex
   ): Either[TermConstructionError, Unit] =
     val duplicates =
       (termHoleIndex.generatedNames intersect repeatedTermHoleIndex.generatedNames) ++
+        (termHoleIndex.generatedNames intersect selectedNameHoleIndex.generatedNames) ++
         (termHoleIndex.generatedNames intersect typeHoleIndex.generatedNames) ++
-        (repeatedTermHoleIndex.generatedNames intersect typeHoleIndex.generatedNames)
+        (repeatedTermHoleIndex.generatedNames intersect selectedNameHoleIndex.generatedNames) ++
+        (repeatedTermHoleIndex.generatedNames intersect typeHoleIndex.generatedNames) ++
+        (selectedNameHoleIndex.generatedNames intersect typeHoleIndex.generatedNames)
     duplicates.toVector.sorted.headOption
       .toLeft(())
       .left
@@ -1236,6 +1443,50 @@ private[quasiquotes] object TermTemplate:
       sitesByIdentifierOrdinal: Map[Int, Int],
       nextIdentifierOrdinal: Int
   )
+
+  private def validateSelectedNameOccurrence(
+      root: TermShape,
+      selectedNameHoleIndex: GeneratedHoleIndex,
+      occurrences: Vector[SelectedNameHoleOccurrence]
+  ): Either[TermConstructionError, Unit] =
+    val names = selectedNameHoleIndex.semanticNames.toVector.sorted
+    if names.size > 1 || occurrences.size > 1 then
+      Left(TermConstructionError.DuplicateSelectedNameHole())
+    else
+      (names.headOption, occurrences.headOption) match
+        case (None, None) => Right(())
+        case (Some(name), None) =>
+          Left(TermConstructionError.InvalidSelectedNameHolePosition(name))
+        case (None, Some(occurrence)) =>
+          Left(
+            TermConstructionError.InvalidSelectedNameHolePosition(
+              occurrence.name
+            )
+          )
+        case (Some(name), Some(occurrence)) =>
+          val selects = TermShapeTraversal.selectEntries(root)
+          val expectedGenerated = selectedNameHoleIndex.generatedNameFor(name)
+          val generated = expectedGenerated.getOrElse("")
+          val exactSelectCount = selects.count(_.name == generated)
+          val totalNameFieldCount =
+            TermShapeTraversal.identifierEntries(root).count(_.name == generated) +
+              TermShapeTraversal.nonIdentifierFields(root).count(_ == generated)
+
+          if occurrence.name != name then
+            Left(TermConstructionError.InvalidSelectedNameHolePosition(name))
+          else if exactSelectCount > 1 then
+            Left(TermConstructionError.DuplicateSelectedNameHole())
+          else
+            selects.lift(occurrence.selectOrdinal) match
+              case Some(entry)
+                  if expectedGenerated.contains(entry.name) &&
+                    exactSelectCount == 1 &&
+                    totalNameFieldCount == 1 =>
+                Right(())
+              case _ =>
+                Left(
+                  TermConstructionError.InvalidSelectedNameHolePosition(name)
+                )
 
   private def validateRepeatedTermOccurrence(
       root: TermShape,

@@ -90,6 +90,38 @@ private[quasiquotes] object TermConstructionError:
     def message: String =
       "Repeated term hole " + name + " is unsupported beneath a term binder."
 
+  final case class InvalidSelectedNameHolePosition(name: String)
+      extends TermConstructionError:
+    def message: String =
+      "Selected-name hole " + name + " must occupy exactly one TermShape.Select.name position."
+
+  final case class DuplicateSelectedNameHole() extends TermConstructionError:
+    def message: String =
+      "A term template may contain exactly one selected-name hole occurrence."
+
+  final case class SelectedNameHoleCategoryConflict(name: String)
+      extends TermConstructionError:
+    def message: String =
+      "Term-hole name " + name + " is reused across scalar, repeated, and selected-name categories."
+
+  final case class MissingSelectedNameBinding(name: String)
+      extends TermConstructionError:
+    def message: String = "Missing selected-name binding " + name + "."
+
+  final case class ExtraSelectedNameBinding(name: String)
+      extends TermConstructionError:
+    def message: String = "Extra selected-name binding " + name + "."
+
+  final case class InvalidSelectedNameBinding(name: String, detail: String)
+      extends TermConstructionError:
+    def message: String = "Invalid selected-name binding " + name + ": " + detail
+
+  final case class SelectedNameLexicalUnsupported(name: String)
+      extends TermConstructionError:
+    def message: String =
+      "Selected-name binding " + name +
+        " is outside the compiler-free neutral plain-name intersection."
+
   final case class TypedSidecarCountMismatch(expected: Int, actual: Int)
       extends TermConstructionError:
     def message: String =
