@@ -84,12 +84,6 @@ final class Q059ScalametaSelectedMemberPatternTest extends munit.FunSuite:
     assert(argumentAsName.nonEmpty)
 
   test("selected-name diagnostics remain hybrid-owned and reject unsupported positions"):
-    val selectedPlusRank = messages(
-      """import scala.quoted.*; import quasiquotes.scalameta.ScalametaQuasiPattern.qq
-        def probe(using q: Quotes)(target: q.reflect.Term) = target match
-          case qq"$receiver.$selectedName(..$arguments)" => ()
-          case _ => ()"""
-    )
     val bare = messages(
       """import scala.quoted.*; import quasiquotes.construct.SelectedMemberName
         import quasiquotes.scalameta.ScalametaQuasiPattern.qq
@@ -124,8 +118,6 @@ final class Q059ScalametaSelectedMemberPatternTest extends munit.FunSuite:
           case _ => ()"""
     )
 
-    assert(selectedPlusRank.exists(_.contains("Invalid Scalameta qq term-pattern template")))
-    assert(selectedPlusRank.exists(_.contains("selected-name capture cannot be combined with rank-2")))
     assert(bare.nonEmpty)
     assert(nested.nonEmpty)
     assert(twoNames.exists(_.contains("Invalid Scalameta qq term-pattern template")))

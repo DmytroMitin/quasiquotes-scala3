@@ -17,7 +17,7 @@ private[quasiquotes] object ScalametaQuasiPatternMacro:
       case _ =>
         return '{ ScalametaQuasiPattern.scalarExtractor($context)(using $callerQuotes) }
 
-    SelectedMemberPatternSource.classify(parts) match
+    SelectedMemberPatternSource.classifyIncludingRanked(parts) match
       case Left(detail) => abort(detail, context)
       case Right(Some(plan)) =>
         val compiled = TermFrontend.compile(plan.effectiveSource).fold(
@@ -101,6 +101,40 @@ private[quasiquotes] object ScalametaQuasiPatternMacro:
     val pattern = RankedTermPatternBridge.patternExpr(compiledPattern)
     val holeNames = RankedTermPatternBridge.holeNamesExpr(plan.holeNames)
     val placeholder = Expr(plan.selectedNamePlaceholder)
+
+    plan.sequenceIndex match
+      case Some(sequenceIndex) =>
+        val sequenceHoleName = plan.sequenceHoleName.getOrElse(
+          quotes.reflect.report.errorAndAbort(
+            "Mixed selected-name Scalameta qq layout lost its sequence capture"
+          )
+        )
+        val tupleCons = quotes.reflect.TypeRepr.of[Any *: EmptyTuple] match
+          case quotes.reflect.AppliedType(constructor, _) => constructor
+          case other =>
+            quotes.reflect.report.errorAndAbort(
+              s"Unable to resolve Scala tuple constructor: ${other.show}"
+            )
+        val kinds = plan.holeNames.indices.foldRight(quotes.reflect.TypeRepr.of[EmptyTuple]) {
+          case (index, tail) =>
+            val head =
+              if index == 1 then quotes.reflect.TypeRepr.of[ProductSelectedNameCapture]
+              else if index == sequenceIndex then
+                quotes.reflect.TypeRepr.of[ProductSequenceTermCapture]
+              else quotes.reflect.TypeRepr.of[ProductTermCapture]
+            quotes.reflect.AppliedType(tupleCons, List(head, tail))
+        }
+        return kinds.asType match
+          case '[captureKinds] =>
+            '{
+              TermPatternProductExtractorFactory.mixed[captureKinds & Tuple](using $callerQuotes)(
+                $pattern,
+                $holeNames,
+                $placeholder,
+                ${ Expr(sequenceHoleName) }
+              )
+            }
+      case None => ()
 
     plan.layout match
       case SelectedMemberPatternLayout.Direct =>
