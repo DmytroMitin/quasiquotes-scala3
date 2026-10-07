@@ -245,7 +245,7 @@ names the concrete APIs, visibility boundaries, and current composition status.
   foreign-package peer bridges: contextual-method lowering,
   bounded AUXify self abstract-Type-member lowering, delegated forwarding, and
   the bounded three-parameter refined Type alias, the exact bounded
-  three-family instance-factory bridge, and `ExtensionModulePeerBridge` for one exact
+  four-family instance-factory bridge, and `ExtensionModulePeerBridge` for one exact
   object/extension-module family. The extension bridge is not general object
   or extension lowering; placement and lifecycle stay consumer-owned. Its
   richer package-private Term backend

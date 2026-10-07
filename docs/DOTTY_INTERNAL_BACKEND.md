@@ -197,9 +197,10 @@ plus a final using parameter with an applied delegated call, or no ordinary
 argument plus one using parameter with a direct stable delegated selection.
 `AuxTypeAliasPeerBridge` accepts only the exact three-parameter,
 two-target-reference, one-refinement-alias family. `InstanceFactoryPeerBridge`
-accepts exactly three complete bounded factory families through one operation:
+accepts exactly four complete bounded factory families through one operation:
 the by-name-plus-binary-function/two-method family, the strict-carrier/one-val
-family, and the no-value-clause/refined-Type-member family.
+family, the no-value-clause/refined-Type-member family, and the exact
+nested-unary carrier/two-unary-clause method family.
 `ExtensionModulePeerBridge` accepts only the exact AUXify input045
 object/extension family, composes its package-private Scalameta projection and
 bounded plan adapter, and returns a positioned `untpd.ModuleDef`; it does not claim general
@@ -238,9 +239,10 @@ The bounded instance-factory path is separately composed as:
 ```text
 scala.meta.Defn.Def
   -> original two-method projection first
-  -> otherwise one shallow disjoint private family envelope
+  -> otherwise ordered shallow private family envelopes
        -> one-value full projection, lowering, and generated-origin adapter
        -> Type-member full projection, lowering, and generated-origin adapter
+       -> curried-method full projection, lowering, and generated-origin adapter
   -> InstanceFactoryPeerBridge.Lowered
        -> positioned untpd.DefDef
        -> generated source
@@ -249,7 +251,7 @@ scala.meta.Defn.Def
 
 Each complete projector is the sole authority for its family grammar and
 binder roles; the shallow private discriminator does not repeat those
-semantics. If neither sibling envelope matches, the bridge returns the exact
+semantics. If no sibling envelope matches, the bridge returns the exact
 original two-method failure. It returns `Lowered` only after the selected
 complete raw-tree and generated-origin gates pass, so malformed input never
 yields a partial factory.

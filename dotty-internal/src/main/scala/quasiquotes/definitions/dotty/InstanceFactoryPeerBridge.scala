@@ -5,6 +5,7 @@ import dotty.tools.dotc.core.Contexts.Context
 
 import quasiquotes.neutral.{
   NeutralProjectionError,
+  ScalametaCurriedMethodInstanceFactoryProjection,
   ScalametaInstanceFactoryProjection,
   ScalametaTypeMemberInstanceFactoryProjection,
   ScalametaValueInstanceFactoryProjection
@@ -27,7 +28,7 @@ object InstanceFactoryPeerBridge:
       s"Lowered(source=$virtualSourceName, length=${generatedSource.length})"
 
   /**
-   * Validates and lowers one of three closed Scalameta instance-factory families.
+   * Validates and lowers one of four closed Scalameta instance-factory families.
    * Authoring, target admission, placement, rollback, and ordinary typing
    * remain consumer-owned.
    */
@@ -66,6 +67,20 @@ object InstanceFactoryPeerBridge:
                 .left
                 .map(classifyTypeMemberProjectionFailure)
               positioned <- TypeMemberInstanceFactoryGeneratedOriginAdapter
+                .lower(projected.plan, virtualSourceName)
+                .left
+                .map(problem =>
+                  classifySiblingLoweringFailure(problem.code, problem.detail)
+                )
+              result <- complete(positioned)
+            yield result
+          case None if hasCurriedSiblingEnvelope(definition) =>
+            for
+              projected <- ScalametaCurriedMethodInstanceFactoryProjection
+                .project(definition)
+                .left
+                .map(classifyCurriedProjectionFailure)
+              positioned <- CurriedMethodInstanceFactoryGeneratedOriginAdapter
                 .lower(projected.plan, virtualSourceName)
                 .left
                 .map(problem =>
@@ -170,6 +185,38 @@ object InstanceFactoryPeerBridge:
       case _ => "NEUTRAL_PROJECTION_FAILED"
     Failure(code, s"${problem.code}: ${problem.detail}")
 
+  private def classifyCurriedProjectionFailure(
+      problem: NeutralProjectionError
+  ): Failure =
+    val code = problem.code match
+      case "NEUTRAL_CURRIED_METHOD_FACTORY_MISSING" =>
+        "INVALID_SCALAMETA_DEFINITION"
+      case "NEUTRAL_CURRIED_METHOD_FACTORY_NAME_UNSUPPORTED" |
+          "NEUTRAL_CURRIED_METHOD_FACTORY_LEXICAL_ROLE_UNSUPPORTED" =>
+        "INVALID_INSTANCE_FACTORY_NAME"
+      case "NEUTRAL_CURRIED_METHOD_FACTORY_OUTER_TOPOLOGY_UNSUPPORTED" |
+          "NEUTRAL_CURRIED_METHOD_FACTORY_TYPE_PARAMETER_UNSUPPORTED" |
+          "NEUTRAL_CURRIED_METHOD_FACTORY_CARRIER_UNSUPPORTED" |
+          "NEUTRAL_CURRIED_METHOD_FACTORY_ANONYMOUS_REQUIRED" |
+          "NEUTRAL_CURRIED_METHOD_FACTORY_TEMPLATE_UNSUPPORTED" |
+          "NEUTRAL_CURRIED_METHOD_FACTORY_PARENT_UNSUPPORTED" |
+          "NEUTRAL_CURRIED_METHOD_FACTORY_MEMBER_UNSUPPORTED" |
+          "NEUTRAL_CURRIED_METHOD_FACTORY_OVERRIDE_UNSUPPORTED" |
+          "NEUTRAL_CURRIED_METHOD_FACTORY_MEMBER_CLAUSES_UNSUPPORTED" |
+          "NEUTRAL_CURRIED_METHOD_FACTORY_MEMBER_PARAMETER_UNSUPPORTED" =>
+        "UNSUPPORTED_INSTANCE_FACTORY_TOPOLOGY"
+      case "NEUTRAL_CURRIED_METHOD_FACTORY_CARRIER_TYPE_MISMATCH" |
+          "NEUTRAL_CURRIED_METHOD_FACTORY_RESULT_TARGET_UNSUPPORTED" |
+          "NEUTRAL_CURRIED_METHOD_FACTORY_RESULT_TARGET_MISMATCH" |
+          "NEUTRAL_CURRIED_METHOD_FACTORY_PARENT_TARGET_MISMATCH" |
+          "NEUTRAL_CURRIED_METHOD_FACTORY_MEMBER_TYPE_MISMATCH" =>
+        "INVALID_INSTANCE_FACTORY_TYPE_ROLE"
+      case "NEUTRAL_CURRIED_METHOD_FACTORY_BODY_UNSUPPORTED" |
+          "NEUTRAL_CURRIED_METHOD_FACTORY_BODY_ROLE_MISMATCH" =>
+        "INVALID_INSTANCE_FACTORY_TERM_ROLE"
+      case _ => "NEUTRAL_PROJECTION_FAILED"
+    Failure(code, s"${problem.code}: ${problem.detail}")
+
   private def classifySiblingLoweringFailure(
       code: String,
       detail: String
@@ -255,3 +302,54 @@ object InstanceFactoryPeerBridge:
       case Type.Refine(Some(_), List(_: Defn.Type)) => true
       case _ => false
     }
+
+  private def hasCurriedSiblingEnvelope(
+      definition: Defn.Def
+  ): Boolean =
+    Option(definition).exists { present =>
+      val memberCandidate = present.body match
+        case anonymous: Term.NewAnonymous =>
+          anonymous.templ.stats match
+            case List(member: Defn.Def) => Some(member)
+            case _ => None
+        case _ => None
+      present.paramClauseGroups match
+        case List(group)
+            if group.tparamClause.values.size == 1 &&
+              hasOneStrictCarrierCandidate(group.paramClauses) &&
+              hasUnaryResultCandidate(present.decltpe) =>
+          memberCandidate.exists(hasCurriedMemberCandidate)
+        case _ => false
+    }
+
+  private def hasUnaryResultCandidate(declared: Option[Type]): Boolean =
+    declared.exists {
+      case Type.Apply(_, List(_)) => true
+      case _ => false
+    }
+
+  private def hasCurriedMemberCandidate(member: Defn.Def): Boolean =
+    member.paramClauseGroups match
+      case List(group) if group.tparamClause.values.isEmpty =>
+        group.paramClauses match
+          case List(first, second)
+              if hasOneOrdinaryParameter(first) &&
+                hasOneOrdinaryParameter(second) =>
+            member.body match
+              case Term.Apply(_: Term.Apply, List(_)) => true
+              case Term.Apply(_, List(_, _)) => true
+              case _ => false
+          case _ => false
+      case _ => false
+
+  private def hasOneOrdinaryParameter(clause: Term.ParamClause): Boolean =
+    clause.mod.isEmpty &&
+      (clause.values match
+        case List(parameter) =>
+          parameter.mods.isEmpty &&
+            parameter.default.isEmpty &&
+            parameter.decltpe.exists {
+              case _: Type.ByName | _: Type.Repeated => false
+              case _ => true
+            }
+        case _ => false)

@@ -3,7 +3,7 @@
 `quasiquotes.definitions.dotty.InstanceFactoryPeerBridge` is an exact-Scala-
 version entry point in the `dottyInternal` artifact. Its single public
 `lower` operation accepts one complete Scalameta `Defn.Def` from exactly
-three closed semantic families.
+four closed semantic families.
 
 The two-method family has a by-name value carrier, a binary-function carrier,
 and two ordered method overrides:
@@ -36,6 +36,15 @@ def instance[A, Out0]: HasOut[A] { type Out = Out0 } =
     type Out = Out0
 ```
 
+The curried-method family has one nested-unary function carrier and one method
+override with two ordinary one-parameter clauses:
+
+```scala
+def instance[A](combineFunction: A => A => A): Curried[A] =
+  new Curried[A]:
+    override def combine(a: A)(b: A): A = combineFunction(a)(b)
+```
+
 All source names may be coherently renamed. Each family keeps its exact
 parameter, result, parent, member, binder-reference, and lexical-safety rules.
 The one-value carrier and member names must remain distinct so the initializer
@@ -52,11 +61,12 @@ and the effective virtual source name. The public operation and result/error
 carriers are unchanged; private family selection, semantic plans, projectors,
 lowerers, and their private error types are not part of the public boundary.
 
-The existing two-method projector runs first. Only after it fails does a
-shallow, structural, mutually exclusive envelope select either sibling family;
+The existing two-method projector runs first. Only after it fails do ordered
+shallow, structural, mutually exclusive envelopes select one of three sibling families;
 the selected complete projector remains authoritative for topology, lexical
-scope, Type roles, and binder references. If neither sibling envelope matches,
-the exact original two-method public failure is returned.
+scope, Type roles, and binder references. If no sibling envelope matches,
+the exact original two-method public failure is returned. The curried envelope is
+ordered after the one-value and Type-member envelopes.
 
 Each accepted private path then performs source-free exact raw lowering and
 deterministic generated-origin positioning. The bridge maps those boundaries
@@ -67,7 +77,7 @@ invariants. It has no permissive fallback and returns no partial factory.
 
 Every generated nonempty node belongs to the same virtual source, has a
 contained deterministic span, remains `NoSymbol`, and contains no
-`TypedSplice` before ordinary typing. The three families are exercised
+`TypedSplice` before ordinary typing. The four families are exercised
 together through the same public bridge for pre-Typer insertion, class and
 TASTy emission, runtime behavior, and Type-member refinement use across the
 supported Scala compiler lines.

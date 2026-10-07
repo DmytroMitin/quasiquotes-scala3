@@ -422,21 +422,22 @@ returns a positioned `untpd.DefDef`. AUXify still owns method derivation, and Ma
 owns source inspection, companion lifecycle, placement, conflict policy, and
 rollback. This operation is not a general method or Term bridge.
 
-The bounded instance-factory path accepts three complete authored Scalameta
+The bounded instance-factory path accepts four complete authored Scalameta
 `Defn.Def` families through one unchanged `InstanceFactoryPeerBridge.lower`
 operation: the original by-name-plus-binary-function factory with two ordered
-method overrides, a one-strict-carrier factory with one immutable override, and
-a no-value-clause factory whose refined result and anonymous body repeat one
-concrete Type equality. Their private projectors retain the complete
-family-specific topology, lexical, Type-role, and binder-reference authority;
-their package-private authoring reverse edges remain specialized and do not
-widen the public five-family `ScalametaDefinitionAuthoring` facade. The exact
-backends construct and position 33-node, 17-node, and 19-node `untpd.DefDef`
-trees respectively.
+method overrides, a one-strict-carrier factory with one immutable override, a
+no-value-clause factory whose refined result and anonymous body repeat one
+concrete Type equality, and a one-carrier factory with a nested-unary function
+Type and one two-clause method override. Their private projectors retain the
+complete family-specific topology, lexical, Type-role, and binder-reference
+authority; their package-private authoring reverse edges remain specialized and
+do not widen the public five-family `ScalametaDefinitionAuthoring` facade. The
+exact backends construct and position 33-node, 17-node, 19-node, and 29-node
+`untpd.DefDef` trees respectively.
 
-The bridge always tries the original family first, selects a sibling only
-through a shallow disjoint structural envelope, and preserves the exact
-original failure if neither sibling is selected. It exposes only the complete
+The bridge always tries the original family first, selects siblings through
+ordered shallow structural envelopes, and preserves the exact original failure
+if no sibling is selected. It exposes only the complete
 insertion-ready result, deterministic generated source, effective virtual
 source name, and stable bounded failures. It does not expose any private plan
 or admit arbitrary definitions, templates, or anonymous implementations.

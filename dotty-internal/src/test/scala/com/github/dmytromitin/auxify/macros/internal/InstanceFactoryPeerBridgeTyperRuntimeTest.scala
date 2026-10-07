@@ -23,7 +23,9 @@ class InstanceFactoryPeerBridgeTyperRuntimeTest extends munit.FunSuite:
   private val AllFamilySources = Vector(
     "def instanceOld[A](emptyValue: => A, combineFunction: (A, A) => A): Monoid[A] = new Monoid[A] { override def empty: A = emptyValue; override def combine(a: A, a1: A): A = combineFunction(a, a1) }",
     "def instanceValue[A](valueValue: A): HasValue[A] = new HasValue[A] { override val value: A = valueValue }",
-    "def instanceOut[A, Out0]: HasOut[A] { type Out = Out0 } = new HasOut[A] { type Out = Out0 }"
+    "def instanceOut[A, Out0]: HasOut[A] { type Out = Out0 } = new HasOut[A] { type Out = Out0 }",
+    "def instanceCurried[A](combineFunction: A => A => A): Curried[A] = new Curried[A] { override def combine(a: A)(b: A): A = combineFunction(a)(b) }",
+    "def make[Element](mergeFunction: Element => Element => Element): Aggregator[Element] = new Aggregator[Element] { override def merge(left: Element)(right: Element): Element = mergeFunction(left)(right) }"
   )
 
 
@@ -75,7 +77,7 @@ class InstanceFactoryPeerBridgeTyperRuntimeTest extends munit.FunSuite:
       finally loader.close()
     finally deleteRecursively(temporary)
   }
-  test("one foreign consumer uses all three families through the same public bridge") {
+  test("one foreign consumer uses all four families through the same public bridge") {
     val temporary = Files.createTempDirectory("c060-instance-factory-families-")
     try
       val source = temporary.resolve("C060InstanceFactoryFamiliesRuntime.scala")
@@ -93,12 +95,22 @@ class InstanceFactoryPeerBridgeTyperRuntimeTest extends munit.FunSuite:
           |trait HasOut[A]:
           |  type Out
           |
+          |trait Curried[A]:
+          |  def combine(a: A)(b: A): A
+          |
+          |trait Aggregator[Element]:
+          |  def merge(left: Element)(right: Element): Element
+          |
           |object C060InstanceFactoryFamiliesRuntime:
           |  def oldEmpty: Int = instanceOld[Int](7, _ + _).empty
           |  def oldCombine: Int = instanceOld[Int](7, _ + _).combine(20, 22)
           |  def valueResult: Int = instanceValue[Int](42).value
           |  def typeResult: HasOut[Int] { type Out = String } =
           |    instanceOut[Int, String]
+          |  def curriedResult: Int =
+          |    instanceCurried[Int](a => b => a + b).combine(20)(22)
+          |  def renamedCurriedResult: Int =
+          |    make[Int](left => right => left * 10 + right).merge(42)(3)
           |""".stripMargin,
         StandardCharsets.UTF_8
       )
@@ -107,7 +119,9 @@ class InstanceFactoryPeerBridgeTyperRuntimeTest extends munit.FunSuite:
         Vector(
           "<quasiquotes-generated:instance-factory-old>" -> 33,
           "<quasiquotes-generated:instance-factory-value>" -> 17,
-          "<quasiquotes-generated:instance-factory-type-member>" -> 19
+          "<quasiquotes-generated:instance-factory-type-member>" -> 19,
+          "<quasiquotes-generated:instance-factory-curried>" -> 29,
+          "<quasiquotes-generated:instance-factory-curried-renamed>" -> 29
         )
       ).map { case (factorySource, (virtualSource, expectedNodes)) =>
         (parse(factorySource), virtualSource, expectedNodes)
@@ -140,6 +154,8 @@ class InstanceFactoryPeerBridgeTyperRuntimeTest extends munit.FunSuite:
         assertEquals(moduleClass.getMethod("oldCombine").invoke(module), Integer.valueOf(42))
         assertEquals(moduleClass.getMethod("valueResult").invoke(module), Integer.valueOf(42))
         assert(moduleClass.getMethod("typeResult").invoke(module) != null)
+        assertEquals(moduleClass.getMethod("curriedResult").invoke(module), Integer.valueOf(42))
+        assertEquals(moduleClass.getMethod("renamedCurriedResult").invoke(module), Integer.valueOf(423))
       finally loader.close()
     finally deleteRecursively(temporary)
   }
