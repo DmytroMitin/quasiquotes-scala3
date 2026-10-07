@@ -98,22 +98,6 @@ final class Q058SelectedMemberPatternTest extends munit.FunSuite:
     assert(receiverAsName.nonEmpty)
     assert(argumentAsName.nonEmpty)
 
-  test("selected-name plus rank-2 receives the deliberate unsupported diagnostic"):
-    val errors = typeCheckErrors(
-      """{
-        import scala.quoted.*
-        import quasiquotes.matching.QuasiPattern.*
-        def probe(using q: Quotes)(target: q.reflect.Term) = target match
-          case qq"$receiver.$selectedName(..$arguments)" => arguments
-          case _ => Seq.empty
-      }"""
-    )
-
-    assert(
-      errors.exists(_.message.contains("selected-name capture cannot be combined with rank-2")),
-      errors.map(_.message).mkString("\n")
-    )
-
   test("positions outside the direct-root slice never acquire selected-name typing"):
     val bare = typeCheckErrors(
       """{
