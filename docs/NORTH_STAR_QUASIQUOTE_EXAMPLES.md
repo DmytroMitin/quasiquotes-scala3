@@ -18,7 +18,7 @@ interpolator grammar, ownership model, and error contract.
 | Checkpoint | Manual baseline | Current quasiquote coverage | Remaining status |
 | --- | --- | --- | --- |
 | N1 generic subclass with override | `CURRENT_MANUAL_BASELINE_PROVED` by a compact public-reflection fixture on all three compiler lines | bounded package-private generated-class plan and public-reflection lowerer for one override; no public class syntax | `BOUNDED_INTERNAL_PLAN_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
-| N2 dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED` | standard and opt-in typed-Scalameta `tqr` with one caller-owned class constructor and runtime-length ordered `Seq[TypeRepr]` | `BOUNDED_STANDARD_AND_TYPED_SCALAMETA_CONSTRUCTION_IMPLEMENTED`; fixed-constructor ranked `tqq` parity is also implemented; broader kinds remain later work |
+| N2 dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED` | standard and opt-in typed-Scalameta `tqr` with one caller-owned class constructor and runtime-length ordered `Seq[TypeRepr]` | `BOUNDED_STANDARD_AND_TYPED_SCALAMETA_CONSTRUCTION_IMPLEMENTED`; dynamic-constructor ranked `tqq` matching is implemented on both typed frontends; construction and broader kinds remain narrower |
 | N3 generated Type refinement members | `CURRENT_MANUAL_BASELINE_PROVED` | parser/shape evidence only; no public refinement construction | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 | N4 anonymous implementation body | `CURRENT_MANUAL_BASELINE_PROVED` for the synthetic-class/override/constructor owner plan | the same bounded internal class-owner plan plus individual method surfaces; no anonymous-body syntax or sequence | `BOUNDED_INTERNAL_PLAN_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |
 | N5 dynamic existing-type construction | `CURRENT_MANUAL_BASELINE_PROVED` | caller-owned complete constructor `TypeRepr` plus one bounded runtime-length Term sequence in one ordinary argument list | `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `BOUNDED_SEQUENCE_TERM_CONSTRUCTION_IMPLEMENTED`, `BROADER_POLICY_REQUIRED` |
@@ -99,18 +99,18 @@ The standard and opt-in typed-Scalameta frontends implement this
 construction-only overload with one caller-owned reflected class constructor
 and one runtime-length ordered `Seq[TypeRepr]`. The shared path validates
 arity, kinds and supported forms, constructs directly in the caller's Quotes
-universe, and checks exact constructor/argument identities. Both `tqq` frontends also
-match exactly one direct rank-2 argument slot under fixed `List`, `Option`, or
-`Either`; scalar captures remain `TypeRepr` and the ranked capture is the
-original ordered `Seq[TypeRepr]`.
+universe, and checks exact constructor/argument identities. Both `tqq` frontends also match one exact root constructor plus exactly one
+direct rank-2 argument slot over any compiler-presented `AppliedType`; scalar
+captures remain exact `TypeRepr` values and the ranked capture is the original
+ordered `Seq[TypeRepr]`.
 
 ### Remaining capabilities
 
 General TypeLambda authoring, aliases-as-aliases, instance-dependent prefixes,
 refinements, nontrivial constrained bounds and broader kind calculus remain
-outside the selected slice. Multiple rank-2 holes, rank 3, non-direct
-tuple/function positions, and dynamic or selected constructors remain
-unsupported. No neutral runtime-sequence model is implied by the direct
+outside the selected slice. Multiple rank-2 holes, rank 3, repeated or non-root constructor holes,
+non-direct tuple/function positions, and general selected source-constructor
+syntax remain unsupported. Matching remains broader than construction. No neutral runtime-sequence model is implied by the direct
 reflection path.
 
 ### Checkpoint criterion
@@ -255,9 +255,12 @@ Apache-2.0 repository.
 ## Portfolio priority
 
 The explicit-receiver dynamic selected-member construction gap is implemented
-through a validated decoded-name value and unique selection lowering. It does
-not add bare-name lookup, overload resolution, dynamic infix syntax, or name
-matching.
+through a validated decoded-name value and unique selection lowering. Matching
+is a separate bounded capability on both typed frontends: it observes one
+already-resolved selected name in direct, empty-call, unary-call, or one of the
+four admitted one-rank-2 layouts. It does not add bare-name lookup, source-level
+overload resolution, dynamic infix syntax, multiple selected names or ranks, or
+generic member matching.
 
 The complete constructor Type position and the bounded sequence-Term argument
 slice in N5 are implemented. The Type input is a caller-owned `TypeRepr`,

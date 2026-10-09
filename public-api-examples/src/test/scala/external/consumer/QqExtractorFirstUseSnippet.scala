@@ -3,7 +3,11 @@ package external.consumer
 // snippet:qq-extractor-first-use:start
 import scala.quoted.*
 
+import quasiquotes.construct.SelectedMemberName
 import quasiquotes.matching.QuasiPattern.*
+
+object QqSelectedMemberFirstUseTarget:
+  def many(first: Int, second: Int, third: Int): Int = first + second + third
 
 object QqExtractorFirstUseSnippet:
   inline def splitAddition(expression: Int): (Int, Int) =
@@ -17,6 +21,9 @@ object QqExtractorFirstUseSnippet:
 
   inline def literalAndCapture(expression: Int): Int =
     ${ literalAndCaptureImpl('expression) }
+
+  inline def selectedCallSummary(inline expression: Int): String =
+    ${ selectedCallSummaryImpl('expression) }
 
   inline def malformedTemplate: Unit =
     ${ malformedTemplateImpl }
@@ -51,6 +58,21 @@ object QqExtractorFirstUseSnippet:
     expression.asTerm match
       case qq"qqCapture0 + $value" => value.asExprOf[Int]
       case _ => Expr(-1)
+
+  private def selectedCallSummaryImpl(
+      expression: Expr[Int]
+  )(using q: Quotes): Expr[String] =
+    import q.reflect.*
+
+    expression.asTerm match
+      case qq"$receiver.$selectedName($first, ..$middle, $last)" =>
+        val _: q.reflect.Term = receiver
+        val _: SelectedMemberName = selectedName
+        val _: q.reflect.Term = first
+        val _: Seq[q.reflect.Term] = middle
+        val _: q.reflect.Term = last
+        Expr(s"${selectedName.decoded}:${middle.size + 2}")
+      case _ => Expr("no-match")
 
   private def malformedTemplateImpl(using q: Quotes): Expr[Unit] =
     import q.reflect.*

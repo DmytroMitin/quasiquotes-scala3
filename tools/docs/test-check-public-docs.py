@@ -58,7 +58,7 @@ class PublicDocsCheckTest(unittest.TestCase):
         (root / "ROADMAP.md").write_text(
             "[north-star checkpoints](docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md)\n\n"
             "| N1 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
-            "| N2 | `BOUNDED_STANDARD_AND_TYPED_SCALAMETA_CONSTRUCTION_IMPLEMENTED` | fixed-constructor ranked `tqq` parity is also implemented; broader kinds remain later work |\n"
+            "| N2 | `BOUNDED_STANDARD_AND_TYPED_SCALAMETA_CONSTRUCTION_IMPLEMENTED` | dynamic-constructor ranked `tqq` matching is implemented on both typed frontends; construction and broader kinds remain narrower |\n"
             "| N3 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
             "| N4 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
             "| N5 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n",
@@ -102,11 +102,11 @@ class PublicDocsCheckTest(unittest.TestCase):
                     "### Remaining capabilities\n\n"
                     "General TypeLambda authoring, aliases-as-aliases, instance-dependent prefixes, "
                     "refinements, nontrivial constrained bounds and broader kind calculus remain "
-                    "outside the selected slice. Both `tqq` frontends also match exactly one direct "
-                    "rank-2 argument slot; scalar captures remain `TypeRepr` and the ranked capture "
-                    "is the original ordered `Seq[TypeRepr]`. Multiple rank-2 holes, rank 3, "
-                    "non-direct tuple/function positions, and dynamic or selected constructors remain "
-                    "unsupported. No neutral runtime-sequence model is implied by the direct reflection path.\n\n"
+                    "outside the selected slice. Both `tqq` frontends also match one exact root "
+                    "constructor plus exactly one direct rank-2 argument slot over any compiler-presented `AppliedType`; scalar captures remain exact `TypeRepr` values and the ranked capture "
+                    "is the original ordered `Seq[TypeRepr]`. Multiple rank-2 holes, rank 3, repeated or non-root constructor holes, "
+                    "non-direct tuple/function positions, and general selected source-constructor syntax remain "
+                    "unsupported. Matching remains broader than construction. No neutral runtime-sequence model is implied by the direct reflection path.\n\n"
                     if checkpoint == 2 else
                     "### Desired source-like shape\n\nShape.\n\n"
                     "### Required missing capabilities\n\nCapabilities.\n\n"
@@ -122,7 +122,9 @@ class PublicDocsCheckTest(unittest.TestCase):
             "SUPPORTED BOUNDED INTERNAL NOT_YET NOT_PLANNED\n\n"
             "| Sequence-Term arguments | Apply and New sequence support |\n"
             "| Ordered term capture extractor | Scalar slots bind q.reflect.Term; exactly one "
-            "direct Apply or New sequence slot binds Seq[q.reflect.Term] |\n\n"
+            "direct Apply or New sequence slot binds Seq[q.reflect.Term] |\n"
+            "| Dynamic selected-member name | selected-name scalar and ranked matching |\n"
+            "| Runtime-sequence reflected Type application | dynamic constructor matching |\n\n"
             "https://docs.scala-lang.org/overviews/quasiquotes/syntax-summary.html\n"
             "https://scalameta.org/docs/trees/quasiquotes\n\n"
             "Any change that adds, removes, or materially alters a term, type, or definition syntax family must update this matrix.\n",
@@ -133,7 +135,8 @@ class PublicDocsCheckTest(unittest.TestCase):
             "| Family | Q construct | Q match | typed Scalameta construct | typed Scalameta match | N project | N author | U-D fresh lower | U-U existing rewrite |\n"
             "| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
             "| Rank-2 Term arguments in Apply / one-list New | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` | `NOT_APPLICABLE` |\n"
-            "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |\n",
+            "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |\n"
+            "| Dynamic selected-member name | `BOUNDED` | `BOUNDED` already-resolved Select.name and one SelectedMemberName over compiler-presented `AppliedType` | `BOUNDED` | `BOUNDED` Scalameta-primary shared matcher | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |\n",
             encoding="utf-8",
         )
         (docs / "SUPPORTED_SYNTAX_AND_LIMITATIONS.md").write_text(
@@ -145,7 +148,11 @@ class PublicDocsCheckTest(unittest.TestCase):
             "## Bounded term-pattern extractor\n\n"
             "Scalar slots bind `q.reflect.Term`; exactly one direct sequence slot in ordinary "
             "`Apply.arguments` or fixed one-list `New.arguments` binds "
-            "`Seq[q.reflect.Term]`.\n",
+            "`Seq[q.reflect.Term]`.\n\n"
+            "Selected-member matching uses `qq\"$receiver.$selectedName\"`, `qq\"$receiver.$selectedName()\"`, `qq\"$receiver.$selectedName($argument)\"`, `qq\"$receiver.$selectedName(..$arguments)\"`, `qq\"$receiver.$selectedName($head, ..$tail)\"`, `qq\"$receiver.$selectedName(..$init, $last)\"`, and `qq\"$receiver.$selectedName($first, ..$middle, $last)\"`. "
+            "It returns exact Term, one SelectedMemberName, and one Seq[Term] from the already-resolved `Select.name`; an already-resolved overload may match. "
+            "The typed route is Scalameta-primary and reuses the shared matcher.\n\n"
+            "Dynamic Type matching admits `tqq\"$constructor[..$arguments]\"`, `tqq\"$constructor[$head, ..$tail]\"`, `tqq\"$constructor[..$init, $last]\"`, `tqq\"$constructor[$first, ..$middle, $last]\"`, and `tqq\"$constructor[Int, ..$tail]\"` over any compiler-presented `AppliedType`; construction remains narrower and exact TypeRepr plus Seq[TypeRepr] identities are preserved. Matching is broader than the narrower construction contract.\n",
             encoding="utf-8",
         )
         (docs / "COMPATIBILITY.md").write_text(
@@ -656,9 +663,9 @@ class PublicDocsCheckTest(unittest.TestCase):
             "directly in the caller's Quotes universe",
             "exact constructor/argument identities",
             "General TypeLambda authoring",
-            "Both `tqq` frontends also match exactly one direct rank-2 argument slot",
-            "scalar captures remain `TypeRepr` and the ranked capture is the original ordered `Seq[TypeRepr]`",
-            "Multiple rank-2 holes, rank 3, non-direct tuple/function positions",
+            "Both `tqq` frontends also match one exact root constructor plus exactly one direct rank-2 argument slot",
+            "scalar captures remain exact `TypeRepr` values and the ranked capture is the original ordered `Seq[TypeRepr]`",
+            "Multiple rank-2 holes, rank 3, repeated or non-root constructor holes, non-direct tuple/function positions",
             "No neutral runtime-sequence model is implied",
         ):
             with self.subTest(text=text), tempfile.TemporaryDirectory() as directory:
@@ -785,6 +792,91 @@ class PublicDocsCheckTest(unittest.TestCase):
                 result.stderr,
             )
             self.assertIn("experimental", result.stderr)
+
+
+    def test_rejects_missing_c065_selected_member_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            limitations = root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+            limitations.write_text(
+                limitations.read_text(encoding="utf-8").replace(
+                    "qq\"$receiver.$selectedName(..$init, $last)\"",
+                    "selected layout omitted",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C065 selected-member documentation missing layout", result.stderr)
+
+    def test_rejects_missing_c065_dynamic_tqq_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            limitations = root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+            limitations.write_text(
+                limitations.read_text(encoding="utf-8").replace(
+                    "tqq\"$constructor[Int, ..$tail]\"",
+                    "dynamic layout omitted",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C065 dynamic tqq documentation missing layout", result.stderr)
+
+    def test_rejects_missing_c065_by_name_restriction(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            (root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md").write_text(
+                "# Existing class rewrite\n\nBy-name safety omitted.\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C065 by-name safety restriction missing", result.stderr)
+
+    def test_rejects_missing_c065_repeated_parameter_restriction(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            (root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md").write_text(
+                "A captured by-name parameter can be inspected\n"
+                "Do not call `replaceParameterType` for a captured by-name parameter\n"
+                "change evaluation from by-name to strict\n"
+                "not fail-closed for this case\n"
+                "`UNSUPPORTED_STRUCTURE` result\n"
+                "does not automatically protect whole-slot parameter-Type replacement\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C065 repeated parameter safety restriction missing", result.stderr)
+
+    def test_rejects_stale_c065_active_inventory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            (root / "docs/API_COMPATIBILITY_REVIEW.md").write_text(
+                "current standard inventory is 796 rows / 777 groups\n"
+                "hybrid inventory remains 45 rows / 43 groups\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C065 active standard API inventory", result.stderr)
 
 
 if __name__ == "__main__":

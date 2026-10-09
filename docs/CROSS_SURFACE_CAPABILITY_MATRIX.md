@@ -70,7 +70,7 @@ qualifies every family below; bridge support does not imply semantic-facade pari
 | Grouping parentheses | source grammar | source grammar | source grammar | source grammar | `BOUNDED` — transparent projection to the inner semantic shape | `NOT_YET` — not representable as a distinct project Term under Scalameta 4.17.3 | `BOUNDED` — semantic facades preserve explicit TermShape.Parenthesized; Scalameta bridges lower their projected inner shape | `NOT_APPLICABLE` |
 | Rank-2 Term arguments in Apply / one-list New | `BOUNDED` | `BOUNDED` | `BOUNDED` — one existing caller-universe `TermSequenceSplice` carrier in an admitted argument list | `BOUNDED` — one direct ranked capture with exact ordered `Seq[q.reflect.Term]` and scalar prefix/suffix | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` — the sequence is expanded before exact lowering | `NOT_APPLICABLE` |
 | Rank-3 Term sequence | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
-| Dynamic selected-member construction | `BOUNDED` | `NOT_YET` | `BOUNDED` — validated `SelectedMemberName` in one explicit receiver-selection name field; unique accessible member only | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
+| Dynamic selected-member name | `BOUNDED` — validated explicit receiver selection; unique accessible construction target | `BOUNDED` — direct, empty-call, unary-call, and four one-rank-2 layouts; exact receiver/argument Terms plus one validated `SelectedMemberName`; already-resolved overloads may match | `BOUNDED` — same construction boundary | `BOUNDED` — Scalameta-primary compilation once, then the shared matcher and capture contract | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
 | Existing selected-Apply argument replacement | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `INTERNAL` — one existing leaf argument selected by exact identity in a direct parameterless method; replacement is one source-free leaf or one direct-identifier Apply with one to three leaf arguments; function and untouched arguments retain identity |
 
 ## Types
@@ -86,7 +86,7 @@ bridge's projection-stage diagnostics.
 | Tuple2 / Tuple3 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — tuple syntax through public exact-version `ScalametaTypeUntypedBridge` | `NOT_APPLICABLE` |
 | Function1 / Function2 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — function syntax through public exact-version `ScalametaTypeUntypedBridge` | `NOT_APPLICABLE` |
 | Reflected complete-Type holes / captures | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `INTERNAL` — completed semantic Types only | `NOT_APPLICABLE` |
-| Runtime-length Type application arguments | `BOUNDED` — standard `tqr`, one caller-owned class constructor and ordered `Seq[TypeRepr]` | `BOUNDED` — standard `tqq`, one direct sequence under fixed `List`/`Option`/`Either` | `BOUNDED` — opt-in `tqr`, the same caller-owned constructor/ordered-argument contract | `BOUNDED` — opt-in `tqq`, the same one-direct-sequence fixed-constructor slice with scalar `TypeRepr` and ranked `Seq[TypeRepr]` captures | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
+| Runtime-length Type application arguments | `BOUNDED` — standard `tqr`, one caller-owned class constructor and ordered `Seq[TypeRepr]` | `BOUNDED` — standard `tqq`, exact root constructor plus one direct ranked capture over any compiler-presented `AppliedType`, in five selected layouts | `BOUNDED` — opt-in `tqr`, the same narrower construction contract | `BOUNDED` — opt-in Scalameta-primary `tqq`, the same exact constructor `TypeRepr` and ordered `Seq[TypeRepr]` capture contract | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |
 
 ## Definitions
 
@@ -103,8 +103,8 @@ through private shape carriers.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Immutable `val` | `INTERNAL` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` — public five-family semantic projection | `BOUNDED` — public five-family semantic authoring | `BOUNDED` — public semantic lowerer plus separate source-free and generated-origin Definition bridges | `NOT_APPLICABLE` |
 | Parameterless ordinary `def` | `INTERNAL` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` — public five-family semantic projection | `BOUNDED` — public five-family semantic authoring | `BOUNDED` — public semantic lowerer plus separate source-free and generated-origin Definition bridges | `INTERNAL` — exact direct parameterless method-body replacement only; header and surrounding children retain the bounded identity/provenance contract |
-| One ordinary parameter | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — public binder-aware semantic projection | `BOUNDED` — public binder-aware semantic authoring | `BOUNDED` — public semantic lowerer plus separate source-free and generated-origin Definition bridges | `BOUNDED` — public `ExistingClassUntypedRewrite` exact view and atomic parameter-Type, result-Type, binder-aware body, omission, and append transaction |
-| Exactly two ordinary parameters | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — public binder-aware semantic projection | `BOUNDED` — public binder-aware semantic authoring | `BOUNDED` — public semantic lowerer plus separate source-free and generated-origin Definition bridges | `BOUNDED` — the same public facade exposes both parameters and admits capture-local Type/body edits through one owner transaction |
+| One ordinary parameter | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — public binder-aware semantic projection | `BOUNDED` — public binder-aware semantic authoring | `BOUNDED` — public semantic lowerer plus separate source-free and generated-origin Definition bridges | `BOUNDED` — public `ExistingClassUntypedRewrite` exact view and atomic result-Type, binder-aware body, omission, append, and strict parameter-Type edits; captured by-name or repeated parameters are inspectable/body-result-editable but must not use parameter-Type replacement because it can erase their calling-mode wrapper |
+| Exactly two ordinary parameters | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — public binder-aware semantic projection | `BOUNDED` — public binder-aware semantic authoring | `BOUNDED` — public semantic lowerer plus separate source-free and generated-origin Definition bridges | `BOUNDED` — the same public facade exposes both parameters and admits capture-local Type/body edits through one owner transaction; the by-name/repeated parameter-Type restriction applies to either slot, including a repeated final parameter |
 | Parameter-sequence capture | `NOT_APPLICABLE` | `BOUNDED` — one static ordinary parameter clause preserving its ordered parameters plus one RHS capture | `NOT_APPLICABLE` | `BOUNDED` — same ranked `dqq` slice and original reflected captures | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` | `NOT_APPLICABLE` |
 | Contextual method | `NOT_YET` — a public Core programmatic constructor exists, but no Q quasiquote syntax | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` — specialized projector | `INTERNAL` — specialized authorer | `INTERNAL` | `NOT_YET` — no accepted contextual-method existing-tree rewrite |
 | Simple non-generic unbounded Type alias | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `BOUNDED` — public five-family semantic projection | `BOUNDED` — public five-family semantic authoring | `BOUNDED` — public semantic and source-free Definition facades; generated-origin bridge rejects aliases | `NOT_APPLICABLE` |
@@ -154,7 +154,7 @@ class/Template shells are fresh at their original replacement site.
 | `Term` -> `qr` scalar position | `BOUNDED` | Caller-owned reflected Term transport in admitted scalar positions |
 | `Seq[Term]` -> `qr` Apply / one-list New arguments | `BOUNDED` | Exactly one rank-2 carrier in the admitted ordinary argument list |
 | Class-constructor `TypeRepr` + `Seq[TypeRepr]` -> `tqr` | `BOUNDED` | Standard and typed-Scalameta construction-only runtime application; direct caller-universe reflection, arity/kind checks and ordered identity preservation |
-| fixed `List`/`Option`/`Either` target arguments -> `tqq` | `BOUNDED` | Standard and typed-Scalameta matching-only one-rank-2 slice; exact original ordered `Seq[TypeRepr]`, scalar prefix/suffix, atomic mismatch |
+| compiler-presented `AppliedType` -> `tqq` | `BOUNDED` | Standard and typed-Scalameta matching-only root-constructor plus one-rank-2 slice; exact original constructor `TypeRepr` and ordered `Seq[TypeRepr]`, scalar/fixed prefix/suffix, atomic mismatch |
 | `TypeRepr` / `tqr` -> `tqr` Type position | `BOUNDED` | Complete reflected Type slots in admitted templates |
 | `TypeRepr` / `tqr` -> `qr` complete constructor Type | `BOUNDED` | Complete Type of one fixed one-list `new`; no partial constructor-Type splice |
 | `TypeRepr` / `tqr` -> bounded Definition parameter/result Types | `BOUNDED` | One-parameter and exact-two public Definition families only |
@@ -166,17 +166,17 @@ class/Template shells are fresh at their original replacement site.
 
 Rank 2 currently includes Term sequences in bounded Apply and one-list New
 argument positions, standard and typed-Scalameta runtime-sequence Type
-application construction, one direct fixed-constructor Type-argument capture
-in either frontend's `tqq`, and Definition parameter-sequence matching in one static
+application construction, one root-constructor plus direct Type-argument capture
+over a compiler-presented `AppliedType` in either frontend's `tqq`, and Definition parameter-sequence matching in one static
 ordinary `dqq` clause. The Definition matcher captures the original ordered
 `Seq[ValDef]` plus RHS; it is not construction-side parameter splicing or a
 sequence of whole Definitions. Rank 3 supports bounded complete ordinary
 Definition parameter-clause matching through `...$paramss` on standard and
 typed-Scalameta frontends, preserving ordered `Seq[Seq[ValDef]]` and the RHS.
 Rank-3 Term sequences, construction-side parameter/paramss splicing, mixed
-rank-2/rank-3 captures within the same term-parameter clause region, multiple
-or non-direct Type sequence positions, dynamic or selected Type constructors,
-and whole-Definition sequences remain unsupported. Symbol
+rank-2/rank-3 captures within the same term-parameter clause region, multiple or non-direct Type sequence positions, repeated/non-root constructor
+holes, general selected source-constructor syntax, and whole-Definition
+sequences remain unsupported. Symbol
 splicing is not planned as source syntax.
 
 The user-facing Q syntax view remains the

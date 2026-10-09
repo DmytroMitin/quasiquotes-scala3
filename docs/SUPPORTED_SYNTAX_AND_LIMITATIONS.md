@@ -21,9 +21,10 @@ new semantic or reflected value from a template; matching inspects a
 caller-owned value and may return its original captured subtrees. Support in
 one direction never implies support in the other.
 
-Important current asymmetries include construction-only dynamic selected-member
-names, construction-only reflected complete constructor Types, and the
-construction-only source-owned local identity method. Broader Definition and
+Important current asymmetries include narrower dynamic selected-member and
+runtime-Type construction than matching, construction-only reflected complete
+constructor Types, and the construction-only source-owned local identity
+method. Broader Definition and
 class families may have internal semantic or lowering components without a
 corresponding public constructor or matcher.
 
@@ -80,8 +81,8 @@ ordinary Definition parameter-clause matching through `...$paramss`, preserving
 ordered `Seq[Seq[q.reflect.ValDef]]` and the original RHS on both standard and
 typed-Scalameta frontends. Rank-3 Term sequences, construction-side parameter or parameter-clause splicing,
 multiple/nested/tuple/function Type sequence positions, and whole-Definition
-sequences remain unsupported. Standard and typed-Scalameta `tqq` admit one
-direct fixed-constructor Type-argument sequence. Symbol splicing is not planned
+sequences remain unsupported. Standard and typed-Scalameta `tqq` admit one exact root constructor capture and
+one direct Type-argument sequence over a compiler-presented `AppliedType`. Symbol splicing is not planned
 as source syntax.
 
 ## Typed runtime-sequence Type construction and matching
@@ -93,18 +94,29 @@ rank/position, constructor admissibility, arity, kinds, nulls and unsupported
 reflected forms before constructing an application, then verify exact
 constructor and ordered argument identities. They use direct caller-owned
 reflection rather than normalizing through `TypeNormalForm`; existing scalar
-`tqr` behavior is unchanged. Standard and typed-Scalameta `tqq` also admit
-exactly one `..$arguments` in the direct argument list of fixed `List`,
-`Option`, or `Either`. The public `RankedTypePatternExtractor` carries the
-static specialization: the sequence binds the exact original ordered
-`Seq[q.reflect.TypeRepr]`; scalar prefix/suffix slots remain exact
-`q.reflect.TypeRepr` values and failed fixed sides fall through atomically.
+`tqr` behavior is unchanged. Standard and typed-Scalameta `tqq` also admit one root constructor capture and
+exactly one `..$arguments` in the direct argument list of any
+compiler-presented `AppliedType`. The public `RankedTypePatternExtractor`
+carries the static specialization: the root binds the exact original
+`q.reflect.TypeRepr`, the sequence binds the exact original ordered
+`Seq[q.reflect.TypeRepr]`, scalar prefix/suffix slots remain exact
+`q.reflect.TypeRepr` values, and failed fixed sides fall through atomically.
+The five admitted layouts are:
+
+```scala
+case tqq"$constructor[..$arguments]" =>
+case tqq"$constructor[$head, ..$tail]" =>
+case tqq"$constructor[..$init, $last]" =>
+case tqq"$constructor[$first, ..$middle, $last]" =>
+case tqq"$constructor[Int, ..$tail]" =>
+```
 
 General TypeLambda authoring, aliases-as-aliases, path/instance-dependent
 prefixes, refinements, nontrivial constrained bounds and broader kind calculus
-remain excluded. Multiple rank-2 holes, rank 3, root/tuple/function positions,
-and dynamic or selected constructors are not implemented. Core and neutral
-gain no corresponding compiler-free capability.
+remain excluded. Multiple rank-2 holes, rank 3, non-direct tuple/function positions, general
+selected source-constructor syntax, and arbitrary Type rewriting are not
+implemented. Matching is broader than the narrower construction contract.
+Core, neutral, and exact-tree surfaces gain no corresponding capability.
 
 ## Public bounded Scalameta Term lowering
 
@@ -214,9 +226,10 @@ Currently exercised areas include:
 - construction-only runtime-length caller-owned Term sequences through
   `TermSequenceSplices.termSplice(Seq[Term])` and an adjacent `..$args` marker
   in one ordinary Apply or supported one-list New argument list;
-- construction-only `SelectedMemberName` holes in the exact name field of an
-  explicit receiver selection, restored structurally from a dedicated
-  collision-safe placeholder;
+- `SelectedMemberName` construction holes in the exact name field of an
+  explicit receiver selection, plus standard and typed-Scalameta matching of
+  an already-resolved selected name in direct, empty-call, unary-call, and four
+  mixed one-rank-2 layouts;
 - compiler-free term/type/definition templates and completed values;
 - bounded public contextual, single-ordinary-parameter, and exact-two-parameter
   construction contracts;
@@ -280,17 +293,25 @@ Important limitations:
   scalar slots are distinct, ordered `q.reflect.Term` values. Exactly one
   `..$slot` may be a direct ordinary application argument or an argument of an
   existing fixed fully qualified, non-generic, one-list constructor pattern and
-  binds an ordered `Seq[q.reflect.Term]`; multiple sequence slots, other
-  structural positions, dynamic/type-applied/multi-clause constructors, rank 3,
-  type/definition ranks, and scalar/sequence role reuse fail closed. Templates
-  do not capture or accept dynamic selected-member names;
+  binds an ordered `Seq[q.reflect.Term]`. A selected-member pattern may also
+  capture exactly one already-resolved `Select.name` as `SelectedMemberName` in
+  direct, empty-call, unary-call, all-arguments, head-plus-tail, init-plus-last,
+  or first-plus-middle-plus-last form. Both typed frontends return captures in
+  interpolation order; the opt-in route compiles effective source once through
+  its Scalameta-primary frontend and reuses the shared matcher. An already
+  resolved overload may match even though name-based construction is ambiguous.
+  Multiple selected names or sequence slots, other name/sequence positions,
+  dynamic/type-applied/multi-clause constructors, rank 3, type/definition
+  ranks, scalar/sequence role reuse, and generic member matching fail closed;
 - public `tqr` and scalar `tqq` type templates use zero or more distinct
   ordinal whole-type slots; zero-hole `tqr` also admits canonical globally
   selected class terminals such as `java.lang.StringBuilder`. Standard `tqq`
-  and typed-Scalameta `tqq` additionally admit exactly one direct `..$slot`
-  under fixed `List`, `Option`, or `Either`, binding
-  `Seq[q.reflect.TypeRepr]`. Dynamic or selected
-  constructors, higher-kinded or wildcard slots, multiple/rank-3 sequences,
+  and typed-Scalameta `tqq` additionally admit one root constructor slot and
+  exactly one direct `..$slot` over any compiler-presented `AppliedType`,
+  binding the exact constructor `q.reflect.TypeRepr` and ordered
+  `Seq[q.reflect.TypeRepr]`. Construction remains limited to its separately
+  admitted class constructors. General selected source-constructor syntax,
+  higher-kinded or wildcard slots, multiple/rank-3 sequences, non-direct
   tuple/function ranked positions, and mixed scalar/sequence name reuse remain
   excluded;
 - ordinary quoted standard-`s` interpolation has a bounded exact internal
@@ -307,10 +328,10 @@ Important limitations:
   Arbitrary selected constructors, arbitrary labels,
   alternate/import-shortened spellings, stable-term paths, local owners,
   dynamic constructor holes, higher-kinded types, aliases, ambient semantic
-  name resolution, subtyping, and compiler equality are not supported. This
-  selected-Type extension does not widen `tqq`: its ranked slice remains
-  limited to one direct argument capture under fixed `List`, `Option`, or
-  `Either`.
+  name resolution, subtyping, and compiler equality are not supported for
+  construction. Matching is separate: `tqq` can capture the exact root
+  constructor and one direct ordered argument sequence from any
+  compiler-presented `AppliedType`, without adding source-name resolution.
 
 ## Bounded term-pattern extractor
 
@@ -323,6 +344,28 @@ expression.asTerm match
     // left and right are q.reflect.Term values in source-slot order
   case _ =>
 ```
+
+Selected-member matching on both typed frontends admits exactly these name and
+one-rank-2 layouts:
+
+```scala
+case qq"$receiver.$selectedName" =>
+case qq"$receiver.$selectedName()" =>
+case qq"$receiver.$selectedName($argument)" =>
+case qq"$receiver.$selectedName(..$arguments)" =>
+case qq"$receiver.$selectedName($head, ..$tail)" =>
+case qq"$receiver.$selectedName(..$init, $last)" =>
+case qq"$receiver.$selectedName($first, ..$middle, $last)" =>
+```
+
+The receiver and scalar arguments are exact caller-owned `Term` values, the
+name is one validated `SelectedMemberName`, and the ranked capture is one
+ordered `Seq[Term]`, all in interpolation order. The name is observed once from
+the already-resolved `Select.name`, so an already-resolved overload can match
+even when name-based construction would be ambiguous. The opt-in route is
+Scalameta-primary: it compiles effective source once and reuses the shared
+matcher. Multiple selected names or ranked captures, rank 3, broader name
+positions, and generic member matching remain unsupported.
 
 The extractor synthesizes collision-safe semantic hole IDs by ordinal and
 projects the existing matcher's bindings back to the Scala pattern in
@@ -458,7 +501,7 @@ target match
   case _ =>
 ```
 
-Exactly one fixed-constructor argument sequence is also available:
+A fixed-constructor argument sequence is one available specialization:
 
 ```scala
 target match
@@ -479,8 +522,11 @@ construction template or splice aborts with `Invalid tqr type template: ...`.
 Interpolated slots are collision-safe ordinal positions and are always
 distinct, independent of Scala binder spelling. Named and repeated holes are
 still available through `QuasiTypequotes.tqq(source)` and retain structural
-equality semantics. Constructor holes and general type-constructor resolution
-remain outside both public interpolated forms.
+equality semantics. Construction-side constructor holes and general source
+type-constructor resolution remain outside the public interpolated forms. The
+matching-only root constructor hole described above instead observes the exact
+constructor of a target already presented as `AppliedType`; it does not resolve
+a source constructor name.
 
 ## Binder-aware Lambda1
 

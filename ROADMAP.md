@@ -300,18 +300,19 @@ syntax.
 | Checkpoint | Current status | Enabling gap |
 | --- | --- | --- |
 | N1 generic subclass with override | `CURRENT_MANUAL_BASELINE_PROVED`, `BOUNDED_INTERNAL_PLAN_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | supported class syntax and broader body composition beyond the one-override internal route |
-| N2 runtime-length dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED`, `BOUNDED_STANDARD_AND_TYPED_SCALAMETA_CONSTRUCTION_IMPLEMENTED` | one caller-owned class constructor and ordered runtime `Seq[TypeRepr]` on both typed frontends; fixed-constructor ranked `tqq` parity is also implemented; broader kinds remain later work |
+| N2 runtime-length dynamic Type application | `CURRENT_MANUAL_BASELINE_PROVED`, `BOUNDED_STANDARD_AND_TYPED_SCALAMETA_CONSTRUCTION_IMPLEMENTED` | one caller-owned class constructor and ordered runtime `Seq[TypeRepr]` on both typed frontends; dynamic-constructor ranked `tqq` matching is implemented on both typed frontends; construction and broader kinds remain narrower |
 | N3 generated Type refinement members | `CURRENT_MANUAL_BASELINE_PROVED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | refinement/type-member model and sequence definition splice |
 | N4 anonymous implementation with calculated definitions | `CURRENT_MANUAL_BASELINE_PROVED`, `BOUNDED_INTERNAL_PLAN_IMPLEMENTED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | anonymous-class syntax, broader definitions, sequence splices, and composition over the bounded class-owner plan |
 | N5 dynamic `new T(..args)` for an existing type | `CURRENT_MANUAL_BASELINE_PROVED`, `PARTIALLY_COVERED_BY_CURRENT_QUASIQUOTES`, `COMPLETE_CONSTRUCTOR_TYPE_SPLICE_IMPLEMENTED`, `BOUNDED_SEQUENCE_TERM_CONSTRUCTION_IMPLEMENTED`, `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` | broader constructor/argument-clause and coercion policy |
 
 None of N1-N5 is `CHECKPOINT_COMPLETE`.
 
-The bounded explicit-receiver dynamic selected-member construction gap, the
-first N5 complete constructor-Type and bounded sequence-Term splices, and the first source-owned local
-identity-method block are implemented. Bare identifiers,
-overload resolution, dynamic infix syntax, dynamic name matching, sequence
-matching and other sequence ranks, broader Type positions, and broader
+The bounded explicit-receiver dynamic selected-member construction gap, its
+separate selected-name matching slice on both typed frontends, the first N5
+complete constructor-Type and bounded sequence-Term splices, and the first
+source-owned local identity-method block are implemented. Bare identifiers,
+source-level overload resolution, dynamic infix syntax, multiple selected-name
+or ranked captures, rank 3, broader name/Type positions, and broader
 definition/class support remain independent later work. The
 [typed sequence Term splice contract](docs/TYPED_SEQUENCE_TERM_SPLICE_DESIGN.md)
 ships `..$args` plus a dedicated caller-universe carrier for one bounded

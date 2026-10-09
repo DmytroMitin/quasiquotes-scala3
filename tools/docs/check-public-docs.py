@@ -555,9 +555,9 @@ def durable_documentation_findings(root: Path) -> list[str]:
                     "exact constructor/argument identities",
                     "General TypeLambda authoring, aliases-as-aliases, instance-dependent prefixes",
                     "refinements, nontrivial constrained bounds and broader kind calculus remain outside the selected slice",
-                    "Both `tqq` frontends also match exactly one direct rank-2 argument slot",
-                    "scalar captures remain `TypeRepr` and the ranked capture is the original ordered `Seq[TypeRepr]`",
-                    "Multiple rank-2 holes, rank 3, non-direct tuple/function positions, and dynamic or selected constructors remain unsupported",
+                    "Both `tqq` frontends also match one exact root constructor plus exactly one direct rank-2 argument slot",
+                    "scalar captures remain exact `TypeRepr` values and the ranked capture is the original ordered `Seq[TypeRepr]`",
+                    "Multiple rank-2 holes, rank 3, repeated or non-root constructor holes, non-direct tuple/function positions, and general selected source-constructor syntax remain unsupported",
                     "No neutral runtime-sequence model is implied by the direct reflection path",
                 ):
                     if marker not in normalized_section:
@@ -578,8 +578,8 @@ def durable_documentation_findings(root: Path) -> list[str]:
             if checkpoint == 2:
                 valid_status = (
                     "BOUNDED_STANDARD_AND_TYPED_SCALAMETA_CONSTRUCTION_IMPLEMENTED" in row
-                    and "fixed-constructor ranked `tqq` parity is also implemented" in row
-                    and "broader kinds remain later work" in row
+                    and "dynamic-constructor ranked `tqq` matching is implemented on both typed frontends" in row
+                    and "construction and broader kinds remain narrower" in row
                     and "DESIGN_REQUIRED" not in row
                     and "IMPLEMENTATION_REQUIRED" not in row
                 )
@@ -589,6 +589,105 @@ def durable_documentation_findings(root: Path) -> list[str]:
                 findings.append(f"roadmap checkpoint N{checkpoint} has invalid status")
     return findings
 
+
+def c065_truth_findings(root: Path) -> list[str]:
+    limitations = (
+        root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+    ).read_text(encoding="utf-8")
+    syntax_matrix = (root / "docs/SYNTAX_SUPPORT_MATRIX.md").read_text(
+        encoding="utf-8"
+    )
+    cross_matrix = (root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md").read_text(
+        encoding="utf-8"
+    )
+    findings = []
+
+    selected_forms = (
+        "qq\"$receiver.$selectedName\"",
+        "qq\"$receiver.$selectedName()\"",
+        "qq\"$receiver.$selectedName($argument)\"",
+        "qq\"$receiver.$selectedName(..$arguments)\"",
+        "qq\"$receiver.$selectedName($head, ..$tail)\"",
+        "qq\"$receiver.$selectedName(..$init, $last)\"",
+        "qq\"$receiver.$selectedName($first, ..$middle, $last)\"",
+    )
+    type_forms = (
+        "tqq\"$constructor[..$arguments]\"",
+        "tqq\"$constructor[$head, ..$tail]\"",
+        "tqq\"$constructor[..$init, $last]\"",
+        "tqq\"$constructor[$first, ..$middle, $last]\"",
+        "tqq\"$constructor[Int, ..$tail]\"",
+    )
+    for marker in selected_forms:
+        if marker not in limitations:
+            findings.append(f"C065 selected-member documentation missing layout: {marker}")
+    for marker in type_forms:
+        if marker not in limitations:
+            findings.append(f"C065 dynamic tqq documentation missing layout: {marker}")
+    for marker in (
+        "SelectedMemberName",
+        "already-resolved `Select.name`",
+        "already-resolved overload",
+        "Scalameta-primary",
+        "compiler-presented `AppliedType`",
+        "Matching is broader than the narrower construction contract",
+    ):
+        if marker not in limitations:
+            findings.append(f"C065 detailed capability contract missing: {marker}")
+    for marker in (
+        "Dynamic selected-member name",
+        "Runtime-sequence reflected Type application",
+    ):
+        if marker not in syntax_matrix:
+            findings.append(f"C065 syntax matrix missing capability row: {marker}")
+    for marker in (
+        "Dynamic selected-member name",
+        "compiler-presented `AppliedType`",
+        "Scalameta-primary",
+    ):
+        if marker not in cross_matrix:
+            findings.append(f"C065 cross-surface matrix missing contract: {marker}")
+
+    by_name_doc = root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md"
+    if by_name_doc.exists():
+        by_name = " ".join(by_name_doc.read_text(encoding="utf-8").split())
+        for marker in (
+            "A captured by-name parameter can be inspected",
+            "Do not call `replaceParameterType` for a captured by-name parameter",
+            "change evaluation from by-name to strict",
+            "not fail-closed for this case",
+            "`UNSUPPORTED_STRUCTURE` result",
+            "does not automatically protect whole-slot parameter-Type replacement",
+        ):
+            if marker not in by_name:
+                findings.append(f"C065 by-name safety restriction missing: {marker}")
+        for marker in (
+            "Captured repeated/vararg parameters",
+            "Do not call `replaceParameterType` for a captured repeated parameter",
+            "multi-argument calls fail Typer",
+            "This is also not fail-closed",
+        ):
+            if marker not in by_name:
+                findings.append(f"C065 repeated parameter safety restriction missing: {marker}")
+
+    api_doc = root / "docs/API_COMPATIBILITY_REVIEW.md"
+    if api_doc.exists():
+        api = api_doc.read_text(encoding="utf-8")
+        if "current standard inventory is 798 rows / 779 groups" not in api:
+            findings.append("C065 active standard API inventory must be 798 rows / 779 groups")
+        if "hybrid inventory remains 45 rows / 43 groups" not in api:
+            findings.append("C065 active hybrid API inventory must be 45 rows / 43 groups")
+
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    if "0.4.0-SNAPSHOT" in readme:
+        for marker in (
+            "0.4.0-SNAPSHOT standard inventory is 798 rows / 779 groups",
+            "typed-Scalameta inventory is 45 rows / 43 groups",
+            "must not use `replaceParameterType`",
+        ):
+            if marker not in " ".join(readme.split()):
+                findings.append(f"C065 README truth missing: {marker}")
+    return findings
 
 def check(root: Path) -> list[str]:
     rows = api_rows(root)
@@ -601,6 +700,7 @@ def check(root: Path) -> list[str]:
         + cross_surface_rank_findings(root)
         + matrix_findings(root)
         + durable_documentation_findings(root)
+        + c065_truth_findings(root)
     )
 
 

@@ -693,7 +693,11 @@ using `QuasiPattern.term`, `termLocated`, or `termOrThrow`.
 ```scala
 import scala.quoted.*
 
+import quasiquotes.construct.SelectedMemberName
 import quasiquotes.matching.QuasiPattern.*
+
+object QqSelectedMemberFirstUseTarget:
+  def many(first: Int, second: Int, third: Int): Int = first + second + third
 
 object QqExtractorFirstUseSnippet:
   inline def splitAddition(expression: Int): (Int, Int) =
@@ -707,6 +711,9 @@ object QqExtractorFirstUseSnippet:
 
   inline def literalAndCapture(expression: Int): Int =
     ${ literalAndCaptureImpl('expression) }
+
+  inline def selectedCallSummary(inline expression: Int): String =
+    ${ selectedCallSummaryImpl('expression) }
 
   inline def malformedTemplate: Unit =
     ${ malformedTemplateImpl }
@@ -741,6 +748,21 @@ object QqExtractorFirstUseSnippet:
     expression.asTerm match
       case qq"qqCapture0 + $value" => value.asExprOf[Int]
       case _ => Expr(-1)
+
+  private def selectedCallSummaryImpl(
+      expression: Expr[Int]
+  )(using q: Quotes): Expr[String] =
+    import q.reflect.*
+
+    expression.asTerm match
+      case qq"$receiver.$selectedName($first, ..$middle, $last)" =>
+        val _: q.reflect.Term = receiver
+        val _: SelectedMemberName = selectedName
+        val _: q.reflect.Term = first
+        val _: Seq[q.reflect.Term] = middle
+        val _: q.reflect.Term = last
+        Expr(s"${selectedName.decoded}:${middle.size + 2}")
+      case _ => Expr("no-match")
 
   private def malformedTemplateImpl(using q: Quotes): Expr[Unit] =
     import q.reflect.*
@@ -780,6 +802,7 @@ object TypeInterpolatorFirstUseSnippet:
   inline def constructionSummary: String = ${ constructionSummaryImpl }
   inline def captureSummary[T]: String = ${ captureSummaryImpl[T] }
   inline def sequenceCaptureSummary[T]: String = ${ sequenceCaptureSummaryImpl[T] }
+  inline def dynamicArgumentCount[T]: Int = ${ dynamicArgumentCountImpl[T] }
   inline def zeroHoleMatches[T]: Boolean = ${ zeroHoleMatchesImpl[T] }
   inline def unsupportedTargetFallsThrough: Boolean = ${ unsupportedTargetFallsThroughImpl }
   inline def ordinaryApisCoexist: Boolean = ${ ordinaryApisCoexistImpl }
@@ -818,6 +841,16 @@ object TypeInterpolatorFirstUseSnippet:
             .mkString(" then ")
         )
       case _ => Expr("no-match")
+
+  private def dynamicArgumentCountImpl[T: Type](using q: Quotes): Expr[Int] =
+    import q.reflect.*
+
+    TypeRepr.of[T] match
+      case tqq"$constructor[..$arguments]" =>
+        val _: q.reflect.TypeRepr = constructor
+        val _: Seq[q.reflect.TypeRepr] = arguments
+        Expr(arguments.size)
+      case _ => Expr(-1)
 
   private def zeroHoleMatchesImpl[T: Type](using q: Quotes): Expr[Boolean] =
     import q.reflect.*
@@ -886,10 +919,13 @@ object TypedScalametaTypeSequenceFirstUse:
         Expr.ofList(List.empty[Expr[String]])
 ```
 
-This ranked slice is Scalameta-primary for admitted static templates and is
-limited to exactly one direct rank-2 capture under fixed `List`, `Option`,
-or `Either`. It does not admit a dynamic constructor capture, multiple
-rank-2 holes, rank 3, or ranked tuple/function positions.
+This ranked slice is Scalameta-primary for admitted static templates. It also
+admits one root constructor capture plus exactly one direct rank-2 capture over
+any target already presented by the compiler as `AppliedType`; constructor,
+scalar, and sequence captures retain their original reflected identities. It
+does not admit multiple rank-2 holes, rank 3, repeated or non-root constructor
+holes, general selected source-constructor syntax, or non-direct ranked
+tuple/function positions.
 
 `TypeNormalFormSource.equalSources`, `TypePatternSource.fromSourceLocated`, and
 `TypeTemplateSource.fromSource` are available for the corresponding focused

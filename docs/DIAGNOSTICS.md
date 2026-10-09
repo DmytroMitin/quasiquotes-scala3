@@ -172,9 +172,13 @@ Invalid Scalameta tqq type-pattern template:
 ```
 
 Malformed or unsupported templates abort during macro expansion. Ranked `tqq`
-templates fail deliberately for multiple rank-2 holes, rank 3, malformed markers,
-root/tuple/function positions, unsupported or selected constructors, dynamic
-constructor holes, scalar/sequence role reuse, and excess fixed arguments.
+templates fail deliberately for multiple rank-2 holes, rank 3, malformed
+markers, non-root constructor holes, non-direct tuple/function positions,
+repeated constructor binders, scalar/sequence role reuse, and excess fixed
+arguments. A root constructor hole plus one direct ranked argument hole is
+accepted for any target already presented by the compiler as `AppliedType`;
+this matching support does not add selected source-constructor syntax or widen
+`tqr` construction.
 `tqr` also
 rejects a wrong `StringContext` arity, a null context, and any splice whose
 `TypeRepr` is outside the bounded inspector. It does not fall back to direct

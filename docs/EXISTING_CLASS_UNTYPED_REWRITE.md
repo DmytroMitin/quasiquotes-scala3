@@ -85,6 +85,28 @@ Append accepts the public semantic Definition families admitted by
 appends retain plan order. Every appended member keeps its generated virtual
 source.
 
+### Current by-name and repeated-parameter restrictions
+
+A captured by-name parameter can be inspected, and its containing method can
+receive a binder-aware body replacement or result-Type replacement. Do not call
+`replaceParameterType` for a captured by-name parameter in the active
+0.4.0-SNAPSHOT implementation: rebuilding that whole parameter Type can erase
+the by-name wrapper and change evaluation from by-name to strict.
+
+This is a caller usage restriction, not a new failure mode. The current API is
+not fail-closed for this case, and an `UNSUPPORTED_STRUCTURE` result from the
+bounded semantic Type projection does not automatically protect whole-slot
+parameter-Type replacement. Keep the original parameter Type until a separately
+proven correction is integrated.
+
+Captured repeated/vararg parameters have the same current usage restriction.
+Their exact raw Type retains the outer `PostfixOp(elementType, Ident(*))`
+wrapper, and body-only or result-Type-only edits preserve it. Do not call
+`replaceParameterType` for a captured repeated parameter: replacing the whole
+slot with a scalar Type erases that wrapper and makes previously valid
+multi-argument calls fail Typer. This is also not fail-closed, and semantic
+projection rejection does not guard the separate whole-slot replacement.
+
 ## One atomic owner transaction
 
 Calling `ExistingClassUntypedRewrite(capture, plan)` prepares all requested
@@ -106,8 +128,8 @@ The three reference compositions are:
 | Case | Public plan |
 | --- | --- |
 | U1 | preserve existing members and append one generated sibling |
-| U2 | replace one admitted parameter Type, result Type, and binder-aware body |
-| U3 | perform U2 and append generated siblings in the same apply call |
+| U2 | for a strict parameter, replace one admitted parameter Type, result Type, and binder-aware body |
+| U3 | perform that strict-parameter U2 plan and append generated siblings in the same apply call |
 
 Omission can be composed with nonconflicting method rewrites and appends in the
 same transaction.
@@ -116,8 +138,9 @@ same transaction.
 
 The following U3-shaped example is compiled in the external-consumer test
 package. It assumes direct member 0 is an admitted one- or two-parameter
-ordinary method; production callers should branch on each `Either` and inspect
-the returned topology rather than infer it from a name.
+ordinary method with a strict parameter; it does not exercise the unsafe
+by-name parameter-Type edit. Production callers should branch on each `Either`
+and inspect the returned topology rather than infer it from a name.
 
 <!-- snippet:existing-class-untyped-rewrite-first-use:start -->
 ```scala

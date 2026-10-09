@@ -10,6 +10,7 @@ object TypeInterpolatorFirstUseSnippet:
   inline def constructionSummary: String = ${ constructionSummaryImpl }
   inline def captureSummary[T]: String = ${ captureSummaryImpl[T] }
   inline def sequenceCaptureSummary[T]: String = ${ sequenceCaptureSummaryImpl[T] }
+  inline def dynamicArgumentCount[T]: Int = ${ dynamicArgumentCountImpl[T] }
   inline def zeroHoleMatches[T]: Boolean = ${ zeroHoleMatchesImpl[T] }
   inline def unsupportedTargetFallsThrough: Boolean = ${ unsupportedTargetFallsThroughImpl }
   inline def ordinaryApisCoexist: Boolean = ${ ordinaryApisCoexistImpl }
@@ -48,6 +49,16 @@ object TypeInterpolatorFirstUseSnippet:
             .mkString(" then ")
         )
       case _ => Expr("no-match")
+
+  private def dynamicArgumentCountImpl[T: Type](using q: Quotes): Expr[Int] =
+    import q.reflect.*
+
+    TypeRepr.of[T] match
+      case tqq"$constructor[..$arguments]" =>
+        val _: q.reflect.TypeRepr = constructor
+        val _: Seq[q.reflect.TypeRepr] = arguments
+        Expr(arguments.size)
+      case _ => Expr(-1)
 
   private def zeroHoleMatchesImpl[T: Type](using q: Quotes): Expr[Boolean] =
     import q.reflect.*

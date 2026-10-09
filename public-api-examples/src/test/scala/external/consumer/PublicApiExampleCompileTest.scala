@@ -195,6 +195,12 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     assert(!classifyNonAddition(42))
     assertEquals(extractNested(10, 42, 5), 42)
     assertEquals(extractWithSameTextLiteral(20, 22), 22)
+    assertEquals(
+      QqExtractorFirstUseSnippet.selectedCallSummary(
+        QqSelectedMemberFirstUseTarget.many(1, 2, 3)
+      ),
+      "many:3"
+    )
 
   test("documented type interpolator first use stays in the external caller Quotes path"):
     assertEquals(
@@ -208,6 +214,10 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
     assertEquals(
       TypeInterpolatorFirstUseSnippet.sequenceCaptureSummary[Either[Int, Boolean]],
       "STypeIdent(Int) then STypeIdent(Boolean)"
+    )
+    assertEquals(
+      TypeInterpolatorFirstUseSnippet.dynamicArgumentCount[Either[Int, Boolean]],
+      2
     )
     assert(TypeInterpolatorFirstUseSnippet.zeroHoleMatches[Int])
     assert(!TypeInterpolatorFirstUseSnippet.zeroHoleMatches[String])

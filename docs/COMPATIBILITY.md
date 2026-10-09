@@ -52,10 +52,12 @@ adapted; the intentional replacement is not a patch-compatible `0.1.x` change.
 The bounded public `tqr` interpolator and scalar `tqq` extractor entered the
 `0.2.x` source line. A sequence-shaped `tqr` overload preserves the existing
 varargs function's eta-expanded method-value shape beside the same-named
-interpolator. The active ranked-Type change makes the public Scala/TASTy `tqq` declaration to a
-same-spelling transparent-inline selector so one static fixed-constructor
-argument slot can bind `Seq[q.reflect.TypeRepr]`, while scalar slots still bind
-exact `q.reflect.TypeRepr`. The historical scalar JVM descriptor returning
+interpolator. The active ranked-Type change makes the public Scala/TASTy `tqq` declaration a
+same-spelling transparent-inline selector. It can bind one exact root
+constructor `q.reflect.TypeRepr` plus one direct ordered
+`Seq[q.reflect.TypeRepr]` from any compiler-presented `AppliedType` in the five
+admitted layouts; scalar sides still bind exact `q.reflect.TypeRepr`. This
+matching domain is broader than construction. The historical scalar JVM descriptor returning
 `TypePatternExtractor` is preserved through a source-hidden bridge; this does
 not preserve TASTy identity. Reflected construction results and captures remain
 owned by the caller's active `Quotes`; they are not cross-compiler or
@@ -68,6 +70,13 @@ helper. The historical erased JVM descriptor remains
 `(Lscala/StringContext;Lscala/quoted/Quotes;)Lquasiquotes/scalameta/ScalametaTypePatternExtractor;`.
 As on the standard frontend, this preserves scalar JVM linkage but not the old
 TASTy declaration identity.
+
+Selected-member Term matching is additive on the active standard surface: the
+public `TermPatternProductExtractor` constructor and `unapply` account for the
+move to 798 rows / 779 groups. The typed-Scalameta surface reuses that public
+carrier, so its inventory remains 45 rows / 43 groups. Both routes capture one
+validated `SelectedMemberName`; this does not make name-based construction
+overload-resolving.
 
 The bounded public `dqr` interpolator is additive in the `0.2.x` source line.
 Its result is a caller-owned `DefDef` under the current `Symbol.spliceOwner`,

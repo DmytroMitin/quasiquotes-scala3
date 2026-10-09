@@ -39,14 +39,15 @@ symbol groups on the modern compiler lines. Compared with released `0.2.0`,
 are added, nine signatures are removed/replaced, and no symbol group is removed.
 The result remains `BREAKING_API_SHAPE_DELTA_REQUIRES_NEW_0X_MINOR`.
 The released 618-row 0.2.0 baseline remains immutable; the 0.3.0 inventory is
-published release evidence. Active development is `0.4.0-SNAPSHOT`. This ranked Type-selector change moves the active standard
-inventory from 794 rows / 775 groups to 796 rows / 777 groups: the scalar
-`tqq` signature is replaced by the transparent `Any` selector declaration, and
-the public `RankedTypePatternExtractor` class constructor plus `unapply` add two
-groups. The legacy scalar JVM descriptor is retained separately. The hybrid
-inventory remains 45 rows / 43 groups, with exactly one `tqq` source/TASTy
-signature replacement and no new public carrier or helper group. Its legacy
-scalar JVM descriptor remains preserved.
+published release evidence. Active development is `0.4.0-SNAPSHOT`. Its
+current standard inventory is 798 rows / 779 groups. The ranked Type selector
+replaces the scalar `tqq` source/TASTy declaration and adds the public
+`RankedTypePatternExtractor` constructor and `unapply`; selected-member
+matching then adds the public `TermPatternProductExtractor` constructor and
+`unapply`. The legacy scalar JVM descriptor is retained separately. The active
+hybrid inventory remains 45 rows / 43 groups, with one `tqq` source/TASTy
+signature replacement and no hybrid-specific carrier or helper group. Its
+legacy scalar JVM descriptor remains preserved.
 
 The standard typed runtime-sequence `tqr` overload adds one logical row to
 the previous 793-row / 775-group inventory: all 793 prior rows are unchanged,

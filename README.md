@@ -350,10 +350,11 @@ root, the modules that were not part of 0.2.0 (`neutralScalameta`,
 internals. It is generated from packaged Scaladoc search metadata for
 deterministic source/API-shape diffing; it is neither human API documentation
 nor binary, TASTy, overload-resolution, or semantic compatibility proof.
-The 0.3.0 standard inventory is 794 rows / 775 groups,
-including the additive binder-safe Term and semantic-Definition APIs and the
-construction-only runtime-sequence `tqr` overload,
-while the typed-Scalameta inventory remains 43 rows / 43 groups.
+The released 0.3.0 standard inventory is 794 rows / 775 groups. The active
+0.4.0-SNAPSHOT standard inventory is 798 rows / 779 groups, including the
+additive selected-member pattern product extractor, while the active
+typed-Scalameta inventory is 45 rows / 43 groups. These active counts do not
+retroactively change the released artifacts.
 The typed exact-two selector replaces one source signature while
 retaining its historical erased JVM descriptor through a source-hidden bridge. These
 0.3.0 counts do not alter the immutable `0.2.0` baseline.
@@ -370,10 +371,11 @@ stable-term paths, or ambient lookup. Interpolated `tqr` additionally admits a
 zero-hole canonical globally selected class terminal such as
 `java.lang.StringBuilder`, resolved through an exact typed witness; this does
 not admit aliases, stable-term paths, or selected constructor applications,
-while selected constructors remain programmatic-only. Standard and opt-in
-typed-Scalameta `tqq` admit one direct rank-2 argument capture for fixed
-`List`, `Option`, and `Either`; selected/path-dependent constructors remain
-outside that slice.
+while selected constructors remain programmatic-only. Standard and opt-in typed-Scalameta `tqq` admit one root constructor capture
+and one direct rank-2 argument capture over any compiler-presented
+`AppliedType`, including accepted selected and path-dependent domains. The
+constructor capture is the exact original `TypeRepr`, and the argument capture
+is the exact ordered `Seq[TypeRepr]`. Construction remains narrower.
 
 The standard and opt-in typed-Scalameta frontends also construct
 `tqr"$constructor[..$arguments]"` from one caller-owned class-constructor
@@ -381,13 +383,21 @@ The standard and opt-in typed-Scalameta frontends also construct
 construction-only overload validates arity, kinds and supported reflected
 forms directly in the caller's `Quotes` universe; it preserves constructor and
 argument identities without normalizing through `TypeNormalForm`. Scalar
-`tqr` and scalar `tqq` retain their existing behavior. Both `tqq` frontends
-also admit exactly one direct `..$arguments` capture in a fixed `List`,
-`Option`, or `Either` argument list and return the original ordered
+`tqr` and scalar `tqq` retain their existing behavior. Both `tqq` frontends also admit exactly one root constructor hole plus one
+direct `..$arguments` capture over a compiler-presented `AppliedType`, and
+return the exact constructor `TypeRepr` plus the original ordered
 `Seq[TypeRepr]`; scalar siblings bind exact `TypeRepr` values. General
 TypeLambda authoring, aliases-as-aliases, instance-dependent prefixes,
 refinements, nontrivial constrained bounds, multiple rank-2 holes, rank 3, and
-dynamic or selected constructors remain outside this slice.
+general selected source-constructor syntax remain outside this slice.
+
+Term matching on both typed frontends also captures one already-resolved
+selected member name in `qq"$receiver.$selectedName"`, its empty and unary
+call forms, and the four bounded forms that combine that name with one direct
+Term sequence capture. The name is a validated `SelectedMemberName`; matching
+may observe an already-resolved overload even though name-based construction
+remains ambiguous. Multiple selected-name or ranked captures, rank 3, and
+broader member positions remain unsupported.
 
 The canonical first-use examples, including the complete Lambda1, bounded P1
 block and single-typed-local-val P2 `qr`/`qq`, and bounded `tqr`/`tqq` macro paths, are mirrored from compiled
@@ -480,6 +490,13 @@ binder-aware one- or two-parameter method edits, omission, and ordered
 `SemanticDefinition` append through one immutable plan and one final owner
 transaction. It does not provide arbitrary AST rewriting, public `u*` syntax,
 owner/symbol repair, target selection, or plugin lifecycle.
+Captured by-name and repeated/vararg parameters may currently be inspected and
+have their body or result Type edited, but callers must not use
+`replaceParameterType` on either calling-mode family: the active implementation
+can turn a by-name parameter strict or erase the repeated wrapper so valid
+multi-argument calls stop typing. These restrictions remain until separately
+proven corrections are integrated; semantic Type projection failure is not a
+whole-slot safety guard.
 
 The additive [semantic Term generated-origin facade](docs/SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md)
 accepts public TermShape and a virtual source name, returning a positioned tree,
