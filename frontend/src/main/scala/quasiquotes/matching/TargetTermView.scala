@@ -301,6 +301,7 @@ object TargetTermView:
               )
               methodBinderId = BinderId(nextBinderId)
               parameterBinderId = BinderId(nextBinderId + 1)
+              _ = nextBinderId += 2
               body <- extract(bodyTerm, (parameterBinderId -> parameter.symbol) :: scope)
               _ <- body match
                 case TargetTermView.BoundReference(`parameterBinderId`, _, _) => Right(())
@@ -324,7 +325,6 @@ object TargetTermView:
                     )
                   )
             yield
-              nextBinderId += 2
               TargetTermView.Block(
                 List(
                   TargetBlockStatementView.LocalDef(
