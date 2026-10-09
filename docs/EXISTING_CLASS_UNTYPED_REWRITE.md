@@ -101,11 +101,18 @@ existing private source, span, wrapper, marker, identity and capture-local
 provenance checks still fail closed for malformed, stale, foreign or tampered
 evidence. Strict parameters retain their direct replacement path.
 
-Same-method mixed by-name and repeated edits are safe in one immutable plan,
-including either edit order and composition with accepted body/result edits.
-Cross-member calling-mode composition remains outside this documented bounded
-family. This behavior does not authorize arbitrary calling-mode rewriting,
-general by-name or vararg construction, contextual/generic/multi-clause method
+Mixed by-name and repeated edits are safe in one immutable plan within one
+admitted method or across two distinct admitted methods of the same captured
+class. The cross-member family admits either intent order and composition with
+accepted body/result edits while preserving independent method/parameter refs,
+binder scopes, each wrapper's source provenance, the repeated star marker, and
+untouched-member identity through one owner reconstruction. Duplicate, foreign,
+stale, cross-method binder/ref, and cross-substituted evidence fails before a
+partial owner result is exposed.
+
+This behavior does not authorize cross-member composition with omission or
+append. It does not authorize arbitrary calling-mode rewriting, general
+by-name or vararg construction, contextual/generic/multi-clause method
 admission, or broader method-shape support.
 
 Earlier active-source warnings were conservative for the historical unsafe

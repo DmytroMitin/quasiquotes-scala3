@@ -918,8 +918,9 @@ class PublicDocsCheckTest(unittest.TestCase):
                 "Repeated parameter-Type replacement preserves a fresh `PostfixOp` wrapper\n"
                 "original `Ident(*)` marker by identity\n"
                 "one ordinary clause of one or two parameters\n"
-                "Same-method mixed by-name and repeated edits are safe\n"
-                "Cross-member calling-mode composition remains outside this documented bounded family\n"
+                "across two distinct admitted methods of the same captured class\n"
+                "preserving independent method/parameter refs\n"
+                "does not authorize cross-member composition with omission or append\n"
                 "does not authorize arbitrary calling-mode rewriting\n",
                 encoding="utf-8",
             )
@@ -940,8 +941,9 @@ class PublicDocsCheckTest(unittest.TestCase):
             (root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md").write_text(
                 "By-name parameter-Type replacement preserves a fresh `ByNameTypeTree` wrapper\n"
                 "one ordinary clause of one or two parameters\n"
-                "Same-method mixed by-name and repeated edits are safe\n"
-                "Cross-member calling-mode composition remains outside this documented bounded family\n"
+                "across two distinct admitted methods of the same captured class\n"
+                "preserving independent method/parameter refs\n"
+                "does not authorize cross-member composition with omission or append\n"
                 "does not authorize arbitrary calling-mode rewriting\n",
                 encoding="utf-8",
             )

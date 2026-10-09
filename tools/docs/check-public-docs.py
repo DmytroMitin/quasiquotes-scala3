@@ -676,8 +676,9 @@ def c065_truth_findings(root: Path) -> list[str]:
             "Repeated parameter-Type replacement preserves a fresh `PostfixOp` wrapper",
             "original `Ident(*)` marker by identity",
             "one ordinary clause of one or two parameters",
-            "Same-method mixed by-name and repeated edits are safe",
-            "Cross-member calling-mode composition remains outside this documented bounded family",
+            "across two distinct admitted methods of the same captured class",
+            "preserving independent method/parameter refs",
+            "does not authorize cross-member composition with omission or append",
             "does not authorize arbitrary calling-mode rewriting",
         ):
             if marker not in calling_modes:
@@ -708,7 +709,7 @@ def c065_truth_findings(root: Path) -> list[str]:
         for marker in (
             "0.4.0-SNAPSHOT standard inventory is 798 rows / 779 groups",
             "typed-Scalameta inventory is 45 rows / 43 groups",
-            "Same-method mixed by-name/repeated edits are safe in one immutable plan",
+            "across two distinct admitted methods of the same captured class",
         ):
             if marker not in " ".join(readme.split()):
                 findings.append(f"C065 README truth missing: {marker}")

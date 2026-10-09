@@ -503,10 +503,14 @@ Captured by-name and repeated/vararg parameters may be inspected and edited
 within the admitted one-clause unary/two-parameter method families.
 `replaceParameterType` preserves a fresh by-name wrapper or a fresh repeated
 wrapper with its validated original star marker while changing only the inner
-Type. Same-method mixed by-name/repeated edits are safe in one immutable plan.
-This remains a bounded exact-tree transaction, not arbitrary calling-mode or
-method-shape rewriting; cross-member composition and broader contextual,
-generic, multi-clause, or construction syntax are separate work.
+Type. Mixed by-name/repeated edits are safe in one immutable plan both within
+one admitted method and across two distinct admitted methods of the same
+captured class. The cross-member case preserves independent method/parameter
+references, binder scopes, wrapper provenance, and untouched-member identity
+through one owner reconstruction. This remains a bounded exact-tree
+transaction, not arbitrary calling-mode or method-shape rewriting; composition
+with omission/append and broader contextual, generic, multi-clause, or
+construction syntax are separate work.
 
 The additive [semantic Term generated-origin facade](docs/SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md)
 accepts public TermShape and a virtual source name, returning a positioned tree,
