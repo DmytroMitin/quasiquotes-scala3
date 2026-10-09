@@ -111,6 +111,34 @@ object TermMatcher:
         case (TargetTermView.Block(leftPrefix, leftResult, _), TargetTermView.Block(rightPrefix, rightResult, _)) =>
           (leftPrefix, rightPrefix) match
             case (
+                  List(
+                    TargetBlockStatementView.LocalDef(
+                      leftMethodId, _, _, leftParameterId, _, _,
+                      leftParameterType, leftResultType, leftBody, _
+                    )
+                  ),
+                  List(
+                    TargetBlockStatementView.LocalDef(
+                      rightMethodId, _, _, rightParameterId, _, _,
+                      rightParameterType, rightResultType, rightBody, _
+                    )
+                  )
+                ) =>
+              leftParameterType == rightParameterType &&
+                leftResultType == rightResultType &&
+                scopedEquivalent(
+                  leftBody,
+                  leftParameterId :: leftScope,
+                  rightBody,
+                  rightParameterId :: rightScope
+                ) &&
+                scopedEquivalent(
+                  leftResult,
+                  leftMethodId :: leftScope,
+                  rightResult,
+                  rightMethodId :: rightScope
+                )
+            case (
                   List(TargetBlockStatementView.LocalVal(leftId, _, leftType, _, leftInitializer, _)),
                   List(TargetBlockStatementView.LocalVal(rightId, _, rightType, _, rightInitializer, _))
                 ) =>
@@ -306,6 +334,50 @@ object TermMatcher:
           target match
             case TargetTermView.Block(targetPrefix, targetResult, _) =>
               (prefix, targetPrefix) match
+                case (
+                      List(
+                        BlockPatternStatement.LocalDef(
+                          patternMethodId,
+                          _,
+                          patternParameterId,
+                          _,
+                          patternParameterType,
+                          patternResultType,
+                          patternBody
+                        )
+                      ),
+                      List(
+                        TargetBlockStatementView.LocalDef(
+                          targetMethodId,
+                          _,
+                          methodSymbol,
+                          targetParameterId,
+                          _,
+                          parameterSymbol,
+                          targetParameterType,
+                          targetResultType,
+                          targetBody,
+                          _
+                        )
+                      )
+                    ) if patternParameterType == targetParameterType &&
+                      patternResultType == targetResultType =>
+                  for
+                    bodyBindings <- loop(
+                      patternBody,
+                      targetBody,
+                      bindings,
+                      patternParameterId :: patternScope,
+                      (targetParameterId -> parameterSymbol.asInstanceOf[Symbol]) :: targetScope
+                    )
+                    resultBindings <- loop(
+                      result,
+                      targetResult,
+                      bodyBindings,
+                      patternMethodId :: patternScope,
+                      (targetMethodId -> methodSymbol.asInstanceOf[Symbol]) :: targetScope
+                    )
+                  yield resultBindings
                 case (
                       List(BlockPatternStatement.LocalVal(patternBinderId, _, patternType, patternInitializer)),
                       List(TargetBlockStatementView.LocalVal(targetBinderId, _, targetType, binderSymbol, targetInitializer, _))

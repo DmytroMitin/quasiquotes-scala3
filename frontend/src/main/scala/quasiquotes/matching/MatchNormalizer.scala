@@ -94,6 +94,24 @@ object MatchNormalizer:
           declaredType,
           normalizePattern(initializer)
         )
+      case BlockPatternStatement.LocalDef(
+            methodBinderId,
+            methodDisplayName,
+            parameterBinderId,
+            parameterDisplayName,
+            parameterType,
+            resultType,
+            body
+          ) =>
+        BlockPatternStatement.LocalDef(
+          methodBinderId,
+          methodDisplayName,
+          parameterBinderId,
+          parameterDisplayName,
+          parameterType,
+          resultType,
+          normalizePattern(body)
+        )
       case pattern: TermPattern => normalizePattern(pattern)
 
   private def normalizeTargetStatement[T](
@@ -107,6 +125,30 @@ object MatchNormalizer:
           declaredType,
           binderSymbol,
           normalizeTarget(initializer),
+          original
+        )
+      case TargetBlockStatementView.LocalDef(
+            methodBinderId,
+            methodDisplayName,
+            methodSymbol,
+            parameterBinderId,
+            parameterDisplayName,
+            parameterSymbol,
+            parameterType,
+            resultType,
+            body,
+            original
+          ) =>
+        TargetBlockStatementView.LocalDef(
+          methodBinderId,
+          methodDisplayName,
+          methodSymbol,
+          parameterBinderId,
+          parameterDisplayName,
+          parameterSymbol,
+          parameterType,
+          resultType,
+          normalizeTarget(body),
           original
         )
       case term => normalizeTarget(term.asInstanceOf[TargetTermView[T]])

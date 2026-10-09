@@ -1,6 +1,6 @@
 package quasiquotes.matching.q062
 
-import quasiquotes.matching.QuasiPattern
+import quasiquotes.matching.{BlockPatternStatement, QuasiPattern, TermPattern}
 import quasiquotes.matching.q062.Q062P3LocalIdentityMatchingFeasibilityProbe.*
 
 private object Q062P3LocalIdentityMatchingFixtures:
@@ -170,12 +170,17 @@ private object Q062P3LocalIdentityMatchingFixtures:
 class Q062P3LocalIdentityMatchingFeasibilityTest extends munit.FunSuite:
   import Q062P3LocalIdentityMatchingFixtures.*
 
-  test("current PatternCompiler rejects DefDef while the test-only M1 node compiles the exact family") {
+  test("Q063 production realizes the Q062-locked M1 node while the feasibility stand-in remains valid") {
     val source =
       """{ def boundedIdentity(value: Int): Int = value; boundedIdentity($argument) }"""
     val current = QuasiPattern.term(source)
-    assert(current.isLeft)
-    assert(current.swap.toOption.get.message.contains("local def"))
+    assert(current.isRight, current)
+    current.toOption.get.pattern match
+      case TermPattern.Block(
+            List(_: BlockPatternStatement.LocalDef),
+            TermPattern.Apply(_: TermPattern.BoundReference, List(TermPattern.Hole("argument")))
+          ) => ()
+      case other => fail(s"unexpected production P3 pattern: ${other.render}")
 
     val candidate = Q062P3LocalIdentityMatchingFeasibilityProbe.compile(source)
     assert(candidate.isRight, candidate)

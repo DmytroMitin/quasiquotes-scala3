@@ -2,6 +2,7 @@ package quasiquotes.matching
 
 import scala.quoted.Quotes
 import quasiquotes.parser.BinderId
+import quasiquotes.types.TypeNormalForm
 
 sealed trait CanonicalBlockStatement derives CanEqual
 
@@ -12,6 +13,12 @@ object CanonicalBlockStatement:
   private[quasiquotes] final case class LocalVal(
       declaredType: String,
       initializer: CanonicalTerm
+  ) extends CanonicalBlockStatement
+
+  private[quasiquotes] final case class LocalDef(
+      parameterType: TypeNormalForm,
+      resultType: TypeNormalForm,
+      body: CanonicalTerm
   ) extends CanonicalBlockStatement
 
 object CanonicalTerm:
@@ -66,6 +73,8 @@ object CanonicalTerm:
       case CanonicalBlockStatement.LocalVal(declaredType, initializer) =>
         s"CLocalVal(Type($declaredType), ${render(initializer)})"
       case term: CanonicalTerm => render(term)
+      case CanonicalBlockStatement.LocalDef(parameterType, resultType, body) =>
+        s"CLocalDef(Type($parameterType): Type($resultType), ${render(body)})"
 
   private def quote(value: String): String =
     "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
@@ -130,6 +139,33 @@ object TermCanonicalizer:
         yield CanonicalTerm.If(canonicalCondition, canonicalThenBranch, canonicalElseBranch)
       case TargetTermView.Block(statements, result, _) =>
         statements match
+          case List(
+                TargetBlockStatementView.LocalDef(
+                  methodBinderId,
+                  _,
+                  _,
+                  parameterBinderId,
+                  _,
+                  _,
+                  parameterType,
+                  resultType,
+                  body,
+                  _
+                )
+              ) =>
+            for
+              canonicalBody <- canonicalizeView(body, parameterBinderId :: scope)
+              canonicalResult <- canonicalizeView(result, methodBinderId :: scope)
+            yield CanonicalTerm.Block(
+              List(
+                CanonicalBlockStatement.LocalDef(
+                  parameterType,
+                  resultType,
+                  canonicalBody
+                )
+              ),
+              canonicalResult
+            )
           case List(TargetBlockStatementView.LocalVal(binderId, _, declaredType, _, initializer, _)) =>
             for
               canonicalInitializer <- canonicalizeView(initializer, scope)

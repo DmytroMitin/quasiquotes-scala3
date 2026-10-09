@@ -6,7 +6,7 @@ import scala.util.matching.Regex
 import quasiquotes.parser.{BinderId, P2LocalValAdmission, P2LocalValDiagnosticMessages, TermShape, TinyTermParser}
 import quasiquotes.source.ReflectedPositionProvenance
 import quasiquotes.terms.TermShapeTraversal
-import quasiquotes.types.TargetTypeReprInspector
+import quasiquotes.types.{TargetTypeReprInspector, TypeNormalForm}
 
 sealed trait TargetBlockStatementView[+T] derives CanEqual
 
@@ -21,6 +21,19 @@ object TargetBlockStatementView:
       declaredType: String,
       binderSymbol: Any,
       initializer: TargetTermView[T],
+      original: Any
+  ) extends TargetBlockStatementView[T]
+
+  private[quasiquotes] final case class LocalDef[T](
+      methodBinderId: BinderId,
+      methodDisplayName: String,
+      methodSymbol: Any,
+      parameterBinderId: BinderId,
+      parameterDisplayName: String,
+      parameterSymbol: Any,
+      parameterType: TypeNormalForm,
+      resultType: TypeNormalForm,
+      body: TargetTermView[T],
       original: Any
   ) extends TargetBlockStatementView[T]
 
@@ -181,6 +194,8 @@ object TargetTermView:
           statements match
             case (definition @ ValDef(_, _, _)) :: Nil =>
               extractLocalValBlock(definition, result, block, scope)
+            case (definition @ DefDef(_, _, _, _)) :: Nil =>
+              extractLocalDefBlock(definition, result, block, scope)
             case definitions if definitions.exists {
                   case ValDef(_, _, _) => true
                   case _ => false
@@ -247,6 +262,139 @@ object TargetTermView:
               case None =>
                 Left(MatchFailure.UnsupportedTargetShape(P2LocalValDiagnosticMessages.UnsupportedInitializer))
 
+    def extractLocalDefBlock(
+        definition: DefDef,
+        result: Term,
+        block: Term,
+        scope: List[(BinderId, Symbol)]
+    ): Either[MatchFailure, TargetTermView[Term]] =
+      definition.paramss match
+        case List(clause: TermParamClause)
+            if !clause.isGiven && !clause.isImplicit && !clause.isErased &&
+              clause.params.size == 1 =>
+          val parameter = clause.params.head
+          if !isAdmittedP3Method(definition) then
+            Left(MatchFailure.UnsupportedTargetShape("P3 local method modifiers are unsupported"))
+          else if parameter.symbol.owner != definition.symbol ||
+              parameter.symbol.flags.is(Flags.HasDefault) ||
+              parameter.symbol.flags.is(Flags.Erased) ||
+              parameter.symbol.flags.is(Flags.Implicit) ||
+              parameter.symbol.flags.is(Flags.Given) ||
+              parameter.symbol.annotations.nonEmpty ||
+              hasSourceAnnotation(parameter) ||
+              !isStrictNonRepeatedParameter(parameter)
+          then
+            Left(MatchFailure.UnsupportedTargetShape("P3 requires one unmodified ordinary parameter"))
+          else if sourceBackedInferredDeclaredType(definition, definition.returnTpt) ||
+              sourceBackedInferredDeclaredType(parameter, parameter.tpt)
+          then
+            Left(MatchFailure.UnsupportedTargetShape("P3 requires explicit parameter and result Types"))
+          else
+            for
+              parameterType <- fixedP3Type(parameter.tpt.tpe)
+              resultType <- fixedP3Type(definition.returnTpt.tpe)
+              _ <-
+                if parameterType == resultType then Right(())
+                else Left(MatchFailure.UnsupportedTargetShape("P3 parameter and result Types must be identical"))
+              bodyTerm <- definition.rhs.toRight(
+                MatchFailure.UnsupportedTargetShape("P3 local method body is required")
+              )
+              methodBinderId = BinderId(nextBinderId)
+              parameterBinderId = BinderId(nextBinderId + 1)
+              body <- extract(bodyTerm, (parameterBinderId -> parameter.symbol) :: scope)
+              _ <- body match
+                case TargetTermView.BoundReference(`parameterBinderId`, _, _) => Right(())
+                case _ =>
+                  Left(MatchFailure.UnsupportedTargetShape("P3 method body must be its own parameter"))
+              _ <-
+                if containsSymbolReference(result, parameter.symbol) then
+                  Left(MatchFailure.UnsupportedTargetShape("P3 parameter reference escapes its body scope"))
+                else Right(())
+              extractedResult <- extract(result, (methodBinderId -> definition.symbol) :: scope)
+              _ <- extractedResult match
+                case TargetTermView.Apply(
+                      TargetTermView.BoundReference(`methodBinderId`, _, _),
+                      List(_),
+                      _
+                    ) => Right(())
+                case _ =>
+                  Left(
+                    MatchFailure.UnsupportedTargetShape(
+                      "P3 block result must call its local method with one ordinary argument"
+                    )
+                  )
+            yield
+              nextBinderId += 2
+              TargetTermView.Block(
+                List(
+                  TargetBlockStatementView.LocalDef(
+                    methodBinderId,
+                    definition.name,
+                    definition.symbol,
+                    parameterBinderId,
+                    parameter.name,
+                    parameter.symbol,
+                    parameterType,
+                    resultType,
+                    body,
+                    definition
+                  )
+                ),
+                extractedResult,
+                block
+              )
+        case _ =>
+          Left(
+            MatchFailure.UnsupportedTargetShape(
+              "P3 requires one nongeneric ordinary parameter in one clause"
+            )
+          )
+
+    def fixedP3Type(typeRepr: TypeRepr): Either[MatchFailure, TypeNormalForm] =
+      TargetTypeReprInspector.inspect(typeRepr) match
+        case Right(normal @ TypeNormalForm.STypeIdent("Int" | "String" | "Boolean")) =>
+          Right(normal)
+        case _ =>
+          Left(
+            MatchFailure.UnsupportedTargetShape(
+              "P3 supports only fixed Int, String, or Boolean Types"
+            )
+          )
+
+    def isStrictNonRepeatedParameter(parameter: ValDef): Boolean =
+      parameter.tpt.tpe match
+        case _: ByNameType => false
+        case AnnotatedType(AppliedType(_, List(_)), annotation)
+            if annotation.tpe.typeSymbol == defn.RepeatedAnnot => false
+        case AppliedType(constructor, List(_))
+            if constructor.typeSymbol == defn.RepeatedParamClass => false
+        case _ => true
+
+    def isAdmittedP3Method(definition: DefDef): Boolean =
+      definition.symbol.exists &&
+        definition.symbol.isDefDef &&
+        !definition.symbol.isClassConstructor &&
+        DefinitionModifierSemantics.isSemanticallyEmpty(definition.symbol) &&
+        !definition.symbol.flags.is(Flags.ExtensionMethod) &&
+        !definition.symbol.flags.is(Flags.FieldAccessor) &&
+        !definition.symbol.flags.is(Flags.ParamAccessor) &&
+        !definition.symbol.flags.is(Flags.CaseAccessor) &&
+        !definition.symbol.flags.is(Flags.Given) &&
+        definition.symbol.privateWithin.isEmpty
+
+    def hasSourceAnnotation(parameter: ValDef): Boolean =
+      ReflectedPositionProvenance.sourceCode(parameter.pos).exists(_.trim.startsWith("@"))
+
+
+
+    def containsSymbolReference(term: Term, forbidden: Symbol): Boolean =
+      var found = false
+      val traverser = new TreeTraverser:
+        override def traverseTree(tree: Tree)(owner: Symbol): Unit =
+          if !found && tree.symbol == forbidden then found = true
+          else if !found then super.traverseTree(tree)(owner)
+      traverser.traverseTree(term)(Symbol.spliceOwner)
+      found
     validateP2Admission(term).flatMap(_ => extract(term, ambientScope))
 
   private def validateP2Admission(using q: Quotes)(
@@ -327,6 +475,19 @@ object TargetTermView:
     statement match
       case TargetBlockStatementView.LocalVal(_, displayName, declaredType, _, initializer, _) =>
         s"LocalVal($displayName: $declaredType = ${render(initializer)})"
+      case TargetBlockStatementView.LocalDef(
+            _,
+            methodDisplayName,
+            _,
+            _,
+            parameterDisplayName,
+            _,
+            parameterType,
+            resultType,
+            body,
+            _
+          ) =>
+        s"LocalDef($methodDisplayName($parameterDisplayName: $parameterType): $resultType = ${render(body)})"
       case term: TargetTermView[?] => render(term)
 
   private def sourceInterpolation(using q: Quotes)(
@@ -402,6 +563,14 @@ object TargetTermView:
   private def sourceBackedInferredType(using q: Quotes)(definition: q.reflect.ValDef): Boolean =
     val definitionSource = ReflectedPositionProvenance.sourceCode(definition.pos)
     val typeSource = ReflectedPositionProvenance.sourceCode(definition.tpt.pos)
+    definitionSource.nonEmpty && typeSource.forall(_.trim.isEmpty)
+
+  private def sourceBackedInferredDeclaredType(using q: Quotes)(
+      definition: q.reflect.Definition,
+      typeTree: q.reflect.TypeTree
+  ): Boolean =
+    val definitionSource = ReflectedPositionProvenance.sourceCode(definition.pos)
+    val typeSource = ReflectedPositionProvenance.sourceCode(typeTree.pos)
     definitionSource.nonEmpty && typeSource.forall(_.trim.isEmpty)
 
   private def isSimpleBinderName(name: String): Boolean =

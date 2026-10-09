@@ -4,6 +4,7 @@ import scala.compiletime.erasedValue
 import scala.quoted.*
 
 import quasiquotes.parser.BinderId
+import quasiquotes.types.TypeNormalForm
 
 /** Frontend-owned bridge for selectors which already compiled their ranked
   * source to the shared pattern IR.
@@ -61,6 +62,8 @@ private[quasiquotes] object RankedTermPatternBridge:
           case term: TermPattern => containsDirectNewSequenceHole(term, sequenceName)
           case BlockPatternStatement.LocalVal(_, _, _, initializer) =>
             containsDirectNewSequenceHole(initializer, sequenceName)
+          case BlockPatternStatement.LocalDef(_, _, _, _, _, _, body) =>
+            containsDirectNewSequenceHole(body, sequenceName)
         } || containsDirectNewSequenceHole(result, sequenceName)
       case TermPattern.Parenthesized(inner) =>
         containsDirectNewSequenceHole(inner, sequenceName)
@@ -200,5 +203,36 @@ private[quasiquotes] object RankedTermPatternBridge:
           )
         }
 
+      case BlockPatternStatement.LocalDef(
+            methodBinderId,
+            methodDisplayName,
+            parameterBinderId,
+            parameterDisplayName,
+            parameterType,
+            resultType,
+            body
+          ) =>
+        '{
+          BlockPatternStatement.LocalDef(
+            ${ binderExpr(methodBinderId) },
+            ${ Expr(methodDisplayName) },
+            ${ binderExpr(parameterBinderId) },
+            ${ Expr(parameterDisplayName) },
+            ${ typeNormalFormExpr(parameterType) },
+            ${ typeNormalFormExpr(resultType) },
+            ${ patternExpr(body) }
+          )
+        }
+
+  private def typeNormalFormExpr(
+      normalForm: TypeNormalForm
+  )(using Quotes): Expr[TypeNormalForm] =
+    normalForm match
+      case TypeNormalForm.STypeIdent(name) =>
+        '{ TypeNormalForm.STypeIdent(${ Expr(name) }) }
+      case other =>
+        quotes.reflect.report.errorAndAbort(
+          s"Unsupported Q063 fixed Type normal form in quoted pattern: $other"
+        )
   private def binderExpr(binderId: BinderId)(using Quotes): Expr[BinderId] =
     '{ BinderId(${ Expr(binderId.value) }) }

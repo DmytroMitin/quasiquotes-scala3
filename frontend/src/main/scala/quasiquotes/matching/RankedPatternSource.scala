@@ -92,6 +92,7 @@ private[quasiquotes] object RankedPatternSource:
   ): Either[String, Unit] =
     var totalOccurrences = 0
     var admittedOccurrences = 0
+    var containsLocalDef = false
 
     def visit(current: TermPattern): Unit =
       current match
@@ -124,13 +125,20 @@ private[quasiquotes] object RankedPatternSource:
           prefix.foreach {
             case term: TermPattern => visit(term)
             case BlockPatternStatement.LocalVal(_, _, _, initializer) => visit(initializer)
+            case BlockPatternStatement.LocalDef(_, _, _, _, _, _, body) =>
+              containsLocalDef = true
+              visit(body)
           }
           visit(result)
         case TermPattern.Parenthesized(inner) => visit(inner)
         case _ => ()
 
     visit(pattern)
-    if totalOccurrences == 1 && admittedOccurrences == 1 then Right(())
+    if containsLocalDef then
+      Left(
+        "rank-2 sequence-Term capture is not supported in P3 local identity method patterns"
+      )
+    else if totalOccurrences == 1 && admittedOccurrences == 1 then Right(())
     else if totalOccurrences == 0 then
       Left(
         "the rank-2 sequence-Term capture was not consumed as a direct ordinary Apply or fixed one-list New argument"

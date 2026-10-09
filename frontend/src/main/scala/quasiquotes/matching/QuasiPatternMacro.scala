@@ -189,6 +189,8 @@ private[matching] object QuasiPatternMacro:
           case term: TermPattern => containsDirectNewSequenceHole(term, sequenceName)
           case BlockPatternStatement.LocalVal(_, _, _, initializer) =>
             containsDirectNewSequenceHole(initializer, sequenceName)
+          case BlockPatternStatement.LocalDef(_, _, _, _, _, _, body) =>
+            containsDirectNewSequenceHole(body, sequenceName)
         } || containsDirectNewSequenceHole(result, sequenceName)
       case TermPattern.Parenthesized(inner) => containsDirectNewSequenceHole(inner, sequenceName)
       case _ => false

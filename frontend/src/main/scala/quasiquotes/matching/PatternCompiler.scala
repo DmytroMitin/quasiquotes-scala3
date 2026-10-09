@@ -1,8 +1,10 @@
 package quasiquotes.matching
 
 import dotty.tools.dotc.ast.untpd
-import quasiquotes.parser.{BinderId, ConstructorNamePolicy, DottySourceSpanAdapter, InterpolatedStringSegments, Lambda1DiagnosticMessages, TypeShapeInspector}
+import dotty.tools.dotc.core.{Flags as DottyFlags}
+import quasiquotes.parser.{BinderId, ConstructorNamePolicy, DottySourceSpanAdapter, InterpolatedStringSegments, Lambda1DiagnosticMessages, TermShapeInspector, TypeShapeInspector}
 import quasiquotes.parser.P1BlockDiagnosticMessages
+import quasiquotes.parser.SourceOwnedLocalDefAdmission
 import quasiquotes.parser.P2LocalValDiagnosticMessages
 import quasiquotes.parser.P2LocalValUntypedAdmission
 import quasiquotes.source.{GeneratedHoleIndex, SourceSpan}
@@ -30,12 +32,23 @@ object PatternCompiler:
     validateAdmission(tree).flatMap(_ => compileLocatedUsing(tree, generatedHoles.semanticNameFor))
 
   private def validateAdmission(tree: untpd.Tree): Either[PatternCompileFailure, Unit] =
-    P2LocalValUntypedAdmission.validate(tree).left.map { violation =>
-      PatternCompileFailure(
-        PatternError.UnsupportedPatternShape("Block", violation.message),
-        DottySourceSpanAdapter.fromTree(tree).filter(!_.isEmpty)
+    SourceOwnedLocalDefAdmission
+      .validate(TermShapeInspector.inspect(tree))
+      .left
+      .map { violation =>
+        PatternCompileFailure(
+          PatternError.UnsupportedPatternShape("Block", violation.message),
+          DottySourceSpanAdapter.fromTree(tree).filter(!_.isEmpty)
+        )
+      }
+      .flatMap(_ =>
+        P2LocalValUntypedAdmission.validate(tree).left.map { violation =>
+          PatternCompileFailure(
+            PatternError.UnsupportedPatternShape("Block", violation.message),
+            DottySourceSpanAdapter.fromTree(tree).filter(!_.isEmpty)
+          )
+        }
       )
-    }
 
   private def compileLocatedUsing(
       tree: untpd.Tree,
@@ -127,6 +140,8 @@ object PatternCompiler:
         statements match
           case (value: untpd.ValDef) :: Nil =>
             compileLocalVal(value, result, semanticHoleName, scope, lambdaDepth)
+          case (definition: untpd.DefDef) :: Nil =>
+            compileLocalDef(definition, result, semanticHoleName, scope, lambdaDepth)
           case values if values.exists(_.isInstanceOf[untpd.ValDef]) =>
             unsupportedBlock(block, P2LocalValDiagnosticMessages.ExactlyOne)
           case definitions if definitions.exists(_.isInstanceOf[untpd.DefDef]) =>
@@ -254,6 +269,128 @@ object PatternCompiler:
             compiledResult
           )
 
+  private def compileLocalDef(
+      definition: untpd.DefDef,
+      result: untpd.Tree,
+      semanticHoleName: String => Option[String],
+      scope: List[(String, BinderId)],
+      lambdaDepth: Int
+  ): Either[PatternCompileFailure, TermPattern] =
+    val methodName = definition.name.toString
+    if definition.mods.flags != DottyFlags.Method ||
+        definition.mods.hasAnnotations || definition.mods.hasPrivateWithin
+    then unsupportedBlock(definition, "P3 local method modifiers are unsupported")
+    else if !isSimpleBinderName(methodName) then
+      unsupportedBlock(definition, "P3 requires a simple local method binder")
+    else if definition.tpt.isEmpty then
+      unsupportedBlock(definition, "P3 requires an explicit result Type")
+    else
+      definition.paramss match
+        case List(List(parameter: untpd.ValDef)) =>
+          val parameterName = parameter.name.toString
+          val parameterRhs = parameter.unforcedRhs.asInstanceOf[untpd.Tree]
+          if parameter.mods.flags != DottyFlags.Param ||
+              parameter.mods.hasAnnotations || parameter.mods.hasPrivateWithin
+          then unsupportedBlock(parameter, "P3 requires one unmodified ordinary parameter")
+          else if !parameterRhs.isEmpty then
+            unsupportedBlock(parameter, "P3 does not support default parameters")
+          else if !isSimpleBinderName(parameterName) then
+            unsupportedBlock(parameter, "P3 requires a simple parameter binder")
+          else if parameter.tpt.isEmpty then
+            unsupportedBlock(parameter, "P3 requires an explicit parameter Type")
+          else
+            for
+              parameterType <- fixedP3Type(parameter.tpt)
+              resultType <- fixedP3Type(definition.tpt)
+              _ <-
+                if parameterType == resultType then Right(())
+                else unsupportedBlock(definition, "P3 parameter and result Types must be identical")
+              bodyTree <-
+                val body = definition.unforcedRhs.asInstanceOf[untpd.Tree]
+                if body.isEmpty then unsupportedBlock(definition, "P3 local method body is required")
+                else Right(body)
+              methodBinderId = BinderId(scope.size)
+              parameterBinderId = BinderId(scope.size + 1)
+              body <- compileLocatedUsing(
+                bodyTree,
+                semanticHoleName,
+                (parameterName -> parameterBinderId) :: scope,
+                lambdaDepth
+              )
+              _ <- body match
+                case TermPattern.BoundReference(`parameterBinderId`, _) => Right(())
+                case _ => unsupportedBlock(bodyTree, "P3 method body must be its own parameter")
+              compiledResult <- compileLocatedUsing(
+                result,
+                semanticHoleName,
+                (methodName -> methodBinderId) :: scope,
+                lambdaDepth
+              )
+              argumentPattern <- compiledResult match
+                case TermPattern.Apply(
+                      TermPattern.BoundReference(`methodBinderId`, _),
+                      List(argument)
+                    ) => Right(argument)
+                case _ =>
+                  unsupportedBlock(
+                    result,
+                    "P3 block result must call its local method with one ordinary argument"
+                  )
+              _ <-
+                if p3HoleNames(argumentPattern).size == 1 then Right(())
+                else
+                  unsupportedBlock(
+                    result,
+                    "P3 call argument requires exactly one semantic scalar hole name"
+                  )
+            yield TermPattern.Block(
+              List(
+                BlockPatternStatement.LocalDef(
+                  methodBinderId,
+                  methodName,
+                  parameterBinderId,
+                  parameterName,
+                  parameterType,
+                  resultType,
+                  body
+                )
+              ),
+              compiledResult
+            )
+        case _ =>
+          unsupportedBlock(definition, "P3 requires one ordinary parameter in one clause")
+
+  private def fixedP3Type(tree: untpd.Tree): Either[PatternCompileFailure, TypeNormalForm] =
+    TypeNormalForm.fromShape(TypeShapeInspector.inspect(tree)) match
+      case Right(normal @ TypeNormalForm.STypeIdent("Int" | "String" | "Boolean")) =>
+        Right(normal)
+      case _ =>
+        unsupportedBlock(tree, "P3 supports only fixed Int, String, or Boolean Types")
+
+  private def p3HoleNames(pattern: TermPattern): Set[String] =
+    pattern match
+      case TermPattern.Hole(name) => Set(name)
+      case TermPattern.Lambda1(_, _, _, body) => p3HoleNames(body)
+      case TermPattern.Select(qualifier, _) => p3HoleNames(qualifier)
+      case TermPattern.Apply(function, arguments) =>
+        p3HoleNames(function) ++ arguments.flatMap(p3HoleNames)
+      case TermPattern.New(_, arguments) => arguments.flatMap(p3HoleNames).toSet
+      case TermPattern.Infix(left, _, right) => p3HoleNames(left) ++ p3HoleNames(right)
+      case TermPattern.Unary(_, operand) => p3HoleNames(operand)
+      case TermPattern.InterpolatedString(_, _, arguments) =>
+        arguments.flatMap(p3HoleNames).toSet
+      case TermPattern.Typed(expression, _) => p3HoleNames(expression)
+      case TermPattern.Tuple(elements) => elements.flatMap(p3HoleNames).toSet
+      case TermPattern.If(condition, thenBranch, elseBranch) =>
+        p3HoleNames(condition) ++ p3HoleNames(thenBranch) ++ p3HoleNames(elseBranch)
+      case TermPattern.Block(statements, result) =>
+        statements.flatMap {
+          case term: TermPattern => p3HoleNames(term)
+          case BlockPatternStatement.LocalVal(_, _, _, initializer) => p3HoleNames(initializer)
+          case BlockPatternStatement.LocalDef(_, _, _, _, _, _, body) => p3HoleNames(body)
+        }.toSet ++ p3HoleNames(result)
+      case TermPattern.Parenthesized(expression) => p3HoleNames(expression)
+      case _ => Set.empty
   private def isSimpleBinderName(name: String): Boolean =
     name != "_" && name.matches("[A-Za-z_$][A-Za-z0-9_$]*")
 

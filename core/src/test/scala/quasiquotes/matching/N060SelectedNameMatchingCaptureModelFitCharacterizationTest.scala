@@ -261,6 +261,8 @@ final class N060SelectedNameMatchingCaptureModelFitCharacterizationTest
         statements.toVector.flatMap {
           case pattern: TermPattern => selectNamesPreorder(pattern)
           case BlockPatternStatement.LocalVal(_, _, _, initializer) => selectNamesPreorder(initializer)
+          case BlockPatternStatement.LocalDef(_, _, _, _, _, _, body) =>
+            selectNamesPreorder(body)
         } ++ selectNamesPreorder(result)
       case TermPattern.Parenthesized(expression) => selectNamesPreorder(expression)
       case TermPattern.Lambda1(_, _, _, body) => selectNamesPreorder(body)
@@ -285,6 +287,8 @@ final class N060SelectedNameMatchingCaptureModelFitCharacterizationTest
         statements.iterator.flatMap {
           case pattern: TermPattern => ordinaryHoleNames(pattern)
           case BlockPatternStatement.LocalVal(_, _, _, initializer) => ordinaryHoleNames(initializer)
+          case BlockPatternStatement.LocalDef(_, _, _, _, _, _, body) =>
+            ordinaryHoleNames(body)
         }.toSet ++ ordinaryHoleNames(result)
       case TermPattern.Parenthesized(expression) => ordinaryHoleNames(expression)
       case TermPattern.Lambda1(_, _, _, body) => ordinaryHoleNames(body)

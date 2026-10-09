@@ -85,7 +85,7 @@ class P1BlockFrontendTest extends munit.FunSuite:
     assertEquals(P1BlockMacros.programmaticEvidence, (true, true, true))
   }
 
-  test("local val and local def neighbors are rejected with block-family diagnostics") {
+  test("local val and non-P3 local def neighbors retain bounded block-family diagnostics") {
     val messages = P1BlockMacros.rejectionMessages
     messages.productIterator.map(_.toString).foreach { message =>
       assert(message.toLowerCase.contains("block"), message)
@@ -94,7 +94,8 @@ class P1BlockFrontendTest extends munit.FunSuite:
     assert(messages._1.toLowerCase.contains("local val"), messages._1)
     assert(messages._2.toLowerCase.contains("local def"), messages._2)
     assert(messages._3.toLowerCase.contains("local val"), messages._3)
-    assert(messages._4.toLowerCase.contains("local def"), messages._4)
+    assert(messages._4.contains("P3"), messages._4)
+    assert(messages._4.toLowerCase.contains("explicit result type"), messages._4)
   }
 
   test("unsupported and malformed block diagnostics retain truthful bounded locations") {

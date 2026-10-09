@@ -1,6 +1,7 @@
 package quasiquotes.matching
 
 import quasiquotes.parser.BinderId
+import quasiquotes.types.TypeNormalForm
 
 sealed trait BlockPatternStatement derives CanEqual
 
@@ -13,6 +14,16 @@ object BlockPatternStatement:
       displayName: String,
       declaredType: String,
       initializer: TermPattern
+  ) extends BlockPatternStatement
+
+  private[quasiquotes] final case class LocalDef(
+      methodBinderId: BinderId,
+      methodDisplayName: String,
+      parameterBinderId: BinderId,
+      parameterDisplayName: String,
+      parameterType: TypeNormalForm,
+      resultType: TypeNormalForm,
+      body: TermPattern
   ) extends BlockPatternStatement
 
 object TermPattern:
@@ -81,4 +92,14 @@ object TermPattern:
     statement match
       case BlockPatternStatement.LocalVal(_, displayName, declaredType, initializer) =>
         s"LocalVal($displayName: $declaredType = ${render(initializer)})"
+      case BlockPatternStatement.LocalDef(
+            _,
+            methodDisplayName,
+            _,
+            parameterDisplayName,
+            parameterType,
+            resultType,
+            body
+          ) =>
+        s"LocalDef($methodDisplayName($parameterDisplayName: $parameterType): $resultType = ${render(body)})"
       case pattern: TermPattern => render(pattern)

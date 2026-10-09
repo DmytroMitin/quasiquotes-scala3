@@ -62,6 +62,39 @@ final class RecoveredSelectedNameSourcePatternTest extends munit.FunSuite:
         )
     }
 
+
+  test("fails closed without throwing when a P3 LocalDef reaches source-role recovery"):
+    val mapped = synthesize("$receiver.$member")
+    val member = occurrence(mapped, "member")
+    val result = RecoveredSelectedNameSourcePattern.recover(
+      mapped,
+      TermPattern.Block(
+        List(
+          BlockPatternStatement.LocalDef(
+            quasiquotes.parser.BinderId(1),
+            "id",
+            quasiquotes.parser.BinderId(2),
+            "value",
+            quasiquotes.types.TypeNormalForm.STypeIdent("Int"),
+            quasiquotes.types.TypeNormalForm.STypeIdent("Int"),
+            TermPattern.BoundReference(
+              quasiquotes.parser.BinderId(2),
+              "value"
+            )
+          )
+        ),
+        TermPattern.Select(
+          TermPattern.Hole("receiver"),
+          member.generatedName
+        )
+      )
+    )
+
+    assert(
+      result.left.toOption.exists(
+        _.isInstanceOf[SelectedNameSourceRecoveryError.UnderlyingSelectedNamePatternError]
+      )
+    )
   test("recovers the actual root-first Select ordinal instead of assuming zero"):
     val outerMapped = synthesize("$receiver.fixed.$member")
     val outerMember = occurrence(outerMapped, "member")

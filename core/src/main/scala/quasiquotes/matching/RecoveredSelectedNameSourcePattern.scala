@@ -374,6 +374,7 @@ private[quasiquotes] object RecoveredSelectedNameSourcePattern:
         )
         .flatMap {
           case BlockPatternStatement.LocalVal(_, _, _, initializer) => loop(initializer)
+          case BlockPatternStatement.LocalDef(_, _, _, _, _, _, body) => loop(body)
           case term: TermPattern                                    => loop(term)
         }
 
