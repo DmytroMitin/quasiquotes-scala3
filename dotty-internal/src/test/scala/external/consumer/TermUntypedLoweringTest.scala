@@ -182,8 +182,7 @@ final class TermUntypedLoweringTest extends munit.FunSuite:
         TermShape.Unsupported("future", "not admitted"),
         TermShape.Unary("await", ident("value")),
         TermShape.Tuple(List(ident("only"))),
-        TermShape.Typed(ident("value"), "Option[Int]"),
-        TermShape.Apply(TermShape.Apply(ident("f"), List(ident("x"))), List(ident("y")))
+        TermShape.Typed(ident("value"), "Option[Int]")
       )
       unsupported.foreach { semantic =>
         val failure = lowerFailure(semantic)

@@ -262,8 +262,6 @@ private[dotty] object CheckedTermUntypedLowering:
   private def validateFacadeLimits(term: TermShape): Either[Failure, Unit] =
     def loop(current: TermShape): Either[Failure, Unit] =
       current match
-        case TermShape.Apply(_: TermShape.Apply, _) =>
-          Left(unsupported("multiple application lists are outside the current completed exact intersection."))
         case TermShape.Apply(function, arguments) =>
           loop(function).flatMap(_ => validateAll(arguments)(loop))
         case TermShape.Infix(left, operator, right) if !AdmittedInfixOperators(operator) =>

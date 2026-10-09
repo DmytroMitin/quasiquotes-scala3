@@ -119,7 +119,7 @@ final class TermGeneratedOriginLoweringTest extends munit.FunSuite:
         assertEquals(failure(term).code, "MALFORMED_SEMANTIC_VALUE")
         assertEquals(failure(term).detail, TermUntypedLowering.lower(term).swap.toOption.get.detail)
       }
-      assertEquals(failure(TermShape.Apply(TermShape.Apply(ident("f"), Nil), Nil)).code, "UNSUPPORTED_SEMANTIC_VALUE")
+      checkSuccess(TermShape.Apply(TermShape.Apply(ident("f"), Nil), Nil))
 
   test("the completed and raw pair is preserved modulo exactly planned grouping shells"):
     withContext:

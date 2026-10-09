@@ -137,25 +137,21 @@ final class CompletedMulticlauseApplyExactBackendModelFitCharacterizationTest
         assertFresh(first.tree, second.tree)
         assert(!(first.sourceFile eq second.sourceFile), clues(fixture.source))
 
-  test("the public semantic facades reject at the shared checked completed-intersection seam"):
+  test("the public semantic facades use the accepted completed nested-Apply backend"):
     withContext:
       fixtures.foreach: fixture =>
-        val sourceFree = TermUntypedLowering.lower(fixture.shape).swap.toOption.getOrElse(
-          fail(s"public source-free facade unexpectedly accepted ${fixture.source}")
-        )
-        assertEquals(sourceFree.code, "UNSUPPORTED_SEMANTIC_VALUE", clues(fixture.source))
-        assert(
-          sourceFree.detail.contains("multiple application lists are outside the current completed exact intersection"),
-          clues(fixture.source, sourceFree)
-        )
+        val sourceFree = TermUntypedLowering
+          .lower(fixture.shape)
+          .fold(problem => fail(problem.message), identity)
+        assertEquals(TermShapeInspector.rawStructure(sourceFree), fixture.rawStructure, clues(fixture.source))
+        assertSourceFree(sourceFree)
 
         val generated = TermGeneratedOriginLowering
           .lower(fixture.shape, "generated/U050Public.scala")
-          .swap
-          .toOption
-          .getOrElse(fail(s"public generated-origin facade unexpectedly accepted ${fixture.source}"))
-        assertEquals(generated.code, "UNSUPPORTED_SEMANTIC_VALUE", clues(fixture.source))
-        assertEquals(generated.detail, sourceFree.detail, clues(fixture.source))
+          .fold(problem => fail(problem.message), identity)
+        assertEquals(generated.generatedSource, fixture.source, clues(fixture.source))
+        assertEquals(TermShapeInspector.rawStructure(generated.tree), fixture.rawStructure, clues(fixture.source))
+        assertEquals(spanSnapshot(generated.tree), fixture.spans, clues(fixture.source))
 
   test("the direct Core lowerer preserves its one-list contract and exact nested failure"):
     withContext:
