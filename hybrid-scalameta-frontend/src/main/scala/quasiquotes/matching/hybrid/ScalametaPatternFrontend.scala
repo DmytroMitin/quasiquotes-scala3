@@ -8,7 +8,7 @@ import _root_.quasiquotes.parser.{BinderId, ConstructorNamePolicy, Lambda1Diagno
 import _root_.quasiquotes.parser.P1BlockDiagnosticMessages
 import _root_.quasiquotes.parser.P2LocalValDiagnosticMessages
 import _root_.quasiquotes.terms.TermShapeTraversal
-import _root_.quasiquotes.types.TypeNormalFormSource
+import _root_.quasiquotes.types.{TypeNormalForm, TypeNormalFormSource}
 import _root_.quasiquotes.hybrid.TermQ3DialectPolicy
 import _root_.quasiquotes.hybrid.P2LocalValScalametaAdmission
 import _root_.quasiquotes.source.GeneratedHoleIndex
@@ -92,11 +92,52 @@ private[quasiquotes] object ScalametaPatternFrontend:
         case Lit.Boolean(value) => Right(TermPattern.Literal(value.toString))
         case other => unsupported(other, "unsupported literal")
 
+    def semanticHoleNames(pattern: TermPattern): Set[String] =
+      pattern match
+        case TermPattern.Hole(name) => Set(name)
+        case _: TermPattern.Identifier | _: TermPattern.BoundReference | _: TermPattern.Literal =>
+          Set.empty
+        case TermPattern.Lambda1(_, _, _, body) => semanticHoleNames(body)
+        case TermPattern.Select(qualifier, _) => semanticHoleNames(qualifier)
+        case TermPattern.Apply(function, arguments) =>
+          semanticHoleNames(function) ++ arguments.flatMap(semanticHoleNames)
+        case TermPattern.New(_, arguments) => arguments.flatMap(semanticHoleNames).toSet
+        case TermPattern.Infix(left, _, right) =>
+          semanticHoleNames(left) ++ semanticHoleNames(right)
+        case TermPattern.Unary(_, operand) => semanticHoleNames(operand)
+        case TermPattern.InterpolatedString(_, _, arguments) =>
+          arguments.flatMap(semanticHoleNames).toSet
+        case TermPattern.Typed(expression, _) => semanticHoleNames(expression)
+        case TermPattern.Tuple(elements) => elements.flatMap(semanticHoleNames).toSet
+        case TermPattern.If(condition, thenBranch, elseBranch) =>
+          semanticHoleNames(condition) ++
+            semanticHoleNames(thenBranch) ++
+            semanticHoleNames(elseBranch)
+        case TermPattern.Block(statements, result) =>
+          statements.flatMap {
+            case BlockPatternStatement.LocalVal(_, _, _, initializer) =>
+              semanticHoleNames(initializer)
+            case BlockPatternStatement.LocalDef(_, _, _, _, _, _, body) =>
+              semanticHoleNames(body)
+            case term: TermPattern => semanticHoleNames(term)
+          }.toSet ++ semanticHoleNames(result)
+        case TermPattern.Parenthesized(expression) => semanticHoleNames(expression)
+
+    def fixedP3Type(tpe: scala.meta.Type): Either[Failure, TypeNormalForm] =
+      TypeNormalFormSource.fromSource(tpe.syntax) match
+        case Right(normal @ TypeNormalForm.STypeIdent("Int" | "String" | "Boolean")) =>
+          Right(normal)
+        case Right(other) =>
+          unsupported(tpe, s"P3 supports only fixed Int, String, or Boolean Types, found $other")
+        case Left(error) =>
+          unsupported(tpe, s"P3 requires a complete fixed Type: ${error.message}")
+
     var lambdaDepth = 0
 
     def loop(
         current: scala.meta.Term,
-        scope: List[(String, BinderId)] = Nil
+        scope: List[(String, BinderId)] = Nil,
+        allowP3LocalDef: Boolean = false
     ): Either[Failure, TermPattern] =
       current match
         case name: scala.meta.Term.Name =>
@@ -161,6 +202,9 @@ private[quasiquotes] object ScalametaPatternFrontend:
             case (result: scala.meta.Term) :: Nil => loop(result, scope)
             case (definition: scala.meta.Defn.Val) :: (result: scala.meta.Term) :: Nil =>
               compileLocalVal(definition, result, scope)
+            case (definition: scala.meta.Defn.Def) :: (result: scala.meta.Term) :: Nil
+                if allowP3LocalDef =>
+              compileLocalIdentityDef(definition, result, scope)
             case stats if stats.size >= 2 && stats.forall(_.isInstanceOf[scala.meta.Term]) =>
               val terms = stats.map(_.asInstanceOf[scala.meta.Term])
               for
@@ -231,9 +275,96 @@ private[quasiquotes] object ScalametaPatternFrontend:
               )
         case _ => unsupported(definition, P2LocalValDiagnosticMessages.Pattern)
 
+    def compileLocalIdentityDef(
+        definition: scala.meta.Defn.Def,
+        result: scala.meta.Term,
+        scope: List[(String, BinderId)]
+    ): Either[Failure, TermPattern] =
+      for
+        _ <-
+          if definition.mods.isEmpty then Right(())
+          else unsupported(definition, "P3 local method modifiers and annotations are unsupported")
+        _ <-
+          if definition.name.syntax == definition.name.value then Right(())
+          else unsupported(definition.name, "P3 requires a simple local method binder")
+        group <- definition.paramClauseGroups match
+          case value :: Nil => Right(value)
+          case _ => unsupported(definition, "P3 requires exactly one parameter-clause group")
+        _ <-
+          if group.tparamClause.values.isEmpty then Right(())
+          else unsupported(group.tparamClause, "P3 type parameters are unsupported")
+        clause <- group.paramClauses match
+          case value :: Nil if value.mod.isEmpty => Right(value)
+          case _ => unsupported(definition, "P3 requires exactly one unmodified ordinary parameter clause")
+        parameter <- clause.values match
+          case value :: Nil => Right(value)
+          case _ => unsupported(clause, "P3 requires exactly one ordinary parameter")
+        _ <-
+          if parameter.mods.isEmpty && parameter.default.isEmpty then Right(())
+          else unsupported(parameter, "P3 requires one unmodified strict parameter without a default")
+        _ <-
+          if parameter.name.syntax == parameter.name.value then Right(())
+          else unsupported(parameter.name, "P3 requires a simple parameter binder")
+        parameterTypeTree <- parameter.decltpe match
+          case Some(value) => Right(value)
+          case None => unsupported(parameter, "P3 requires an explicit parameter Type")
+        resultTypeTree <- definition.decltpe match
+          case Some(value) => Right(value)
+          case None => unsupported(definition, "P3 requires an explicit result Type")
+        parameterType <- fixedP3Type(parameterTypeTree)
+        resultType <- fixedP3Type(resultTypeTree)
+        _ <-
+          if parameterType == resultType then Right(())
+          else unsupported(definition, "P3 parameter and result Types must be identical")
+        methodId = BinderId(scope.size)
+        parameterId = BinderId(scope.size + 1)
+        body <- loop(definition.body, (parameter.name.value -> parameterId) :: scope)
+        _ <- body match
+          case TermPattern.BoundReference(`parameterId`, _) => Right(())
+          case _ => unsupported(definition.body, "P3 method body must be its own parameter reference")
+        application <- result match
+          case value: scala.meta.Term.Apply => Right(value)
+          case _ => unsupported(result, "P3 block result must call its local method with one ordinary argument")
+        _ <- application.fun match
+          case callee: scala.meta.Term.Name if callee.value == definition.name.value => Right(())
+          case _ => unsupported(application.fun, "P3 block result must call its bound local method")
+        _ <-
+          if application.args.size == 1 then Right(())
+          else unsupported(application, "P3 block result must supply exactly one ordinary argument")
+        compiledResult <- loop(result, (definition.name.value -> methodId) :: scope)
+        argumentPattern <- compiledResult match
+          case TermPattern.Apply(
+                TermPattern.BoundReference(`methodId`, _),
+                argument :: Nil
+              ) => Right(argument)
+          case _ => unsupported(result, "P3 block result must call its bound local method")
+        consumedHoleNames = semanticHoleNames(argumentPattern)
+        sourceHoleNames = holes.semanticNames
+        _ <-
+          if consumedHoleNames.size == 1 && consumedHoleNames == sourceHoleNames then Right(())
+          else
+            unsupported(
+              application.args.head,
+              "P3 call argument requires exactly one consumed semantic scalar hole name"
+            )
+      yield TermPattern.Block(
+        List(
+          BlockPatternStatement.LocalDef(
+            methodId,
+            definition.name.value,
+            parameterId,
+            parameter.name.value,
+            parameterType,
+            resultType,
+            body
+          )
+        ),
+        compiledResult
+      )
+
     P2LocalValScalametaAdmission.validate(tree) match
       case Left(violation) => unsupported(tree, violation.message)
-      case Right(_) => loop(tree)
+      case Right(_) => loop(tree, allowP3LocalDef = true)
 
   private def normalizeType(name: String): String =
     name match

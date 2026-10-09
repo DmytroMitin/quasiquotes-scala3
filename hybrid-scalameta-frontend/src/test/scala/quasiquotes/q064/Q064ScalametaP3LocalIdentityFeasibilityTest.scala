@@ -121,9 +121,12 @@ final class Q064ScalametaP3LocalIdentityFeasibilityTest extends munit.FunSuite:
       )
     )
 
-  test("current typed-Scalameta production fails closed after parse and never falls back"):
-    val failure = quasiquotes.scalameta.TermFrontend.compile(intPattern).left.toOption.getOrElse(
-      fail("current production unexpectedly compiled P3")
+  test("typed-Scalameta production now admits the locked P3 model without fallback"):
+    val compiled = quasiquotes.scalameta.TermFrontend.compile(intPattern).fold(
+      failure => fail(failure.message),
+      identity
     )
-    assertEquals(failure.category, "SCALAMETA_PATTERN_LOWERING_UNSUPPORTED")
-    assert(failure.detail.contains("P2 block does not support local def definitions"), failure)
+    val probe = Q064ScalametaP3PatternProbe.compile(intPattern).fold(fail(_), identity)
+    assertEquals(compiled.engine, quasiquotes.scalameta.TermFrontend.Engine.Scalameta)
+    assertEquals(compiled.primaryFailure, None)
+    assertEquals(compiled.pattern, probe.pattern)
