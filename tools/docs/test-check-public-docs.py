@@ -136,7 +136,11 @@ class PublicDocsCheckTest(unittest.TestCase):
             "| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
             "| Rank-2 Term arguments in Apply / one-list New | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` | `NOT_APPLICABLE` |\n"
             "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |\n"
-            "| Dynamic selected-member name | `BOUNDED` | `BOUNDED` already-resolved Select.name and one SelectedMemberName over compiler-presented `AppliedType` | `BOUNDED` | `BOUNDED` Scalameta-primary shared matcher | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |\n",
+            "| Dynamic selected-member name | `BOUNDED` | `BOUNDED` already-resolved Select.name and one SelectedMemberName over compiler-presented `AppliedType` | `BOUNDED` | `BOUNDED` Scalameta-primary shared matcher | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |\n"
+            "\n`TermUntypedLowering` and `TermGeneratedOriginLowering` preserve "
+            "two or more successive ordinary argument clauses. "
+            "`CoreTermShapeUntypedLowerer` remains one-list. "
+            "`ScalametaTermUntypedBridge` and `ScalametaTermGeneratedOriginBridge` remain one-list.\n",
             encoding="utf-8",
         )
         (docs / "SUPPORTED_SYNTAX_AND_LIMITATIONS.md").write_text(
@@ -152,7 +156,12 @@ class PublicDocsCheckTest(unittest.TestCase):
             "Selected-member matching uses `qq\"$receiver.$selectedName\"`, `qq\"$receiver.$selectedName()\"`, `qq\"$receiver.$selectedName($argument)\"`, `qq\"$receiver.$selectedName(..$arguments)\"`, `qq\"$receiver.$selectedName($head, ..$tail)\"`, `qq\"$receiver.$selectedName(..$init, $last)\"`, and `qq\"$receiver.$selectedName($first, ..$middle, $last)\"`. "
             "It returns exact Term, one SelectedMemberName, and one Seq[Term] from the already-resolved `Select.name`; an already-resolved overload may match. "
             "The typed route is Scalameta-primary and reuses the shared matcher.\n\n"
-            "Dynamic Type matching admits `tqq\"$constructor[..$arguments]\"`, `tqq\"$constructor[$head, ..$tail]\"`, `tqq\"$constructor[..$init, $last]\"`, `tqq\"$constructor[$first, ..$middle, $last]\"`, and `tqq\"$constructor[Int, ..$tail]\"` over any compiler-presented `AppliedType`; construction remains narrower and exact TypeRepr plus Seq[TypeRepr] identities are preserved. Matching is broader than the narrower construction contract.\n",
+            "Dynamic Type matching admits `tqq\"$constructor[..$arguments]\"`, `tqq\"$constructor[$head, ..$tail]\"`, `tqq\"$constructor[..$init, $last]\"`, `tqq\"$constructor[$first, ..$middle, $last]\"`, and `tqq\"$constructor[Int, ..$tail]\"` over any compiler-presented `AppliedType`; construction remains narrower and exact TypeRepr plus Seq[TypeRepr] identities are preserved. Matching is broader than the narrower construction contract.\n"
+            "\nStandard typed P3 matching: standard typed `qq` matches one local identity method "
+            "with equal explicit `Int`, `String`, or `Boolean` parameter and result Types; "
+            "method and parameter names match alpha-equivalently. "
+            "A typed-Scalameta P3 matcher is present, but it is not an accepted "
+            "documented public capability.\n",
             encoding="utf-8",
         )
         (docs / "COMPATIBILITY.md").write_text(
@@ -812,6 +821,77 @@ class PublicDocsCheckTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("C065 selected-member documentation missing layout", result.stderr)
 
+    def test_rejects_missing_c068_semantic_apply_surface_split(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            (root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md").write_text(
+                "completed nested Apply is supported everywhere\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C068 completed Apply surface split missing", result.stderr)
+
+    def test_rejects_missing_c068_standard_p3_match_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            limitations = root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+            limitations.write_text(
+                limitations.read_text(encoding="utf-8").replace(
+                    "method and parameter names match alpha-equivalently",
+                    "binder matching omitted",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C068 standard P3 matching contract missing", result.stderr)
+
+    def test_rejects_stale_c065_calling_mode_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            (root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md").write_text(
+                "A captured by-name parameter can be inspected\n"
+                "Do not call `replaceParameterType` for a captured by-name parameter\n"
+                "change evaluation from by-name to strict\n"
+                "not fail-closed for this case\n"
+                "`UNSUPPORTED_STRUCTURE` result\n"
+                "does not automatically protect whole-slot parameter-Type replacement\n"
+                "Captured repeated/vararg parameters\n"
+                "Do not call `replaceParameterType` for a captured repeated parameter\n"
+                "multi-argument calls fail Typer\n"
+                "This is also not fail-closed\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C068 stale calling-mode safety warning", result.stderr)
+
+    def test_rejects_general_calling_mode_rewrite_overclaim(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            (root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md").write_text(
+                "By-name parameter-Type replacement preserves a fresh outer wrapper.\n"
+                "Repeated parameter-Type replacement preserves the original star marker.\n"
+                "arbitrary calling-mode rewriting is supported\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C068 calling-mode overclaim", result.stderr)
+
     def test_rejects_missing_c065_dynamic_tqq_layout(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -830,38 +910,50 @@ class PublicDocsCheckTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("C065 dynamic tqq documentation missing layout", result.stderr)
 
-    def test_rejects_missing_c065_by_name_restriction(self) -> None:
+    def test_rejects_missing_c068_by_name_wrapper_preservation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.make_fixture(root)
             (root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md").write_text(
-                "# Existing class rewrite\n\nBy-name safety omitted.\n",
+                "Repeated parameter-Type replacement preserves a fresh `PostfixOp` wrapper\n"
+                "original `Ident(*)` marker by identity\n"
+                "one ordinary clause of one or two parameters\n"
+                "Same-method mixed by-name and repeated edits are safe\n"
+                "Cross-member calling-mode composition remains outside this documented bounded family\n"
+                "does not authorize arbitrary calling-mode rewriting\n",
                 encoding="utf-8",
             )
 
             result = self.run_checker(root)
 
             self.assertEqual(result.returncode, 1)
-            self.assertIn("C065 by-name safety restriction missing", result.stderr)
+            self.assertIn(
+                "C068 bounded calling-mode safety contract missing: "
+                "By-name parameter-Type replacement",
+                result.stderr,
+            )
 
-    def test_rejects_missing_c065_repeated_parameter_restriction(self) -> None:
+    def test_rejects_missing_c068_repeated_wrapper_preservation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.make_fixture(root)
             (root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md").write_text(
-                "A captured by-name parameter can be inspected\n"
-                "Do not call `replaceParameterType` for a captured by-name parameter\n"
-                "change evaluation from by-name to strict\n"
-                "not fail-closed for this case\n"
-                "`UNSUPPORTED_STRUCTURE` result\n"
-                "does not automatically protect whole-slot parameter-Type replacement\n",
+                "By-name parameter-Type replacement preserves a fresh `ByNameTypeTree` wrapper\n"
+                "one ordinary clause of one or two parameters\n"
+                "Same-method mixed by-name and repeated edits are safe\n"
+                "Cross-member calling-mode composition remains outside this documented bounded family\n"
+                "does not authorize arbitrary calling-mode rewriting\n",
                 encoding="utf-8",
             )
 
             result = self.run_checker(root)
 
             self.assertEqual(result.returncode, 1)
-            self.assertIn("C065 repeated parameter safety restriction missing", result.stderr)
+            self.assertIn(
+                "C068 bounded calling-mode safety contract missing: "
+                "Repeated parameter-Type replacement",
+                result.stderr,
+            )
 
     def test_rejects_stale_c065_active_inventory(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

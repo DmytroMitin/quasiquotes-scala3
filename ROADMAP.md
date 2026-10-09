@@ -310,7 +310,7 @@ None of N1-N5 is `CHECKPOINT_COMPLETE`.
 The bounded explicit-receiver dynamic selected-member construction gap, its
 separate selected-name matching slice on both typed frontends, the first N5
 complete constructor-Type and bounded sequence-Term splices, and the first
-source-owned local identity-method block are implemented. Bare identifiers,
+source-owned local identity-method construction block, and its bounded standard-only identity-method matcher are implemented. A typed-Scalameta P3 matcher is present but remains outside the accepted documented public boundary pending its independent acceptance gate. Bare identifiers,
 source-level overload resolution, dynamic infix syntax, multiple selected-name
 or ranked captures, rank 3, broader name/Type positions, and broader
 definition/class support remain independent later work. The

@@ -31,7 +31,11 @@ context-free. `DefinitionUntypedLowering` uses a private semantic-to-shape
 adapter and the private five-family exact lowerer. The Term and Definition
 facades require an active Dotty `Context`; all three reject unsupported or
 malformed semantic values through stable facade failures and return only
-fresh source-free syntax.
+fresh source-free syntax. The two public semantic Term facades preserve
+left-associated completed `TermShape.Apply` with 2..N ordinary clauses,
+including explicit empty clauses. The direct `CoreTermShapeUntypedLowerer`,
+neutral Scalameta routes and both Scalameta Term bridges remain one-list and
+non-delegating.
 
 The separate `DefinitionGeneratedOriginLowering` facade accepts the five
 public semantic Definition families, including aliases, and returns a positioned

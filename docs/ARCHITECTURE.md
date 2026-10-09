@@ -283,7 +283,11 @@ The exact-version module now publishes three direct semantic-value facades:
 facade owns the richer completed/binder-safe route. The context-free
 `ScalametaTypeUntypedBridge` delegates through the Type facade, while the
 Scalameta Term and Definition source-free bridges remain separate,
-non-delegating compatibility compositions. The Definition bridge still uses
+non-delegating compatibility compositions. The public semantic
+`TermUntypedLowering` and `TermGeneratedOriginLowering` operations preserve
+recursive completed `TermShape.Apply` with 2..N ordinary clauses and explicit
+empty clauses; neutral projection/authoring, direct Core lowering and the
+Scalameta Term bridges remain one-list compatibility boundaries. The Definition bridge still uses
 private shape projection/lowering carriers; its generated-origin sibling
 admits only the four concrete val/def families, so the simple-alias exclusion
 is not widened by specialized refined-alias authority.

@@ -85,27 +85,33 @@ Append accepts the public semantic Definition families admitted by
 appends retain plan order. Every appended member keeps its generated virtual
 source.
 
-### Current by-name and repeated-parameter restrictions
+### Bounded by-name and repeated parameter-Type replacement
 
-A captured by-name parameter can be inspected, and its containing method can
-receive a binder-aware body replacement or result-Type replacement. Do not call
-`replaceParameterType` for a captured by-name parameter in the active
-0.4.0-SNAPSHOT implementation: rebuilding that whole parameter Type can erase
-the by-name wrapper and change evaluation from by-name to strict.
+In the active 0.4.0-SNAPSHOT source, `replaceParameterType` preserves the
+calling convention for the already admitted ordinary-method families. By-name
+parameter-Type replacement preserves a fresh `ByNameTypeTree` wrapper around
+a fresh replacement inner Type at the original inner and outer source sites.
+Repeated parameter-Type replacement preserves a fresh `PostfixOp` wrapper and
+the original `Ident(*)` marker by identity while replacing only its element
+Type.
 
-This is a caller usage restriction, not a new failure mode. The current API is
-not fail-closed for this case, and an `UNSUPPORTED_STRUCTURE` result from the
-bounded semantic Type projection does not automatically protect whole-slot
-parameter-Type replacement. Keep the original parameter Type until a separately
-proven correction is integrated.
+The supported topology remains one ordinary clause of one or two parameters.
+A repeated parameter must remain the final parameter in that clause. The
+existing private source, span, wrapper, marker, identity and capture-local
+provenance checks still fail closed for malformed, stale, foreign or tampered
+evidence. Strict parameters retain their direct replacement path.
 
-Captured repeated/vararg parameters have the same current usage restriction.
-Their exact raw Type retains the outer `PostfixOp(elementType, Ident(*))`
-wrapper, and body-only or result-Type-only edits preserve it. Do not call
-`replaceParameterType` for a captured repeated parameter: replacing the whole
-slot with a scalar Type erases that wrapper and makes previously valid
-multi-argument calls fail Typer. This is also not fail-closed, and semantic
-projection rejection does not guard the separate whole-slot replacement.
+Same-method mixed by-name and repeated edits are safe in one immutable plan,
+including either edit order and composition with accepted body/result edits.
+Cross-member calling-mode composition remains outside this documented bounded
+family. This behavior does not authorize arbitrary calling-mode rewriting,
+general by-name or vararg construction, contextual/generic/multi-clause method
+admission, or broader method-shape support.
+
+Earlier active-source warnings were conservative for the historical unsafe
+whole-slot implementation and are superseded by the bounded wrapper-preserving
+behavior above. Released 0.3.0 artifacts remain immutable and do not acquire
+this active-source correction retroactively.
 
 ## One atomic owner transaction
 

@@ -57,6 +57,14 @@ interpolation; qualified one-list construction; explicit parentheses; expression
 blocks; primitive ascription; and the admitted single-parameter lambda,
 local-value and local-method families.
 
+Completed ordinary application preserves the recursive left-associated
+`TermShape.Apply` topology. Both semantic facades admit two or more successive
+ordinary argument clauses, including explicit empty Lists: `f(a)(b)`,
+`f()(b)`, and `f(a)()(c, d)`. Zero clauses means no Apply node, so `f`
+and `f()` remain distinct. This does not widen neutral Scalameta
+projection/authoring, the direct `CoreTermShapeUntypedLowerer`, or either
+public Scalameta Term bridge; those compatibility paths remain one-list.
+
 The generated-source sibling deliberately accepts less than source-free
 lowering:
 
@@ -73,9 +81,10 @@ lowering:
 
 These are conservative source-language choices, not limits of all Scala syntax.
 Ordinary signed literals and Apply functions are not excluded by the receiver
-rule. Argument counts live in the semantic structure; direct nested Apply still
-follows the source-free facade's current rejection, while explicitly wrapped
-functions follow its existing structural policy.
+rule. Argument counts and clause boundaries live in the semantic structure;
+nested completed ordinary Apply is accepted without flattening, while
+explicitly wrapped functions continue to follow the existing structural
+grouping policy.
 
 Public binder builders supply the existing primitive-type envelope. Actual
 frontend-produced root local-method shapes can additionally complete supported

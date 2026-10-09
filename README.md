@@ -176,6 +176,15 @@ exact-one/exact-two selector split and the same dynamic exact-one fallback.
 Its exact-two slice preserves the same bounded structure and caller-owned RHS
 identity without routing through the neutral Definition projectors.
 
+Standard typed `qq` also has one bounded P3 matching slice: exactly one
+source-owned local identity method with one ordinary unary clause, equal
+explicit `Int`, `String`, or `Boolean` parameter/result Types, an identity
+body, and one following call. Method and parameter names match
+alpha-equivalently in distinct binder roles, while the sole scalar capture is
+the original `quotes.reflect.Term` argument. A typed-Scalameta P3 matcher is
+present, but it has not yet completed its independent acceptance gate and is
+therefore not an accepted documented public capability.
+
 See the [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md) for the
 user-facing construct/match boundary and the
 [cross-surface capability matrix](docs/CROSS_SURFACE_CAPABILITY_MATRIX.md) for
@@ -490,18 +499,23 @@ binder-aware one- or two-parameter method edits, omission, and ordered
 `SemanticDefinition` append through one immutable plan and one final owner
 transaction. It does not provide arbitrary AST rewriting, public `u*` syntax,
 owner/symbol repair, target selection, or plugin lifecycle.
-Captured by-name and repeated/vararg parameters may currently be inspected and
-have their body or result Type edited, but callers must not use
-`replaceParameterType` on either calling-mode family: the active implementation
-can turn a by-name parameter strict or erase the repeated wrapper so valid
-multi-argument calls stop typing. These restrictions remain until separately
-proven corrections are integrated; semantic Type projection failure is not a
-whole-slot safety guard.
+Captured by-name and repeated/vararg parameters may be inspected and edited
+within the admitted one-clause unary/two-parameter method families.
+`replaceParameterType` preserves a fresh by-name wrapper or a fresh repeated
+wrapper with its validated original star marker while changing only the inner
+Type. Same-method mixed by-name/repeated edits are safe in one immutable plan.
+This remains a bounded exact-tree transaction, not arbitrary calling-mode or
+method-shape rewriting; cross-member composition and broader contextual,
+generic, multi-clause, or construction syntax are separate work.
 
 The additive [semantic Term generated-origin facade](docs/SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md)
 accepts public TermShape and a virtual source name, returning a positioned tree,
-deterministic text and fresh SourceFile. This implemented public facade has a
-smaller source-name/grouping bound than the source-free `TermUntypedLowering`. Existing Scalameta
-bridges remain separate. No Type generated-origin sibling is included. The
+deterministic text and fresh SourceFile. Together with source-free
+`TermUntypedLowering`, it accepts completed left-associated ordinary
+applications with two or more successive clauses, including explicit empty
+clauses such as `f()(b)` and `f(a)()(c, d)`. This implemented public facade
+has a smaller source-name/grouping bound than the source-free operation.
+The direct Core lowerer and both Scalameta Term bridges remain one-list,
+separate compatibility paths. No Type generated-origin sibling is included. The
 existing-owner rewrite facade is a separate bounded U-U operation, not a mode
 of generated-origin lowering.

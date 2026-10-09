@@ -270,7 +270,5 @@ empty/one/many sequences and fixed surrounding Terms while preserving order
 and original caller Term objects. N5 remains incomplete because broader
 dynamic applied-Type constructors, argument-clause topology, coercion policy,
 and sequence matching remain absent. Refinements, classes, and definitions
-remain separate gates. The first source-owned local identity-method `def`
-statement is implemented in a bounded `qr` block; broader local-definition
-composition remains future work. External typed-definition splicing requires
+remain separate gates. The first source-owned local identity-method `def` statement is implemented in a bounded `qr` block. Standard `qq` also matches the exact unary Int/String/Boolean identity family with alpha-equivalent binder names and one original scalar Term capture. A typed-Scalameta P3 matcher is present but remains outside the accepted documented public boundary pending its independent acceptance gate; broader local-definition composition remains future work. External typed-definition splicing requires
 a separate explicit reownership contract.

@@ -674,11 +674,21 @@ object SourceOwnedLocalDefFirstUseSnippet:
 ```
 <!-- snippet:source-owned-local-def-first-use:end -->
 
-This is exactly one literal method name, one literal ordinary parameter name,
-complete reflected parameter and result Types, a body that references that
-parameter, and one following result expression. It does not splice an external
-`DefDef`, expose `Symbol`, support recursion or multiple statements, or add
-local-definition matching to `qq`.
+Construction remains exactly one literal method name, one literal ordinary
+parameter name, complete reflected parameter and result Types, a body that
+references that parameter, and one following result expression. It does not
+splice an external `DefDef`, expose `Symbol`, support recursion, or admit
+multiple statements.
+
+Standard typed `qq` separately matches the fixed identity family when the
+parameter and result Types are the same explicit `Int`, `String`, or
+`Boolean`. The method and parameter spellings may differ
+alpha-equivalently, and the single argument hole returns the original
+`quotes.reflect.Term`. This is not general local-definition matching:
+broader blocks, clauses, Types, parameters, and bodies remain outside the
+current boundary. A typed-Scalameta P3 matcher is present but remains outside
+the accepted documented public boundary pending its independent acceptance
+gate.
 
 ## Bounded `qq` extractor first use
 

@@ -600,6 +600,7 @@ def c065_truth_findings(root: Path) -> list[str]:
     cross_matrix = (root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md").read_text(
         encoding="utf-8"
     )
+    normalized_limitations = " ".join(limitations.split())
     findings = []
 
     selected_forms = (
@@ -648,27 +649,51 @@ def c065_truth_findings(root: Path) -> list[str]:
         if marker not in cross_matrix:
             findings.append(f"C065 cross-surface matrix missing contract: {marker}")
 
+    for marker in (
+        "`TermUntypedLowering` and `TermGeneratedOriginLowering`",
+        "two or more successive ordinary argument clauses",
+        "`CoreTermShapeUntypedLowerer` remains one-list",
+        "`ScalametaTermUntypedBridge` and `ScalametaTermGeneratedOriginBridge` remain one-list",
+    ):
+        if marker not in cross_matrix:
+            findings.append(f"C068 completed Apply surface split missing: {marker}")
+
+    for marker in (
+        "standard typed `qq` matches one local identity method",
+        "equal explicit `Int`, `String`, or `Boolean` parameter and result Types",
+        "method and parameter names match alpha-equivalently",
+        "typed-Scalameta P3 matcher is present",
+        "not an accepted documented public capability",
+    ):
+        if marker.casefold() not in normalized_limitations.casefold():
+            findings.append(f"C068 standard P3 matching contract missing: {marker}")
+
     by_name_doc = root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md"
     if by_name_doc.exists():
-        by_name = " ".join(by_name_doc.read_text(encoding="utf-8").split())
+        calling_modes = " ".join(by_name_doc.read_text(encoding="utf-8").split())
         for marker in (
-            "A captured by-name parameter can be inspected",
+            "By-name parameter-Type replacement preserves a fresh `ByNameTypeTree` wrapper",
+            "Repeated parameter-Type replacement preserves a fresh `PostfixOp` wrapper",
+            "original `Ident(*)` marker by identity",
+            "one ordinary clause of one or two parameters",
+            "Same-method mixed by-name and repeated edits are safe",
+            "Cross-member calling-mode composition remains outside this documented bounded family",
+            "does not authorize arbitrary calling-mode rewriting",
+        ):
+            if marker not in calling_modes:
+                findings.append(f"C068 bounded calling-mode safety contract missing: {marker}")
+        for stale in (
             "Do not call `replaceParameterType` for a captured by-name parameter",
-            "change evaluation from by-name to strict",
-            "not fail-closed for this case",
-            "`UNSUPPORTED_STRUCTURE` result",
-            "does not automatically protect whole-slot parameter-Type replacement",
-        ):
-            if marker not in by_name:
-                findings.append(f"C065 by-name safety restriction missing: {marker}")
-        for marker in (
-            "Captured repeated/vararg parameters",
             "Do not call `replaceParameterType` for a captured repeated parameter",
-            "multi-argument calls fail Typer",
-            "This is also not fail-closed",
         ):
-            if marker not in by_name:
-                findings.append(f"C065 repeated parameter safety restriction missing: {marker}")
+            if stale in calling_modes:
+                findings.append(f"C068 stale calling-mode safety warning: {stale}")
+        for overclaim in (
+            "arbitrary calling-mode rewriting is supported",
+            "all method shapes support calling-mode parameter-Type replacement",
+        ):
+            if overclaim in calling_modes:
+                findings.append(f"C068 calling-mode overclaim: {overclaim}")
 
     api_doc = root / "docs/API_COMPATIBILITY_REVIEW.md"
     if api_doc.exists():
@@ -683,7 +708,7 @@ def c065_truth_findings(root: Path) -> list[str]:
         for marker in (
             "0.4.0-SNAPSHOT standard inventory is 798 rows / 779 groups",
             "typed-Scalameta inventory is 45 rows / 43 groups",
-            "must not use `replaceParameterType`",
+            "Same-method mixed by-name/repeated edits are safe in one immutable plan",
         ):
             if marker not in " ".join(readme.split()):
                 findings.append(f"C065 README truth missing: {marker}")
