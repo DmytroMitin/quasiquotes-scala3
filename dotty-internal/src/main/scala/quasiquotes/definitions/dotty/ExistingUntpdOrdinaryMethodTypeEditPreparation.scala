@@ -15,6 +15,11 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
   final case class Error(code: String, detail: String) derives CanEqual:
     def message: String = s"$code: $detail"
 
+  private[dotty] final class ParameterTypeIdentity private[ExistingUntpdOrdinaryMethodTypeEditPreparation] (
+      val outer: untpd.Tree,
+      val byNameInner: Option[untpd.Tree]
+  )
+
   private[dotty] final case class ParameterEvidence(
       descriptor: Descriptor,
       captured: ExistingUntpdClassMemberFilter.Capture,
@@ -26,6 +31,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
       semanticReplacement: TypeNormalForm,
       loweredType: untpd.Tree,
       positionedType: untpd.Tree,
+      positionedTypeIdentity: ParameterTypeIdentity,
       positionedParameter: untpd.ValDef
   )
 
@@ -86,8 +92,8 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
       admitted <- admit(replacement)
       lowered <- lower(admitted)
       _ <- validateLowered(lowered, primitiveName(admitted))
-      positioned = positionParameter(oldParameter, oldParameterType, lowered)
-      _ <- validatePositionedType(positioned._1, lowered, oldParameterType, primitiveName(admitted))
+      positioned <- positionParameter(oldParameter, oldParameterType, lowered)
+      _ <- validatePositionedParameterType(positioned._1, lowered, oldParameterType, primitiveName(admitted))
         .left.map(problem => error("ORIGIN_POSITIONING_FAILED", problem.detail))
       _ <- validatePositionedParameter(positioned._2, positioned._1, oldParameter)
         .left.map(problem => error("ORIGIN_POSITIONING_FAILED", problem.detail))
@@ -102,6 +108,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
         admitted,
         lowered,
         positioned._1,
+        parameterTypeIdentity(positioned._1),
         positioned._2
       )
       prepared = PreparedParameterType(
@@ -196,7 +203,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
       _ <- requireSite(value.oldParameterType, failure.code, "the retained old parameter Type").left.map(_ => failure)
       admitted <- admit(value.semanticReplacement).left.map(_ => failure)
       _ <- validateLowered(value.loweredType, primitiveName(admitted)).left.map(_ => failure)
-      _ <- validatePositionedType(
+      _ <- validatePositionedParameterType(
         value.positionedType,
         value.loweredType,
         value.oldParameterType,
@@ -312,21 +319,50 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
       oldParameter: untpd.ValDef,
       oldParameterType: untpd.Tree,
       lowered: untpd.Tree
-  )(using Context): (untpd.Tree, untpd.ValDef) =
-    given SourceFile = NoSource
-    val positionedType = positionType(lowered, oldParameterType)
-    val sourceFreeParameter = untpd
-      .ValDef(oldParameter.name, lowered, untpd.EmptyTree)
-      .withMods(oldParameter.mods)
-    val positionedParameter = untpd.cpy
-      .ValDef(sourceFreeParameter)(
-        sourceFreeParameter.name,
-        positionedType,
-        sourceFreeParameter.rhs
-      )
-      .cloneIn(oldParameter.source)
-      .withSpan(oldParameter.span)
-    (positionedType, positionedParameter)
+  )(using Context): Either[Error, (untpd.Tree, untpd.ValDef)] =
+    for
+      positionedType <- positionParameterType(oldParameterType, lowered)
+    yield
+      given SourceFile = NoSource
+      val sourceFreeParameter = untpd
+        .ValDef(oldParameter.name, lowered, untpd.EmptyTree)
+        .withMods(oldParameter.mods)
+      val positionedParameter = untpd.cpy
+        .ValDef(sourceFreeParameter)(
+          sourceFreeParameter.name,
+          positionedType,
+          sourceFreeParameter.rhs
+        )
+        .cloneIn(oldParameter.source)
+        .withSpan(oldParameter.span)
+      (positionedType, positionedParameter)
+
+  private def positionParameterType(
+      oldParameterType: untpd.Tree,
+      lowered: untpd.Tree
+  )(using Context): Either[Error, untpd.Tree] =
+    oldParameterType match
+      case oldWrapper: untpd.ByNameTypeTree =>
+        for
+          oldInner <- Option(oldWrapper.result)
+            .filterNot(_.isEmpty)
+            .toRight(error(
+              "OLD_PARAMETER_TYPE_SITE_REQUIRED",
+              "the selected old by-name parameter had no inner Type site."
+            ))
+          _ <- requireSite(
+            oldInner,
+            "OLD_PARAMETER_TYPE_SITE_REQUIRED",
+            "the selected old by-name parameter inner Type"
+          )
+        yield
+          given SourceFile = NoSource
+          val positionedInner = positionType(lowered, oldInner)
+          untpd.ByNameTypeTree(positionedInner)
+            .cloneIn(oldWrapper.source)
+            .withSpan(oldWrapper.span)
+      case _ =>
+        Right(positionType(lowered, oldParameterType))
 
   private def validateLowered(
       lowered: untpd.Tree,
@@ -370,6 +406,62 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
       error("ORIGIN_POSITIONING_FAILED", "the fresh positioned Type did not exactly occupy the old transformation site.")
     )
 
+  private def validatePositionedParameterType(
+      positioned: untpd.Tree,
+      lowered: untpd.Tree,
+      oldSite: untpd.Tree,
+      expectedName: String
+  )(using Context): Either[Error, Unit] =
+    oldSite match
+      case oldWrapper: untpd.ByNameTypeTree =>
+        (positioned, Option(oldWrapper.result)) match
+          case (wrapper: untpd.ByNameTypeTree, Some(oldInner))
+              if !oldInner.isEmpty =>
+            val graph = safeAllTrees(wrapper)
+            val outerValid =
+              !wrapper.eq(lowered) &&
+                !wrapper.eq(oldWrapper) &&
+                wrapper.result != null &&
+                !wrapper.result.isEmpty &&
+                wrapper.source == oldWrapper.source &&
+                wrapper.span == oldWrapper.span &&
+                wrapper.symbol == NoSymbol &&
+                graph.exists(nodes =>
+                  nodes.size == 2 && nodes.forall(node =>
+                    node != null &&
+                      node.symbol == NoSymbol &&
+                      !node.isInstanceOf[untpd.TypedSplice]
+                  )
+                )
+            for
+              _ <- requireSite(
+                oldInner,
+                "ORIGIN_POSITIONING_FAILED",
+                "the retained old by-name parameter inner Type"
+              )
+              _ <- Either.cond(
+                outerValid,
+                (),
+                error(
+                  "ORIGIN_POSITIONING_FAILED",
+                  "the fresh by-name wrapper drifted from the old outer site or clean two-node topology."
+                )
+              )
+              _ <- validatePositionedType(
+                wrapper.result,
+                lowered,
+                oldInner,
+                expectedName
+              )
+            yield ()
+          case _ =>
+            Left(error(
+              "ORIGIN_POSITIONING_FAILED",
+              "the positioned by-name parameter Type did not retain a nonempty ByNameTypeTree wrapper."
+            ))
+      case _ =>
+        validatePositionedType(positioned, lowered, oldSite, expectedName)
+
   private def validatePositionedParameter(
       positioned: untpd.ValDef,
       positionedType: untpd.Tree,
@@ -398,6 +490,33 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
       error("ORIGIN_POSITIONING_FAILED", "the fresh parameter shell drifted from the old parameter site, name, modifiers, empty RHS, or pre-Typer contract.")
     )
 
+  private def parameterTypeIdentity(
+      positioned: untpd.Tree
+  ): ParameterTypeIdentity =
+    new ParameterTypeIdentity(
+      positioned,
+      positioned match
+        case wrapper: untpd.ByNameTypeTree => Option(wrapper.result)
+        case _ => None
+    )
+
+  private def parameterTypeIdentityMatches(
+      positioned: untpd.Tree,
+      identity: ParameterTypeIdentity
+  ): Boolean =
+    Option(positioned).exists { present =>
+      Option(identity).exists { snapshot =>
+        present.eq(snapshot.outer) &&
+          Option(snapshot.byNameInner).exists {
+            case Some(inner) =>
+              present match
+                case wrapper: untpd.ByNameTypeTree => Option(wrapper.result).exists(_.eq(inner))
+                case _ => false
+            case None => !present.isInstanceOf[untpd.ByNameTypeTree]
+          }
+      }
+    }
+
   private def parameterEvidenceMatches(
       value: PreparedParameterType,
       evidence: ParameterEvidence
@@ -411,7 +530,8 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
       value.oldParameterType.eq(evidence.oldParameterType) &&
       value.semanticReplacement.eq(evidence.semanticReplacement) &&
       value.loweredType.eq(evidence.loweredType) &&
-      value.positionedType.eq(evidence.positionedType) &&
+      Option(value.positionedType).exists(_.eq(evidence.positionedType)) &&
+      parameterTypeIdentityMatches(value.positionedType, evidence.positionedTypeIdentity) &&
       value.positionedParameter.eq(evidence.positionedParameter)
 
   private def resultEvidenceMatches(

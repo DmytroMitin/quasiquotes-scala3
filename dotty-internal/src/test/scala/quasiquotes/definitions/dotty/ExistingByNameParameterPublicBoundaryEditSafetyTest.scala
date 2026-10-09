@@ -75,7 +75,7 @@ class ExistingByNameParameterPublicBoundaryEditSafetyTest extends munit.FunSuite
     }
   }
 
-  test("current unary parameter-Type replacement drops the by-name wrapper") {
+  test("unary parameter-Type replacement preserves a fresh by-name wrapper around the new inner Type") {
     withContext {
       val root = parseClass(
         "class ParameterTypeByName:\n  def eval(x: => AnyVal): Int = 0\n  val untouched: Int = 11\n"
@@ -95,13 +95,18 @@ class ExistingByNameParameterPublicBoundaryEditSafetyTest extends munit.FunSuite
       assert(!rewrittenParameter.eq(originalParameter))
       assertEquals(rewrittenParameter.mods.flags, Flags.Param)
       assert(rewrittenParameter.mods.eq(originalParameter.mods))
-      assert(!rewrittenParameter.tpt.eq(originalWrapper))
-      assert(!rewrittenParameter.tpt.isInstanceOf[untpd.ByNameTypeTree])
-      rewrittenParameter.tpt match
-        case untpd.Ident(name) => assertEquals(name.toString, "Int")
-        case other => fail("expected strict replacement Int Ident, found " + other)
-      assertEquals(rewrittenParameter.tpt.source, originalWrapper.source)
-      assertEquals(rewrittenParameter.tpt.span, originalWrapper.span)
+      val rewrittenWrapper = byNameType(rewrittenParameter)
+      assert(!rewrittenWrapper.eq(originalWrapper))
+      assertEquals(rewrittenWrapper.source, originalWrapper.source)
+      assertEquals(rewrittenWrapper.span, originalWrapper.span)
+      assert(!rewrittenWrapper.result.eq(originalWrapper.result))
+      rewrittenWrapper.result match
+        case ident: untpd.Ident =>
+          assertEquals(ident.name.toString, "Int")
+          assertEquals(ident.source, originalWrapper.result.source)
+          assertEquals(ident.span, originalWrapper.result.span)
+          assert(rewrittenWrapper.result.eq(ident))
+        case other => fail("expected by-name inner Int Ident, found " + other)
       assert(rewritten.tpt.eq(originalMethod.tpt))
       assert(rewritten.rhs.eq(originalMethod.rhs))
       assert(result.directMemberIdentities(1).sameObjectAs(captured.members(1).identity))
@@ -109,7 +114,7 @@ class ExistingByNameParameterPublicBoundaryEditSafetyTest extends munit.FunSuite
     }
   }
 
-  test("the two-parameter public path has the same parameter-Type wrapper loss") {
+  test("the two-parameter public path preserves the selected by-name wrapper and strict neighbor") {
     withContext {
       val root = parseClass(
         "class TwoParameterByNameEdit:\n  def combine(x: => AnyVal, y: Int): Int = y\n  val untouched: Int = 13\n"
@@ -129,13 +134,51 @@ class ExistingByNameParameterPublicBoundaryEditSafetyTest extends munit.FunSuite
 
       assertFreshMethodShell(result, root, originalMethod, rewritten)
       assert(!rewrittenFirst.eq(originalFirst))
-      assert(!rewrittenFirst.tpt.eq(originalWrapper))
-      assert(!rewrittenFirst.tpt.isInstanceOf[untpd.ByNameTypeTree])
-      rewrittenFirst.tpt match
-        case untpd.Ident(name) => assertEquals(name.toString, "Int")
-        case other => fail("expected strict first-parameter Int Ident, found " + other)
+      val rewrittenWrapper = byNameType(rewrittenFirst)
+      assert(!rewrittenWrapper.eq(originalWrapper))
+      assertEquals(rewrittenWrapper.source, originalWrapper.source)
+      assertEquals(rewrittenWrapper.span, originalWrapper.span)
+      rewrittenWrapper.result match
+        case ident: untpd.Ident =>
+          assertEquals(ident.name.toString, "Int")
+          assertEquals(ident.source, originalWrapper.result.source)
+          assertEquals(ident.span, originalWrapper.result.span)
+        case other => fail("expected by-name inner Int Ident, found " + other)
       assert(rewrittenSecond.eq(originalSecond))
       assert(rewrittenSecond.tpt.eq(originalSecond.tpt))
+      assertPreTyperClean(result.tree)
+    }
+  }
+
+  test("the symmetric second by-name parameter preserves its wrapper and strict first neighbor") {
+    withContext {
+      val root = parseClass(
+        "class SecondByNameEdit:\n  def combine(y: Int, x: => AnyVal): Int = y\n  val untouched: Int = 14\n"
+      )
+      val originalMethod = firstMethod(root)
+      val originalFirst = originalMethod.paramss.head.head.asInstanceOf[untpd.ValDef]
+      val originalSecond = originalMethod.paramss.head(1).asInstanceOf[untpd.ValDef]
+      val originalWrapper = byNameType(originalSecond)
+      val captured = capture(root)
+      val method = methodView(captured)
+      val second = method.parameterClauses.head.parameters(1)
+      val plan = publicRight(captured.emptyPlan.replaceParameterType(second.ref, IntType))
+      val result = publicRight(ExistingClassUntypedRewrite(captured, plan))
+      val rewritten = firstMethod(result.tree)
+      val rewrittenFirst = rewritten.paramss.head.head.asInstanceOf[untpd.ValDef]
+      val rewrittenSecond = rewritten.paramss.head(1).asInstanceOf[untpd.ValDef]
+
+      assertFreshMethodShell(result, root, originalMethod, rewritten)
+      assert(rewrittenFirst.eq(originalFirst))
+      assert(rewrittenFirst.tpt.eq(originalFirst.tpt))
+      assert(!rewrittenSecond.eq(originalSecond))
+      val rewrittenWrapper = byNameType(rewrittenSecond)
+      assert(!rewrittenWrapper.eq(originalWrapper))
+      assertEquals(rewrittenWrapper.source, originalWrapper.source)
+      assertEquals(rewrittenWrapper.span, originalWrapper.span)
+      rewrittenWrapper.result match
+        case ident: untpd.Ident => assertEquals(ident.name.toString, "Int")
+        case other => fail("expected by-name inner Int Ident, found " + other)
       assertPreTyperClean(result.tree)
     }
   }

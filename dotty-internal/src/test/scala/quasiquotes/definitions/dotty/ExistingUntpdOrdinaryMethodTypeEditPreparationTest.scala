@@ -9,7 +9,7 @@ import dotty.tools.dotc.core.Symbols.{NoSymbol, newSymbol}
 import dotty.tools.dotc.core.Types.NoType
 import dotty.tools.dotc.parsing.Parsers
 import dotty.tools.dotc.reporting.StoreReporter
-import dotty.tools.dotc.util.SourceFile
+import dotty.tools.dotc.util.{NoSource, SourceFile}
 import dotty.tools.dotc.util.Spans.Span
 
 import quasiquotes.types.TypeNormalForm
@@ -91,6 +91,44 @@ class ExistingUntpdOrdinaryMethodTypeEditPreparationTest extends munit.FunSuite:
       assertEquals(validatePreparedParameterType(first, descriptor), Right(()))
       assertEquals(validatePreparedParameterType(second, descriptor), Right(()))
       assertSnapshotUnchanged(root, before)
+    }
+  }
+
+  test("by-name preparation positions a fresh inner primitive and a fresh outer wrapper at their exact sites") {
+    withContext {
+      val descriptor = descriptorFor(
+        parseClass("class ByNamePreparation:\n  def eval(value: => AnyVal): Int = 0\n"),
+        0
+      )
+      val parameter = descriptor.parameterClauses.head.head
+      val oldWrapper = parameter.tpt.asInstanceOf[untpd.ByNameTypeTree]
+      val oldInner = oldWrapper.result
+
+      val prepared = prepareParameter(descriptor, parameter, "Int")
+
+      assertIdent(prepared.loweredType, "Int")
+      assert(!prepared.loweredType.source.exists)
+      assert(!prepared.loweredType.span.exists)
+      prepared.positionedType match
+        case wrapper: untpd.ByNameTypeTree =>
+          assert(!wrapper.eq(oldWrapper))
+          assertEquals(wrapper.source, oldWrapper.source)
+          assertEquals(wrapper.span, oldWrapper.span)
+          wrapper.result match
+            case ident: untpd.Ident =>
+              assertEquals(ident.name.toString, "Int")
+              assert(!ident.eq(prepared.loweredType))
+              assert(!ident.eq(oldInner))
+              assertEquals(ident.source, oldInner.source)
+              assertEquals(ident.span, oldInner.span)
+              assertEquals(ident.symbol, NoSymbol)
+              assert(wrapper.result.eq(ident))
+            case other => fail("expected positioned inner Int Ident, found " + other)
+          assertEquals(wrapper.symbol, NoSymbol)
+        case other => fail("expected fresh ByNameTypeTree, found " + other)
+      assert(prepared.positionedParameter.tpt.eq(prepared.positionedType))
+      assert(prepared.positionedParameter.mods.eq(parameter.tree.mods))
+      assertEquals(validatePreparedParameterType(prepared, descriptor), Right(()))
     }
   }
 
@@ -277,6 +315,63 @@ class ExistingUntpdOrdinaryMethodTypeEditPreparationTest extends munit.FunSuite:
       assertCode(
         validatePreparedResultType(firstResult.copy(positionedType = contaminated), firstDescriptor),
         "FINAL_RESULT_PREPARATION_INVARIANT_FAILED"
+      )
+    }
+  }
+
+  test("by-name final validation rejects matched-evidence same-site outer and inner identity tampering") {
+    withContext {
+      given SourceFile = NoSource
+      val descriptor = descriptorFor(
+        parseClass("class ByNameTamper:\n  def eval(value: => AnyVal): Int = 0\n"),
+        0
+      )
+      val prepared =
+        prepareParameter(descriptor, descriptor.parameterClauses.head.head, "Int")
+      val oldWrapper = prepared.oldParameterType.asInstanceOf[untpd.ByNameTypeTree]
+      val positionedWrapper = prepared.positionedType.asInstanceOf[untpd.ByNameTypeTree]
+
+      def forged(wrapper: untpd.ByNameTypeTree): PreparedParameterType =
+        val parameter = untpd.cpy
+          .ValDef(prepared.positionedParameter)(
+            prepared.positionedParameter.name,
+            wrapper,
+            prepared.positionedParameter.rhs
+          )
+        prepared.copy(
+          positionedType = wrapper,
+          positionedParameter = parameter,
+          evidence = prepared.evidence.copy(
+            positionedType = wrapper,
+            positionedParameter = parameter
+          )
+        )
+
+      val wrongInner = prepared.loweredType
+        .cloneIn(oldWrapper.result.source)
+        .withSpan(oldWrapper.result.span)
+      val innerTampered = untpd.ByNameTypeTree(wrongInner)
+        .cloneIn(oldWrapper.source)
+        .withSpan(oldWrapper.span)
+      assertCode(
+        validatePreparedParameterType(forged(innerTampered), descriptor),
+        "FINAL_PARAMETER_PREPARATION_INVARIANT_FAILED"
+      )
+
+      val outerTampered = untpd.ByNameTypeTree(positionedWrapper.result)
+        .cloneIn(oldWrapper.source)
+        .withSpan(oldWrapper.span)
+      assertCode(
+        validatePreparedParameterType(forged(outerTampered), descriptor),
+        "FINAL_PARAMETER_PREPARATION_INVARIANT_FAILED"
+      )
+
+      assertCode(
+        validatePreparedParameterType(
+          prepared.copy(evidence = prepared.evidence.copy(positionedTypeIdentity = null)),
+          descriptor
+        ),
+        "FINAL_PARAMETER_PREPARATION_INVARIANT_FAILED"
       )
     }
   }

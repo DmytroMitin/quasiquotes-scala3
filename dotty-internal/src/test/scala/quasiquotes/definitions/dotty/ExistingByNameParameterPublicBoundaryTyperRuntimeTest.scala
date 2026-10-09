@@ -19,7 +19,7 @@ import quasiquotes.types.TypeNormalForm
 
 final class ExistingByNameParameterPublicBoundaryTyperRuntimeTest
     extends munit.FunSuite:
-  test("public edits expose preserved and lost by-name evaluation through Typer TASTy and runtime") {
+  test("public edits preserve by-name evaluation through Typer TASTy and runtime") {
     val temporary = Files.createTempDirectory("u056-existing-by-name-boundary-")
     try
       val source = temporary.resolve("U056ExistingByNameRuntime.scala")
@@ -55,8 +55,8 @@ final class ExistingByNameParameterPublicBoundaryTyperRuntimeTest
       )
       assert(driver.bodyWrapperPreserved)
       assert(driver.resultWrapperPreserved)
-      assert(driver.unaryParameterBecameStrict)
-      assert(driver.twoParameterBecameStrict)
+      assert(driver.unaryWrapperPreserved)
+      assert(driver.twoParameterWrapperPreserved)
       assertEquals(driver.untouchedMembersPreserved, 4)
       assert(driver.preTyperClean)
 
@@ -70,8 +70,8 @@ final class ExistingByNameParameterPublicBoundaryTyperRuntimeTest
       try
         assertEquals(invoke(loader, "bodyOnly"), 32)
         assertEquals(invoke(loader, "resultOnly"), 32)
-        assertEquals(invoke(loader, "parameterType"), 1)
-        assertEquals(invoke(loader, "twoParameter"), 41)
+        assertEquals(invoke(loader, "parameterType"), 32)
+        assertEquals(invoke(loader, "twoParameter"), 40)
         assertEquals(invoke(loader, "strictControl"), 21)
       finally loader.close()
     finally deleteRecursively(temporary)
@@ -81,8 +81,8 @@ final class ExistingByNameParameterPublicBoundaryTyperRuntimeTest
     @volatile var rewritten = Set.empty[String]
     @volatile var bodyWrapperPreserved = false
     @volatile var resultWrapperPreserved = false
-    @volatile var unaryParameterBecameStrict = false
-    @volatile var twoParameterBecameStrict = false
+    @volatile var unaryWrapperPreserved = false
+    @volatile var twoParameterWrapperPreserved = false
     @volatile var untouchedMembersPreserved = 0
     @volatile var preTyperClean = false
 
@@ -121,7 +121,7 @@ final class ExistingByNameParameterPublicBoundaryTyperRuntimeTest
                 case Left(problem) => report.error(problem); root
                 case Right(proof) =>
                   evidence.rewritten += root.name.toString
-                  evidence.unaryParameterBecameStrict = proof.parameterBecameStrict
+                  evidence.unaryWrapperPreserved = proof.wrapperPreserved
                   if proof.untouchedPreserved then evidence.untouchedMembersPreserved += 1
                   proof.result.tree
             case root: untpd.TypeDef if root.name.toString == "U056TwoParameter" =>
@@ -129,7 +129,7 @@ final class ExistingByNameParameterPublicBoundaryTyperRuntimeTest
                 case Left(problem) => report.error(problem); root
                 case Right(proof) =>
                   evidence.rewritten += root.name.toString
-                  evidence.twoParameterBecameStrict = proof.parameterBecameStrict
+                  evidence.twoParameterWrapperPreserved = proof.wrapperPreserved
                   if proof.untouchedPreserved then evidence.untouchedMembersPreserved += 1
                   proof.result.tree
             case other => other
@@ -152,9 +152,9 @@ final class ExistingByNameParameterPublicBoundaryTyperRuntimeTest
       untouchedPreserved: Boolean
   )
 
-  private final case class UnsafeProof(
+  private final case class ParameterProof(
       result: Result,
-      parameterBecameStrict: Boolean,
+      wrapperPreserved: Boolean,
       untouchedPreserved: Boolean
   )
 
@@ -206,7 +206,7 @@ final class ExistingByNameParameterPublicBoundaryTyperRuntimeTest
   private def rewriteParameter(
       root: untpd.TypeDef,
       firstParameterIndex: Int
-  )(using Context): Either[String, UnsafeProof] =
+  )(using Context): Either[String, ParameterProof] =
     val originalMethod = firstMethod(root)
     val originalParameter =
       originalMethod.paramss.head(firstParameterIndex).asInstanceOf[untpd.ValDef]
@@ -220,13 +220,16 @@ final class ExistingByNameParameterPublicBoundaryTyperRuntimeTest
       rewritten = firstMethod(result.tree)
       rewrittenParameter =
         rewritten.paramss.head(firstParameterIndex).asInstanceOf[untpd.ValDef]
-      strict = rewrittenParameter.tpt match
-        case untpd.Ident(name) =>
-          name.toString == "Int" && !rewrittenParameter.eq(originalParameter)
+      preserved = rewrittenParameter.tpt match
+        case wrapper: untpd.ByNameTypeTree =>
+          wrapper.result match
+            case untpd.Ident(name) =>
+              name.toString == "Int" && !rewrittenParameter.eq(originalParameter)
+            case _ => false
         case _ => false
-    yield UnsafeProof(
+    yield ParameterProof(
       result,
-      strict,
+      preserved,
       template(result.tree).body(1).eq(originalUntouched)
     )
 
@@ -286,7 +289,7 @@ final class ExistingByNameParameterPublicBoundaryTyperRuntimeTest
       |  val untouched: Int = 9
       |
       |class U056ParameterType:
-      |  def eval(x: => AnyVal): Int = 0
+      |  def eval(x: => AnyVal): Int = x.hashCode + x.hashCode
       |  val untouched: Int = 11
       |
       |class U056TwoParameter:
