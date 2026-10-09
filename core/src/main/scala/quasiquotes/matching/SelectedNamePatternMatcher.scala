@@ -37,6 +37,16 @@ private[quasiquotes] object NeutralSelectedNameMatchError:
     def message: String =
       "The first selected-name matching tranche requires exactly one selected-name field."
 
+  final case class DuplicateSelectedNameOccurrenceAddress(selectOrdinal: Int)
+      extends NeutralSelectedNameMatchError:
+    def message: String =
+      s"Selected-name occurrences share Select ordinal $selectOrdinal."
+
+  final case class SelectedNameTransportConflict(transport: String)
+      extends NeutralSelectedNameMatchError:
+    def message: String =
+      s"Selected-name transport $transport does not identify exactly one selected-name occurrence."
+
   final case class CaptureCategoryConflict(name: String)
       extends NeutralSelectedNameMatchError:
     def message: String =
@@ -60,6 +70,16 @@ private[quasiquotes] object NeutralSelectedNameMatchError:
     def message: String =
       s"Repeated ordinary Term capture $$${name} matched different TermShape values."
 
+  final case class RepeatedSelectedNameCaptureMismatch(name: String)
+      extends NeutralSelectedNameMatchError:
+    def message: String =
+      s"Repeated selected-name capture $$${name} matched different SelectedMemberName values."
+
+  final case class MissingSelectedNameCapture(name: String)
+      extends NeutralSelectedNameMatchError:
+    def message: String =
+      s"Validated selected-name capture $$${name} was not reached during matching."
+
   final case class SelectedNameLexicalUnsupported(name: String)
       extends NeutralSelectedNameMatchError:
     def message: String =
@@ -67,9 +87,17 @@ private[quasiquotes] object NeutralSelectedNameMatchError:
 
 private[quasiquotes] final class ValidatedSelectedNamePattern private (
     val pattern: TermPattern,
-    val occurrence: SelectedNamePatternOccurrence,
+    val occurrences: Vector[SelectedNamePatternOccurrence],
     private val semanticKey: ValidatedSelectedNamePattern.SemanticPatternKey
 ):
+  def occurrence: SelectedNamePatternOccurrence =
+    occurrences match
+      case Vector(value) => value
+      case _ =>
+        throw new IllegalStateException(
+          "The single selected-name occurrence accessor requires exactly one occurrence."
+        )
+
   override def equals(other: Any): Boolean =
     other match
       case that: ValidatedSelectedNamePattern => semanticKey == that.semanticKey
@@ -120,11 +148,64 @@ private[quasiquotes] object ValidatedSelectedNamePattern:
       )
       _ <- validateOccurrence(presentOccurrence)
       scan <- scanRoot(presentPattern)
-      _ <- validateOccurrenceAgainstPattern(presentOccurrence, scan)
-      key = semanticKey(presentPattern, presentOccurrence, 0)._1
+      _ <- validateOccurrencesAgainstPattern(
+        Vector(presentOccurrence),
+        scan,
+        singleCompatibility = true
+      )
+      key = semanticKey(
+        presentPattern,
+        Map(presentOccurrence.selectOrdinal -> presentOccurrence),
+        0
+      )._1
     yield new ValidatedSelectedNamePattern(
       presentPattern,
-      presentOccurrence,
+      Vector(presentOccurrence),
+      key
+    )
+
+  def createTwo(
+      pattern: TermPattern,
+      first: SelectedNamePatternOccurrence,
+      second: SelectedNamePatternOccurrence
+  ): Either[NeutralSelectedNameMatchError, ValidatedSelectedNamePattern] =
+    for
+      presentPattern <- Option(pattern).toRight(InvalidPattern("pattern must be present"))
+      presentFirst <- Option(first).toRight(
+        InvalidSelectedNameOccurrence("first metadata must be present")
+      )
+      presentSecond <- Option(second).toRight(
+        InvalidSelectedNameOccurrence("second metadata must be present")
+      )
+      _ <- validateOccurrence(presentFirst)
+      _ <- validateOccurrence(presentSecond)
+      occurrences = Vector(presentFirst, presentSecond).sortBy(_.selectOrdinal)
+      _ <- occurrences
+        .groupBy(_.selectOrdinal)
+        .collectFirst { case (ordinal, values) if values.size > 1 =>
+          DuplicateSelectedNameOccurrenceAddress(ordinal)
+        }
+        .toLeft(())
+      _ <- occurrences
+        .groupBy(_.transport)
+        .collectFirst { case (transport, values) if values.size > 1 =>
+          SelectedNameTransportConflict(transport)
+        }
+        .toLeft(())
+      scan <- scanRoot(presentPattern)
+      _ <- validateOccurrencesAgainstPattern(
+        occurrences,
+        scan,
+        singleCompatibility = false
+      )
+      key = semanticKey(
+        presentPattern,
+        occurrences.map(value => value.selectOrdinal -> value).toMap,
+        0
+      )._1
+    yield new ValidatedSelectedNamePattern(
+      presentPattern,
+      occurrences,
       key
     )
 
@@ -151,43 +232,56 @@ private[quasiquotes] object ValidatedSelectedNamePattern:
       )
     else Right(())
 
-  private def validateOccurrenceAgainstPattern(
-      occurrence: SelectedNamePatternOccurrence,
-      scan: PatternScan
+  private def validateOccurrencesAgainstPattern(
+      occurrences: Vector[SelectedNamePatternOccurrence],
+      scan: PatternScan,
+      singleCompatibility: Boolean
   ): Either[NeutralSelectedNameMatchError, Unit] =
-    val transportCount = scan.selectNames.count(_ == occurrence.transport)
-    if transportCount > 1 then Left(DuplicateSelectedNameCapture())
-    else if transportCount == 0 then
-      Left(
-        InvalidSelectedNameOccurrence(
-          "transport does not occur in a selected-name field"
-        )
-      )
-    else
-      scan.selectNames.lift(occurrence.selectOrdinal) match
-        case None =>
-          Left(
-            InvalidSelectedNameOccurrence(
-              "Select ordinal does not exist in the admitted pattern"
-            )
-          )
-        case Some(name) if name != occurrence.transport =>
-          Left(
-            InvalidSelectedNameOccurrence(
-              "pattern selected name at the declared ordinal does not equal the transport"
-            )
-          )
-        case Some(_) if scan.ordinaryHoleNames(occurrence.name) =>
-          Left(CaptureCategoryConflict(occurrence.name))
-        case Some(_) =>
-          scan.selectNames.zipWithIndex.collectFirst {
-            case (name, ordinal)
-                if ordinal != occurrence.selectOrdinal &&
-                  DefinitionName.plain(name).isLeft =>
-              name
-          } match
-            case Some(name) => Left(SelectedNameLexicalUnsupported(name))
-            case None       => Right(())
+    occurrences
+      .foldLeft[Either[NeutralSelectedNameMatchError, Unit]](Right(())) {
+        case (result, occurrence) =>
+          result.flatMap { _ =>
+            val transportCount = scan.selectNames.count(_ == occurrence.transport)
+            if transportCount > 1 && singleCompatibility then
+              Left(DuplicateSelectedNameCapture())
+            else if transportCount > 1 then
+              Left(SelectedNameTransportConflict(occurrence.transport))
+            else if transportCount == 0 then
+              Left(
+                InvalidSelectedNameOccurrence(
+                  "transport does not occur in a selected-name field"
+                )
+              )
+            else
+              scan.selectNames.lift(occurrence.selectOrdinal) match
+                case None =>
+                  Left(
+                    InvalidSelectedNameOccurrence(
+                      "Select ordinal does not exist in the admitted pattern"
+                    )
+                  )
+                case Some(name) if name != occurrence.transport =>
+                  Left(
+                    InvalidSelectedNameOccurrence(
+                      "pattern selected name at the declared ordinal does not equal the transport"
+                    )
+                  )
+                case Some(_) if scan.ordinaryHoleNames(occurrence.name) =>
+                  Left(CaptureCategoryConflict(occurrence.name))
+                case Some(_) => Right(())
+          }
+      }
+      .flatMap { _ =>
+        val capturedOrdinals = occurrences.map(_.selectOrdinal).toSet
+        scan.selectNames.zipWithIndex.collectFirst {
+          case (name, ordinal)
+              if !capturedOrdinals(ordinal) &&
+                DefinitionName.plain(name).isLeft =>
+            name
+        } match
+          case Some(name) => Left(SelectedNameLexicalUnsupported(name))
+          case None       => Right(())
+      }
 
   private def scanRoot(
       pattern: TermPattern
@@ -281,7 +375,7 @@ private[quasiquotes] object ValidatedSelectedNamePattern:
 
   private def semanticKey(
       pattern: TermPattern,
-      occurrence: SelectedNamePatternOccurrence,
+      occurrencesByOrdinal: Map[Int, SelectedNamePatternOccurrence],
       nextSelectOrdinal: Int
   ): (SemanticPatternKey, Int) =
     pattern match
@@ -293,21 +387,21 @@ private[quasiquotes] object ValidatedSelectedNamePattern:
         (SemanticPatternKey.Literal(value), nextSelectOrdinal)
       case TermPattern.Select(qualifier, name) =>
         val ordinal = nextSelectOrdinal
-        val selectedKey =
-          if ordinal == occurrence.selectOrdinal then
+        val selectedKey = occurrencesByOrdinal.get(ordinal) match
+          case Some(occurrence) =>
             SemanticSelectedNameKey.Captured(occurrence.name)
-          else SemanticSelectedNameKey.Fixed(name)
+          case None => SemanticSelectedNameKey.Fixed(name)
         val (qualifierKey, afterQualifier) =
-          semanticKey(qualifier, occurrence, ordinal + 1)
+          semanticKey(qualifier, occurrencesByOrdinal, ordinal + 1)
         (SemanticPatternKey.Select(qualifierKey, selectedKey), afterQualifier)
       case TermPattern.Apply(function, arguments) =>
         val (functionKey, afterFunction) =
-          semanticKey(function, occurrence, nextSelectOrdinal)
+          semanticKey(function, occurrencesByOrdinal, nextSelectOrdinal)
         val (argumentKeys, afterArguments) = arguments.foldLeft(
           (Vector.empty[SemanticPatternKey], afterFunction)
         ) { case ((keys, ordinal), argument) =>
           val (argumentKey, afterArgument) =
-            semanticKey(argument, occurrence, ordinal)
+            semanticKey(argument, occurrencesByOrdinal, ordinal)
           (keys :+ argumentKey, afterArgument)
         }
         (SemanticPatternKey.Apply(functionKey, argumentKeys), afterArguments)
@@ -394,25 +488,50 @@ private[quasiquotes] object SelectedNamePatternMatcher:
       state <- loop(
         presentPattern.pattern,
         presentTarget,
-        presentPattern.occurrence,
+        presentPattern.occurrences.map(value => value.selectOrdinal -> value).toMap,
         MatchState(Map.empty, Map.empty, 0)
       )
-      _ <- Either.cond(
-        state.selectedNameBindings.keySet == Set(presentPattern.occurrence.name),
-        (),
-        InvalidSelectedNameOccurrence(
-          "validated selected-name occurrence was not reached during matching"
-        )
-      )
+      _ <-
+        if presentPattern.occurrences.size == 1 then
+          Either.cond(
+            state.selectedNameBindings.keySet ==
+              Set(presentPattern.occurrence.name),
+            (),
+            InvalidSelectedNameOccurrence(
+              "validated selected-name occurrence was not reached during matching"
+            )
+          )
+        else
+          ensureDeclaredSelectedNameBindings(
+            presentPattern,
+            state.selectedNameBindings
+          )
     yield NeutralSelectedNameMatchResult(
       state.termBindings,
       state.selectedNameBindings
     )
 
+  private[matching] def ensureDeclaredSelectedNameBindings(
+      pattern: ValidatedSelectedNamePattern,
+      bindings: Map[String, SelectedMemberName]
+  ): Either[NeutralSelectedNameMatchError, Unit] =
+    val declaredNames = pattern.occurrences.map(_.name).distinct
+    declaredNames.find(name => !bindings.contains(name)) match
+      case Some(name) => Left(MissingSelectedNameCapture(name))
+      case None =>
+        val undeclaredNames = bindings.keySet -- declaredNames
+        Either.cond(
+          undeclaredNames.isEmpty,
+          (),
+          InvalidSelectedNameOccurrence(
+            s"matcher produced undeclared selected-name bindings ${undeclaredNames.toVector.sorted.mkString("[", ", ", "]")}"
+          )
+        )
+
   private def loop(
       pattern: TermPattern,
       target: TermShape,
-      occurrence: SelectedNamePatternOccurrence,
+      occurrencesByOrdinal: Map[Int, SelectedNamePatternOccurrence],
       state: MatchState
   ): Either[NeutralSelectedNameMatchError, MatchState] =
     if pattern == null then Left(InvalidPattern("pattern node must be present"))
@@ -444,42 +563,55 @@ private[quasiquotes] object SelectedNamePatternMatcher:
           Option(targetQualifier)
             .toRight(InvalidTarget("Select qualifier must be present"))
             .flatMap { qualifier =>
-              if ordinal == occurrence.selectOrdinal then
-                if patternName != occurrence.transport then
+              occurrencesByOrdinal.get(ordinal) match
+                case Some(occurrence) if patternName != occurrence.transport =>
                   Left(
                     InvalidSelectedNameOccurrence(
                       "pattern transport changed after validation"
                     )
                   )
-                else
+                case Some(occurrence) =>
                   selectedInNeutralIntersection(targetName).flatMap { selectedName =>
-                    loop(
-                      patternQualifier,
-                      qualifier,
-                      occurrence,
-                      afterSelect.copy(
-                        selectedNameBindings =
-                          afterSelect.selectedNameBindings.updated(
-                            occurrence.name,
-                            selectedName
+                    afterSelect.selectedNameBindings.get(occurrence.name) match
+                      case Some(previous) if previous != selectedName =>
+                        Left(
+                          RepeatedSelectedNameCaptureMismatch(occurrence.name)
+                        )
+                      case Some(_) =>
+                        loop(
+                          patternQualifier,
+                          qualifier,
+                          occurrencesByOrdinal,
+                          afterSelect
+                        )
+                      case None =>
+                        loop(
+                          patternQualifier,
+                          qualifier,
+                          occurrencesByOrdinal,
+                          afterSelect.copy(
+                            selectedNameBindings =
+                              afterSelect.selectedNameBindings.updated(
+                                occurrence.name,
+                                selectedName
+                              )
                           )
-                      )
-                    )
+                        )
                   }
-              else if patternName == targetName then
-                loop(
-                  patternQualifier,
-                  qualifier,
-                  occurrence,
-                  afterSelect
-                )
-              else
-                Left(
-                  ShapeMismatch(
-                    s"Select(name=$patternName)",
-                    s"Select(name=$targetName)"
+                case None if patternName == targetName =>
+                  loop(
+                    patternQualifier,
+                    qualifier,
+                    occurrencesByOrdinal,
+                    afterSelect
                   )
-                )
+                case None =>
+                  Left(
+                    ShapeMismatch(
+                      s"Select(name=$patternName)",
+                      s"Select(name=$targetName)"
+                    )
+                  )
             }
         case (
               TermPattern.Apply(patternFunction, patternArguments),
@@ -503,7 +635,7 @@ private[quasiquotes] object SelectedNamePatternMatcher:
             afterFunction <- loop(
               patternFunction,
               presentTargetFunction,
-              occurrence,
+              occurrencesByOrdinal,
               state
             )
             afterArguments <- patternArguments
@@ -511,7 +643,9 @@ private[quasiquotes] object SelectedNamePatternMatcher:
               .foldLeft[Either[NeutralSelectedNameMatchError, MatchState]](
                 Right(afterFunction)
               ) { case (result, (nextPattern, nextTarget)) =>
-                result.flatMap(loop(nextPattern, nextTarget, occurrence, _))
+                result.flatMap(
+                  loop(nextPattern, nextTarget, occurrencesByOrdinal, _)
+                )
               }
           yield afterArguments
         case _ =>
