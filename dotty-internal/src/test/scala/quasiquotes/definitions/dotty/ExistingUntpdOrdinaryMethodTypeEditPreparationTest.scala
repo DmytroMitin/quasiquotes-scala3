@@ -4,7 +4,7 @@ import dotty.tools.dotc.CompilationUnit
 import dotty.tools.dotc.ast.untpd
 import dotty.tools.dotc.core.Contexts.{Context, ContextBase}
 import dotty.tools.dotc.core.Flags.EmptyFlags
-import dotty.tools.dotc.core.Names.typeName
+import dotty.tools.dotc.core.Names.{termName, typeName}
 import dotty.tools.dotc.core.Symbols.{NoSymbol, newSymbol}
 import dotty.tools.dotc.core.Types.NoType
 import dotty.tools.dotc.parsing.Parsers
@@ -129,6 +129,132 @@ class ExistingUntpdOrdinaryMethodTypeEditPreparationTest extends munit.FunSuite:
       assert(prepared.positionedParameter.tpt.eq(prepared.positionedType))
       assert(prepared.positionedParameter.mods.eq(parameter.tree.mods))
       assertEquals(validatePreparedParameterType(prepared, descriptor), Right(()))
+    }
+  }
+
+  test("repeated preparation positions a fresh element and wrapper while retaining the exact star marker") {
+    withContext {
+      val descriptor = descriptorFor(
+        parseClass("class RepeatedPreparation:\n  def sum(values: AnyVal*): Int = 0\n"),
+        0
+      )
+      val parameter = descriptor.parameterClauses.head.head
+      val oldWrapper = parameter.tpt.asInstanceOf[untpd.PostfixOp]
+      val (oldElement, oldMarker) = oldWrapper match
+        case untpd.PostfixOp(element, marker) => (element, marker)
+
+      val prepared = prepareParameter(descriptor, parameter, "Int")
+
+      assertIdent(prepared.loweredType, "Int")
+      assert(!prepared.loweredType.source.exists)
+      assert(!prepared.loweredType.span.exists)
+      prepared.positionedType match
+        case wrapper: untpd.PostfixOp =>
+          val (positionedElement, positionedMarker) = wrapper match
+            case untpd.PostfixOp(element, marker) => (element, marker)
+          assert(!wrapper.eq(oldWrapper))
+          assertEquals(wrapper.source, oldWrapper.source)
+          assertEquals(wrapper.span, oldWrapper.span)
+          positionedElement match
+            case ident: untpd.Ident =>
+              assertEquals(ident.name.toString, "Int")
+              assert(!ident.eq(prepared.loweredType))
+              assert(!ident.eq(oldElement))
+              assertEquals(ident.source, oldElement.source)
+              assertEquals(ident.span, oldElement.span)
+              assertEquals(ident.symbol, NoSymbol)
+            case other => fail("expected positioned repeated element Int Ident, found " + other)
+          assert(positionedMarker.eq(oldMarker))
+          assertEquals(wrapper.symbol, NoSymbol)
+        case other => fail("expected fresh repeated PostfixOp, found " + other)
+      assert(prepared.positionedParameter.tpt.eq(prepared.positionedType))
+      assert(prepared.positionedParameter.mods.eq(parameter.tree.mods))
+      assertEquals(validatePreparedParameterType(prepared, descriptor), Right(()))
+    }
+  }
+
+  test("repeated preparation rejects non-star PostfixOp and repeated-before-strict topology") {
+    withContext {
+      val unaryRoot = parseClass(
+        "class NonStarPostfix:\n  def sum(values: AnyVal*): Int = 0\n"
+      )
+      val unaryTemplate = unaryRoot.rhs.asInstanceOf[untpd.Template]
+      val unaryMethod = unaryTemplate.body.head.asInstanceOf[untpd.DefDef]
+      val unaryParameter = unaryMethod.paramss.head.head.asInstanceOf[untpd.ValDef]
+      val unaryWrapper = unaryParameter.tpt.asInstanceOf[untpd.PostfixOp]
+      val (unaryElement, unaryMarker) = unaryWrapper match
+        case untpd.PostfixOp(element, marker) => (element, marker)
+      val nonStarMarker = untpd.Ident(termName("+"))
+        .cloneIn(unaryMarker.source)
+        .withSpan(unaryMarker.span)
+      val nonStarWrapper = untpd.PostfixOp(unaryElement, nonStarMarker)
+        .cloneIn(unaryWrapper.source)
+        .withSpan(unaryWrapper.span)
+      val nonStarParameter = untpd.cpy.ValDef(unaryParameter)(
+        unaryParameter.name,
+        nonStarWrapper,
+        unaryParameter.rhs
+      )
+      val nonStarMethod = untpd.cpy.DefDef(unaryMethod)(
+        unaryMethod.name,
+        List(List(nonStarParameter)),
+        unaryMethod.tpt,
+        unaryMethod.rhs
+      )
+      val nonStarTemplate = untpd.cpy.Template(unaryTemplate)(
+        unaryTemplate.constr,
+        unaryTemplate.parentsOrDerived,
+        unaryTemplate.derived,
+        unaryTemplate.self,
+        nonStarMethod :: unaryTemplate.body.tail
+      )
+      val nonStarRoot = untpd.cpy.TypeDef(unaryRoot)(unaryRoot.name, nonStarTemplate)
+      val nonStarDescriptor = descriptorFor(nonStarRoot, 0)
+      assertCode(
+        prepareParameterType(
+          nonStarDescriptor,
+          nonStarDescriptor.parameterClauses.head.head,
+          TypeNormalForm.STypeIdent("Int")
+        ),
+        "REPEATED_PARAMETER_TYPE_INVALID"
+      )
+
+      val orderedRoot = parseClass(
+        "class RepeatedOrdering:\n  def sum(prefix: Int, values: AnyVal*): Int = prefix\n"
+      )
+      val orderedTemplate = orderedRoot.rhs.asInstanceOf[untpd.Template]
+      val orderedMethod = orderedTemplate.body.head.asInstanceOf[untpd.DefDef]
+      val strict = orderedMethod.paramss.head.head.asInstanceOf[untpd.ValDef]
+      val repeated = orderedMethod.paramss.head(1).asInstanceOf[untpd.ValDef]
+      val repeatedWrapper = repeated.tpt.asInstanceOf[untpd.PostfixOp]
+      val misplacedWrapper = repeatedWrapper
+        .cloneIn(strict.tpt.source)
+        .withSpan(strict.tpt.span)
+      val misplaced = untpd.cpy.ValDef(strict)(strict.name, misplacedWrapper, strict.rhs)
+      val trailingStrict = untpd.cpy.ValDef(repeated)(repeated.name, strict.tpt, repeated.rhs)
+      val misplacedMethod = untpd.cpy.DefDef(orderedMethod)(
+        orderedMethod.name,
+        List(List(misplaced, trailingStrict)),
+        orderedMethod.tpt,
+        orderedMethod.rhs
+      )
+      val misplacedTemplate = untpd.cpy.Template(orderedTemplate)(
+        orderedTemplate.constr,
+        orderedTemplate.parentsOrDerived,
+        orderedTemplate.derived,
+        orderedTemplate.self,
+        misplacedMethod :: orderedTemplate.body.tail
+      )
+      val misplacedRoot = untpd.cpy.TypeDef(orderedRoot)(orderedRoot.name, misplacedTemplate)
+      val misplacedDescriptor = descriptorFor(misplacedRoot, 0)
+      assertCode(
+        prepareParameterType(
+          misplacedDescriptor,
+          misplacedDescriptor.parameterClauses.head.head,
+          TypeNormalForm.STypeIdent("Int")
+        ),
+        "REPEATED_PARAMETER_POSITION_INVALID"
+      )
     }
   }
 
@@ -371,6 +497,97 @@ class ExistingUntpdOrdinaryMethodTypeEditPreparationTest extends munit.FunSuite:
           prepared.copy(evidence = prepared.evidence.copy(positionedTypeIdentity = null)),
           descriptor
         ),
+        "FINAL_PARAMETER_PREPARATION_INVARIANT_FAILED"
+      )
+    }
+  }
+
+  test("repeated final validation rejects outer element marker null stale and foreign tampering") {
+    withContext {
+      given SourceFile = NoSource
+      val descriptor = descriptorFor(
+        parseClass("class RepeatedTamper:\n  def sum(values: AnyVal*): Int = 0\n"),
+        0
+      )
+      val prepared =
+        prepareParameter(descriptor, descriptor.parameterClauses.head.head, "Int")
+      val oldWrapper = prepared.oldParameterType.asInstanceOf[untpd.PostfixOp]
+      val (oldElement, oldMarker) = oldWrapper match
+        case untpd.PostfixOp(element, marker) => (element, marker)
+      val positionedWrapper = prepared.positionedType.asInstanceOf[untpd.PostfixOp]
+      val (positionedElement, _) = positionedWrapper match
+        case untpd.PostfixOp(element, marker) => (element, marker)
+
+      def forged(wrapper: untpd.PostfixOp): PreparedParameterType =
+        val parameter = untpd.cpy
+          .ValDef(prepared.positionedParameter)(
+            prepared.positionedParameter.name,
+            wrapper,
+            prepared.positionedParameter.rhs
+          )
+        prepared.copy(
+          positionedType = wrapper,
+          positionedParameter = parameter,
+          evidence = prepared.evidence.copy(
+            positionedType = wrapper,
+            positionedParameter = parameter
+          )
+        )
+
+      val wrongElement = prepared.loweredType
+        .cloneIn(oldElement.source)
+        .withSpan(oldElement.span)
+      val elementTampered = untpd.PostfixOp(wrongElement, oldMarker)
+        .cloneIn(oldWrapper.source)
+        .withSpan(oldWrapper.span)
+      assertCode(
+        validatePreparedParameterType(forged(elementTampered), descriptor),
+        "FINAL_PARAMETER_PREPARATION_INVARIANT_FAILED"
+      )
+
+      val outerTampered = untpd.PostfixOp(positionedElement, oldMarker)
+        .cloneIn(oldWrapper.source)
+        .withSpan(oldWrapper.span)
+      assertCode(
+        validatePreparedParameterType(forged(outerTampered), descriptor),
+        "FINAL_PARAMETER_PREPARATION_INVARIANT_FAILED"
+      )
+
+      val wrongMarker = untpd.Ident(oldMarker.name)
+        .cloneIn(oldMarker.source)
+        .withSpan(oldMarker.span)
+      val markerTampered = untpd.PostfixOp(positionedElement, wrongMarker)
+        .cloneIn(oldWrapper.source)
+        .withSpan(oldWrapper.span)
+      assertCode(
+        validatePreparedParameterType(forged(markerTampered), descriptor),
+        "FINAL_PARAMETER_PREPARATION_INVARIANT_FAILED"
+      )
+
+      assertCode(
+        validatePreparedParameterType(
+          prepared.copy(evidence = prepared.evidence.copy(positionedTypeIdentity = null)),
+          descriptor
+        ),
+        "FINAL_PARAMETER_PREPARATION_INVARIANT_FAILED"
+      )
+
+      val stale = prepareParameter(
+        descriptor,
+        descriptor.parameterClauses.head.head,
+        "Int"
+      ).positionedType.asInstanceOf[untpd.PostfixOp]
+      assertCode(
+        validatePreparedParameterType(forged(stale), descriptor),
+        "FINAL_PARAMETER_PREPARATION_INVARIANT_FAILED"
+      )
+
+      val foreignDescriptor = descriptorFor(
+        parseClass("class ForeignRepeated:\n  def sum(values: AnyVal*): Int = 0\n"),
+        0
+      )
+      assertCode(
+        validatePreparedParameterType(prepared, foreignDescriptor),
         "FINAL_PARAMETER_PREPARATION_INVARIANT_FAILED"
       )
     }

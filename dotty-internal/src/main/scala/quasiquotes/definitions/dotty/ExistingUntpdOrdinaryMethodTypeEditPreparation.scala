@@ -17,7 +17,9 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
 
   private[dotty] final class ParameterTypeIdentity private[ExistingUntpdOrdinaryMethodTypeEditPreparation] (
       val outer: untpd.Tree,
-      val byNameInner: Option[untpd.Tree]
+      val byNameInner: Option[untpd.Tree],
+      val repeatedElement: Option[untpd.Tree],
+      val repeatedMarker: Option[untpd.Tree]
   )
 
   private[dotty] final case class ParameterEvidence(
@@ -87,6 +89,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
       oldParameterType <- Option(selected.tpt)
         .filterNot(_.isEmpty)
         .toRight(error("OLD_PARAMETER_TYPE_SITE_REQUIRED", "the selected old parameter Type was null or EmptyTree."))
+      _ <- validateOriginalParameterType(validDescriptor, selected, oldParameterType)
       _ <- requireSite(oldParameter, "OLD_PARAMETER_SITE_REQUIRED", "the selected old parameter")
       _ <- requireSite(oldParameterType, "OLD_PARAMETER_TYPE_SITE_REQUIRED", "the selected old parameter Type")
       admitted <- admit(replacement)
@@ -199,6 +202,11 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
         (),
         failure
       )
+      _ <- validateOriginalParameterType(
+        expected,
+        value.parameter,
+        value.oldParameterType
+      ).left.map(_ => failure)
       _ <- requireSite(value.oldParameter, failure.code, "the retained old parameter").left.map(_ => failure)
       _ <- requireSite(value.oldParameterType, failure.code, "the retained old parameter Type").left.map(_ => failure)
       admitted <- admit(value.semanticReplacement).left.map(_ => failure)
@@ -304,6 +312,89 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
           ))
       }
 
+  private def validateOriginalParameterType(
+      descriptor: Descriptor,
+      parameter: Parameter,
+      oldParameterType: untpd.Tree
+  )(using Context): Either[Error, Unit] =
+    oldParameterType match
+      case wrapper: untpd.ByNameTypeTree =>
+        for
+          inner <- Option(wrapper.result)
+            .filterNot(_.isEmpty)
+            .toRight(error(
+              "OLD_PARAMETER_TYPE_SITE_REQUIRED",
+              "the selected old by-name parameter had no inner Type site."
+            ))
+          _ <- requireSite(
+            inner,
+            "OLD_PARAMETER_TYPE_SITE_REQUIRED",
+            "the selected old by-name parameter inner Type"
+          )
+        yield ()
+      case wrapper: untpd.PostfixOp =>
+        wrapper match
+          case untpd.PostfixOp(element, marker) =>
+            val repeatedParameters =
+              descriptor.parameterClauses.flatten.filter(candidate =>
+                candidate != null && candidate.tpt.isInstanceOf[untpd.PostfixOp]
+              )
+            for
+              presentElement <- Option(element)
+                .filterNot(_.isEmpty)
+                .toRight(error(
+                  "REPEATED_PARAMETER_TYPE_INVALID",
+                  "the selected repeated parameter had no element Type site."
+                ))
+              presentMarker <- Option(marker)
+                .filterNot(_.isEmpty)
+                .toRight(error(
+                  "REPEATED_PARAMETER_TYPE_INVALID",
+                  "the selected repeated parameter had no star marker."
+                ))
+              _ <- requireSite(
+                presentElement,
+                "REPEATED_PARAMETER_TYPE_INVALID",
+                "the selected repeated parameter element Type"
+              )
+              _ <- requireSite(
+                presentMarker,
+                "REPEATED_PARAMETER_TYPE_INVALID",
+                "the selected repeated parameter star marker"
+              )
+              _ <- validateRepeatedMarker(presentMarker)
+              _ <- Either.cond(
+                repeatedParameters.size == 1 &&
+                  repeatedParameters.head.eq(parameter) &&
+                  descriptor.parameterClauses.lastOption
+                    .flatMap(_.lastOption)
+                    .exists(_.eq(parameter)),
+                (),
+                error(
+                  "REPEATED_PARAMETER_POSITION_INVALID",
+                  "the exact repeated parameter must be the sole PostfixOp parameter and remain last in its ordinary clause."
+                )
+              )
+            yield ()
+      case _ => Right(())
+
+  private def validateRepeatedMarker(marker: untpd.Tree)(using Context): Either[Error, Unit] =
+    val valid = Option(marker).exists {
+      case ident: untpd.Ident =>
+        Option(ident.name).exists(_.toString == "*") &&
+          ident.symbol == NoSymbol &&
+          safeAllTrees(ident).exists(_.size == 1)
+      case _ => false
+    }
+    Either.cond(
+      valid,
+      (),
+      error(
+        "REPEATED_PARAMETER_TYPE_INVALID",
+        "the selected PostfixOp operator was not the exact clean repeated star Ident marker."
+      )
+    )
+
   private def lower(replacement: TypeNormalForm): Either[Error, untpd.Tree] =
     TypeUntypedLowering
       .lower(replacement)
@@ -361,6 +452,29 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
           untpd.ByNameTypeTree(positionedInner)
             .cloneIn(oldWrapper.source)
             .withSpan(oldWrapper.span)
+      case oldWrapper: untpd.PostfixOp =>
+        oldWrapper match
+          case untpd.PostfixOp(oldElement, oldMarker) =>
+            for
+              element <- Option(oldElement)
+                .filterNot(_.isEmpty)
+                .toRight(error(
+                  "REPEATED_PARAMETER_TYPE_INVALID",
+                  "the selected repeated parameter had no element Type site."
+                ))
+              marker <- Option(oldMarker)
+                .filterNot(_.isEmpty)
+                .toRight(error(
+                  "REPEATED_PARAMETER_TYPE_INVALID",
+                  "the selected repeated parameter had no star marker."
+                ))
+              _ <- validateRepeatedMarker(marker)
+            yield
+              given SourceFile = NoSource
+              val positionedElement = positionType(lowered, element)
+              untpd.PostfixOp(positionedElement, marker)
+                .cloneIn(oldWrapper.source)
+                .withSpan(oldWrapper.span)
       case _ =>
         Right(positionType(lowered, oldParameterType))
 
@@ -459,6 +573,66 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
               "ORIGIN_POSITIONING_FAILED",
               "the positioned by-name parameter Type did not retain a nonempty ByNameTypeTree wrapper."
             ))
+      case oldWrapper: untpd.PostfixOp =>
+        (positioned, oldWrapper) match
+          case (
+                wrapper: untpd.PostfixOp,
+                untpd.PostfixOp(oldElement, oldMarker)
+              ) =>
+            wrapper match
+              case untpd.PostfixOp(positionedElement, positionedMarker) =>
+                val graph = safeAllTrees(wrapper)
+                val outerValid =
+                  !wrapper.eq(lowered) &&
+                    !wrapper.eq(oldWrapper) &&
+                    positionedElement != null &&
+                    !positionedElement.isEmpty &&
+                    positionedMarker != null &&
+                    !positionedMarker.isEmpty &&
+                    positionedMarker.eq(oldMarker) &&
+                    wrapper.source == oldWrapper.source &&
+                    wrapper.span == oldWrapper.span &&
+                    wrapper.symbol == NoSymbol &&
+                    graph.exists(nodes =>
+                      nodes.size == 3 && nodes.forall(node =>
+                        node != null &&
+                          node.symbol == NoSymbol &&
+                          !node.isInstanceOf[untpd.TypedSplice]
+                      )
+                    )
+                for
+                  _ <- requireSite(
+                    oldElement,
+                    "ORIGIN_POSITIONING_FAILED",
+                    "the retained old repeated parameter element Type"
+                  )
+                  _ <- requireSite(
+                    oldMarker,
+                    "ORIGIN_POSITIONING_FAILED",
+                    "the retained old repeated parameter star marker"
+                  )
+                  _ <- validateRepeatedMarker(oldMarker)
+                    .left.map(problem => error("ORIGIN_POSITIONING_FAILED", problem.detail))
+                  _ <- Either.cond(
+                    outerValid,
+                    (),
+                    error(
+                      "ORIGIN_POSITIONING_FAILED",
+                      "the fresh repeated wrapper drifted from the old outer site, exact marker identity, or clean three-node topology."
+                    )
+                  )
+                  _ <- validatePositionedType(
+                    positionedElement,
+                    lowered,
+                    oldElement,
+                    expectedName
+                  )
+                yield ()
+          case _ =>
+            Left(error(
+              "ORIGIN_POSITIONING_FAILED",
+              "the positioned repeated parameter Type did not retain an exact star PostfixOp wrapper."
+            ))
       case _ =>
         validatePositionedType(positioned, lowered, oldSite, expectedName)
 
@@ -493,12 +667,14 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
   private def parameterTypeIdentity(
       positioned: untpd.Tree
   ): ParameterTypeIdentity =
-    new ParameterTypeIdentity(
-      positioned,
-      positioned match
-        case wrapper: untpd.ByNameTypeTree => Option(wrapper.result)
-        case _ => None
-    )
+    val (byNameInner, repeatedElement, repeatedMarker) = positioned match
+      case wrapper: untpd.ByNameTypeTree =>
+        (Option(wrapper.result), None, None)
+      case untpd.PostfixOp(element, marker) =>
+        (None, Option(element), Option(marker))
+      case _ =>
+        (None, None, None)
+    new ParameterTypeIdentity(positioned, byNameInner, repeatedElement, repeatedMarker)
 
   private def parameterTypeIdentityMatches(
       positioned: untpd.Tree,
@@ -506,14 +682,26 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
   ): Boolean =
     Option(positioned).exists { present =>
       Option(identity).exists { snapshot =>
-        present.eq(snapshot.outer) &&
-          Option(snapshot.byNameInner).exists {
-            case Some(inner) =>
+        val shapeMatches =
+          (Option(snapshot.byNameInner),
+            Option(snapshot.repeatedElement),
+            Option(snapshot.repeatedMarker)) match
+            case (Some(Some(inner)), Some(None), Some(None)) =>
               present match
-                case wrapper: untpd.ByNameTypeTree => Option(wrapper.result).exists(_.eq(inner))
+                case wrapper: untpd.ByNameTypeTree =>
+                  Option(wrapper.result).exists(_.eq(inner))
                 case _ => false
-            case None => !present.isInstanceOf[untpd.ByNameTypeTree]
-          }
+            case (Some(None), Some(Some(element)), Some(Some(marker))) =>
+              present match
+                case untpd.PostfixOp(actualElement, actualMarker) =>
+                  Option(actualElement).exists(_.eq(element)) &&
+                    Option(actualMarker).exists(_.eq(marker))
+                case _ => false
+            case (Some(None), Some(None), Some(None)) =>
+              !present.isInstanceOf[untpd.ByNameTypeTree] &&
+                !present.isInstanceOf[untpd.PostfixOp]
+            case _ => false
+        present.eq(snapshot.outer) && shapeMatches
       }
     }
 

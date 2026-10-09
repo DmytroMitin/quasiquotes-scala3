@@ -56,19 +56,19 @@ final class ExistingRepeatedParameterPublicBoundaryTyperRuntimeTest
 
       val loader = new URLClassLoader(Array(output.toUri.toURL), getClass.getClassLoader)
       try
-        assertEquals(invoke(loader, "bodyOnly"), 7)
-        assertEquals(invoke(loader, "resultOnly"), 6)
+        assertEquals(invoke(loader, "U057SafeUse", "bodyOnly"), 7)
+        assertEquals(invoke(loader, "U057SafeUse", "resultOnly"), 6)
       finally loader.close()
     finally deleteRecursively(temporary)
   }
 
-  test("parameter-Type replacement makes existing multi-argument vararg calls fail Typer") {
-    val temporary = Files.createTempDirectory("u057-existing-repeated-unsafe-")
+  test("parameter-Type replacement preserves unary and repeated-last vararg calls through Typer TASTy and runtime") {
+    val temporary = Files.createTempDirectory("u059-existing-repeated-safe-")
     try
-      val source = temporary.resolve("U057ExistingRepeatedUnsafe.scala")
+      val source = temporary.resolve("U059ExistingRepeatedSafe.scala")
       val output = temporary.resolve("classes")
       Files.createDirectories(output)
-      Files.writeString(source, UnsafeProgram, StandardCharsets.UTF_8)
+      Files.writeString(source, RepeatedProgram, StandardCharsets.UTF_8)
 
       val baseline = new Driver().process(Array(
         "-classpath", compilationClasspath,
@@ -82,23 +82,33 @@ final class ExistingRepeatedParameterPublicBoundaryTyperRuntimeTest
       deleteRecursively(output)
       Files.createDirectories(output)
 
-      val driver = new UnsafeRewriteDriver
+      val driver = new ParameterRewriteDriver
       val reporter = driver.process(Array(
         "-classpath", compilationClasspath,
         "-d", output.toString,
         source.toString
       ))
 
-      assert(reporter.hasErrors)
-      assert(reporter.allErrors.size >= 2, clues(reporter.allErrors))
+      assert(!reporter.hasErrors, clues(reporter.allErrors))
       assertEquals(
         driver.rewritten,
         Set("U057ParameterType", "U057TwoParameter")
       )
-      assert(driver.unaryParameterBecameScalar)
-      assert(driver.twoParameterBecameScalar)
+      assert(driver.unaryRepeatedPreserved)
+      assert(driver.twoParameterRepeatedPreserved)
+      assert(driver.strictNeighborPreserved)
       assertEquals(driver.untouchedMembersPreserved, 2)
       assert(driver.preTyperClean)
+
+      val files = emitted(output)
+      assert(files.exists(_.endsWith("U057ParameterType.tasty")))
+      assert(files.exists(_.endsWith("U057TwoParameter.tasty")))
+
+      val loader = new URLClassLoader(Array(output.toUri.toURL), getClass.getClassLoader)
+      try
+        assertEquals(invoke(loader, "U059RepeatedUse", "unary"), 3)
+        assertEquals(invoke(loader, "U059RepeatedUse", "twoParameter"), 4)
+      finally loader.close()
     finally deleteRecursively(temporary)
   }
 
@@ -154,22 +164,23 @@ final class ExistingRepeatedParameterPublicBoundaryTyperRuntimeTest
             "expected PackageDef before Typer, found " + other.getClass.getSimpleName
           )
 
-  private final class UnsafeRewriteDriver extends Driver:
+  private final class ParameterRewriteDriver extends Driver:
     @volatile var rewritten = Set.empty[String]
-    @volatile var unaryParameterBecameScalar = false
-    @volatile var twoParameterBecameScalar = false
+    @volatile var unaryRepeatedPreserved = false
+    @volatile var twoParameterRepeatedPreserved = false
+    @volatile var strictNeighborPreserved = false
     @volatile var untouchedMembersPreserved = 0
     @volatile var preTyperClean = false
 
     override protected def newCompiler(using Context): Compiler =
       new Compiler:
         override protected def frontendPhases: List[List[Phase]] =
-          List(new Parser) :: List(new UnsafeRewriteBeforeTyper(UnsafeRewriteDriver.this)) ::
+          List(new Parser) :: List(new ParameterRewriteBeforeTyper(ParameterRewriteDriver.this)) ::
             super.frontendPhases.tail
 
-  private final class UnsafeRewriteBeforeTyper(evidence: UnsafeRewriteDriver)
+  private final class ParameterRewriteBeforeTyper(evidence: ParameterRewriteDriver)
       extends Phase:
-    def phaseName: String = "u057ExistingRepeatedUnsafeBoundary"
+    def phaseName: String = "u059ExistingRepeatedSafeBoundary"
     override def isCheckable: Boolean = false
 
     protected def run(using Context): Unit =
@@ -181,7 +192,7 @@ final class ExistingRepeatedParameterPublicBoundaryTyperRuntimeTest
                 case Left(problem) => report.error(problem); root
                 case Right(proof) =>
                   evidence.rewritten += root.name.toString
-                  evidence.unaryParameterBecameScalar = proof.parameterBecameScalar
+                  evidence.unaryRepeatedPreserved = proof.repeatedPreserved
                   if proof.untouchedPreserved then evidence.untouchedMembersPreserved += 1
                   proof.result.tree
             case root: untpd.TypeDef if root.name.toString == "U057TwoParameter" =>
@@ -189,7 +200,8 @@ final class ExistingRepeatedParameterPublicBoundaryTyperRuntimeTest
                 case Left(problem) => report.error(problem); root
                 case Right(proof) =>
                   evidence.rewritten += root.name.toString
-                  evidence.twoParameterBecameScalar = proof.parameterBecameScalar
+                  evidence.twoParameterRepeatedPreserved = proof.repeatedPreserved
+                  evidence.strictNeighborPreserved = proof.strictNeighborPreserved
                   if proof.untouchedPreserved then evidence.untouchedMembersPreserved += 1
                   proof.result.tree
             case other => other
@@ -212,9 +224,10 @@ final class ExistingRepeatedParameterPublicBoundaryTyperRuntimeTest
       untouchedPreserved: Boolean
   )
 
-  private final case class UnsafeProof(
+  private final case class ParameterProof(
       result: Result,
-      parameterBecameScalar: Boolean,
+      repeatedPreserved: Boolean,
+      strictNeighborPreserved: Boolean,
       untouchedPreserved: Boolean
   )
 
@@ -263,10 +276,17 @@ final class ExistingRepeatedParameterPublicBoundaryTyperRuntimeTest
   private def rewriteParameter(
       root: untpd.TypeDef,
       parameterIndex: Int
-  )(using Context): Either[String, UnsafeProof] =
+  )(using Context): Either[String, ParameterProof] =
     val originalMethod = firstMethod(root)
+    val originalParameters = originalMethod.paramss.head
     val originalParameter =
-      originalMethod.paramss.head(parameterIndex).asInstanceOf[untpd.ValDef]
+      originalParameters(parameterIndex).asInstanceOf[untpd.ValDef]
+    val originalRepeated = originalParameter.tpt.asInstanceOf[untpd.PostfixOp]
+    val originalMarker = originalRepeated match
+      case untpd.PostfixOp(_, marker) => marker
+    val originalStrictNeighbor =
+      if parameterIndex == 0 then None
+      else Some(originalParameters.head.asInstanceOf[untpd.ValDef])
     val originalUntouched = template(root).body(1)
     for
       captured <- ExistingClassUntypedRewrite.capture(root).left.map(_.message)
@@ -278,15 +298,26 @@ final class ExistingRepeatedParameterPublicBoundaryTyperRuntimeTest
       rewritten = firstMethod(result.tree)
       rewrittenParameter =
         rewritten.paramss.head(parameterIndex).asInstanceOf[untpd.ValDef]
-      scalar = rewrittenParameter.tpt match
-        case untpd.Ident(name) =>
-          name.toString == "Int" &&
-            !rewrittenParameter.eq(originalParameter) &&
-            !rewrittenParameter.tpt.isInstanceOf[untpd.PostfixOp]
+      repeatedPreserved = rewrittenParameter.tpt match
+        case wrapper: untpd.PostfixOp =>
+          val (element, marker) = wrapper match
+            case untpd.PostfixOp(currentElement, currentMarker) =>
+              (currentElement, currentMarker)
+          element match
+            case ident: untpd.Ident =>
+              ident.name.toString == "Int" &&
+                !wrapper.eq(originalRepeated) &&
+                marker.eq(originalMarker) &&
+                !rewrittenParameter.eq(originalParameter)
+            case _ => false
         case _ => false
-    yield UnsafeProof(
+      strictNeighborPreserved = originalStrictNeighbor.forall(neighbor =>
+        rewritten.paramss.head.head.eq(neighbor)
+      )
+    yield ParameterProof(
       result,
-      scalar,
+      repeatedPreserved,
+      strictNeighborPreserved,
       template(result.tree).body(1).eq(originalUntouched)
     )
 
@@ -310,8 +341,8 @@ final class ExistingRepeatedParameterPublicBoundaryTyperRuntimeTest
     try stream.filter(Files.isRegularFile(_)).iterator().asScala.map(_.toString).toVector
     finally stream.close()
 
-  private def invoke(loader: ClassLoader, methodName: String): Int =
-    val moduleClass = loader.loadClass("U057SafeUse$")
+  private def invoke(loader: ClassLoader, moduleName: String, methodName: String): Int =
+    val moduleClass = loader.loadClass(moduleName + "$")
     val module = moduleClass.getField("MODULE$").get(null)
     moduleClass.getMethod(methodName).invoke(module).asInstanceOf[Integer].intValue
 
@@ -350,16 +381,16 @@ final class ExistingRepeatedParameterPublicBoundaryTyperRuntimeTest
       |  def resultOnly: Int = new U057ResultOnly().sum(1, 2, 3)
       |""".stripMargin
 
-  private val UnsafeProgram =
+  private val RepeatedProgram =
     """class U057ParameterType:
-      |  def sum(xs: AnyVal*): Int = 0
+      |  def sum(xs: AnyVal*): Int = xs.size
       |  val untouched: Int = 11
       |
       |class U057TwoParameter:
-      |  def combine(prefix: Int, xs: AnyVal*): Int = prefix
+      |  def combine(prefix: Int, xs: AnyVal*): Int = prefix + xs.size
       |  val untouched: Int = 13
       |
-      |object U057UnsafeUse:
-      |  def unary: Int = new U057ParameterType().sum(1, 2)
-      |  def twoParameter: Int = new U057TwoParameter().combine(1, 2, 3)
+      |object U059RepeatedUse:
+      |  def unary: Int = new U057ParameterType().sum(1, 2, 3)
+      |  def twoParameter: Int = new U057TwoParameter().combine(1, 2, 3, 4)
       |""".stripMargin

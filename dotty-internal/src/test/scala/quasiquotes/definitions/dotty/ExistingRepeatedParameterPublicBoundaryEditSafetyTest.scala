@@ -79,7 +79,7 @@ class ExistingRepeatedParameterPublicBoundaryEditSafetyTest extends munit.FunSui
     }
   }
 
-  test("current unary parameter-Type replacement drops repeated mode") {
+  test("unary parameter-Type replacement preserves repeated wrapper and marker while replacing the element") {
     withContext {
       val root = parseClass(
         "class ParameterTypeRepeated:\n  def sum(xs: AnyVal*): Int = 0\n  val untouched: Int = 11\n"
@@ -87,6 +87,7 @@ class ExistingRepeatedParameterPublicBoundaryEditSafetyTest extends munit.FunSui
       val originalMethod = firstMethod(root)
       val originalParameter = firstParameter(originalMethod)
       val originalRepeated = repeatedType(originalParameter)
+      val (originalElement, originalMarker) = repeatedParts(originalRepeated)
       val captured = capture(root)
       val method = methodView(captured)
       val parameter = method.parameterClauses.head.parameters.head
@@ -100,12 +101,19 @@ class ExistingRepeatedParameterPublicBoundaryEditSafetyTest extends munit.FunSui
       assertEquals(rewrittenParameter.mods.flags, Flags.Param)
       assert(rewrittenParameter.mods.eq(originalParameter.mods))
       assert(!rewrittenParameter.tpt.eq(originalRepeated))
-      assert(!rewrittenParameter.tpt.isInstanceOf[untpd.PostfixOp])
-      rewrittenParameter.tpt match
-        case untpd.Ident(name) => assertEquals(name.toString, "Int")
-        case other => fail("expected scalar replacement Int Ident, found " + other)
-      assertEquals(rewrittenParameter.tpt.source, originalRepeated.source)
-      assertEquals(rewrittenParameter.tpt.span, originalRepeated.span)
+      val rewrittenRepeated = repeatedType(rewrittenParameter)
+      val (rewrittenElement, rewrittenMarker) = repeatedParts(rewrittenRepeated)
+      assert(!rewrittenRepeated.eq(originalRepeated))
+      assertEquals(rewrittenRepeated.source, originalRepeated.source)
+      assertEquals(rewrittenRepeated.span, originalRepeated.span)
+      rewrittenElement match
+        case ident: untpd.Ident =>
+          assertEquals(ident.name.toString, "Int")
+          assert(!ident.eq(originalElement))
+          assertEquals(ident.source, originalElement.source)
+          assertEquals(ident.span, originalElement.span)
+        case other => fail("expected repeated element replacement Int Ident, found " + other)
+      assert(rewrittenMarker.eq(originalMarker))
       assert(rewritten.tpt.eq(originalMethod.tpt))
       assert(rewritten.rhs.eq(originalMethod.rhs))
       assert(result.directMemberIdentities(1).sameObjectAs(captured.members(1).identity))
@@ -113,7 +121,7 @@ class ExistingRepeatedParameterPublicBoundaryEditSafetyTest extends munit.FunSui
     }
   }
 
-  test("the two-parameter public path has the same repeated-last mode loss") {
+  test("two-parameter replacement preserves the repeated-last wrapper and strict neighbor") {
     withContext {
       val root = parseClass(
         "class TwoParameterRepeatedEdit:\n  def combine(prefix: Int, xs: AnyVal*): Int = prefix\n  val untouched: Int = 13\n"
@@ -122,6 +130,7 @@ class ExistingRepeatedParameterPublicBoundaryEditSafetyTest extends munit.FunSui
       val originalFirst = originalMethod.paramss.head.head.asInstanceOf[untpd.ValDef]
       val originalSecond = originalMethod.paramss.head(1).asInstanceOf[untpd.ValDef]
       val originalRepeated = repeatedType(originalSecond)
+      val (originalElement, originalMarker) = repeatedParts(originalRepeated)
       val captured = capture(root)
       val method = methodView(captured)
       val repeated = method.parameterClauses.head.parameters(1)
@@ -138,12 +147,18 @@ class ExistingRepeatedParameterPublicBoundaryEditSafetyTest extends munit.FunSui
       assert(rewrittenFirst.tpt.eq(originalFirst.tpt))
       assert(!rewrittenSecond.eq(originalSecond))
       assert(!rewrittenSecond.tpt.eq(originalRepeated))
-      assert(!rewrittenSecond.tpt.isInstanceOf[untpd.PostfixOp])
-      rewrittenSecond.tpt match
-        case untpd.Ident(name) => assertEquals(name.toString, "Int")
-        case other => fail("expected scalar repeated-slot replacement Int Ident, found " + other)
-      assertEquals(rewrittenSecond.tpt.source, originalRepeated.source)
-      assertEquals(rewrittenSecond.tpt.span, originalRepeated.span)
+      val rewrittenRepeated = repeatedType(rewrittenSecond)
+      val (rewrittenElement, rewrittenMarker) = repeatedParts(rewrittenRepeated)
+      assertEquals(rewrittenRepeated.source, originalRepeated.source)
+      assertEquals(rewrittenRepeated.span, originalRepeated.span)
+      rewrittenElement match
+        case ident: untpd.Ident =>
+          assertEquals(ident.name.toString, "Int")
+          assert(!ident.eq(originalElement))
+          assertEquals(ident.source, originalElement.source)
+          assertEquals(ident.span, originalElement.span)
+        case other => fail("expected repeated element replacement Int Ident, found " + other)
+      assert(rewrittenMarker.eq(originalMarker))
       assertPreTyperClean(result.tree)
     }
   }
