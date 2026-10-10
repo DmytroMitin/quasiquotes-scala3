@@ -64,7 +64,7 @@ scala.meta.Defn
 ```
 
 Term Projection and Authoring currently overlap across literals, identifiers,
-selections, one-list Apply, infix, unary, tuples, explicit `if`, standard `s`
+selections, completed nested Apply, infix, unary, tuples, explicit `if`, standard `s`
 interpolation, primitive ascription, the fixed one-list constructor family,
 typed Lambda1, binder-free P1, one typed local immutable value (P2), and one
 source-owned local identity method (P3). Projection erases grouping parentheses

@@ -600,6 +600,7 @@ def c065_truth_findings(root: Path) -> list[str]:
     cross_matrix = (root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md").read_text(
         encoding="utf-8"
     )
+    roadmap = " ".join((root / "ROADMAP.md").read_text(encoding="utf-8").split())
     normalized_limitations = " ".join(limitations.split())
     findings = []
 
@@ -652,11 +653,33 @@ def c065_truth_findings(root: Path) -> list[str]:
     for marker in (
         "`TermUntypedLowering` and `TermGeneratedOriginLowering`",
         "two or more successive ordinary argument clauses",
+        "`ScalametaTermProjection` and `ScalametaTermShapeAuthoring` preserve completed nested clauses",
+        "`CoreTermShapeUntypedLowerer` preserves completed nested clauses directly",
+        "`ScalametaTermUntypedBridge` and `ScalametaTermGeneratedOriginBridge` preserve completed nested clauses without delegation",
+    ):
+        if marker not in cross_matrix:
+            findings.append(f"C069 completed Apply coordinated surface missing: {marker}")
+
+    for stale in (
         "`CoreTermShapeUntypedLowerer` remains one-list",
         "`ScalametaTermUntypedBridge` and `ScalametaTermGeneratedOriginBridge` remain one-list",
     ):
-        if marker not in cross_matrix:
-            findings.append(f"C068 completed Apply surface split missing: {marker}")
+        if stale in cross_matrix:
+            findings.append(f"C069 stale completed Apply one-list claim remains: {stale}")
+
+    for marker in (
+        "current 798-row / 779-group standard surface",
+        "The direct Core source-free lowerer accepts direct identifiers, selections, and completed successive ordinary Apply clauses",
+    ):
+        if marker not in roadmap:
+            findings.append(f"C069 roadmap truth missing: {marker}")
+    for stale in (
+        "current 794-row / 775-group standard surface",
+        "The exact backend intentionally remains narrower: only the integer/infix core family lowers",
+        "Identifier, Select, and Apply fail",
+    ):
+        if stale in roadmap:
+            findings.append(f"C069 roadmap truth stale: {stale}")
 
     for marker in (
         "standard typed `qq` matches one local identity method",

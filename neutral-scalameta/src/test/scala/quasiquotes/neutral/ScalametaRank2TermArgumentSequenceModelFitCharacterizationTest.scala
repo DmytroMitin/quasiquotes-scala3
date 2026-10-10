@@ -109,17 +109,18 @@ final class ScalametaRank2TermArgumentSequenceModelFitCharacterizationTest
       Term.Apply(Term.Name("f"), Term.ArgClause(List(Lit.Int(1)), Some(Mod.Using()))),
       "NEUTRAL_APPLY_ARGUMENT_CLAUSE_UNSUPPORTED"
     )
-    assertProjectionCode(
-      Term.Apply(
-        Term.Apply(Term.Name("f"), Term.ArgClause(List(Lit.Int(1)))),
-        Term.ArgClause(List(Lit.Int(2)))
-      ),
-      "NEUTRAL_APPLY_MULTIPLE_LISTS_UNSUPPORTED"
+    val nestedApply = Term.Apply(
+      Term.Apply(Term.Name("f"), Term.ArgClause(List(Lit.Int(1)))),
+      Term.ArgClause(List(Lit.Int(2)))
     )
-    assertAuthoringCode(
-      TermShape.Apply(TermShape.Apply(identifier("f"), List(TermShape.Literal("1"))), List(TermShape.Literal("2"))),
-      "NEUTRAL_TERM_AUTHORING_STRUCTURE_UNSUPPORTED"
+    val nestedShape = TermShape.Apply(
+      TermShape.Apply(identifier("f"), List(TermShape.Literal("1"))),
+      List(TermShape.Literal("2"))
     )
+    assertEquals(project(nestedApply), nestedShape)
+    val authoredNested = author(nestedShape)
+    assertEquals(project(authoredNested), nestedShape)
+    assert(allTrees(authoredNested).forall(_.pos == Position.None))
     assertProjectionCode(
       Term.New(
         Init(

@@ -175,7 +175,7 @@ compiler implementation and SemanticDB.
 Scalameta trees are source syntax, not typed reflection or exact Dotty trees.
 `ScalametaTermProjection` admits the bounded accepted Int/String/Boolean
 literal, binary infix, unary, tuple, explicit conditional, direct identifier,
-selection, one-list Apply, typed Lambda1, transparent P0, binder-free P1,
+selection, completed nested Apply, typed Lambda1, transparent P0, binder-free P1,
 a one-or-more-segment plain source-path constructor with one ordinary positional list,
 single typed local-val P2, and bounded source-owned local identity-method P3
 families into the existing core `TermShape`. It preserves one truthful root
@@ -464,9 +464,9 @@ not a general raw-tree toolkit.
 
 The separate package-private `CoreTermShapeUntypedLowerer` is narrower again:
 it accepts the bounded Int/String/Boolean literal, recursive infix and unary,
-tuple, explicit conditional, direct Identifier, recursive Select, and one-list
-Apply family, plus transparent P0 and binder-free P1 blocks. A direct Apply in
-function position is rejected as multiple lists, while Apply remains admitted
+tuple, explicit conditional, direct Identifier, recursive Select, and completed
+nested Apply family, plus transparent P0 and binder-free P1 blocks. Successive
+ordinary clauses remain distinct raw Apply nodes while Apply remains admitted
 in ordinary argument and qualifier positions. Every constructed node is
 recursively checked for no source, no span, `NoSymbol`, and no `TypedSplice`.
 Exact parser-oracle comparison is structural and removes only parser-owned

@@ -377,20 +377,44 @@ class CoreTermShapeUntypedLowererTest extends munit.FunSuite:
     }
   }
 
-  test("rejects a direct nested Apply in function position as multiple application lists") {
+  test("lowers completed successive Apply clauses as exact fresh nested raw trees") {
     withContext {
-      assertEquals(
-        CoreTermShapeUntypedLowerer.lower(
+      val fixtures = Vector(
+        TermShape.Apply(
+          TermShape.Apply(
+            TermShape.Identifier("f", isPlaceholder = false),
+            TermShape.Literal("1") :: Nil
+          ),
+          TermShape.Literal("2") :: Nil
+        ) -> "Apply(Apply(Ident(f), [Number(1,Whole(10))]), [Number(2,Whole(10))])",
+        TermShape.Apply(
+          TermShape.Apply(
+            TermShape.Identifier("f", isPlaceholder = false),
+            Nil
+          ),
+          TermShape.Literal("2") :: Nil
+        ) -> "Apply(Apply(Ident(f), []), [Number(2,Whole(10))])",
+        TermShape.Apply(
           TermShape.Apply(
             TermShape.Apply(
               TermShape.Identifier("f", isPlaceholder = false),
               TermShape.Literal("1") :: Nil
             ),
-            TermShape.Literal("2") :: Nil
-          )
-        ),
-        Left(MultipleApplicationLists)
+            Nil
+          ),
+          List(TermShape.Literal("3"), TermShape.Literal("4"))
+        ) -> "Apply(Apply(Apply(Ident(f), [Number(1,Whole(10))]), []), [Number(3,Whole(10)), Number(4,Whole(10))])"
       )
+
+      fixtures.foreach { case (shape, expected) =>
+        val first = lowerOrFail(shape)
+        val second = lowerOrFail(shape)
+        assertEquals(TermShapeInspector.rawStructure(first), expected, clues(shape))
+        assertEquals(CoreTermShapeUntypedLowerer.verifySourceFreeForTest(first), Right(()))
+        allTrees(first).zip(allTrees(second)).foreach { case (left, right) =>
+          assert(!(left eq right), clues(shape, left, right))
+        }
+      }
     }
   }
 

@@ -671,13 +671,6 @@ object ScalametaTermProjection:
         "ordinary Apply terms require one non-contextual argument clause."
       )
       _ <- application.fun match
-        case _: Term.Apply =>
-          Left(
-            error(
-              "NEUTRAL_APPLY_MULTIPLE_LISTS_UNSUPPORTED",
-              "nested Apply function topology would advertise multiple argument lists."
-            )
-          )
         case _: Term.ApplyType =>
           Left(
             error(

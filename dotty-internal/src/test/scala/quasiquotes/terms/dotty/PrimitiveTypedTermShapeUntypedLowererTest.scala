@@ -175,17 +175,24 @@ class PrimitiveTypedTermShapeUntypedLowererTest extends munit.FunSuite:
     }
   }
 
-  test("preserves exact existing child-lowering failures without widening recursion") {
+  test("preserves completed multiclause Apply while keeping unrelated child failures exact") {
     withContext {
+      val nestedApply = TermShape.Apply(
+        TermShape.Apply(TermShape.Identifier("f", false), Nil),
+        List(TermShape.Literal("1"))
+      )
+      val loweredNested = lowerOrFail(TermShape.Typed(nestedApply, "Int"))
+      assertEquals(
+        TermShapeInspector.rawStructure(loweredNested),
+        "Typed(Apply(Apply(Ident(f), []), [Number(1,Whole(10))]),Ident(Int))"
+      )
+      assertEquals(TermShapeInspector.inspect(loweredNested.expr), nestedApply)
+
       val failures = Vector(
         TermShape.Identifier("_", true) -> PlaceholderIdentifier("_"),
         TermShape.Parenthesized(TermShape.Literal("1")) ->
           UnsupportedTermShape("Parenthesized"),
         TermShape.Unsupported("Hostile", "test") -> UnsupportedTermShape("Unsupported"),
-        TermShape.Apply(
-          TermShape.Apply(TermShape.Identifier("f", false), Nil),
-          List(TermShape.Literal("1"))
-        ) -> MultipleApplicationLists,
         TermShape.Typed(TermShape.Identifier("x", false), "Int") ->
           UnsupportedTermShape("Typed")
       )

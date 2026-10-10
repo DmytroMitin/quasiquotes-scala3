@@ -37,7 +37,7 @@ final class ScalametaRank3TermSequenceModelFitCharacterizationTest
         case other => fail(s"expected an Apply, got ${other.structure}")
     }
 
-  test("neutral projection admits one clause and rejects the nested multi-clause boundary"):
+  test("neutral projection admits completed nested multi-clause structure"):
     val one = freshApplication(List(List(Lit.Int(1): Term)))
     val two = freshApplication(List(Nil, List(Term.Name("second"))))
     val three = freshApplication(
@@ -48,9 +48,11 @@ final class ScalametaRank3TermSequenceModelFitCharacterizationTest
       project(one),
       TermShape.Apply(identifier("f"), List(TermShape.Literal("1")))
     )
-    List(two, three).foreach { term =>
-      assertProjectionCode(term, "NEUTRAL_APPLY_MULTIPLE_LISTS_UNSUPPORTED")
-    }
+    assertEquals(project(two), nestedShape(List(Nil, List(identifier("second")))))
+    assertEquals(
+      project(three),
+      nestedShape(List(List(identifier("first")), Nil, List(TermShape.Literal("3"))))
+    )
 
   test("completed Core nested Apply values erase literal versus runtime nested-list origin"):
     val literalClauses = List(
@@ -80,8 +82,12 @@ final class ScalametaRank3TermSequenceModelFitCharacterizationTest
     )
     assertEquals(shapeClauseValues(runtime), literalClauses)
     assertEquals(countShapeApplies(runtime), 3)
-    assertAuthoringCode(literal, "NEUTRAL_TERM_AUTHORING_STRUCTURE_UNSUPPORTED")
-    assertAuthoringCode(runtime, "NEUTRAL_TERM_AUTHORING_STRUCTURE_UNSUPPORTED")
+    List(literal, runtime).foreach { shape =>
+      val authored = author(shape)
+      assertEquals(project(authored), shape)
+      assertEquals(metaClauseValues(authored).map(_.size), List(1, 0, 2))
+      assert(allTrees(authored).forall(_.pos == Position.None))
+    }
 
   test("N049 repeated completion changes one existing clause but cannot vary clause topology"):
     val root = TermShape.Apply(

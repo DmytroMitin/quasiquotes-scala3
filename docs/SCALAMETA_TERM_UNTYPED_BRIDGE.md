@@ -30,7 +30,8 @@ selection, or placement.
 
 The admitted intersection is the direct non-binder family shared by both
 layers: semantic Int/String/Boolean literals; direct identifiers; recursive
-selections; one ordinary positional Apply list; recursive ordinary infix and
+selections; one or more successive ordinary positional Apply lists, including
+explicit empty lists; recursive ordinary infix and
 unary terms; tuples of arity 2 through 22; an `if` with an explicit `else`;
 standard single-quoted `s` interpolation; one plain unresolved non-generic
 constructor source path with exactly one ordinary positional argument list;
@@ -52,7 +53,7 @@ qualified paths retain their selected-Type topology.
 `Failure.detail` preserves bounded diagnostic context, but callers should
 branch on `code` rather than exact prose.
 
-Nested Apply lists, Type application, named or repeated arguments, contextual
+Type application, named or repeated arguments, contextual
 argument clauses, type-applied constructors, multiple constructor lists,
 anonymous templates, Type ascription, Lambda1, P2/P3 binder blocks, and broader
 statement families fail closed. In particular, the facade does not route P2/P3

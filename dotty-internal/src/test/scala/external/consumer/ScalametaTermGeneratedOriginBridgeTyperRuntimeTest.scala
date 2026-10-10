@@ -27,6 +27,9 @@ final class ScalametaTermGeneratedOriginBridgeTyperRuntimeTest
       Files.writeString(
         source,
         """object TermGeneratedOriginRuntime:
+          |  def combine(left: Int)(right: Int): Int = left + right
+          |  def empty()(right: Int): Int = right + 1
+          |  def multiclauseResult: (Int, Int) = (0, 0)
           |  def lambdaResult: Int => Int = identity
           |  def localValResult: Int = 0
           |  def localDefResult: Int => Int = identity
@@ -35,6 +38,10 @@ final class ScalametaTermGeneratedOriginBridgeTyperRuntimeTest
       )
 
       val fixtures = Vector(
+        "multiclauseResult" -> (
+          parsed("(combine(20)(22), empty()(41))"),
+          "<generated:term-runtime-multiclause>"
+        ),
         "lambdaResult" -> (
           parsed("(x: Int) => x + 1"),
           "<generated:term-runtime-lambda>"
@@ -63,12 +70,13 @@ final class ScalametaTermGeneratedOriginBridgeTyperRuntimeTest
       assertEquals(
         driver.generatedSources,
         Vector(
+          "(combine(20)(22), empty()(41))",
           "(x: Int) => x + 1",
           "{ val x: Int = 41; x + 1 }",
           "{ def id(x: Int): Int = x; id }"
         )
       )
-      assertEquals(driver.positionedBeforeTyper, Vector(true, true, true))
+      assertEquals(driver.positionedBeforeTyper, Vector(true, true, true, true))
 
       val emitted =
         val stream = Files.walk(output)
@@ -81,6 +89,12 @@ final class ScalametaTermGeneratedOriginBridgeTyperRuntimeTest
       try
         val moduleClass = loader.loadClass("TermGeneratedOriginRuntime$")
         val module = moduleClass.getField("MODULE$").get(null)
+        val multiclause = moduleClass
+          .getMethod("multiclauseResult")
+          .invoke(module)
+          .asInstanceOf[Product]
+        assertEquals(multiclause.productElement(0), Integer.valueOf(42))
+        assertEquals(multiclause.productElement(1), Integer.valueOf(42))
         val function = moduleClass
           .getMethod("lambdaResult")
           .invoke(module)

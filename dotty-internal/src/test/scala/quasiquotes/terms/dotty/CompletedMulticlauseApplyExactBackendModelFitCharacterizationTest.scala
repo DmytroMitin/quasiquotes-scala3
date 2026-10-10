@@ -13,8 +13,6 @@ import scala.meta.dialects.Scala3
 
 final class CompletedMulticlauseApplyExactBackendModelFitCharacterizationTest
     extends munit.FunSuite:
-  import CoreTermShapeUntypedLowererError.MultipleApplicationLists
-
   private final case class Fixture(
       source: String,
       shape: TermShape,
@@ -78,26 +76,16 @@ final class CompletedMulticlauseApplyExactBackendModelFitCharacterizationTest
         allTrees(parsed.rawTree).foreach: node =>
           assert(node.source eq parsed.rawTree.source, clues(fixture.source, node))
 
-  test("Scalameta represents completed clauses as nested Apply but neutral admission rejects them"):
+  test("neutral projection and authoring preserve Scalameta completed clause topology"):
     fixtures.foreach: fixture =>
       val term = parseScalameta(fixture.source)
       assertEquals(scalametaClauseArities(term), fixture.clauseArities, clues(fixture.source))
-      val projection = ScalametaTermProjection.project(term).swap.toOption.getOrElse(
-        fail(s"multi-clause Scalameta term unexpectedly projected: ${fixture.source}")
-      )
-      assertEquals(
-        projection.code,
-        "NEUTRAL_APPLY_MULTIPLE_LISTS_UNSUPPORTED",
-        clues(fixture.source, projection)
-      )
-      val authoring = ScalametaTermShapeAuthoring.author(fixture.shape).swap.toOption.getOrElse(
-        fail(s"nested Core Apply unexpectedly authored: ${fixture.source}")
-      )
-      assertEquals(
-        authoring.code,
-        "NEUTRAL_TERM_AUTHORING_STRUCTURE_UNSUPPORTED",
-        clues(fixture.source, authoring)
-      )
+      val projection = ScalametaTermProjection.project(term).fold(error => fail(error.message), identity)
+      assertEquals(projection.shape, fixture.shape, clues(fixture.source))
+      val authored = ScalametaTermShapeAuthoring.author(fixture.shape).fold(error => fail(error.message), identity)
+      assertEquals(scalametaClauseArities(authored), fixture.clauseArities, clues(fixture.source))
+      assertEquals(ScalametaTermProjection.project(authored).map(_.shape), Right(fixture.shape))
+      assert(allMetaTrees(authored).forall(_.pos == Position.None), clues(fixture.source))
 
     val oneClause = apply(ident("f"), ident("a"))
     assert(ScalametaTermProjection.project(parseScalameta("f(a)")).isRight)
@@ -153,40 +141,34 @@ final class CompletedMulticlauseApplyExactBackendModelFitCharacterizationTest
         assertEquals(TermShapeInspector.rawStructure(generated.tree), fixture.rawStructure, clues(fixture.source))
         assertEquals(spanSnapshot(generated.tree), fixture.spans, clues(fixture.source))
 
-  test("the direct Core lowerer preserves its one-list contract and exact nested failure"):
+  test("the direct Core lowerer preserves exact completed nested Apply topology"):
     withContext:
       fixtures.foreach: fixture =>
-        assertEquals(
-          CoreTermShapeUntypedLowerer.lower(fixture.shape),
-          Left(MultipleApplicationLists),
-          clues(fixture.source)
-        )
+        val first = CoreTermShapeUntypedLowerer.lower(fixture.shape).fold(error => fail(error.message), identity)
+        val second = CoreTermShapeUntypedLowerer.lower(fixture.shape).fold(error => fail(error.message), identity)
+        assertEquals(TermShapeInspector.rawStructure(first), fixture.rawStructure, clues(fixture.source))
+        assertSourceFree(first)
+        assertFresh(first, second)
 
       val oneClause = apply(ident("f"), ident("a"))
       val raw = CoreTermShapeUntypedLowerer.lower(oneClause).fold(error => fail(error.message), identity)
       assertEquals(TermShapeInspector.rawStructure(raw), "Apply(Ident(f), [Ident(a)])")
       assertSourceFree(raw)
 
-  test("both public Scalameta bridges retain the neutral multiple-list failure"):
+  test("both public Scalameta bridges admit the coordinated completed multi-list family"):
     withContext:
       fixtures.foreach: fixture =>
         val term = parseScalameta(fixture.source)
-        val direct = ScalametaTermUntypedBridge.lower(term).swap.toOption.getOrElse(
-          fail(s"direct Scalameta bridge unexpectedly accepted ${fixture.source}")
-        )
-        assertEquals(direct.code, "NEUTRAL_PROJECTION_FAILED", clues(fixture.source))
-        assert(
-          direct.detail.startsWith("NEUTRAL_APPLY_MULTIPLE_LISTS_UNSUPPORTED:"),
-          clues(fixture.source, direct)
-        )
+        val direct = ScalametaTermUntypedBridge.lower(term).fold(problem => fail(problem.detail), identity)
+        assertEquals(TermShapeInspector.rawStructure(direct), fixture.rawStructure, clues(fixture.source))
+        assertSourceFree(direct)
 
         val generated = ScalametaTermGeneratedOriginBridge
           .lower(term, "generated/U050Scalameta.scala")
-          .swap
-          .toOption
-          .getOrElse(fail(s"generated Scalameta bridge unexpectedly accepted ${fixture.source}"))
-        assertEquals(generated.code, "NEUTRAL_PROJECTION_FAILED", clues(fixture.source))
-        assertEquals(generated.detail, direct.detail, clues(fixture.source))
+          .fold(problem => fail(problem.detail), identity)
+        assertEquals(generated.generatedSource, fixture.source, clues(fixture.source))
+        assertEquals(TermShapeInspector.rawStructure(generated.tree), fixture.rawStructure, clues(fixture.source))
+        assertEquals(spanSnapshot(generated.tree), fixture.spans, clues(fixture.source))
 
       assert(ScalametaTermUntypedBridge.lower(parseScalameta("f(a)")).isRight)
       assert(
@@ -219,6 +201,9 @@ final class CompletedMulticlauseApplyExactBackendModelFitCharacterizationTest
       case _: Term.Name => reversed
       case other => fail(s"unexpected Scalameta multi-clause topology: ${other.structure}")
     loop(term, Nil)
+
+  private def allMetaTrees(tree: Tree): List[Tree] =
+    tree :: tree.children.toList.flatMap(allMetaTrees)
 
   private def spanSnapshot(tree: untpd.Tree)(using Context): Vector[(String, Int, Int, Int)] =
     allTrees(tree).map: node =>

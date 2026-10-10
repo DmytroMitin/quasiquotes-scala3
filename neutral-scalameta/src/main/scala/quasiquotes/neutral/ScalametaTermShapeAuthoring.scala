@@ -133,12 +133,6 @@ object ScalametaTermShapeAuthoring:
               Term.Select(authoredQualifier, Term.Name(selectedName))
             )
           yield authored
-        case TermShape.Apply(function: TermShape.Apply, _) =>
-          Left(
-            structureError(
-              "an Apply directly in function position would advertise multiple argument lists."
-            )
-          )
         case TermShape.Apply(function, arguments) =>
           for
             authoredFunction <- authorPresent(function, scope)

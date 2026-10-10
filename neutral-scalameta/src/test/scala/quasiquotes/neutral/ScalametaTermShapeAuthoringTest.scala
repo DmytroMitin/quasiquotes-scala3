@@ -50,6 +50,82 @@ final class ScalametaTermShapeAuthoringTest extends munit.FunSuite:
     assertEquals(application.argClause.mod, None)
     assertEquals(application.argClause.values.map(_.productPrefix), List("Lit.Int", "Lit.Boolean", "Lit.String"))
 
+  test("authors completed successive ordinary Apply clauses with fresh exact topology"):
+    val fixtures = List(
+      free,
+      TermShape.Apply(free, Nil),
+      TermShape.Apply(free, List(TermShape.Identifier("a", false), TermShape.Identifier("b", false))),
+      TermShape.Apply(
+        TermShape.Apply(free, List(TermShape.Identifier("a", false))),
+        List(TermShape.Identifier("b", false))
+      ),
+      TermShape.Apply(
+        TermShape.Apply(free, Nil),
+        List(TermShape.Identifier("b", false))
+      ),
+      TermShape.Apply(
+        TermShape.Apply(
+          TermShape.Apply(free, List(TermShape.Identifier("a", false))),
+          Nil
+        ),
+        List(TermShape.Identifier("c", false), TermShape.Identifier("d", false))
+      ),
+      TermShape.Apply(
+        TermShape.Apply(
+          TermShape.Apply(
+            TermShape.Apply(
+              TermShape.Apply(free, Nil),
+              List(TermShape.Identifier("a", false))
+            ),
+            List(TermShape.Identifier("b", false))
+          ),
+          Nil
+        ),
+        List(TermShape.Identifier("c", false))
+      )
+    )
+
+    fixtures.foreach { shape =>
+      val first = author(shape)
+      val second = author(shape)
+      assertRoundTrip(shape, first)
+      assertRoundTrip(shape, second)
+      assert(allTrees(first).forall(_.pos == Position.None), clues(shape))
+      assert(allTrees(second).forall(_.pos == Position.None), clues(shape))
+      assertEquals(allTrees(first).size, allTrees(second).size, clues(shape))
+      allTrees(first).zip(allTrees(second)).foreach { (left, right) =>
+        assert(!(left eq right), clues(shape, left, right))
+      }
+    }
+
+  test("authors completed multiclause Apply recursively inside permitted contexts"):
+    val inner = TermShape.Apply(
+      TermShape.Apply(TermShape.Identifier("inner", false), Nil),
+      List(TermShape.Literal("1"))
+    )
+    val prepared = TermShape.Apply(
+      TermShape.Apply(
+        TermShape.Select(TermShape.Identifier("service", false), "prepare"),
+        List(TermShape.Identifier("a", false))
+      ),
+      List(TermShape.Identifier("b", false))
+    )
+    val shape = TermShape.Block(
+      List(TermShape.Apply(TermShape.Identifier("outer", false), List(inner))),
+      TermShape.If(
+        TermShape.Identifier("flag", false),
+        TermShape.Select(prepared, "value"),
+        TermShape.Apply(
+          TermShape.Apply(TermShape.Identifier("fallback", false), Nil),
+          List(TermShape.Literal("2"))
+        )
+      )
+    )
+
+    val authored = author(shape)
+    assertRoundTrip(shape, authored)
+    assert(allTrees(authored).forall(_.pos == Position.None))
+
   test("authors infix unary tuple and explicit If topology in child order"):
     val infix = TermShape.Infix(TermShape.Literal("1"), "+", TermShape.Literal("2"))
     val unaries = List("+", "-", "!", "~").map(operator => TermShape.Unary(operator, free))
@@ -130,7 +206,6 @@ final class ScalametaTermShapeAuthoringTest extends munit.FunSuite:
       TermShape.Apply(free, null),
       TermShape.Apply(free, List(null)),
       TermShape.Apply(null, Nil),
-      TermShape.Apply(TermShape.Apply(free, Nil), Nil),
       TermShape.Infix(null, "+", free),
       TermShape.Infix(free, null, free),
       TermShape.Infix(free, "+", null)

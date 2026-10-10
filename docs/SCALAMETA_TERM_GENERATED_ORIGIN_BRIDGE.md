@@ -40,8 +40,9 @@ uses the existing completed-term backend deliberately.
 ## Verified intersection
 
 The generated-origin bridge admits the neutral projector's ordinary direct
-family: Int/String/Boolean literals, identifiers, recursive selections, one
-ordinary positional Apply list, recursive infix and unary terms, tuples of
+family: Int/String/Boolean literals, identifiers, recursive selections, one or
+more successive ordinary positional Apply lists including explicit empty
+lists, recursive infix and unary terms, tuples of
 arity 2 through 22, explicit `if`/`else`, standard single-quoted `s`
 interpolation, and one plain unresolved non-generic constructor source path
 with one ordinary positional list. Transparent P0 parentheses and binder-free

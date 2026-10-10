@@ -519,7 +519,9 @@ deterministic text and fresh SourceFile. Together with source-free
 applications with two or more successive clauses, including explicit empty
 clauses such as `f()(b)` and `f(a)()(c, d)`. This implemented public facade
 has a smaller source-name/grouping bound than the source-free operation.
-The direct Core lowerer and both Scalameta Term bridges remain one-list,
-separate compatibility paths. No Type generated-origin sibling is included. The
+Neutral Scalameta projection/authoring, the direct Core lowerer, and both
+Scalameta Term bridges preserve the same completed left-associated ordinary
+Apply clauses and explicit empty clauses while remaining separate,
+non-delegating compatibility paths. No Type generated-origin sibling is included. The
 existing-owner rewrite facade is a separate bounded U-U operation, not a mode
 of generated-origin lowering.

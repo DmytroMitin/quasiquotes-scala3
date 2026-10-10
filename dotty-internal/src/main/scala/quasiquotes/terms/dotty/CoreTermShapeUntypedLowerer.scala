@@ -139,8 +139,6 @@ private[quasiquotes] object CoreTermShapeUntypedLowerer:
           validName <- validateSourceName(name, InvalidSelectedName.apply)
           rawQualifier <- lowerAdmitted(qualifier)
         yield untpd.Select(rawQualifier, termName(validName))
-      case Some(TermShape.Apply(_: TermShape.Apply, _)) =>
-        Left(MultipleApplicationLists)
       case Some(TermShape.Apply(function, arguments)) =>
         Option(arguments) match
           case None => Left(MissingApplyArguments)

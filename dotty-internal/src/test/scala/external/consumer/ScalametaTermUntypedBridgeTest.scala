@@ -11,6 +11,34 @@ import scala.meta.*
 import scala.meta.dialects.Scala3
 
 class ScalametaTermUntypedBridgeTest extends munit.FunSuite:
+  test("external consumer lowers completed successive ordinary Apply clauses without flattening") {
+    val fixtures = Vector(
+      "f" -> "Ident(f)",
+      "f()" -> "Apply(Ident(f),[])",
+      "f(a, b)" -> "Apply(Ident(f),[Ident(a),Ident(b)])",
+      "f(a)(b)" -> "Apply(Apply(Ident(f),[Ident(a)]),[Ident(b)])",
+      "f()(b)" -> "Apply(Apply(Ident(f),[]),[Ident(b)])",
+      "f(a)()(c, d)" -> "Apply(Apply(Apply(Ident(f),[Ident(a)]),[]),[Ident(c),Ident(d)])"
+    )
+
+    withContext {
+      fixtures.foreach { case (source, expected) =>
+        val first = lower(source)
+        val second = lower(source)
+        assertEquals(topology(first), expected, clues(source))
+        allTrees(first).foreach { node =>
+          assert(!node.source.exists, clues(source, node))
+          assert(!node.span.exists, clues(source, node))
+          assertEquals(node.symbol, NoSymbol, clues(source, node))
+          assert(!node.isInstanceOf[untpd.TypedSplice], clues(source, node))
+        }
+        allTrees(first).zip(allTrees(second)).foreach { case (left, right) =>
+          assert(!(left eq right), clues(source, left, right))
+        }
+      }
+    }
+  }
+
   test("external consumer lowers the complete direct non-binder intersection") {
     withContext {
       assertNumber(lower("1"), "1")
@@ -114,7 +142,6 @@ class ScalametaTermUntypedBridgeTest extends munit.FunSuite:
   test("external consumer receives stable neutral projection failures") {
     withContext {
       val sources = Vector(
-        "f(1)(2)",
         "f[Int](1)",
         "f(value = 1)",
         "f(values*)",
@@ -226,6 +253,12 @@ class ScalametaTermUntypedBridgeTest extends munit.FunSuite:
       case untpd.Block(statements, result) =>
         tree :: statements.flatMap(allTrees) ::: allTrees(result)
       case _ => tree :: Nil
+
+  private def topology(tree: untpd.Tree): String = tree match
+    case untpd.Ident(name) => s"Ident($name)"
+    case value: untpd.Apply =>
+      s"Apply(${topology(value.fun)},[${value.args.map(topology).mkString(",")}])"
+    case other => s"Unexpected(${other.getClass.getSimpleName})"
 
   private def withContext[A](body: Context ?=> A): A =
     val base = new ContextBase

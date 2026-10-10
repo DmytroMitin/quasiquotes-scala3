@@ -31,11 +31,11 @@ context-free. `DefinitionUntypedLowering` uses a private semantic-to-shape
 adapter and the private five-family exact lowerer. The Term and Definition
 facades require an active Dotty `Context`; all three reject unsupported or
 malformed semantic values through stable facade failures and return only
-fresh source-free syntax. The two public semantic Term facades preserve
-left-associated completed `TermShape.Apply` with 2..N ordinary clauses,
-including explicit empty clauses. The direct `CoreTermShapeUntypedLowerer`,
-neutral Scalameta routes and both Scalameta Term bridges remain one-list and
-non-delegating.
+fresh source-free syntax. The two public semantic Term facades, neutral
+Scalameta projection/authoring, the direct `CoreTermShapeUntypedLowerer`, and
+both Scalameta Term bridges preserve left-associated completed
+`TermShape.Apply` with 2..N ordinary clauses, including explicit empty clauses.
+The Scalameta bridges remain separate and non-delegating.
 
 The separate `DefinitionGeneratedOriginLowering` facade accepts the five
 public semantic Definition families, including aliases, and returns a positioned
@@ -303,10 +303,10 @@ promise:
   the accepted non-binder Core family:
   canonical Int/String/Boolean literals, recursive ordinary infix and unary
   nodes, tuples, explicit conditionals, direct identifiers, recursive
-  selections, and exactly one ordinary positional Apply list. It also lowers
+  selections, and successive ordinary positional Apply lists. It also lowers
   transparent P0 and binder-free P1 blocks. It validates the bounded literal,
-  operator, and ASCII non-keyword name sets, rejects placeholders and a direct
-  Apply in function position, and audits no source, no span, `NoSymbol`, and
+  operator, and ASCII non-keyword name sets, rejects placeholders, and audits
+  no source, no span, `NoSymbol`, and
   no `TypedSplice` recursively.
 - `ConstructedTermUntypedBackend` and `CompletedTypeUntypedLowerer` lower the
   admitted compiler-free Term/Type models to source-free raw trees. The richer
@@ -411,7 +411,7 @@ no stable raw-tree contract. The published exact-version Maven coordinates do
 not widen those API boundaries or stabilize the internal
 machinery. The public bounded composition admits the accepted
 Int/String/Boolean literal, infix, unary, tuple, conditional, direct
-identifier/selection, one-list ordinary Apply, and transparent P0/binder-free
+identifier/selection, completed nested ordinary Apply, and transparent P0/binder-free
 P1 families through core `TermShape`.
 Typed Scalameta Term traversal instead belongs to the separate released opt-in
 `hybridScalametaFrontend` and returns caller-owned `q.reflect.Term`.

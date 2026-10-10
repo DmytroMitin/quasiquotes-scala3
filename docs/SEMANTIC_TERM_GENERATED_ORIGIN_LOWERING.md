@@ -61,9 +61,9 @@ Completed ordinary application preserves the recursive left-associated
 `TermShape.Apply` topology. Both semantic facades admit two or more successive
 ordinary argument clauses, including explicit empty Lists: `f(a)(b)`,
 `f()(b)`, and `f(a)()(c, d)`. Zero clauses means no Apply node, so `f`
-and `f()` remain distinct. This does not widen neutral Scalameta
-projection/authoring, the direct `CoreTermShapeUntypedLowerer`, or either
-public Scalameta Term bridge; those compatibility paths remain one-list.
+and `f()` remain distinct. Neutral Scalameta projection/authoring, the direct
+`CoreTermShapeUntypedLowerer`, and both public Scalameta Term bridges preserve
+the same completed clause topology through their separate compatibility paths.
 
 The generated-source sibling deliberately accepts less than source-free
 lowering:

@@ -64,7 +64,7 @@ Accepted production support is the recursive family formed from Scalameta
 `Lit.Int`, `Lit.String`, and `Lit.Boolean` semantic values; ordinary binary
 `Term.ApplyInfix`; unary `+`, `-`, `!`, and `~`; tuples of arity 2 through 22;
 explicit three-branch `if`; conservative direct source identifiers and
-selections; one ordinary positional `Term.Apply` argument list; standard-`s`
+selections; successive ordinary positional `Term.Apply` argument lists; standard-`s`
 interpolation; and primitive Type ascription. It also admits a
 one-or-more-segment plain source-path, non-generic `Term.New` with exactly
 one ordinary positional argument list, one explicitly typed ordinary Lambda1, transparent
@@ -74,8 +74,9 @@ policy, and one bounded source-owned local identity-method P3 block. The P3 fami
 modifier-free, non-generic, one-parameter method with explicit structurally
 compatible Int/String/Boolean Types, a direct parameter body, a direct method
 result, distinct deterministic binders, and no recursion. Apply and the admitted
-constructor list permit zero, one, or multiple arguments. Nested Apply lists,
-Type application, contextual clauses, type-applied constructors, multiple constructor lists, named/star arguments, anonymous
+constructor list permit zero, one, or multiple arguments. Successive ordinary
+Apply clauses preserve distinct nested nodes, including empty clauses. Type
+application, contextual clauses, type-applied constructors, multiple constructor lists, named/star arguments, anonymous
 templates, non-primitive ascription, non-standard interpolation, and broader
 lambdas/binders/statements return stable `NeutralProjectionError` categories;
 they never become `TermShape.Unsupported`.
@@ -138,7 +139,7 @@ be invoked as string interpolators. The module therefore does not claim a thin
 The project also owns one bounded semantic-value-to-Scalameta reverse route:
 `ScalametaTermShapeAuthoring.author`. It creates fresh `Position.None` Terms
 for the accepted ordinary family (literals, identifiers,
-selections, one-list Apply, infix, unary, tuples, and explicit `if`), the
+selections, completed nested Apply, infix, unary, tuples, and explicit `if`), the
 fully-qualified one-list `new` family, transparent P0, and binder-free P1
 blocks. It also authors bounded standard-`s` interpolation, including recursive
 admitted arguments and nested standard-`s` values, by constructing fresh direct
@@ -222,14 +223,14 @@ start/end offsets as `NeutralSourceSpan`. Explicitly constructed trees with
 
 The released exact-version `dottyInternal` module depends on `neutralScalameta` and owns
 the exact bridges. For the production Term route, the accepted non-binder
-literal/infix/unary/tuple/conditional/Identifier/Select/one-list Apply family,
+literal/infix/unary/tuple/conditional/Identifier/Select/completed nested Apply family,
 plus transparent P0 and binder-free P1 blocks, is consumed by package-private
 `CoreTermShapeUntypedLowerer`, which directly constructs corresponding
 source-free raw nodes. Canonical literal text, the fixed ordinary operator and
 unary sets, and direct ASCII non-keyword names are validated before raw names
-or nodes are created. A direct nested Apply in function position is rejected
-as multiple lists; Apply remains recursively valid in ordinary argument and
-qualifier positions. Lambda1, P2, and P3 are outside this direct edge; P2 and
+or nodes are created. Successive ordinary Apply clauses lower recursively to
+distinct source-free raw Apply nodes; Apply also remains recursively valid in
+ordinary argument and qualifier positions. Lambda1, P2, and P3 are outside this direct edge; P2 and
 P3 also remain rejected by the direct lowerer. The richer exact Term backend
 separately admits the bounded P2 shape using authoritative completed declared-
 Type sidecars and existing BinderId scope. The richer backend also admits the

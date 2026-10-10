@@ -51,11 +51,16 @@ for the same semantic carrier with additional name-role and signed-receiver
 grouping restrictions. The [Term origin contract](SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md)
 qualifies every family below; bridge support does not imply semantic-facade parity.
 
+`TermUntypedLowering` and `TermGeneratedOriginLowering` preserve two or more successive ordinary argument clauses.
+`ScalametaTermProjection` and `ScalametaTermShapeAuthoring` preserve completed nested clauses.
+`CoreTermShapeUntypedLowerer` preserves completed nested clauses directly.
+`ScalametaTermUntypedBridge` and `ScalametaTermGeneratedOriginBridge` preserve completed nested clauses without delegation to the richer semantic facades.
+
 | Family | Q construct | Q match | typed Scalameta construct | typed Scalameta match | N project | N author | U-D fresh lower | U-U existing rewrite |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Literal / identifier | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — public semantic facade plus source-free and generated-origin Term bridges | `NOT_APPLICABLE` |
 | Selection | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `BOUNDED` — public source-free and generated-origin exact-version Term bridges | `NOT_APPLICABLE` |
-| Ordinary Apply | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` — one ordinary positional list; completed nested lists remain outside neutral projection | `SUPPORTED` — one ordinary positional list; completed nested lists remain outside neutral authoring | `BOUNDED` — `TermUntypedLowering` and `TermGeneratedOriginLowering` preserve two or more successive ordinary argument clauses and explicit empty clauses; `CoreTermShapeUntypedLowerer` remains one-list; `ScalametaTermUntypedBridge` and `ScalametaTermGeneratedOriginBridge` remain one-list | `INTERNAL` — one selected existing Apply in a direct parameterless method body; bounded leaf or direct-identifier Apply argument replacement only |
+| Ordinary Apply | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` | `SUPPORTED` — completed left-associated ordinary clauses, including explicit empty clauses; no contextual/named/star clauses or clause-sequence templates | `SUPPORTED` — fresh completed left-associated ordinary clauses with exact reprojection and `Position.None` | `BOUNDED` — semantic facades, direct Core lowerer, and both non-delegating Scalameta bridges preserve completed 0/1/2/3/N clause topology; no pre-completion rank-3 construction/matching | `INTERNAL` — one selected existing Apply in a direct parameterless method body; bounded leaf or direct-identifier Apply argument replacement only |
 | Infix | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — both public Term bridges; only the source-free route retains raw span-free `InfixOp` caveats | `NOT_APPLICABLE` |
 | Unary | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — both public exact-version Term bridges | `NOT_APPLICABLE` |
 | Tuple | `BOUNDED` — arity 2 through 22 | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` — arity 2 through 22 through both public exact-version Term bridges | `NOT_APPLICABLE` |

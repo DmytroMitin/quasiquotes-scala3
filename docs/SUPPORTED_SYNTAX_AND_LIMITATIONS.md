@@ -126,11 +126,12 @@ direct Scalameta-Term-to-raw-tree composition. It mechanically projects through
 does not render, reparse, fall back, or select the richer backend.
 
 The accepted intersection is Int/String/Boolean literals, identifiers,
-recursive selections, one ordinary positional Apply list, recursive ordinary
+recursive selections, one or more successive ordinary positional Apply lists
+with explicit empty clauses, recursive ordinary
 infix and unary terms, tuples of arity 2 through 22, explicit `if`/`else`,
 standard single-quoted `s` interpolation, one fully-qualified non-generic
 one-list constructor, transparent P0 parentheses, and binder-free P1 blocks.
-Nested or Type Apply, named/star/contextual arguments, broader constructors,
+Type Apply, named/star/contextual arguments, broader constructors,
 ascription, Lambda1, P2/P3 binders, and broader statements fail closed with
 stable missing-input, neutral-projection, or exact-lowering failure classes.
 

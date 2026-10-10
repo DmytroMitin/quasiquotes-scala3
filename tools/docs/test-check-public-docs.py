@@ -57,6 +57,8 @@ class PublicDocsCheckTest(unittest.TestCase):
         )
         (root / "ROADMAP.md").write_text(
             "[north-star checkpoints](docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md)\n\n"
+            "The current programme inventory is the current 798-row / 779-group standard surface.\n"
+            "The direct Core source-free lowerer accepts direct identifiers, selections, and completed successive ordinary Apply clauses.\n\n"
             "| N1 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
             "| N2 | `BOUNDED_STANDARD_AND_TYPED_SCALAMETA_CONSTRUCTION_IMPLEMENTED` | dynamic-constructor ranked `tqq` matching is implemented on both typed frontends; construction and broader kinds remain narrower |\n"
             "| N3 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
@@ -139,8 +141,9 @@ class PublicDocsCheckTest(unittest.TestCase):
             "| Dynamic selected-member name | `BOUNDED` | `BOUNDED` already-resolved Select.name and one SelectedMemberName over compiler-presented `AppliedType` | `BOUNDED` | `BOUNDED` Scalameta-primary shared matcher | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |\n"
             "\n`TermUntypedLowering` and `TermGeneratedOriginLowering` preserve "
             "two or more successive ordinary argument clauses. "
-            "`CoreTermShapeUntypedLowerer` remains one-list. "
-            "`ScalametaTermUntypedBridge` and `ScalametaTermGeneratedOriginBridge` remain one-list.\n",
+            "`ScalametaTermProjection` and `ScalametaTermShapeAuthoring` preserve completed nested clauses. "
+            "`CoreTermShapeUntypedLowerer` preserves completed nested clauses directly. "
+            "`ScalametaTermUntypedBridge` and `ScalametaTermGeneratedOriginBridge` preserve completed nested clauses without delegation.\n",
             encoding="utf-8",
         )
         (docs / "SUPPORTED_SYNTAX_AND_LIMITATIONS.md").write_text(
@@ -821,7 +824,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("C065 selected-member documentation missing layout", result.stderr)
 
-    def test_rejects_missing_c068_semantic_apply_surface_split(self) -> None:
+    def test_rejects_missing_c069_completed_apply_coordinated_surface(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.make_fixture(root)
@@ -833,7 +836,24 @@ class PublicDocsCheckTest(unittest.TestCase):
             result = self.run_checker(root)
 
             self.assertEqual(result.returncode, 1)
-            self.assertIn("C068 completed Apply surface split missing", result.stderr)
+            self.assertIn("C069 completed Apply coordinated surface missing", result.stderr)
+
+    def test_rejects_stale_c069_roadmap_backend_and_inventory_truth(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            roadmap = root / "ROADMAP.md"
+            roadmap.write_text(
+                roadmap.read_text(encoding="utf-8")
+                + "\nThe current programme inventory is the current 794-row / 775-group standard surface.\n"
+                + "The exact backend intentionally remains narrower: only the integer/infix core family lowers to source-free trees; Identifier, Select, and Apply fail.\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C069 roadmap truth stale", result.stderr)
 
     def test_rejects_missing_c068_standard_p3_match_contract(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

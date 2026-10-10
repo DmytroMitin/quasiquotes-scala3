@@ -10,6 +10,51 @@ import scala.meta.*
 import scala.meta.dialects.Scala3
 
 final class ScalametaTermGeneratedOriginBridgeTest extends munit.FunSuite:
+  test("external consumer receives exact generated origins for completed successive Apply clauses"):
+    val fixtures = Vector(
+      ("f", "Ident(f)", Vector(("Ident(f)", 0, 1, 0))),
+      ("f()", "Apply(Ident(f),[])", Vector(("Apply", 0, 3, 1), ("Ident(f)", 0, 1, 0))),
+      (
+        "f(a, b)",
+        "Apply(Ident(f),[Ident(a),Ident(b)])",
+        Vector(("Apply", 0, 7, 1), ("Ident(f)", 0, 1, 0), ("Ident(a)", 2, 3, 2), ("Ident(b)", 5, 6, 5))
+      ),
+      (
+        "f(a)(b)",
+        "Apply(Apply(Ident(f),[Ident(a)]),[Ident(b)])",
+        Vector(("Apply", 0, 7, 4), ("Apply", 0, 4, 1), ("Ident(f)", 0, 1, 0), ("Ident(a)", 2, 3, 2), ("Ident(b)", 5, 6, 5))
+      ),
+      (
+        "f()(b)",
+        "Apply(Apply(Ident(f),[]),[Ident(b)])",
+        Vector(("Apply", 0, 6, 3), ("Apply", 0, 3, 1), ("Ident(f)", 0, 1, 0), ("Ident(b)", 4, 5, 4))
+      ),
+      (
+        "f(a)()(c, d)",
+        "Apply(Apply(Apply(Ident(f),[Ident(a)]),[]),[Ident(c),Ident(d)])",
+        Vector(("Apply", 0, 12, 6), ("Apply", 0, 6, 4), ("Apply", 0, 4, 1), ("Ident(f)", 0, 1, 0), ("Ident(a)", 2, 3, 2), ("Ident(c)", 7, 8, 7), ("Ident(d)", 10, 11, 10))
+      )
+    )
+
+    withContext:
+      fixtures.zipWithIndex.foreach { case ((source, expectedTopology, expectedSpans), index) =>
+        val path = s"generated/c069-multiclause-$index.scala"
+        val first = lower(source, path)
+        val second = lower(source, path)
+        assertEquals(first.generatedSource, source)
+        assertEquals(first.virtualSourceName, path)
+        assertEquals(first.sourceFile.content.mkString, source)
+        assertEquals(topology(first.tree), expectedTopology)
+        assertEquals(spanSnapshot(first.tree), expectedSpans, clues(source))
+        assertEquals(spanSnapshot(second.tree), expectedSpans, clues(source))
+        assertPositioned(first, source)
+        assertPositioned(second, source)
+        assert(!(first.sourceFile eq second.sourceFile), clues(source))
+        allTrees(first.tree).zip(allTrees(second.tree)).foreach { case (left, right) =>
+          assert(!(left eq right), clues(source, left, right))
+        }
+      }
+
   test("external consumer receives positioned trees for the direct public intersection"):
     val fixtures = Vector(
       ("42", "42", "Number"),
@@ -133,7 +178,6 @@ final class ScalametaTermGeneratedOriginBridgeTest extends munit.FunSuite:
       assertEquals(missing.code, "MISSING_INPUT")
 
       Vector(
-        "f(1)(2)",
         "f[Int](1)",
         "f(value = 1)",
         "f(values*)",
@@ -221,6 +265,20 @@ final class ScalametaTermGeneratedOriginBridgeTest extends munit.FunSuite:
       case value: untpd.If => Vector(value.cond, value.thenp, value.elsep)
       case value: untpd.Parens => Vector(value.t)
       case _ => Vector.empty
+
+  private def topology(tree: untpd.Tree): String = tree match
+    case untpd.Ident(name) => s"Ident($name)"
+    case value: untpd.Apply =>
+      s"Apply(${topology(value.fun)},[${value.args.map(topology).mkString(",")}])"
+    case other => s"Unexpected(${other.getClass.getSimpleName})"
+
+  private def spanSnapshot(tree: untpd.Tree)(using Context): Vector[(String, Int, Int, Int)] =
+    allTrees(tree).map { node =>
+      val label = node match
+        case untpd.Ident(name) => s"Ident($name)"
+        case value => value.getClass.getSimpleName
+      (label, node.span.start, node.span.end, node.span.point)
+    }
 
   private def withContext[A](run: Context ?=> A): A =
     val base = new ContextBase

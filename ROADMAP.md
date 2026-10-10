@@ -25,7 +25,8 @@ delivery chronology.
   optional.
 - Preserve the production compiler-free `scala.meta.Term -> TermShape`
   projector for the accepted literal/infix/unary/tuple/conditional/name/select/
-  one-list-Apply family, one typed Lambda1, bounded P0/P1/P2/P3 blocks, and a
+  completed ordinary-Apply family with successive clauses, one typed Lambda1,
+  bounded P0/P1/P2/P3 blocks, and a
   fully-qualified non-generic constructor with exactly one ordinary positional
   argument list. Constructor arguments reuse the existing recursive Term
   projection. Simple/import-relative constructors, constructor Type arguments,
@@ -37,9 +38,9 @@ delivery chronology.
   family. `CoreTermShapeUntypedLowerer` accepts canonical signed decimal
   integer strings, the fixed ordinary operator set `+`, `-`, `*`, `/`, `%`,
   `==`, `!=`, `<`, `<=`, `>`, `>=`, direct identifiers, recursive selections,
-  and exactly one ordinary positional Apply list. It validates direct names,
-  recursively produces parser-equivalent source-free raw trees, and rejects
-  placeholders, a direct Apply in function position, and every other core Term
+  and completed left-associated ordinary positional Apply lists. It validates
+  direct names, recursively produces parser-equivalent source-free raw trees,
+  and rejects placeholders and every other unsupported core Term
   family. It is not a public Scalameta-to-Dotty bridge or a generic `TermShape`
   backend. Exact structural rewriting of existing raw trees remains a separate
   U experiment and is not absorbed by this N-to-D route.
@@ -285,7 +286,7 @@ remain supported; no deep package move or deprecation is selected. At that
 umbrella-facade task's historical checkpoint, the exact accepted API delta was
 additive: standard 676 to 677 rows and hybrid 42 to 43 search rows, with one
 object addition and zero removals in each inventory. The current programme
-inventory is the current 794-row / 775-group standard surface, including the additive
+inventory is the current 798-row / 779-group standard surface, including the additive
 binder-safe Term and semantic-Definition APIs, and the
 unchanged 43-row hybrid surface recorded above.
 
@@ -324,13 +325,15 @@ peer-oriented lanes; the self abstract-Type-member bridge did not widen them.
 External `DefDef` statement splicing is not selected merely for symmetry.
 After the two completed typed/public rotation slots, the selected neutral/core
 gate expands `ScalametaTermProjection` from the original integer/infix family
-to direct identifiers, selections, and one ordinary positional Apply list.
+to direct identifiers, selections, and completed successive ordinary Apply
+clauses.
 For example, `q"obj.f(1 + 2, 3)"` maps directly to recursive project-owned
 `TermShape` without binders, Type sidecars, compiler lookup, or a public
-frontend switch. The exact backend intentionally remains narrower: only the
-integer/infix core family lowers to source-free, span-free, symbol-free
-`untpd.Tree`; Identifier, Select, and Apply fail at its existing unsupported-
-shape boundary. Direct `Typer.typedExpr` on a `NoSpan` `untpd.InfixOp` is not
+frontend switch. The direct Core source-free lowerer accepts direct
+identifiers, selections, and completed successive ordinary Apply clauses,
+including distinct empty clauses, while keeping its other family exclusions.
+It emits span-free, symbol-free `untpd.Tree`. Direct `Typer.typedExpr` on a
+`NoSpan` `untpd.InfixOp` is not
 viable because Dotty's infix desugaring reads operand and operator spans;
 three-line verification therefore uses a test-only source-free
 `Apply(Select(...), ...)` typing shell after separately proving the production

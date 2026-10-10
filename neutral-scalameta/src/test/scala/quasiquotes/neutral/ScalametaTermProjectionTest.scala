@@ -26,6 +26,26 @@ final class ScalametaTermProjectionTest extends munit.FunSuite:
       assertEquals(project(source).shape.render, expected, clues(source.syntax))
     }
 
+  test("projects completed successive ordinary Apply clauses without flattening"):
+    val fixtures = List(
+      "f" -> "Ident(f)",
+      "f()" -> "Apply(Ident(f), [])",
+      "f(a, b)" -> "Apply(Ident(f), [Ident(a), Ident(b)])",
+      "f(a)(b)" -> "Apply(Apply(Ident(f), [Ident(a)]), [Ident(b)])",
+      "f()(b)" -> "Apply(Apply(Ident(f), []), [Ident(b)])",
+      "f(a)()(c, d)" ->
+        "Apply(Apply(Apply(Ident(f), [Ident(a)]), []), [Ident(c), Ident(d)])",
+      "f()(a)(b)()(c)" ->
+        "Apply(Apply(Apply(Apply(Apply(Ident(f), []), [Ident(a)]), [Ident(b)]), []), [Ident(c)])"
+    )
+
+    fixtures.foreach { (source, expected) =>
+      val parsed = Scala3(source).parse[Term].get
+      val projected = project(parsed)
+      assertEquals(projected.shape.render, expected, clues(source))
+      assertEquals(projected.sourceSpan.map(span => (span.start, span.end)), Some((0, source.length)))
+    }
+
   test("recursively composes ordinary calls and selections with integer and infix projection"):
     val fixtures = List(
       q"f(1 + 2)" -> "Apply(Ident(f), [Infix(Literal(1), +, Literal(2))])",
@@ -39,6 +59,28 @@ final class ScalametaTermProjectionTest extends munit.FunSuite:
 
     fixtures.foreach { (source, expected) =>
       assertEquals(project(source).shape.render, expected, clues(source.syntax))
+    }
+
+  test("recursively preserves completed multiclause Apply in permitted contexts"):
+    val inner = app(app(id("inner"), Nil), List(TermShape.Literal("1")))
+    val prepared = app(
+      app(TermShape.Select(id("service"), "prepare"), List(id("a"))),
+      List(id("b"))
+    )
+    val thenBranch = app(app(id("f"), Nil), List(TermShape.Literal("1")))
+    val elseBranch = app(app(id("g"), List(TermShape.Literal("2"))), List(TermShape.Literal("3")))
+
+    val fixtures = List(
+      "outer(inner()(1))" -> app(id("outer"), List(inner)),
+      "service.prepare(a)(b).value" -> TermShape.Select(prepared, "value"),
+      "if flag then f()(1) else g(2)(3)" ->
+        TermShape.If(id("flag"), thenBranch, elseBranch),
+      "{ f()(1); g(2)(3) }" -> TermShape.Block(List(thenBranch), elseBranch)
+    )
+
+    fixtures.foreach { (source, expected) =>
+      val parsed = Scala3(source).parse[Term].get
+      assertEquals(project(parsed).shape, expected, clues(source))
     }
 
   test("projects the admitted integer literal and binary infix family"):
@@ -379,7 +421,6 @@ final class ScalametaTermProjectionTest extends munit.FunSuite:
       )
     }
 
-    assertErrorCode(q"f(1)(2)", "NEUTRAL_APPLY_MULTIPLE_LISTS_UNSUPPORTED")
     assertErrorCode(q"f[Int](1)", "NEUTRAL_APPLY_FUNCTION_UNSUPPORTED")
     assertErrorCode(q"f(using 1)", "NEUTRAL_APPLY_ARGUMENT_CLAUSE_UNSUPPORTED")
     assertErrorCode(q"f(value = 1)", "NEUTRAL_APPLY_ARGUMENT_UNSUPPORTED")
@@ -406,3 +447,9 @@ final class ScalametaTermProjectionTest extends munit.FunSuite:
       ScalametaTermProjection.project(source).left.toOption.map(_.code),
       Some(expected)
     )
+
+  private def id(name: String): TermShape =
+    TermShape.Identifier(name, isPlaceholder = false)
+
+  private def app(function: TermShape, arguments: List[TermShape]): TermShape =
+    TermShape.Apply(function, arguments)

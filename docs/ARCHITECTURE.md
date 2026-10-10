@@ -136,7 +136,7 @@ encoded by recursive `TermShape.Infix` structure.
   not the project's semantic model. Its production Term projection admits
   semantic Int/String/Boolean literals, recursive ordinary binary infix and
   unary nodes, tuples, explicit three-branch conditionals, direct identifiers,
-  direct selections, exactly one ordinary positional Apply argument list, one
+  direct selections, successive ordinary positional Apply argument lists, one
   bounded one-or-more-segment plain source-path constructor with one ordinary
   positional argument list, one explicitly typed Lambda1, transparent P0/binder-free P1
   blocks, one bounded typed local-val P2 block, and one bounded source-owned
@@ -162,10 +162,9 @@ encoded by recursive `TermShape.Infix` structure.
   remains consumer-owned. Its package-private
   `CoreTermShapeUntypedLowerer` consumes the accepted neutral non-binder family
   (Int/String/Boolean literals, infix, unary, tuple, conditional,
-  Identifier/Select/one-list Apply) plus transparent P0 and binder-free P1
-  blocks, and emits source-free raw syntax. A direct Apply in function
-  position is rejected as multiple lists, while Apply remains valid in
-  argument and qualifier positions. Lambda1 and P2 are not admitted by this
+  Identifier/Select/completed nested Apply) plus transparent P0 and binder-free
+  P1 blocks, and emits source-free raw syntax. Successive ordinary clauses
+  remain distinct Apply nodes, including explicit empty clauses. Lambda1 and P2 are not admitted by this
   direct lowerer. The separate richer `ConstructedTermUntypedBackend` accepts
   one admitted P2 local-val block using completed declared-Type sidecars and
   existing BinderId scope, in source-free and generated-origin modes. It also
@@ -286,8 +285,9 @@ Scalameta Term and Definition source-free bridges remain separate,
 non-delegating compatibility compositions. The public semantic
 `TermUntypedLowering` and `TermGeneratedOriginLowering` operations preserve
 recursive completed `TermShape.Apply` with 2..N ordinary clauses and explicit
-empty clauses; neutral projection/authoring, direct Core lowering and the
-Scalameta Term bridges remain one-list compatibility boundaries. The Definition bridge still uses
+empty clauses; neutral projection/authoring, direct Core lowering and both
+Scalameta Term bridges preserve that topology through separate non-delegating
+compatibility compositions. The Definition bridge still uses
 private shape projection/lowering carriers; its generated-origin sibling
 admits only the four concrete val/def families, so the simple-alias exclusion
 is not widened by specialized refined-alias authority.
@@ -341,7 +341,7 @@ The reusable neutral Term route is now:
 
 ```text
 scala.meta Int/String/Boolean literals / ApplyInfix / unary / tuple / if
-  / Term.Name / Term.Select / one ordinary Term.Apply argument list
+  / Term.Name / Term.Select / successive ordinary Term.Apply argument lists
   / a one-or-more-segment plain source-path Term.New with one ordinary argument list
   / one typed Lambda1 / transparent P0 and bounded P1/P2/P3 blocks
   -> ScalametaTermProjection
@@ -382,8 +382,8 @@ own deterministic virtual provenance.
 It preserves only a truthful root source span and performs no rendering,
 reparse, typing, symbol lookup, overload resolution, or fallback. The recursive
 result is a semantic copy; it does not preserve Scalameta child identity or raw
-Dotty subtree identity and adds no opaque raw sidecar. Nested Apply lists, Type
-application, contextual clauses, type-applied constructors, multiple constructor lists, named/star arguments, anonymous
+Dotty subtree identity and adds no opaque raw sidecar. Type application,
+contextual clauses, type-applied constructors, multiple constructor lists, named/star arguments, anonymous
 templates, and broader statement/binder forms remain outside the neutral
 contract. The bounded reverse `ScalametaTermShapeAuthoring` route constructs
 fresh `Position.None` Scalameta Terms for the accepted ordinary family,
@@ -393,8 +393,8 @@ Binder-bearing values are safely inspectable/constructible through public
 `TermShapeBindingView` and `TermShapeBindings`; grouping parentheses and
 source-provenance reconstruction remain outside. The public bounded
 direct exact facade accepts the non-binder family above plus transparent P0 and
-binder-free P1 blocks; a direct Apply in function position is rejected as a
-second argument list, while Apply remains valid in argument and qualifier
+binder-free P1 blocks; completed successive ordinary clauses remain distinct
+nested Apply nodes, and Apply remains valid in argument and qualifier
 positions. Lambda1, P2, and P3 do not cross this direct edge; P2 and P3 remain
 outside the direct lowerer. The richer exact path admits bounded P2 and P3
 shapes only when their authoritative completed-Type sidecars are present. The
