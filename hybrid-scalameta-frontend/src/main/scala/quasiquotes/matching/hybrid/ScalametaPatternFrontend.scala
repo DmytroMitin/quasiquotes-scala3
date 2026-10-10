@@ -285,7 +285,7 @@ private[quasiquotes] object ScalametaPatternFrontend:
           if definition.mods.isEmpty then Right(())
           else unsupported(definition, "P3 local method modifiers and annotations are unsupported")
         _ <-
-          if definition.name.syntax == definition.name.value then Right(())
+          if isSimpleP3BinderName(definition.name) then Right(())
           else unsupported(definition.name, "P3 requires a simple local method binder")
         group <- definition.paramClauseGroups match
           case value :: Nil => Right(value)
@@ -303,7 +303,7 @@ private[quasiquotes] object ScalametaPatternFrontend:
           if parameter.mods.isEmpty && parameter.default.isEmpty then Right(())
           else unsupported(parameter, "P3 requires one unmodified strict parameter without a default")
         _ <-
-          if parameter.name.syntax == parameter.name.value then Right(())
+          if isSimpleP3BinderName(parameter.name) then Right(())
           else unsupported(parameter.name, "P3 requires a simple parameter binder")
         parameterTypeTree <- parameter.decltpe match
           case Some(value) => Right(value)
@@ -372,3 +372,8 @@ private[quasiquotes] object ScalametaPatternFrontend:
       case "scala.Predef.String" | "java.lang.String" | "scala.String" => "String"
       case "scala.Boolean" => "Boolean"
       case other => other
+
+  private def isSimpleP3BinderName(name: scala.meta.Name): Boolean =
+    name.syntax == name.value &&
+      name.value != "_" &&
+      name.value.matches("[A-Za-z_$][A-Za-z0-9_$]*")
