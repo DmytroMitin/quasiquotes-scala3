@@ -99,6 +99,24 @@ private[quasiquotes] object TermConstructionError:
     def message: String =
       "A term template may contain exactly one selected-name hole occurrence."
 
+  final case class SelectedNameHoleCardinalityMismatch(
+      expected: Int,
+      semanticNames: Int,
+      occurrences: Int
+  ) extends TermConstructionError:
+    def message: String =
+      s"Selected-name hole cardinality mismatch: expected $expected distinct semantic names and occurrences but received $semanticNames names and $occurrences occurrences."
+
+  final case class DuplicateSelectedNameLogicalName(name: String)
+      extends TermConstructionError:
+    def message: String =
+      s"Selected-name logical name $name is repeated; this constructor requires distinct logical names."
+
+  final case class DuplicateSelectedNameHoleAddress(selectOrdinal: Int)
+      extends TermConstructionError:
+    def message: String =
+      s"Select ordinal $selectOrdinal is assigned to more than one selected-name hole."
+
   final case class SelectedNameHoleCategoryConflict(name: String)
       extends TermConstructionError:
     def message: String =

@@ -1188,6 +1188,10 @@ private[quasiquotes] final class TermTemplate private (
     }
 
 private[quasiquotes] object TermTemplate:
+  private enum SelectedNameAdmission:
+    case AtMostOne
+    case ExactlyTwoDistinct
+
   def create(
       root: TermShape,
       termHoleIndex: GeneratedHoleIndex,
@@ -1204,6 +1208,7 @@ private[quasiquotes] object TermTemplate:
       Vector.empty,
       GeneratedHoleIndex.empty,
       Vector.empty,
+      SelectedNameAdmission.AtMostOne,
       typeHoleIndex,
       ascriptionTypes
     )
@@ -1226,6 +1231,7 @@ private[quasiquotes] object TermTemplate:
       repeatedTermHoleOccurrences,
       GeneratedHoleIndex.empty,
       Vector.empty,
+      SelectedNameAdmission.AtMostOne,
       typeHoleIndex,
       ascriptionTypes
     )
@@ -1250,6 +1256,32 @@ private[quasiquotes] object TermTemplate:
       repeatedTermHoleOccurrences,
       selectedNameHoleIndex,
       selectedNameHoleOccurrences,
+      SelectedNameAdmission.AtMostOne,
+      typeHoleIndex,
+      ascriptionTypes
+    )
+
+  def createWithTwoSelectedNameHoles(
+      root: TermShape,
+      termHoleIndex: GeneratedHoleIndex,
+      termHoleOccurrences: Vector[TermHoleOccurrence],
+      repeatedTermHoleIndex: GeneratedHoleIndex,
+      repeatedTermHoleOccurrences: Vector[RepeatedTermHoleOccurrence],
+      selectedNameHoleIndex: GeneratedHoleIndex,
+      selectedNameHoleOccurrences: Vector[SelectedNameHoleOccurrence],
+      typeHoleIndex: GeneratedHoleIndex,
+      ascriptionTypes: Vector[TypeTemplate]
+  ): Either[TermConstructionError, TermTemplate] =
+    createUsingScope(
+      root,
+      Vector.empty,
+      termHoleIndex,
+      termHoleOccurrences,
+      repeatedTermHoleIndex,
+      repeatedTermHoleOccurrences,
+      selectedNameHoleIndex,
+      selectedNameHoleOccurrences,
+      SelectedNameAdmission.ExactlyTwoDistinct,
       typeHoleIndex,
       ascriptionTypes
     )
@@ -1271,6 +1303,7 @@ private[quasiquotes] object TermTemplate:
       Vector.empty,
       GeneratedHoleIndex.empty,
       Vector.empty,
+      SelectedNameAdmission.AtMostOne,
       typeHoleIndex,
       ascriptionTypes
     )
@@ -1292,6 +1325,7 @@ private[quasiquotes] object TermTemplate:
       Vector.empty,
       GeneratedHoleIndex.empty,
       Vector.empty,
+      SelectedNameAdmission.AtMostOne,
       typeHoleIndex,
       ascriptionTypes
     )
@@ -1317,6 +1351,7 @@ private[quasiquotes] object TermTemplate:
       repeatedTermHoleOccurrences: Vector[RepeatedTermHoleOccurrence],
       selectedNameHoleIndex: GeneratedHoleIndex,
       selectedNameHoleOccurrences: Vector[SelectedNameHoleOccurrence],
+      selectedNameAdmission: SelectedNameAdmission,
       typeHoleIndex: GeneratedHoleIndex,
       ascriptionTypes: Vector[TypeTemplate]
   ): Either[TermConstructionError, TermTemplate] =
@@ -1359,7 +1394,8 @@ private[quasiquotes] object TermTemplate:
       _ <- validateSelectedNameOccurrence(
         root,
         selectedNameHoleIndex,
-        selectedNameHoleOccurrences
+        selectedNameHoleOccurrences,
+        selectedNameAdmission
       )
       _ <- validateTypeSidecars(
         root,
@@ -1367,6 +1403,8 @@ private[quasiquotes] object TermTemplate:
         ascriptionTypes
       )
       canonicalRoot = TermShapeTraversal.canonicalizePlaceholders(root)
+      canonicalSelectedNameOccurrences =
+        selectedNameHoleOccurrences.sortBy(_.selectOrdinal)
     yield new TermTemplate(
       canonicalRoot,
       termHoleIndex,
@@ -1374,7 +1412,7 @@ private[quasiquotes] object TermTemplate:
       repeatedTermHoleIndex,
       repeatedTermHoleOccurrences,
       selectedNameHoleIndex,
-      selectedNameHoleOccurrences,
+      canonicalSelectedNameOccurrences,
       typeHoleIndex,
       ascriptionTypes,
       enclosingBinderIds
@@ -1447,46 +1485,113 @@ private[quasiquotes] object TermTemplate:
   private def validateSelectedNameOccurrence(
       root: TermShape,
       selectedNameHoleIndex: GeneratedHoleIndex,
-      occurrences: Vector[SelectedNameHoleOccurrence]
+      occurrences: Vector[SelectedNameHoleOccurrence],
+      admission: SelectedNameAdmission
   ): Either[TermConstructionError, Unit] =
     val names = selectedNameHoleIndex.semanticNames.toVector.sorted
-    if names.size > 1 || occurrences.size > 1 then
+    admission match
+      case SelectedNameAdmission.AtMostOne =>
+        if names.size > 1 || occurrences.size > 1 then
+          Left(TermConstructionError.DuplicateSelectedNameHole())
+        else
+          (names.headOption, occurrences.headOption) match
+            case (None, None) => Right(())
+            case (Some(name), None) =>
+              Left(TermConstructionError.InvalidSelectedNameHolePosition(name))
+            case (None, Some(occurrence)) =>
+              Left(
+                TermConstructionError.InvalidSelectedNameHolePosition(
+                  occurrence.name
+                )
+              )
+            case (Some(name), Some(occurrence)) =>
+              validateSelectedNamePosition(
+                root,
+                selectedNameHoleIndex,
+                occurrence,
+                duplicateIsSingleHoleError = true
+              )
+      case SelectedNameAdmission.ExactlyTwoDistinct =>
+        val duplicateLogicalName =
+          occurrences
+            .groupBy(_.name)
+            .collectFirst { case (name, values) if values.size > 1 => name }
+        val duplicateOrdinal =
+          occurrences
+            .groupBy(_.selectOrdinal)
+            .collectFirst { case (ordinal, values) if values.size > 1 => ordinal }
+
+        if names.size != 2 || occurrences.size != 2 then
+          Left(
+            TermConstructionError.SelectedNameHoleCardinalityMismatch(
+              2,
+              names.size,
+              occurrences.size
+            )
+          )
+        else if selectedNameHoleIndex.generatedNames.size != 2 then
+          Left(
+            TermConstructionError.SelectedNameHoleCardinalityMismatch(
+              2,
+              selectedNameHoleIndex.generatedNames.size,
+              occurrences.size
+            )
+          )
+        else
+          duplicateLogicalName
+            .map(TermConstructionError.DuplicateSelectedNameLogicalName.apply)
+            .orElse(
+              duplicateOrdinal.map(
+                TermConstructionError.DuplicateSelectedNameHoleAddress.apply
+              )
+            )
+            .toLeft(())
+            .flatMap(_ =>
+              occurrences
+                .sortBy(_.selectOrdinal)
+                .foldLeft[Either[TermConstructionError, Unit]](Right(())) {
+                  case (result, occurrence) =>
+                    result.flatMap(_ =>
+                      validateSelectedNamePosition(
+                        root,
+                        selectedNameHoleIndex,
+                        occurrence,
+                        duplicateIsSingleHoleError = false
+                      )
+                    )
+                }
+            )
+
+  private def validateSelectedNamePosition(
+      root: TermShape,
+      selectedNameHoleIndex: GeneratedHoleIndex,
+      occurrence: SelectedNameHoleOccurrence,
+      duplicateIsSingleHoleError: Boolean
+  ): Either[TermConstructionError, Unit] =
+    val selects = TermShapeTraversal.selectEntries(root)
+    val expectedGenerated =
+      selectedNameHoleIndex.generatedNameFor(occurrence.name)
+    val generated = expectedGenerated.getOrElse("")
+    val exactSelectCount = selects.count(_.name == generated)
+    val totalNameFieldCount =
+      TermShapeTraversal.identifierEntries(root).count(_.name == generated) +
+        TermShapeTraversal.nonIdentifierFields(root).count(_ == generated)
+
+    if exactSelectCount > 1 && duplicateIsSingleHoleError then
       Left(TermConstructionError.DuplicateSelectedNameHole())
     else
-      (names.headOption, occurrences.headOption) match
-        case (None, None) => Right(())
-        case (Some(name), None) =>
-          Left(TermConstructionError.InvalidSelectedNameHolePosition(name))
-        case (None, Some(occurrence)) =>
+      selects.lift(occurrence.selectOrdinal) match
+        case Some(entry)
+            if expectedGenerated.contains(entry.name) &&
+              exactSelectCount == 1 &&
+              totalNameFieldCount == 1 =>
+          Right(())
+        case _ =>
           Left(
             TermConstructionError.InvalidSelectedNameHolePosition(
               occurrence.name
             )
           )
-        case (Some(name), Some(occurrence)) =>
-          val selects = TermShapeTraversal.selectEntries(root)
-          val expectedGenerated = selectedNameHoleIndex.generatedNameFor(name)
-          val generated = expectedGenerated.getOrElse("")
-          val exactSelectCount = selects.count(_.name == generated)
-          val totalNameFieldCount =
-            TermShapeTraversal.identifierEntries(root).count(_.name == generated) +
-              TermShapeTraversal.nonIdentifierFields(root).count(_ == generated)
-
-          if occurrence.name != name then
-            Left(TermConstructionError.InvalidSelectedNameHolePosition(name))
-          else if exactSelectCount > 1 then
-            Left(TermConstructionError.DuplicateSelectedNameHole())
-          else
-            selects.lift(occurrence.selectOrdinal) match
-              case Some(entry)
-                  if expectedGenerated.contains(entry.name) &&
-                    exactSelectCount == 1 &&
-                    totalNameFieldCount == 1 =>
-                Right(())
-              case _ =>
-                Left(
-                  TermConstructionError.InvalidSelectedNameHolePosition(name)
-                )
 
   private def validateRepeatedTermOccurrence(
       root: TermShape,
