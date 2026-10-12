@@ -680,15 +680,16 @@ references that parameter, and one following result expression. It does not
 splice an external `DefDef`, expose `Symbol`, support recursion, or admit
 multiple statements.
 
-Standard typed `qq` separately matches the fixed identity family when the
-parameter and result Types are the same explicit `Int`, `String`, or
-`Boolean`. The method and parameter spellings may differ
-alpha-equivalently, and the single argument hole returns the original
-`quotes.reflect.Term`. This is not general local-definition matching:
-broader blocks, clauses, Types, parameters, and bodies remain outside the
-current boundary. A typed-Scalameta P3 matcher is present but remains outside
-the accepted documented public boundary pending its independent acceptance
-gate.
+Standard and opt-in typed-Scalameta scalar `qq` match the same fixed identity
+family when the parameter and result Types are the same explicit `Int`,
+`String`, or `Boolean`. The opt-in route is Scalameta-primary. Its source
+method and parameter binders exclude symbolic and Unicode spellings under the
+accepted simple-binder policy, while target spellings may differ
+alpha-equivalently by role. The single argument hole returns the original
+caller-universe `quotes.reflect.Term`. This is not general local-definition
+matching: broader blocks, clauses, Types, parameters, bodies, captures, and
+ranked P3 remain outside the current boundary, and typed-Scalameta P3
+construction remains unavailable.
 
 ## Bounded `qq` extractor first use
 

@@ -176,14 +176,16 @@ exact-one/exact-two selector split and the same dynamic exact-one fallback.
 Its exact-two slice preserves the same bounded structure and caller-owned RHS
 identity without routing through the neutral Definition projectors.
 
-Standard typed `qq` also has one bounded P3 matching slice: exactly one
-source-owned local identity method with one ordinary unary clause, equal
-explicit `Int`, `String`, or `Boolean` parameter/result Types, an identity
-body, and one following call. Method and parameter names match
-alpha-equivalently in distinct binder roles, while the sole scalar capture is
-the original `quotes.reflect.Term` argument. A typed-Scalameta P3 matcher is
-present, but it has not yet completed its independent acceptance gate and is
-therefore not an accepted documented public capability.
+Standard and opt-in typed-Scalameta scalar `qq` matching share one bounded P3
+slice: exactly one source-owned local identity method with one ordinary unary
+clause, equal explicit `Int`, `String`, or `Boolean` parameter/result Types,
+an identity body, and one following call. The opt-in route uses
+Scalameta-primary compilation. Source method and parameter binders use the
+accepted ASCII simple-binder policy, excluding symbolic and Unicode spellings;
+target method and parameter spellings remain alpha-equivalent by role. The
+sole capture is the original caller-universe `quotes.reflect.Term` argument.
+Typed-Scalameta P3 construction, broader methods/blocks/clauses, additional
+capture names, and ranked P3 remain unsupported.
 
 See the [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md) for the
 user-facing construct/match boundary and the
@@ -507,10 +509,15 @@ Type. Mixed by-name/repeated edits are safe in one immutable plan both within
 one admitted method and across two distinct admitted methods of the same
 captured class. The cross-member case preserves independent method/parameter
 references, binder scopes, wrapper provenance, and untouched-member identity
-through one owner reconstruction. This remains a bounded exact-tree
-transaction, not arbitrary calling-mode or method-shape rewriting; composition
-with omission/append and broader contextual, generic, multi-clause, or
-construction syntax are separate work.
+through one owner reconstruction. For exactly two admitted methods, those
+Type edits may also compose with capture-local omission of one obsolete direct
+member and append of one ordinary accepted `SemanticDefinition` with
+deterministic generated-source provenance. Surviving originals retain their
+relative order and identity, and the generated member is last. Both legal
+immutable plan-building orders fail before result exposure on invalid
+combinations. This is not arbitrary multi-method/calling-mode or broader
+contextual, generic, curried, multi-clause rewriting, generated sibling
+reference resolution, or rollback across later compiler phases.
 
 The additive [semantic Term generated-origin facade](docs/SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md)
 accepts public TermShape and a virtual source name, returning a positioned tree,

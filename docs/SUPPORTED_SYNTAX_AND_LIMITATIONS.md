@@ -469,20 +469,21 @@ positions; the fixed `Int`, `String`, and `Boolean` forms are also
 admitted without a general resolver. The declared parameter Type must conform
 to the declared result Type under Quotes reflection.
 
-Separately, standard typed `qq` matches one local identity method followed by
-one call. Matching requires equal explicit `Int`, `String`, or `Boolean`
-parameter and result Types, an identity body, one ordinary unary clause, and
-one scalar argument hole. The method and parameter names match
-alpha-equivalently in distinct binder roles, and the capture is the original
-`quotes.reflect.Term` argument.
+Standard and opt-in typed-Scalameta scalar `qq` matching share one bounded P3
+local identity-method family. The opt-in route uses Scalameta-primary
+compilation. Both routes match one local identity method followed by one call.
+Matching requires equal explicit `Int`, `String`, or `Boolean` parameter and
+result Types, an identity body, one ordinary unary clause, and one scalar
+argument hole. Source method and parameter binders use the accepted ASCII
+simple-binder policy, excluding symbolic and Unicode spellings, while target
+method and parameter spellings remain alpha-equivalent by role. The capture is
+the original caller-universe `quotes.reflect.Term` argument.
 
 Dynamic names, modifiers, annotations, type parameters, contextual/by-name/
 default/erased/repeated parameters, multiple clauses, recursion, arbitrary
 bodies, broader blocks, multiple distinct scalar holes, and external `DefDef`
-splices fail closed. A typed-Scalameta P3 matcher is present, but it has not
-yet completed its independent acceptance gate and is therefore not an
-accepted documented public capability. Typed-Scalameta P3 construction also
-remains unavailable.
+splices fail closed. Typed-Scalameta P3 construction remains unavailable;
+broader blocks, methods, clauses, captures, and ranked P3 remain unsupported.
 
 ## Bounded reflected type interpolators
 

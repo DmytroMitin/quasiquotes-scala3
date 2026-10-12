@@ -682,11 +682,9 @@ def c065_truth_findings(root: Path) -> list[str]:
             findings.append(f"C069 roadmap truth stale: {stale}")
 
     for marker in (
-        "standard typed `qq` matches one local identity method",
+        "Both routes match one local identity method",
         "equal explicit `Int`, `String`, or `Boolean` parameter and result Types",
-        "method and parameter names match alpha-equivalently",
-        "typed-Scalameta P3 matcher is present",
-        "not an accepted documented public capability",
+        "target method and parameter spellings remain alpha-equivalent by role",
     ):
         if marker.casefold() not in normalized_limitations.casefold():
             findings.append(f"C068 standard P3 matching contract missing: {marker}")
@@ -701,7 +699,6 @@ def c065_truth_findings(root: Path) -> list[str]:
             "one ordinary clause of one or two parameters",
             "across two distinct admitted methods of the same captured class",
             "preserving independent method/parameter refs",
-            "does not authorize cross-member composition with omission or append",
             "does not authorize arbitrary calling-mode rewriting",
         ):
             if marker not in calling_modes:
@@ -738,6 +735,144 @@ def c065_truth_findings(root: Path) -> list[str]:
                 findings.append(f"C065 README truth missing: {marker}")
     return findings
 
+
+def c070_truth_findings(root: Path) -> list[str]:
+    limitations = (
+        root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+    ).read_text(encoding="utf-8")
+    syntax_matrix = (root / "docs/SYNTAX_SUPPORT_MATRIX.md").read_text(
+        encoding="utf-8"
+    )
+    cross_matrix = (root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md").read_text(
+        encoding="utf-8"
+    )
+    roadmap = (root / "ROADMAP.md").read_text(encoding="utf-8")
+    rewrite_path = root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md"
+    rewrite = rewrite_path.read_text(encoding="utf-8") if rewrite_path.exists() else ""
+    pipeline_path = root / "docs/PROJECTION_LOWERING_BRIDGE_MATRIX.md"
+    pipeline = pipeline_path.read_text(encoding="utf-8") if pipeline_path.exists() else ""
+    findings = []
+
+    normalized_limitations = " ".join(limitations.split())
+    for marker in (
+        "Standard and opt-in typed-Scalameta scalar `qq` matching share one bounded P3 local identity-method family",
+        "Scalameta-primary compilation",
+        "equal explicit `Int`, `String`, or `Boolean` parameter and result Types",
+        "excluding symbolic and Unicode spellings",
+        "target method and parameter spellings remain alpha-equivalent by role",
+        "original caller-universe `quotes.reflect.Term` argument",
+        "Typed-Scalameta P3 construction remains unavailable",
+        "broader blocks, methods, clauses, captures, and ranked P3 remain unsupported",
+    ):
+        if marker.casefold() not in normalized_limitations.casefold():
+            findings.append(f"C070 hybrid P3 bounded contract missing: {marker}")
+
+    rows = markdown_table_rows(cross_matrix)
+    p3_rows = rows.get("Source-owned local identity method (P3)", [])
+    if len(p3_rows) != 1:
+        findings.append(
+            "C070 hybrid P3 matrix requires exactly one source-owned local identity method row"
+        )
+    elif len(p3_rows[0]) < 5:
+        findings.append("C070 hybrid P3 matrix is missing capability columns")
+    else:
+        actual = tuple(capability_status(cell) for cell in p3_rows[0][1:5])
+        expected = ("BOUNDED", "BOUNDED", "NOT_YET", "BOUNDED")
+        if actual != expected:
+            findings.append(
+                "C070 hybrid P3 matrix must retain standard/hybrid matching parity "
+                f"without hybrid construction; expected {expected}, found {actual}"
+            )
+    for marker in (
+        "Scalameta-primary",
+        "symbolic and Unicode source binders excluded",
+        "original caller-universe `Term`",
+    ):
+        if marker not in cross_matrix:
+            findings.append(f"C070 hybrid P3 matrix detail missing: {marker}")
+
+    for marker in (
+        "standard and opt-in typed-Scalameta `qq`",
+        "symbolic/Unicode source binders excluded",
+        "typed-Scalameta P3 construction remains unavailable",
+    ):
+        if marker.casefold() not in syntax_matrix.casefold():
+            findings.append(f"C070 syntax matrix P3 contract missing: {marker}")
+
+    normalized_roadmap = " ".join(roadmap.split())
+    for marker in (
+        "Standard and opt-in typed-Scalameta scalar `qq` matching share the accepted bounded P3 local identity-method family",
+        "typed-Scalameta P3 construction remains unavailable",
+    ):
+        if marker.casefold() not in normalized_roadmap.casefold():
+            findings.append(f"C070 roadmap P3 truth missing: {marker}")
+
+    public_p3_text = "\n".join(
+        (
+            (root / "README.md").read_text(encoding="utf-8"),
+            roadmap,
+            cross_matrix,
+            syntax_matrix,
+            limitations,
+            (root / "docs/GETTING_STARTED.md").read_text(encoding="utf-8")
+            if (root / "docs/GETTING_STARTED.md").exists()
+            else "",
+            (root / "docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md").read_text(encoding="utf-8")
+            if (root / "docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md").exists()
+            else "",
+        )
+    ).casefold()
+    for stale in (
+        "not an accepted documented public capability",
+        "has not yet completed its independent acceptance gate",
+        "outside the accepted documented public boundary pending its independent acceptance gate",
+    ):
+        if stale in public_p3_text:
+            findings.append(f"C070 stale hybrid P3 acceptance claim: {stale}")
+    for overclaim in (
+        "typed-scalameta p3 construction is supported",
+        "typed-scalameta p3 construction is implemented",
+    ):
+        if overclaim in public_p3_text:
+            findings.append(f"C070 hybrid P3 construction overclaim: {overclaim}")
+
+    normalized_rewrite = " ".join(rewrite.split())
+    for marker in (
+        "bounded two-method transaction may combine those Type edits with capture-local omission of one direct member",
+        "append of one ordinary accepted public `SemanticDefinition`",
+        "Surviving original members retain exact order and identity",
+        "generated member is last with deterministic generated-source provenance",
+        "Both legal immutable plan-building orders are supported",
+        "invalid combinations fail before a result is exposed",
+        "does not authorize arbitrary multiple methods",
+        "generated sibling-reference resolution",
+        "does not authorize general transactional rollback across later compiler phases",
+    ):
+        if marker.casefold() not in normalized_rewrite.casefold():
+            findings.append(f"C070 bounded owner transaction contract missing: {marker}")
+
+    combined_owner_docs = (rewrite + "\n" + pipeline).casefold()
+    for stale in (
+        "does not authorize cross-member composition with omission or append",
+        "does not claim cross-member composition with omission/append",
+    ):
+        if stale in combined_owner_docs:
+            findings.append(f"C070 stale omit/append exclusion: {stale}")
+    for overclaim in (
+        "arbitrary multiple methods and general transactional rollback across later compiler phases are supported",
+        "universal owner editing is supported",
+    ):
+        if overclaim in combined_owner_docs:
+            findings.append(f"C070 existing-owner overclaim: {overclaim}")
+
+    for marker in (
+        "bounded two-method calling-mode edit plus capture-local omit and generated SemanticDefinition append",
+        "not a universal owner editor",
+    ):
+        if marker.casefold() not in " ".join(pipeline.split()).casefold():
+            findings.append(f"C070 pipeline matrix owner contract missing: {marker}")
+    return findings
+
 def check(root: Path) -> list[str]:
     rows = api_rows(root)
     return sorted(
@@ -750,6 +885,7 @@ def check(root: Path) -> list[str]:
         + matrix_findings(root)
         + durable_documentation_findings(root)
         + c065_truth_findings(root)
+        + c070_truth_findings(root)
     )
 
 

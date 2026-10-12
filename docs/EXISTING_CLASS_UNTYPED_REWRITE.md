@@ -110,10 +110,20 @@ untouched-member identity through one owner reconstruction. Duplicate, foreign,
 stale, cross-method binder/ref, and cross-substituted evidence fails before a
 partial owner result is exposed.
 
-This behavior does not authorize cross-member composition with omission or
-append. It does not authorize arbitrary calling-mode rewriting, general
-by-name or vararg construction, contextual/generic/multi-clause method
-admission, or broader method-shape support.
+The bounded two-method transaction may combine those Type edits with
+capture-local omission of one direct member and append of one ordinary accepted
+public `SemanticDefinition`. Surviving original members retain exact order and
+identity, while edited methods are fresh and the generated member is last with
+deterministic generated-source provenance. Both legal immutable plan-building
+orders are supported, and invalid combinations fail before a result is
+exposed.
+
+This does not authorize arbitrary calling-mode rewriting. It does not authorize
+arbitrary multiple methods, general by-name or vararg construction,
+contextual/generic/curried/multi-clause method admission, or broader
+method-shape support. Generated sibling-reference resolution remains separate,
+and this does not authorize general transactional rollback across later
+compiler phases.
 
 Earlier active-source warnings were conservative for the historical unsafe
 whole-slot implementation and are superseded by the bounded wrapper-preserving

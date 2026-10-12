@@ -59,6 +59,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             "[north-star checkpoints](docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md)\n\n"
             "The current programme inventory is the current 798-row / 779-group standard surface.\n"
             "The direct Core source-free lowerer accepts direct identifiers, selections, and completed successive ordinary Apply clauses.\n\n"
+            "Standard and opt-in typed-Scalameta scalar `qq` matching share the accepted bounded P3 local identity-method family; typed-Scalameta P3 construction remains unavailable.\n\n"
             "| N1 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
             "| N2 | `BOUNDED_STANDARD_AND_TYPED_SCALAMETA_CONSTRUCTION_IMPLEMENTED` | dynamic-constructor ranked `tqq` matching is implemented on both typed frontends; construction and broader kinds remain narrower |\n"
             "| N3 | `DESIGN_REQUIRED`, `IMPLEMENTATION_REQUIRED` |\n"
@@ -127,6 +128,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             "direct Apply or New sequence slot binds Seq[q.reflect.Term] |\n"
             "| Dynamic selected-member name | selected-name scalar and ranked matching |\n"
             "| Runtime-sequence reflected Type application | dynamic constructor matching |\n\n"
+            "The source-owned local identity method row uses standard and opt-in typed-Scalameta `qq` matching with symbolic/Unicode source binders excluded; typed-Scalameta P3 construction remains unavailable.\n\n"
             "https://docs.scala-lang.org/overviews/quasiquotes/syntax-summary.html\n"
             "https://scalameta.org/docs/trees/quasiquotes\n\n"
             "Any change that adds, removes, or materially alters a term, type, or definition syntax family must update this matrix.\n",
@@ -139,6 +141,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             "| Rank-2 Term arguments in Apply / one-list New | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` | `NOT_APPLICABLE` |\n"
             "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |\n"
             "| Dynamic selected-member name | `BOUNDED` | `BOUNDED` already-resolved Select.name and one SelectedMemberName over compiler-presented `AppliedType` | `BOUNDED` | `BOUNDED` Scalameta-primary shared matcher | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |\n"
+            "| Source-owned local identity method (P3) | `BOUNDED` | `BOUNDED` standard typed qq | `NOT_YET` | `BOUNDED` Scalameta-primary matching parity; symbolic and Unicode source binders excluded; original caller-universe `Term`; construction unavailable | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_APPLICABLE` |\n"
             "\n`TermUntypedLowering` and `TermGeneratedOriginLowering` preserve "
             "two or more successive ordinary argument clauses. "
             "`ScalametaTermProjection` and `ScalametaTermShapeAuthoring` preserve completed nested clauses. "
@@ -160,11 +163,42 @@ class PublicDocsCheckTest(unittest.TestCase):
             "It returns exact Term, one SelectedMemberName, and one Seq[Term] from the already-resolved `Select.name`; an already-resolved overload may match. "
             "The typed route is Scalameta-primary and reuses the shared matcher.\n\n"
             "Dynamic Type matching admits `tqq\"$constructor[..$arguments]\"`, `tqq\"$constructor[$head, ..$tail]\"`, `tqq\"$constructor[..$init, $last]\"`, `tqq\"$constructor[$first, ..$middle, $last]\"`, and `tqq\"$constructor[Int, ..$tail]\"` over any compiler-presented `AppliedType`; construction remains narrower and exact TypeRepr plus Seq[TypeRepr] identities are preserved. Matching is broader than the narrower construction contract.\n"
-            "\nStandard typed P3 matching: standard typed `qq` matches one local identity method "
+            "\nStandard and opt-in typed-Scalameta scalar `qq` matching share one bounded P3 local identity-method family. "
+            "The opt-in route uses Scalameta-primary compilation. Both routes match one local identity method "
             "with equal explicit `Int`, `String`, or `Boolean` parameter and result Types; "
-            "method and parameter names match alpha-equivalently. "
-            "A typed-Scalameta P3 matcher is present, but it is not an accepted "
-            "documented public capability.\n",
+            "source method and parameter binders use the accepted ASCII simple-binder policy, "
+            "excluding symbolic and Unicode spellings, while target method and parameter "
+            "spellings remain alpha-equivalent by role. The only capture is the original "
+            "caller-universe `quotes.reflect.Term` argument. Typed-Scalameta P3 construction "
+            "remains unavailable; broader blocks, methods, clauses, captures, and ranked P3 "
+            "remain unsupported.\n",
+            encoding="utf-8",
+        )
+        (docs / "EXISTING_CLASS_UNTYPED_REWRITE.md").write_text(
+            "# Existing-class untyped rewrite\n\n"
+            "By-name parameter-Type replacement preserves a fresh `ByNameTypeTree` wrapper. "
+            "Repeated parameter-Type replacement preserves a fresh `PostfixOp` wrapper and "
+            "the original `Ident(*)` marker by identity. The admitted family has one ordinary "
+            "clause of one or two parameters. Mixed edits compose across two distinct admitted "
+            "methods of the same captured class while preserving independent method/parameter "
+            "refs.\n\n"
+            "The bounded two-method transaction may combine those Type edits with capture-local "
+            "omission of one direct member and append of one ordinary accepted public "
+            "`SemanticDefinition`. Surviving original members retain exact order and identity, "
+            "and the generated member is last with deterministic generated-source provenance. "
+            "Both legal immutable plan-building orders are supported, and invalid combinations "
+            "fail before a result is exposed.\n\n"
+            "This does not authorize arbitrary calling-mode rewriting. It does not authorize "
+            "arbitrary multiple methods or broader contextual/generic/curried shapes. Generated "
+            "sibling-reference resolution remains separate. This does not authorize general "
+            "transactional rollback across later compiler phases.\n",
+            encoding="utf-8",
+        )
+        (docs / "PROJECTION_LOWERING_BRIDGE_MATRIX.md").write_text(
+            "# Projection lowering bridge matrix\n\n"
+            "The public existing-class transaction supports the bounded two-method "
+            "calling-mode edit plus capture-local omit and generated SemanticDefinition append "
+            "composition in one immutable plan. It is not a universal owner editor.\n",
             encoding="utf-8",
         )
         (docs / "COMPATIBILITY.md").write_text(
@@ -862,7 +896,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             limitations = root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
             limitations.write_text(
                 limitations.read_text(encoding="utf-8").replace(
-                    "method and parameter names match alpha-equivalently",
+                    "Both routes match one local identity method",
                     "binder matching omitted",
                 ),
                 encoding="utf-8",
@@ -872,6 +906,123 @@ class PublicDocsCheckTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn("C068 standard P3 matching contract missing", result.stderr)
+
+    def test_rejects_stale_c070_hybrid_p3_non_acceptance_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            limitations = root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+            limitations.write_text(
+                limitations.read_text(encoding="utf-8")
+                + "\nA typed-Scalameta P3 matcher is present but is not an accepted documented public capability.\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C070 stale hybrid P3 acceptance claim", result.stderr)
+
+    def test_rejects_missing_c070_hybrid_p3_lexical_and_identity_boundary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            limitations = root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+            limitations.write_text(
+                limitations.read_text(encoding="utf-8").replace(
+                    "excluding symbolic and Unicode spellings",
+                    "accepting every compiler binder spelling",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C070 hybrid P3 bounded contract missing", result.stderr)
+
+    def test_rejects_c070_hybrid_p3_construction_overclaim(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            limitations = root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+            limitations.write_text(
+                limitations.read_text(encoding="utf-8")
+                + "\nTyped-Scalameta P3 construction is supported.\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C070 hybrid P3 construction overclaim", result.stderr)
+
+    def test_accepts_sentence_case_c070_syntax_markers(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            matrix = root / "docs/SYNTAX_SUPPORT_MATRIX.md"
+            matrix.write_text(
+                matrix.read_text(encoding="utf-8").replace(
+                    "typed-Scalameta P3 construction remains unavailable",
+                    "Typed-Scalameta P3 construction remains unavailable",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_rejects_stale_c070_cross_member_omit_append_exclusion(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            rewrite = root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md"
+            rewrite.write_text(
+                rewrite.read_text(encoding="utf-8")
+                + "\nThis behavior does not authorize cross-member composition with omission or append.\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C070 stale omit/append exclusion", result.stderr)
+
+    def test_rejects_missing_c070_bounded_owner_transaction_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            rewrite = root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md"
+            rewrite.write_text(
+                rewrite.read_text(encoding="utf-8").replace(
+                    "Both legal immutable plan-building orders are supported",
+                    "Only one plan-building order is described",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C070 bounded owner transaction contract missing", result.stderr)
+
+    def test_rejects_c070_universal_owner_transaction_overclaim(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            rewrite = root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md"
+            rewrite.write_text(
+                rewrite.read_text(encoding="utf-8")
+                + "\nArbitrary multiple methods and general transactional rollback across later compiler phases are supported.\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C070 existing-owner overclaim", result.stderr)
 
     def test_rejects_stale_c065_calling_mode_warning(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
