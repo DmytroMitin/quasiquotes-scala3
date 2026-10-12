@@ -559,7 +559,15 @@ private[quasiquotes] object ScalametaTermFrontend:
             case (definition: scala.meta.Defn.Val) :: (result: scala.meta.Term) :: Nil =>
               lowerLocalValBlock(definition, result, boundTerms, lambdaDepth, localValDepth)
             case (definition: scala.meta.Defn.Def) :: (result: scala.meta.Term) :: Nil =>
-              lowerLocalDefBlock(definition, result, block)
+              if block.asInstanceOf[AnyRef].eq(tree.asInstanceOf[AnyRef]) then
+                lowerLocalDefBlock(definition, result, block)
+              else
+                Left(
+                  Failure.p3Semantic(
+                    block,
+                    "P3 local identity construction is admitted only as the complete source root"
+                  )
+                )
             case stats if stats.size >= 2 && stats.forall(_.isInstanceOf[scala.meta.Term]) =>
               val terms = stats.map(_.asInstanceOf[scala.meta.Term])
               for
