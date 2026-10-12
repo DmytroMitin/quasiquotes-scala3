@@ -11,17 +11,13 @@ import dotty.tools.dotc.ast.untpd
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Phases.Phase
 import dotty.tools.dotc.core.Symbols.NoSymbol
-import dotty.tools.dotc.util.{NoSource, SourceFile}
-
-import quasiquotes.parser.{BinderId, TermShape}
-import quasiquotes.terms.{ConstructedTerm, TermBindingInternals}
-import quasiquotes.terms.dotty.ConstructedTermUntypedBackend
+import quasiquotes.definitions.dotty.ExistingClassUntypedRewrite.*
+import quasiquotes.parser.TermShape
 import quasiquotes.types.TypeNormalForm
-import quasiquotes.types.dotty.TypeUntypedLowering
 import dotty.tools.dotc.parsing.Parser
 
 final class ExistingCurriedMethodCaptureRewriteModelFitTyperRuntimeTest extends munit.FunSuite:
-  test("test-only two-clause model fit survives U023 insertion Typer TASTy and runtime") {
+  test("public two-clause rewrite survives ordinary Typer TASTy and distinct curried runtime calling") {
     val temporary = Files.createTempDirectory("u052-existing-curried-model-fit-")
     try
       val source = temporary.resolve("U052ExistingCurriedRuntime.scala")
@@ -53,7 +49,10 @@ final class ExistingCurriedMethodCaptureRewriteModelFitTyperRuntimeTest extends 
       assert(emitted(output).exists(_.endsWith("U052ExistingCurried.tasty")))
 
       val loader = new URLClassLoader(Array(output.toUri.toURL), getClass.getClassLoader)
-      try assertEquals(invokeValue(loader, "U052Use$"), 42)
+      try
+        assertEquals(invokeInt(loader, "U052Use$", "value"), 42)
+        assertEquals(invokeInt(loader, "U052Use$", "untouched"), 7)
+        assertEquals(invokeInt(loader, "U052Use$", "binary"), 42)
       finally loader.close()
     finally deleteRecursively(temporary)
   }
@@ -104,10 +103,10 @@ final class ExistingCurriedMethodCaptureRewriteModelFitTyperRuntimeTest extends 
     try stream.filter(Files.isRegularFile(_)).iterator().asScala.map(_.toString).toVector
     finally stream.close()
 
-  private def invokeValue(loader: ClassLoader, moduleName: String): Int =
+  private def invokeInt(loader: ClassLoader, moduleName: String, methodName: String): Int =
     val moduleClass = loader.loadClass(moduleName)
     val module = moduleClass.getField("MODULE$").get(null)
-    moduleClass.getMethod("value").invoke(module).asInstanceOf[Integer].intValue
+    moduleClass.getMethod(methodName).invoke(module).asInstanceOf[Integer].intValue
 
   private def compilationClasspath: String =
     Vector(
@@ -133,8 +132,13 @@ final class ExistingCurriedMethodCaptureRewriteModelFitTyperRuntimeTest extends 
       |  def combine(a: AnyVal)(b: AnyVal): AnyVal = a
       |  val untouched: Int = 7
       |
+      |class U066BinaryControl:
+      |  def combine(a: Int, b: Int): Int = Math.addExact(a, b)
+      |
       |object U052Use:
       |  def value: Int = new U052ExistingCurried().combine(20)(22)
+      |  def untouched: Int = new U052ExistingCurried().untouched
+      |  def binary: Int = new U066BinaryControl().combine(20, 22)
       |""".stripMargin
 
 private object ExistingCurriedMethodCaptureRewriteRuntimeProbe:
@@ -146,115 +150,28 @@ private object ExistingCurriedMethodCaptureRewriteRuntimeProbe:
 
   def rewrite(root: untpd.TypeDef)(using Context): Either[String, Result] =
     for
-      captured <- ExistingUntpdClassMemberFilter.capture(root).left.map(_.message)
-      _ <- ExistingUntpdOrdinaryMethodDescriptor.capture(captured, 0) match
-        case Left(problem) if problem.code == "UNSUPPORTED_PARAMETER_TOPOLOGY" => Right(())
-        case Left(problem) => Left(s"unexpected current descriptor failure: ${problem.message}")
-        case Right(_) => Left("current production descriptor unexpectedly admitted the curried method")
-      descriptor <- ExistingCurriedMethodCaptureRewriteModelFitProbe.assemble(captured, 0)
-      first <- prepareParameter(descriptor.parameterClauses(0)(0))
-      second <- prepareParameter(descriptor.parameterClauses(1)(0))
-      resultType <- prepareType(descriptor.resultType)
-      body <- prepareBody(descriptor)
-      method <- reconstructMethod(descriptor.method, List(List(first), List(second)), resultType, body)
-      rebuilt <- ExistingUntpdClassMemberFilter
-        .reconstruct(captured, captured.originalTemplate.body.toVector.updated(0, method))
-        .left.map(_.message)
-    yield Result(
-      rebuilt.root,
-      method,
-      captured.members(1).tree.eq(rebuilt.template.body(1))
-    )
-
-  private def prepareParameter(
-      parameter: ExistingUntpdOrdinaryMethodDescriptor.Parameter
-  )(using Context): Either[String, untpd.ValDef] =
-    for
-      lowered <- lowerInt()
-      positionedType = lowered.cloneIn(parameter.tpt.source).withSpan(parameter.tpt.span)
-      positionedParameter <- positionParameter(parameter.tree, positionedType)
-    yield positionedParameter
-
-  private def prepareType(oldSite: untpd.Tree)(using Context): Either[String, untpd.Tree] =
-    lowerInt().map(_.cloneIn(oldSite.source).withSpan(oldSite.span))
-
-  private def lowerInt()(using Context): Either[String, untpd.Tree] =
-    TypeUntypedLowering
-      .lower(TypeNormalForm.STypeIdent("Int"))
-      .left.map(_.message)
-
-  private def positionParameter(
-      original: untpd.ValDef,
-      positionedType: untpd.Tree
-  )(using Context): Either[String, untpd.ValDef] =
-    given SourceFile = NoSource
-    val sourceFree = untpd.ValDef(original.name, positionedType, untpd.EmptyTree)
-      .withMods(original.mods)
-    val positioned = untpd.cpy.ValDef(sourceFree)(
-      sourceFree.name,
-      positionedType,
-      sourceFree.rhs
-    ).cloneIn(original.source).withSpan(original.span)
-    Either.cond(
-      !positioned.eq(original) && positioned.tpt.eq(positionedType),
-      positioned,
-      "parameter preparation did not allocate the expected fresh shell"
-    )
-
-  private def prepareBody(
-      descriptor: ExistingUntpdOrdinaryMethodDescriptor.Descriptor
-  )(using Context): Either[String, untpd.Tree] =
-    val names = descriptor.parameterClauses.map(_.map(_.diagnosticName))
-    for
-      parameters <- TermBindingInternals.persistentParameters(names).left.map(_.message)
-      first <- parameters.referenceAt(0, 0).left.map(_.message)
-      second <- parameters.referenceAt(1, 0).left.map(_.message)
-      shape = TermShape.Apply(
+      captured <- ExistingClassUntypedRewrite.capture(root).left.map(_.message)
+      member <- captured.member(0).left.map(_.message)
+      method <- captured.method(member.ref).left.map(_.message)
+      first <- method.parameterClauses.lift(0).flatMap(_.parameters.headOption)
+        .toRight("the public first unary clause was absent")
+      second <- method.parameterClauses.lift(1).flatMap(_.parameters.headOption)
+        .toRight("the public second unary clause was absent")
+      firstReference <- method.parameterScope.reference(first.ref).left.map(_.message)
+      secondReference <- method.parameterScope.reference(second.ref).left.map(_.message)
+      replacement = TermShape.Apply(
         TermShape.Select(TermShape.Identifier("Math", false), "addExact"),
-        List(first, second)
+        List(firstReference, secondReference)
       )
-      completed <- parameters.complete(shape).left.map(_.message)
-      checked <- parameters.validateDefinitionBody(Vector(1, 1), completed).left.map(_.message)
-      firstBinding <- binding(first, names(0)(0))
-      secondBinding <- binding(second, names(1)(0))
-      bindings = Vector(firstBinding, secondBinding)
-      constructed <- ConstructedTerm
-        .fromShapeInScope(checked, bindings.map(_._1))
-        .left.map(_.message)
-      lowered <- ConstructedTermUntypedBackend
-        .lowerInScopes(constructed, bindings)
-        .left.map(_.message)
-      family <- ExistingUntpdSingleParameterMethodRhsRewriter
-        .classify(lowered, "U052")
-        .left.map(_.message)
-      positioned <- ExistingUntpdMethodBodyRewriteOriginAdapter
-        .prepareReplacement(lowered, descriptor.rhs, family)
-        .left.map(_.message)
-    yield positioned
-
-  private def binding(shape: TermShape, name: String): Either[String, (BinderId, String)] =
-    shape match
-      case TermShape.BoundReference(id, _) => Right(id -> name)
-      case other => Left(s"expected a bound reference for $name, found $other")
-
-  private def reconstructMethod(
-      original: untpd.DefDef,
-      parameterClauses: List[List[untpd.ValDef]],
-      resultType: untpd.Tree,
-      body: untpd.Tree
-  )(using Context): Either[String, untpd.DefDef] =
-    given SourceFile = NoSource
-    val sourceFree = untpd.DefDef(original.name, parameterClauses, resultType, body)
-      .withMods(original.mods)
-    val positioned = untpd.cpy.DefDef(sourceFree)(
-      sourceFree.name,
-      sourceFree.paramss,
-      sourceFree.tpt,
-      sourceFree.rhs
-    ).cloneIn(original.source).withSpan(original.span)
-    Either.cond(
-      !positioned.eq(original) && positioned.paramss.map(_.size) == List(1, 1) &&
-        positioned.tpt.eq(resultType) && positioned.rhs.eq(body),
+      p1 <- captured.emptyPlan.replaceParameterType(first.ref, TypeNormalForm.STypeIdent("Int")).left.map(_.message)
+      p2 <- p1.replaceParameterType(second.ref, TypeNormalForm.STypeIdent("Int")).left.map(_.message)
+      p3 <- p2.replaceResultType(method.ref, TypeNormalForm.STypeIdent("Int")).left.map(_.message)
+      p4 <- p3.replaceBody(method.ref, replacement).left.map(_.message)
+      rewritten <- ExistingClassUntypedRewrite(captured, p4).left.map(_.message)
+      template = rewritten.tree.rhs.asInstanceOf[untpd.Template]
+      positioned = template.body.head.asInstanceOf[untpd.DefDef]
+    yield Result(
+      rewritten.tree,
       positioned,
-      "method reconstruction did not preserve the exact two-clause prepared topology"
+      template.body(1).eq(root.rhs.asInstanceOf[untpd.Template].body(1))
     )

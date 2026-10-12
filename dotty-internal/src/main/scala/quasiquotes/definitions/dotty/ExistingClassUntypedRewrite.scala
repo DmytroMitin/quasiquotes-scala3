@@ -786,7 +786,9 @@ object ExistingClassUntypedRewrite:
       problem: ExistingUntpdOrdinaryMethodDescriptor.Error
   ): Failure =
     val code = problem.code match
-      case "UNSUPPORTED_PARAMETER_TOPOLOGY" | "CONTEXTUAL_PARAMETER_UNSUPPORTED" =>
+      case "UNSUPPORTED_PARAMETER_TOPOLOGY" | "CONTEXTUAL_PARAMETER_UNSUPPORTED" |
+          "UNSUPPORTED_PARAMETER_MODE" | "DUPLICATE_PARAMETER_NAME" |
+          "PARAMETER_SITE_REQUIRED" =>
         "UNSUPPORTED_STRUCTURE"
       case "CAPTURE_REQUIRED" | "CAPTURE_INVARIANT_FAILED" |
           "MEMBER_INDEX_NOT_CAPTURED" | "SELECTED_MEMBER_NOT_METHOD" =>

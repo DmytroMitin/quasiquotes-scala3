@@ -88,6 +88,47 @@ final class ExistingClassUntypedRewriteConsumerTest extends munit.FunSuite:
       assertEquals(body(1).asInstanceOf[untpd.DefDef].paramss.map(_.size), List(0))
       assert(applied.directMemberIdentities(2).sameObjectAs(captured.members(2).identity))
       assert(applied.directMemberIdentities(3).sameObjectAs(captured.members(3).identity))
+  test("foreign callers inspect and atomically rewrite two ordinary unary clauses"):
+    withContext:
+      val root = parseClass(
+        """class CurriedPublic:
+          |  def combine(a: AnyVal)(b: AnyVal): AnyVal = a
+          |  val untouched: Int = 7
+          |""".stripMargin
+      )
+      val captured = right(ExistingClassUntypedRewrite.capture(root))
+      val method = right(captured.method(captured.members.head.ref))
+      assertEquals(method.parameterClauses.map(_.kind.code), Vector("ORDINARY", "ORDINARY"))
+      assertEquals(method.parameterClauses.map(_.parameters.map(_.diagnosticName)), Vector(Vector("a"), Vector("b")))
+      val first = method.parameterClauses(0).parameters(0)
+      val second = method.parameterClauses(1).parameters(0)
+      assertEquals((first.clauseIndex, first.parameterIndex), (0, 0))
+      assertEquals((second.clauseIndex, second.parameterIndex), (1, 0))
+      assertNotEquals(
+        right(method.parameterScope.binder(first.ref)),
+        right(method.parameterScope.binder(second.ref))
+      )
+      val body = TermShape.Apply(
+        TermShape.Select(TermShape.Identifier("Math", false), "addExact"),
+        List(
+          right(method.parameterScope.reference(first.ref)),
+          right(method.parameterScope.reference(second.ref))
+        )
+      )
+      val plan = right(for
+        p1 <- captured.emptyPlan.replaceParameterType(first.ref, intType)
+        p2 <- p1.replaceParameterType(second.ref, intType)
+        p3 <- p2.replaceResultType(method.ref, intType)
+        p4 <- p3.replaceBody(method.ref, body)
+      yield p4)
+      assertEquals(plan.editCount, 4)
+      val applied = right(ExistingClassUntypedRewrite(captured, plan))
+      val rewritten = applied.tree.rhs.asInstanceOf[untpd.Template].body.head.asInstanceOf[untpd.DefDef]
+      assert(applied.changed)
+      assertEquals(rewritten.paramss.map(_.size), List(1, 1))
+      assert(!applied.directMemberIdentities.head.sameObjectAs(captured.members.head.identity))
+      assert(applied.directMemberIdentities(1).sameObjectAs(captured.members(1).identity))
+
   test("bounded slot projection stays independent from exact capture and parameter scope"):
     withContext:
       val captured = right(ExistingClassUntypedRewrite.capture(parseClass(

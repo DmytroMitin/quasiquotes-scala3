@@ -89,22 +89,23 @@ class ExistingCurriedMethodCaptureRewriteModelFitTest extends munit.FunSuite:
     }
   }
 
-  test("current private and public admission fail curried methods while one-clause controls succeed") {
+  test("private and public admission retain curried clauses while one-clause controls stay unchanged") {
     withContext {
       val curried = parseClass(
         "class CurriedBoundary:\n  def combine(a: Int)(b: Int): Int = a + b\n"
       )
       val captured = capture(curried)
-      val privateFailure = ExistingUntpdOrdinaryMethodDescriptor.capture(captured, 0).left.toOption.get
-      assertEquals(privateFailure.code, "UNSUPPORTED_PARAMETER_TOPOLOGY")
+      val descriptor = ExistingUntpdOrdinaryMethodDescriptor.capture(captured, 0)
+        .fold(problem => fail(problem.message), identity)
+      assertEquals(descriptor.parameterClauses.map(_.size), Vector(1, 1))
 
       val publicCapture = ExistingClassUntypedRewrite.capture(curried).fold(
         problem => fail(problem.message),
         identity
       )
-      val publicFailure = publicCapture.method(publicCapture.members.head.ref).left.toOption.get
-      assertEquals(publicFailure.code, "UNSUPPORTED_STRUCTURE")
-      assert(publicFailure.detail.contains("UNSUPPORTED_PARAMETER_TOPOLOGY"))
+      val publicMethod = publicCapture.method(publicCapture.members.head.ref)
+        .fold(problem => fail(problem.message), identity)
+      assertEquals(publicMethod.parameterClauses.map(_.parameters.size), Vector(1, 1))
 
       val controls = Vector(
         "class One:\n  def f(x: Int): Int = x\n" -> Vector(1),
@@ -129,7 +130,7 @@ class ExistingCurriedMethodCaptureRewriteModelFitTest extends munit.FunSuite:
     }
   }
 
-  test("all downstream private entry points stop at the same current descriptor admission gate") {
+  test("all downstream private entry points pass the removed descriptor admission gate") {
     withContext {
       val synthetic = syntheticDescriptor(
         "class DownstreamGate:\n  def combine(a: AnyVal)(b: AnyVal): AnyVal = a\n"
@@ -138,44 +139,44 @@ class ExistingCurriedMethodCaptureRewriteModelFitTest extends munit.FunSuite:
 
       assertEquals(
         ExistingUntpdOrdinaryMethodDescriptor.validate(synthetic).left.toOption.map(_.code),
-        Some("DESCRIPTOR_IDENTITY_INVARIANT_FAILED")
+        None
       )
       assertEquals(
         ExistingUntpdOrdinaryMethodTypeSlotProjection.projectParameter(synthetic, first).left.toOption.map(_.code),
-        Some("INVALID_DESCRIPTOR")
+        None
       )
       assertEquals(
         ExistingUntpdOrdinaryMethodTypeSlotProjection.projectResult(synthetic).left.toOption.map(_.code),
-        Some("INVALID_DESCRIPTOR")
+        None
       )
       assertEquals(
         ExistingUntpdOrdinaryMethodRhsTermProjection.projectRhs(synthetic).left.toOption.map(_.code),
-        Some("INVALID_DESCRIPTOR")
+        None
       )
       assertEquals(
         ExistingUntpdOrdinaryMethodTypeEditPreparation
           .prepareParameterType(synthetic, first, TypeNormalForm.STypeIdent("Int"))
           .left.toOption.map(_.code),
-        Some("INVALID_DESCRIPTOR")
+        None
       )
       assertEquals(
         ExistingUntpdOrdinaryMethodTypeEditPreparation
           .prepareResultType(synthetic, TypeNormalForm.STypeIdent("Int"))
           .left.toOption.map(_.code),
-        Some("INVALID_DESCRIPTOR")
+        None
       )
       var builderCalled = false
       val body = ExistingUntpdOrdinaryMethodRhsEditPreparation.prepareBody(synthetic) { _ =>
         builderCalled = true
         Right(TermShape.Literal("0"))
       }
-      assertEquals(body.left.toOption.map(_.code), Some("INVALID_DESCRIPTOR"))
-      assert(!builderCalled)
+      assertEquals(body.left.toOption.map(_.code), None)
+      assert(builderCalled)
       assertEquals(
         ExistingUntpdOrdinaryMethodReconstruction
           .reconstructMethod(synthetic, Vector.empty, None, None)
           .left.toOption.map(_.code),
-        Some("INVALID_DESCRIPTOR")
+        Some("EMPTY_EDIT_SET")
       )
     }
   }
@@ -228,7 +229,7 @@ class ExistingCurriedMethodCaptureRewriteModelFitTest extends munit.FunSuite:
         ExistingUntpdOrdinaryMethodTypeSlotProjection
           .projectParameter(opaque, opaque.parameterClauses(0)(0))
           .left.toOption.map(_.code),
-        Some("INVALID_DESCRIPTOR")
+        Some("UNSUPPORTED_SELECTED_TYPE")
       )
     }
   }
