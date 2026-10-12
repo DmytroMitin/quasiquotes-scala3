@@ -53,7 +53,7 @@ final class Q066ScalametaP3ConstructionFeasibilityTest extends munit.FunSuite:
     assert(literalRoundTrip.standardExactArgumentIdentity, literalRoundTrip)
     assert(literalRoundTrip.sameImmediateRoundTripOutcome, literalRoundTrip)
 
-  test("source-hole sidecar parse exact-compiler P2 and current-production stages remain distinct"):
+  test("source-hole sidecar parse exact-compiler P2 and Q067 production stages remain distinct"):
     val evidence = stageEvidence
     assert(evidence.exists(_ == "root=Term.Block"), evidence)
     assert(evidence.exists(_ == "stats=Defn.Def,Term.Apply"), evidence)
@@ -63,8 +63,8 @@ final class Q066ScalametaP3ConstructionFeasibilityTest extends munit.FunSuite:
     assert(evidence.exists(_ == "origin=0:TermSplice"), evidence)
     assert(evidence.exists(_ == "exact=true"), evidence)
     assert(evidence.exists(_ == "p2=true"), evidence)
-    assert(evidence.exists(_ == "production=SCALAMETA_LOWERING_UNSUPPORTED"), evidence)
-    assert(evidence.exists(_ == "hybrid=SCALAMETA_LOWERING_UNSUPPORTED"), evidence)
+    assert(evidence.exists(_ == "production=ADMIT"), evidence)
+    assert(evidence.exists(_ == "hybrid=ADMIT:Scalameta"), evidence)
     assert(evidence.exists(_ == "identity=true"), evidence)
 
   test("bounded family negatives reject before any Q066 construction is exposed"):

@@ -14,7 +14,8 @@ import _root_.quasiquotes.parser.P2LocalValDiagnosticMessages
 import _root_.quasiquotes.hybrid.TermQ3DialectPolicy
 import _root_.quasiquotes.hybrid.P2LocalValScalametaAdmission
 import _root_.quasiquotes.types.toTypeRepr
-import _root_.quasiquotes.types.{TypeNormalFormSource, TypeReprLowerer}
+import _root_.quasiquotes.types.{TypeNormalForm, TypeNormalFormSource, TypeReprLowerer}
+import _root_.quasiquotes.source.{InterpolationCategory, SourceOrigin, SourceSpan}
 
 /** Public-Scalameta syntax parsing followed by project-owned Quotes lowering.
   * This lives only in the unpublished side-by-side module.
@@ -50,6 +51,18 @@ private[quasiquotes] object ScalametaTermFrontend:
 
     def template(detail: String): Failure =
       Failure("TERM_TEMPLATE_FAILURE", 0, 0, detail)
+
+    def p3Source(tree: scala.meta.Tree, detail: String): Failure =
+      Failure("SCALAMETA_P3_SOURCE_REJECTION", tree.pos.start, tree.pos.end, detail)
+
+    def p3Semantic(tree: scala.meta.Tree, detail: String): Failure =
+      Failure("SCALAMETA_P3_SEMANTIC_REJECTION", tree.pos.start, tree.pos.end, detail)
+
+    def p3Type(tree: scala.meta.Tree, detail: String): Failure =
+      Failure("SCALAMETA_P3_TYPE_REJECTION", tree.pos.start, tree.pos.end, detail)
+
+    def p3Quotes(tree: scala.meta.Tree, detail: String): Failure =
+      Failure("SCALAMETA_P3_QUOTES_REJECTION", tree.pos.start, tree.pos.end, detail)
 
     def selectedMember(tree: scala.meta.Tree, category: String, detail: String): Failure =
       Failure(category, tree.pos.start, tree.pos.end, detail)
@@ -107,7 +120,8 @@ private[quasiquotes] object ScalametaTermFrontend:
                 name -> reflectedType
             }.toMap,
             typeHoles,
-            synthesized.literalCategorizedNames
+            synthesized.literalCategorizedNames,
+            Some(synthesized)
           )
         yield term
       }
@@ -118,7 +132,8 @@ private[quasiquotes] object ScalametaTermFrontend:
       selectedMemberNameHoles: Map[String, SelectedMemberName],
       reflectedTypeHoles: Map[String, q.reflect.TypeRepr],
       typeHoles: Map[String, q.reflect.TypeRepr],
-      literalCategorizedNames: Set[String] = Set.empty
+      literalCategorizedNames: Set[String] = Set.empty,
+      categorizedSource: Option[CategorizedPlaceholderSource[q.reflect.Term, q.reflect.TypeRepr]] = None
   ): Either[Failure, q.reflect.Term] =
     import q.reflect.*
 
@@ -543,6 +558,8 @@ private[quasiquotes] object ScalametaTermFrontend:
             case (result: scala.meta.Term) :: Nil => lowerChild(result)
             case (definition: scala.meta.Defn.Val) :: (result: scala.meta.Term) :: Nil =>
               lowerLocalValBlock(definition, result, boundTerms, lambdaDepth, localValDepth)
+            case (definition: scala.meta.Defn.Def) :: (result: scala.meta.Term) :: Nil =>
+              lowerLocalDefBlock(definition, result, block)
             case stats if stats.size >= 2 && stats.forall(_.isInstanceOf[scala.meta.Term]) =>
               val terms = stats.map(_.asInstanceOf[scala.meta.Term])
               for
@@ -617,6 +634,194 @@ private[quasiquotes] object ScalametaTermFrontend:
                 )
               yield Block(List(value), loweredResult)
         case _ => unsupported(definition, P2LocalValDiagnosticMessages.Pattern)
+
+    def lowerLocalDefBlock(
+        definition: scala.meta.Defn.Def,
+        result: scala.meta.Term,
+        block: scala.meta.Term.Block
+    ): Either[Failure, Term] =
+      def reject(tree: scala.meta.Tree, detail: String): Either[Failure, Nothing] =
+        Left(Failure.p3Semantic(tree, detail))
+
+      def requireCondition(
+          condition: Boolean,
+          tree: scala.meta.Tree,
+          detail: String
+      ): Either[Failure, Unit] =
+        Either.cond(condition, (), Failure.p3Semantic(tree, detail))
+
+      def fixedType(tpe: scala.meta.Type): Either[Failure, (TypeNormalForm, TypeRepr)] =
+        for
+          normal <- TypeNormalFormSource
+            .fromSource(tpe.syntax)
+            .left.map(error => Failure.p3Type(tpe, error.message))
+          _ <- Either.cond(
+            normal match
+              case TypeNormalForm.STypeIdent("Int" | "String" | "Boolean") => true
+              case _ => false,
+            (),
+            Failure.p3Type(
+              tpe,
+              s"P3 supports only fixed Int/String/Boolean Types, obtained ${normal.render}"
+            )
+          )
+          repr <- TypeReprLowerer
+            .lowerNormalForm(normal)
+            .left.map(error => Failure.p3Type(tpe, error.message))
+        yield normal -> repr
+
+      def isSimpleBinderName(name: String): Boolean =
+        name != "_" && name.matches("[A-Za-z_$][A-Za-z0-9_$]*")
+
+      for
+        source <- categorizedSource.toRight(
+          Failure.p3Source(block, "P3 lowering requires categorized interpolation source metadata")
+        )
+        _ <- requireCondition(
+          definition.mods.isEmpty,
+          definition,
+          "P3 local method modifiers or annotations are unsupported"
+        )
+        _ <- requireCondition(
+          definition.name.syntax == definition.name.value && isSimpleBinderName(definition.name.value),
+          definition.name,
+          "P3 requires a simple local method binder"
+        )
+        group <- definition.paramClauseGroups match
+          case value :: Nil => Right(value)
+          case _ => reject(definition, "P3 requires one parameter-clause group")
+        _ <- requireCondition(
+          group.tparamClause.values.isEmpty,
+          definition,
+          "P3 type parameters are unsupported"
+        )
+        clause <- group.paramClauses match
+          case value :: Nil if value.mod.isEmpty => Right(value)
+          case _ => reject(definition, "P3 requires one ordinary parameter clause")
+        parameter <- clause.values match
+          case value :: Nil => Right(value)
+          case _ => reject(definition, "P3 requires exactly one ordinary parameter")
+        _ <- requireCondition(
+          parameter.mods.isEmpty && parameter.default.isEmpty,
+          parameter,
+          "P3 requires one unmodified strict parameter without a default"
+        )
+        _ <- requireCondition(
+          parameter.name.syntax == parameter.name.value && isSimpleBinderName(parameter.name.value),
+          parameter.name,
+          "P3 requires a simple parameter binder"
+        )
+        parameterTypeTree <- parameter.decltpe.toRight(
+          Failure.p3Type(parameter, "P3 requires an explicit parameter Type")
+        )
+        resultTypeTree <- definition.decltpe.toRight(
+          Failure.p3Type(definition, "P3 requires an explicit result Type")
+        )
+        parameterType <- fixedType(parameterTypeTree)
+        resultType <- fixedType(resultTypeTree)
+        _ <- requireCondition(
+          parameterType._1 == resultType._1 && parameterType._2 =:= resultType._2,
+          definition,
+          "P3 parameter and result Types must be identical"
+        )
+        _ <- definition.body match
+          case body: scala.meta.Term.Name if body.value == parameter.name.value => Right(())
+          case _ => reject(definition.body, "P3 method body must be exactly its own parameter reference")
+        argumentTree <- result match
+          case application: scala.meta.Term.Apply =>
+            application.fun match
+              case callee: scala.meta.Term.Name
+                  if callee.value == definition.name.value && application.args.size == 1 =>
+                Right(application.args.head)
+              case _ => reject(application, "P3 result must call its own local method with one ordinary argument")
+          case _ => reject(result, "P3 result must be one ordinary Apply")
+        binding <- argumentTree match
+          case name: scala.meta.Term.Name =>
+            source.bindings.collectFirst {
+              case candidate @ PlaceholderBinding(bindingName, QuasiquoteHole.Term(_))
+                  if bindingName == name.value => candidate
+            }.toRight(
+              Failure.p3Source(
+                argumentTree,
+                "P3 call argument must be the authoritative generated Term-hole transport"
+              )
+            )
+          case _ => reject(argumentTree, "P3 call argument must be exactly one scalar Term splice")
+        _ <- requireCondition(
+          source.bindings.size == 1,
+          block,
+          "P3 requires exactly one scalar Term splice and no other interpolation arguments"
+        )
+        span = SourceSpan(argumentTree.pos.start, argumentTree.pos.end)
+        _ <- source.originMap
+          .originsFor(span)
+          .collectFirst {
+            case mapped @ _root_.quasiquotes.source.MappedOrigin(
+                  generatedSpan,
+                  SourceOrigin.InterpolationArgument(_, _, InterpolationCategory.TermSplice)
+                ) if generatedSpan == span => mapped
+          }
+          .toRight(Failure.p3Source(argumentTree, "P3 Term-hole source origin is absent or inexact"))
+        _ <- Either.cond(
+          source.source.slice(span.start, span.end) == binding.name,
+          (),
+          Failure.p3Source(
+            argumentTree,
+            "P3 Term-hole lexical source does not match its categorized binding"
+          )
+        )
+        argument = binding.hole.asInstanceOf[QuasiquoteHole.Term[q.reflect.Term]].term
+        _ <- Either.cond(
+          !(argument.asInstanceOf[AnyRef] eq null),
+          (),
+          Failure.p3Source(argumentTree, "null caller-owned Term arguments are unsupported")
+        )
+        _ <- requireCondition(
+          termHoles.get(binding.name).exists(_.asInstanceOf[AnyRef].eq(argument.asInstanceOf[AnyRef])),
+          argumentTree,
+          "P3 Term-hole binding does not preserve the original caller Term identity"
+        )
+        _ <- requireCondition(
+          !containsOwnedDefinition(argument),
+          argumentTree,
+          "P3 caller-owned Term splice must not contain owned definitions"
+        )
+        _ <- requireCondition(
+          argument.tpe.widen <:< parameterType._2,
+          argumentTree,
+          s"P3 call argument Type ${Printer.TypeReprCode.show(argument.tpe.widen)} is not compatible with ${Printer.TypeReprCode.show(parameterType._2)}"
+        )
+        lowered <-
+          try
+            val methodType = MethodType(List(parameter.name.value))(
+              _ => List(parameterType._2),
+              _ => resultType._2
+            )
+            val methodSymbol = Symbol.newMethod(Symbol.spliceOwner, definition.name.value, methodType)
+            var callbackFailure: Option[Failure] = None
+            val loweredDefinition = DefDef(methodSymbol, parameterClauses =>
+              parameterClauses match
+                case List(List(actualParameter)) => Some(Ref(actualParameter.symbol))
+                case _ =>
+                  callbackFailure = Some(
+                    Failure.p3Quotes(definition, "Quotes DefDef callback did not expose one parameter")
+                  )
+                  Some(Literal(UnitConstant()))
+            )
+            callbackFailure match
+              case Some(failure) => Left(failure)
+              case None =>
+                val call = Ref(methodSymbol).appliedToArgs(List(argument))
+                Right(Block(List(loweredDefinition), call))
+          catch
+            case NonFatal(error) =>
+              Left(
+                Failure.p3Quotes(
+                  definition,
+                  Option(error.getMessage).getOrElse(error.getClass.getSimpleName)
+                )
+              )
+      yield lowered
 
     P2LocalValScalametaAdmission
       .validate(tree)

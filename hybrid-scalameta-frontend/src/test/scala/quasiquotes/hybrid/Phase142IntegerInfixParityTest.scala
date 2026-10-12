@@ -127,7 +127,7 @@ final class Phase142IntegerInfixParityTest extends munit.FunSuite:
       )
 
     assertEquals(evidence._1, Right("CurrentDottyFallback" -> Some("SCALAMETA_PARSE_FAILURE")))
-    assertEquals(evidence._2, Left("SCALAMETA_LOWERING_UNSUPPORTED"))
+    assertEquals(evidence._2, Left("SCALAMETA_P3_SEMANTIC_REJECTION"))
     assertEquals(evidence._3, Right("Scalameta" -> true))
     assertEquals(evidence._4, Right("Literal(\"value\")"))
     assertEquals(evidence._5, Left("NEUTRAL_INFIX_TYPE_ARGUMENTS_UNSUPPORTED"))

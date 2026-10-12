@@ -90,7 +90,7 @@ class HybridTermFrontendTest extends munit.FunSuite:
     assertEquals(result.map(_.engine), Right(HybridTermFrontend.Engine.CurrentDottyFallback))
     assert(result.toOption.flatMap(_.primaryFailure).exists(_.category == "SCALAMETA_PARSE_FAILURE"))
 
-  test("Scalameta local-definition syntax fails terminally without current-Dotty fallback"):
+  test("Scalameta P3 syntax fails at semantic admission without current-Dotty fallback"):
     given Compiler = Compiler.make(getClass.getClassLoader)
     val result = withQuotes:
       HybridTermFrontend.build(
@@ -99,7 +99,7 @@ class HybridTermFrontendTest extends munit.FunSuite:
       )
     assertEquals(
       result.left.map(_.category),
-      Left("SCALAMETA_LOWERING_UNSUPPORTED")
+      Left("SCALAMETA_P3_SEMANTIC_REJECTION")
     )
 
   test("a broader Scalameta dialect never overrides exact compiler syntax rejection"):
