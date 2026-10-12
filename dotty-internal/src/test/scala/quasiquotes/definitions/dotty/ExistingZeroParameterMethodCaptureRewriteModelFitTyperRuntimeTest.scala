@@ -116,21 +116,19 @@ final class ExistingZeroParameterMethodCaptureRewriteModelFitTyperRuntimeTest ex
 
   private def rewrite(root: untpd.TypeDef, value: String)(using Context): Either[String, RewriteResult] =
     for
-      captured <- ExistingUntpdClassMemberFilter.capture(root).left.map(_.message)
-      _ <- ExistingUntpdOrdinaryMethodDescriptor.capture(captured, 0) match
-        case Left(problem) if problem.code == "UNSUPPORTED_PARAMETER_TOPOLOGY" => Right(())
-        case Left(problem) => Left(s"unexpected current descriptor failure: ${problem.message}")
-        case Right(_) => Left("current production descriptor unexpectedly admitted a zero-parameter method")
-      descriptor <- ExistingZeroParameterMethodCaptureRewriteModelFitProbe.assemble(captured, 0)
-      prepared <- ExistingZeroParameterMethodCaptureRewriteModelFitProbe
-        .prepare(descriptor, TermShape.Literal(value))
-      rebuilt <- ExistingUntpdClassMemberFilter
-        .reconstruct(captured, captured.originalTemplate.body.toVector.updated(0, prepared.method))
+      captured <- ExistingClassUntypedRewrite.capture(root).left.map(_.message)
+      method <- captured.method(captured.members.head.ref).left.map(_.message)
+      resultPlan <- captured.emptyPlan
+        .replaceResultType(method.ref, quasiquotes.types.TypeNormalForm.STypeIdent("Int"))
         .left.map(_.message)
+      bodyPlan <- resultPlan.replaceBody(method.ref, TermShape.Literal(value)).left.map(_.message)
+      rebuilt <- ExistingClassUntypedRewrite(captured, bodyPlan).left.map(_.message)
+      template = rebuilt.tree.rhs.asInstanceOf[untpd.Template]
+      rewrittenMethod = template.body.head.asInstanceOf[untpd.DefDef]
     yield RewriteResult(
-      rebuilt.root,
-      prepared.method,
-      captured.members(1).tree.eq(rebuilt.template.body(1))
+      rebuilt.tree,
+      rewrittenMethod,
+      rebuilt.directMemberIdentities(1).sameObjectAs(captured.members(1).identity)
     )
 
   private def emitted(output: Path): Vector[String] =

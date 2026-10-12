@@ -4,6 +4,7 @@ import dotty.tools.dotc.ast.untpd
 import dotty.tools.dotc.core.Contexts.Context
 import dotty.tools.dotc.core.Flags
 import dotty.tools.dotc.core.Symbols.NoSymbol
+import dotty.tools.dotc.core.StdNames.nme
 
 /** Read-only ordered handles over the accepted ordinary method view families. */
 private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
@@ -91,6 +92,10 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
         case _ => Left(Error("SELECTED_MEMBER_NOT_METHOD", "the selected direct member is not a method."))
       descriptor <- method.paramss match
         // Classify cardinality only; the accepted authority validates the actual family.
+        case Nil =>
+          buildZeroParameterDescriptor(owner, memberIndex, method, Vector.empty)
+        case clause :: Nil if clause != null && clause.isEmpty =>
+          buildZeroParameterDescriptor(owner, memberIndex, method, Vector(Vector.empty))
         case clause :: Nil if clause.size == 1 =>
           ExistingUntpdSingleParameterMethodView.capture(owner, memberIndex)
             .left.map(e => Error(e.code, e.detail)).map { view =>
@@ -107,7 +112,10 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
                   Parameter(view.secondParameter, view.secondParameterType, view.secondParameterName)
                 )), view.resultType, view.rhs)
             }
-        case _ => Left(Error("UNSUPPORTED_PARAMETER_TOPOLOGY", "exactly one clause of one or two ordinary parameters is required."))
+        case _ => Left(Error(
+          "UNSUPPORTED_PARAMETER_TOPOLOGY",
+          "a parameterless method or exactly one clause of zero, one, or two ordinary parameters is required."
+        ))
       // The older single-parameter authority predates the explicit erased/owner guards.
       // Keep that authority unchanged while enforcing this descriptor's pre-Typer boundary.
       _ <- Either.cond(
@@ -117,6 +125,46 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
       )
       _ <- validatePreTyperOwner(owner.originalRoot)
     yield descriptor
+
+  private def buildZeroParameterDescriptor(
+      owner: ExistingUntpdClassMemberFilter.Capture,
+      memberIndex: Int,
+      method: untpd.DefDef,
+      parameterClauses: Vector[Vector[Parameter]]
+  ): Either[Error, Descriptor] =
+    val unsupportedRole =
+      method.name == nme.CONSTRUCTOR ||
+        !method.mods.is(Flags.Method) ||
+        method.mods.is(Flags.Synthetic) ||
+        method.mods.is(Flags.Artifact) ||
+        method.mods.is(Flags.Accessor) ||
+        method.mods.is(Flags.ExtensionMethod) ||
+        method.mods.is(Flags.Given) ||
+        method.mods.is(Flags.Implicit)
+    for
+      _ <- Either.cond(
+        !unsupportedRole,
+        (),
+        Error(
+          "UNSUPPORTED_METHOD_ROLE",
+          "constructors, contextual, synthetic/artifact/accessor, extension, and non-method DefDefs are outside the admitted ordinary-method role."
+        )
+      )
+      resultType <- Option(method.tpt).filterNot(_.isEmpty).toRight(
+        Error("RESULT_TYPE_REQUIRED", "the method result type was null or EmptyTree.")
+      )
+      rhs <- Option(method.unforcedRhs.asInstanceOf[untpd.Tree]).filterNot(_.isEmpty).toRight(
+        Error("RHS_REQUIRED", "the method RHS was null or EmptyTree.")
+      )
+    yield Descriptor(
+      owner,
+      memberIndex,
+      method,
+      method.name.toString,
+      parameterClauses,
+      resultType,
+      rhs
+    )
 
   private def rawGraphHasUnavailableField(value: Any): Boolean = value match
     case null => true

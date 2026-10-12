@@ -72,34 +72,21 @@ class ExistingZeroParameterMethodCaptureRewriteModelFitTest extends munit.FunSui
     }
   }
 
-  test("current private and public admission reject both zero-parameter forms while controls succeed") {
+  test("private and public admission preserve zero-parameter and existing control topologies") {
     withContext {
-      val rejected = Vector(
-        "class ParameterlessBoundary:\n  def value: Int = 41\n",
-        "class EmptyParenBoundary:\n  def value(): Int = 41\n"
-      )
-      rejected.foreach { source =>
-        val root = parseClass(source)
-        val captured = capture(root)
-        val privateFailure = ExistingUntpdOrdinaryMethodDescriptor.capture(captured, 0).left.toOption.get
-        assertEquals(privateFailure.code, "UNSUPPORTED_PARAMETER_TOPOLOGY")
-
-        val publicCapture = ExistingClassUntypedRewrite.capture(root).fold(problem => fail(problem.message), identity)
-        val publicFailure = publicCapture.method(publicCapture.members.head.ref).left.toOption.get
-        assertEquals(publicFailure.code, "UNSUPPORTED_STRUCTURE")
-        assert(publicFailure.detail.contains("UNSUPPORTED_PARAMETER_TOPOLOGY"))
-      }
-
-      val controls = Vector(
+      val admitted = Vector(
+        "class ParameterlessBoundary:\n  def value: Int = 41\n" -> Vector.empty[Int],
+        "class EmptyParenBoundary:\n  def value(): Int = 41\n" -> Vector(0),
         "class One:\n  def f(x: Int): Int = x\n" -> Vector(1),
         "class Two:\n  def f(x: Int, y: Int): Int = x + y\n" -> Vector(2)
       )
-      controls.foreach { (source, expectedSizes) =>
+      admitted.foreach { (source, expectedSizes) =>
         val root = parseClass(source)
-        val owner = capture(root)
-        val descriptor = ExistingUntpdOrdinaryMethodDescriptor.capture(owner, 0)
+        val captured = capture(root)
+        val descriptor = ExistingUntpdOrdinaryMethodDescriptor.capture(captured, 0)
           .fold(problem => fail(problem.message), identity)
         assertEquals(descriptor.parameterClauses.map(_.size), expectedSizes)
+        assertEquals(ExistingUntpdOrdinaryMethodDescriptor.validate(descriptor), Right(()))
         val public = ExistingClassUntypedRewrite.capture(root).fold(problem => fail(problem.message), identity)
         val view = public.method(public.members.head.ref).fold(problem => fail(problem.message), identity)
         assertEquals(view.parameterClauses.map(_.parameters.size), expectedSizes)
@@ -107,43 +94,30 @@ class ExistingZeroParameterMethodCaptureRewriteModelFitTest extends munit.FunSui
     }
   }
 
-  test("all downstream private entry points stop at the same descriptor admission gate") {
+  test("all downstream private entry points accept exact zero-binder descriptors") {
     withContext {
       val descriptors = Vector(
         syntheticDescriptor("class ParameterlessGate:\n  def value: AnyVal = 41\n"),
         syntheticDescriptor("class EmptyParenGate:\n  def value(): AnyVal = 41\n")
       )
       descriptors.foreach { synthetic =>
-        assertEquals(
-          ExistingUntpdOrdinaryMethodDescriptor.validate(synthetic).left.toOption.map(_.code),
-          Some("DESCRIPTOR_IDENTITY_INVARIANT_FAILED")
-        )
-        assertEquals(
-          ExistingUntpdOrdinaryMethodTypeSlotProjection.projectResult(synthetic).left.toOption.map(_.code),
-          Some("INVALID_DESCRIPTOR")
-        )
-        assertEquals(
-          ExistingUntpdOrdinaryMethodRhsTermProjection.projectRhs(synthetic).left.toOption.map(_.code),
-          Some("INVALID_DESCRIPTOR")
-        )
-        assertEquals(
-          ExistingUntpdOrdinaryMethodTypeEditPreparation
-            .prepareResultType(synthetic, TypeNormalForm.STypeIdent("Int"))
-            .left.toOption.map(_.code),
-          Some("INVALID_DESCRIPTOR")
-        )
+        assertEquals(ExistingUntpdOrdinaryMethodDescriptor.validate(synthetic), Right(()))
+        assert(ExistingUntpdOrdinaryMethodTypeSlotProjection.projectResult(synthetic).isRight)
+        assert(ExistingUntpdOrdinaryMethodRhsTermProjection.projectRhs(synthetic).isRight)
+        assert(ExistingUntpdOrdinaryMethodTypeEditPreparation
+          .prepareResultType(synthetic, TypeNormalForm.STypeIdent("Int")).isRight)
         var builderCalled = false
         val body = ExistingUntpdOrdinaryMethodRhsEditPreparation.prepareBody(synthetic) { _ =>
           builderCalled = true
           Right(TermShape.Literal("42"))
         }
-        assertEquals(body.left.toOption.map(_.code), Some("INVALID_DESCRIPTOR"))
-        assert(!builderCalled)
+        assert(body.isRight)
+        assert(builderCalled)
         assertEquals(
           ExistingUntpdOrdinaryMethodReconstruction
             .reconstructMethod(synthetic, Vector.empty, None, None)
             .left.toOption.map(_.code),
-          Some("INVALID_DESCRIPTOR")
+          Some("EMPTY_EDIT_SET")
         )
       }
     }
@@ -200,7 +174,7 @@ class ExistingZeroParameterMethodCaptureRewriteModelFitTest extends munit.FunSui
       assert(opaque.resultType.eq(opaque.method.tpt))
       assertEquals(
         ExistingUntpdOrdinaryMethodTypeSlotProjection.projectResult(opaque).left.toOption.map(_.code),
-        Some("INVALID_DESCRIPTOR")
+        Some("UNSUPPORTED_SELECTED_TYPE")
       )
     }
   }

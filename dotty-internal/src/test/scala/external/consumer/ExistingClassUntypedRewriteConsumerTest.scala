@@ -52,7 +52,42 @@ final class ExistingClassUntypedRewriteConsumerTest extends munit.FunSuite:
       assertCode(captured.member(-1), "SELECTION_FAILED")
       assertCode(captured.member(4), "SELECTION_FAILED")
       assertCode(captured.method(captured.members(1).ref), "SELECTION_FAILED")
+  test("foreign callers admit both zero-parameter conventions without inventing parameters"):
+    withContext:
+      val root = parseClass(
+        """class ZeroParameterPublic:
+          |  def parameterless: AnyVal = 0
+          |  def emptyParen(): AnyVal = 0
+          |  def unary(x: Int): Int = x
+          |  val untouched: Int = 7
+          |""".stripMargin
+      )
+      val captured = right(ExistingClassUntypedRewrite.capture(root))
+      val parameterless = right(captured.method(captured.members(0).ref))
+      val emptyParen = right(captured.method(captured.members(1).ref))
+      val unary = right(captured.method(captured.members(2).ref))
 
+      assertEquals(parameterless.parameterClauses, Vector.empty)
+      assertEquals(emptyParen.parameterClauses.map(_.kind.code), Vector("ORDINARY"))
+      assertEquals(emptyParen.parameterClauses.map(_.parameters.size), Vector(0))
+      assertEquals(parameterless.parameterClauses.flatMap(_.parameters), Vector.empty)
+      assertEquals(emptyParen.parameterClauses.flatMap(_.parameters), Vector.empty)
+      val foreignParameter = unary.parameterClauses.head.parameters.head.ref
+      assertCode(parameterless.parameterScope.binder(foreignParameter), "SELECTION_FAILED")
+      assertCode(emptyParen.parameterScope.reference(foreignParameter), "SELECTION_FAILED")
+
+      val plan = right(for
+        p1 <- captured.emptyPlan.replaceResultType(parameterless.ref, intType)
+        p2 <- p1.replaceBody(parameterless.ref, TermShape.Literal("20"))
+        p3 <- p2.replaceResultType(emptyParen.ref, intType)
+        p4 <- p3.replaceBody(emptyParen.ref, TermShape.Literal("22"))
+      yield p4)
+      val applied = right(ExistingClassUntypedRewrite(captured, plan))
+      val body = applied.tree.rhs.asInstanceOf[untpd.Template].body
+      assertEquals(body(0).asInstanceOf[untpd.DefDef].paramss, Nil)
+      assertEquals(body(1).asInstanceOf[untpd.DefDef].paramss.map(_.size), List(0))
+      assert(applied.directMemberIdentities(2).sameObjectAs(captured.members(2).identity))
+      assert(applied.directMemberIdentities(3).sameObjectAs(captured.members(3).identity))
   test("bounded slot projection stays independent from exact capture and parameter scope"):
     withContext:
       val captured = right(ExistingClassUntypedRewrite.capture(parseClass(

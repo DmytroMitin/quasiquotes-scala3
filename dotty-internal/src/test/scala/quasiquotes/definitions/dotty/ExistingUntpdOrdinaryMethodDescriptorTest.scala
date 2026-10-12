@@ -125,9 +125,17 @@ class ExistingUntpdOrdinaryMethodDescriptorTest extends munit.FunSuite:
     }
   }
 
-  test("accepted authority union rejects unsupported parsed method families") {
+  test("accepted authority union admits exact zero-parameter forms and rejects adjacent parsed families") {
     withContext {
-      Vector("def f: Int = 1", "def f(): Int = 1", "def f(x: Int, y: Int, z: Int): Int = x",
+      Vector(
+        "def f: Int = 1" -> Vector.empty[Int],
+        "def f(): Int = 1" -> Vector(0)
+      ).foreach { (declaration, expectedClauseSizes) =>
+        val owner = capture(parseSingleTypeDef(s"class A:\n  $declaration\n"))
+        val admitted = descriptor(owner, 0)
+        assertEquals(admitted.parameterClauses.map(_.size), expectedClauseSizes)
+      }
+      Vector("def f(x: Int, y: Int, z: Int): Int = x",
         "def f(x: Int)(y: Int): Int = x", "def f[A](x: A): A = x",
         "def f[A](x: A, y: A): A = x", "def f(using x: Int): Int = x",
         "def f(using x: Int, y: Int): Int = x", "implicit def f(x: Int): Int = x",
@@ -140,12 +148,17 @@ class ExistingUntpdOrdinaryMethodDescriptorTest extends munit.FunSuite:
     }
   }
 
-  test("both arities reject forged roles clauses defaults missing fields and raw null seams") {
+  test("all admitted topologies reject forged roles clauses defaults missing fields and raw null seams") {
     withContext {
       given dotty.tools.dotc.util.SourceFile = NoSource
-      Vector("x: Int", "x: Int, y: String").foreach { params =>
-        val m = methodFrom(s"class A:\n  def f($params): Int = 1\n")
-        val ps = m.paramss.head.map(_.asInstanceOf[untpd.ValDef])
+      Vector(
+        "class A:\n  def f: Int = 1\n",
+        "class A:\n  def f(): Int = 1\n",
+        "class A:\n  def f(x: Int): Int = 1\n",
+        "class A:\n  def f(x: Int, y: String): Int = 1\n"
+      ).foreach { source =>
+        val m = methodFrom(source)
+        val ps = m.paramss.flatten.map(_.asInstanceOf[untpd.ValDef])
         def reject(malformed: untpd.DefDef): Unit =
           assertRejected(ExistingUntpdOrdinaryMethodDescriptor.capture(captureAround(malformed), 0))
         Vector(Synthetic, Artifact, Accessor, ExtensionMethod, Given, Implicit).foreach { flag =>
@@ -172,13 +185,18 @@ class ExistingUntpdOrdinaryMethodDescriptorTest extends munit.FunSuite:
     }
   }
 
-  test("both arities reject owner and selected slot symbols TypedSplice and null children") {
+  test("all admitted topologies reject owner and selected slot symbols TypedSplice and null children") {
     withContext {
       given dotty.tools.dotc.util.SourceFile = NoSource
       val symbol = newSymbol(NoSymbol, termName("descriptorSymbol"), EmptyFlags, NoType)
       val symbolic = untpd.Ident(termName("symbolic")).withType(symbol.termRef)
-      Vector("x: Int", "x: Int, y: String").foreach { params =>
-        val m = methodFrom(s"class A:\n  def f($params): Int = 1\n")
+      Vector(
+        "class A:\n  def f: Int = 1\n",
+        "class A:\n  def f(): Int = 1\n",
+        "class A:\n  def f(x: Int): Int = 1\n",
+        "class A:\n  def f(x: Int, y: String): Int = 1\n"
+      ).foreach { source =>
+        val m = methodFrom(source)
         Vector(symbolic, untpd.TypedSplice(symbolic), untpd.Apply(m.rhs, null.asInstanceOf[List[untpd.Tree]])).foreach { bad =>
           assertRejected(ExistingUntpdOrdinaryMethodDescriptor.capture(captureAround(copyMethod(m, m.paramss, m.tpt, bad)), 0))
           val owner = captureAround(m)
@@ -203,9 +221,14 @@ class ExistingUntpdOrdinaryMethodDescriptorTest extends munit.FunSuite:
       given dotty.tools.dotc.util.SourceFile = NoSource
       val symbol = newSymbol(NoSymbol, termName("annotationSymbol"), EmptyFlags, NoType)
       val symbolic = untpd.Ident(termName("symbolic")).withType(symbol.termRef)
-      Vector("x: Int", "x: Int, y: String").foreach { params =>
-        val m = methodFrom(s"class A:\n  def f($params): Int = 1\n")
-        val ps = m.paramss.head.map(_.asInstanceOf[untpd.ValDef])
+      Vector(
+        "class A:\n  def f: Int = 1\n",
+        "class A:\n  def f(): Int = 1\n",
+        "class A:\n  def f(x: Int): Int = 1\n",
+        "class A:\n  def f(x: Int, y: String): Int = 1\n"
+      ).foreach { source =>
+        val m = methodFrom(source)
+        val ps = m.paramss.flatten.map(_.asInstanceOf[untpd.ValDef])
         def reject(method: untpd.DefDef): Unit =
           assertRejected(ExistingUntpdOrdinaryMethodDescriptor.capture(captureAround(method), 0))
         reject(copyMethod(m, m.paramss, m.tpt, m.rhs.cloneIn(null)))
@@ -252,8 +275,13 @@ class ExistingUntpdOrdinaryMethodDescriptorTest extends munit.FunSuite:
 
   test("deferred owner fields reject without forcing or mutating the original graph") {
     withContext {
-      Vector("x: Int", "x: Int, y: String").foreach { params =>
-        val m = methodFrom(s"class A:\n  def f($params): Int = 1\n")
+      Vector(
+        "class A:\n  def f: Int = 1\n",
+        "class A:\n  def f(): Int = 1\n",
+        "class A:\n  def f(x: Int): Int = 1\n",
+        "class A:\n  def f(x: Int, y: String): Int = 1\n"
+      ).foreach { source =>
+        val m = methodFrom(source)
         val owner = captureAround(m)
         val t = owner.originalTemplate
         var forced = false
