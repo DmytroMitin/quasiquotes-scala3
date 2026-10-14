@@ -96,7 +96,7 @@ class ExistingContextualMethodCaptureRewriteModelFitProbeTest extends munit.FunS
     }
   }
 
-  test("all production downstream entry points remain closed at descriptor validation") {
+  test("all production downstream entry points admit the exact validated C1 and C2 descriptors") {
     withContext {
       Vector(
         carrier("class ContextualGate:\n  def value(using x: AnyVal): AnyVal = x\n"),
@@ -104,54 +104,29 @@ class ExistingContextualMethodCaptureRewriteModelFitProbeTest extends munit.FunS
       ).foreach { exact =>
         val descriptor = exact.descriptor
         val first = descriptor.parameterClauses.head.head
-        assertEquals(
-          ExistingUntpdOrdinaryMethodDescriptor
-            .validate(descriptor)
-            .left.toOption.map(_.code),
-          Some("DESCRIPTOR_IDENTITY_INVARIANT_FAILED")
-        )
-        assertEquals(
-          ExistingUntpdOrdinaryMethodTypeSlotProjection
-            .projectParameter(descriptor, first)
-            .left.toOption.map(_.code),
-          Some("INVALID_DESCRIPTOR")
-        )
-        assertEquals(
-          ExistingUntpdOrdinaryMethodTypeSlotProjection
-            .projectResult(descriptor)
-            .left.toOption.map(_.code),
-          Some("INVALID_DESCRIPTOR")
-        )
-        assertEquals(
-          ExistingUntpdOrdinaryMethodRhsTermProjection
-            .projectRhs(descriptor)
-            .left.toOption.map(_.code),
-          Some("INVALID_DESCRIPTOR")
-        )
-        assertEquals(
-          ExistingUntpdOrdinaryMethodTypeEditPreparation
-            .prepareParameterType(descriptor, first, TypeNormalForm.STypeIdent("Int"))
-            .left.toOption.map(_.code),
-          Some("INVALID_DESCRIPTOR")
-        )
-        assertEquals(
-          ExistingUntpdOrdinaryMethodTypeEditPreparation
-            .prepareResultType(descriptor, TypeNormalForm.STypeIdent("Int"))
-            .left.toOption.map(_.code),
-          Some("INVALID_DESCRIPTOR")
-        )
+        assertEquals(ExistingUntpdOrdinaryMethodDescriptor.validate(descriptor), Right(()))
+        assert(ExistingUntpdOrdinaryMethodTypeSlotProjection
+          .projectParameter(descriptor, first).isRight)
+        assert(ExistingUntpdOrdinaryMethodTypeSlotProjection
+          .projectResult(descriptor).isRight)
+        assert(ExistingUntpdOrdinaryMethodRhsTermProjection
+          .projectRhs(descriptor).isRight)
+        assert(ExistingUntpdOrdinaryMethodTypeEditPreparation
+          .prepareParameterType(descriptor, first, TypeNormalForm.STypeIdent("Int")).isRight)
+        assert(ExistingUntpdOrdinaryMethodTypeEditPreparation
+          .prepareResultType(descriptor, TypeNormalForm.STypeIdent("Int")).isRight)
         var builderCalled = false
         val body = ExistingUntpdOrdinaryMethodRhsEditPreparation.prepareBody(descriptor) { _ =>
           builderCalled = true
           Right(TermShape.Literal("0"))
         }
-        assertEquals(body.left.toOption.map(_.code), Some("INVALID_DESCRIPTOR"))
-        assert(!builderCalled)
+        assert(body.isRight)
+        assert(builderCalled)
         assertEquals(
           ExistingUntpdOrdinaryMethodReconstruction
             .reconstructMethod(descriptor, Vector.empty, None, None)
             .left.toOption.map(_.code),
-          Some("INVALID_DESCRIPTOR")
+          Some("EMPTY_EDIT_SET")
         )
       }
     }

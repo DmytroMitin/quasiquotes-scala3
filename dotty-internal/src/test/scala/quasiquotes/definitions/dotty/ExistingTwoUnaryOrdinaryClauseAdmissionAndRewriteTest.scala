@@ -192,7 +192,9 @@ final class ExistingTwoUnaryOrdinaryClauseAdmissionAndRewriteTest extends munit.
     withContext:
       val rejected = Vector(
         "class Duplicate:\n  def f(same: Int)(same: Int): Int = same\n",
-        "class Contextual:\n  def f(a: Int)(using b: Int): Int = a\n",
+        "class ContextualBeforeOrdinary:\n  def f(using a: Int)(b: Int): Int = b\n",
+        "class TwoContextual:\n  def f(using a: Int)(using b: Int): Int = a\n",
+        "class WideContextual:\n  def f(using a: Int, b: Int): Int = a\n",
         "class ByNameFirst:\n  def f(a: => Int)(b: Int): Int = b\n",
         "class ByNameSecond:\n  def f(a: Int)(b: => Int): Int = a\n",
         "class RepeatedFirst:\n  def f(a: Int*)(b: Int): Int = b\n",

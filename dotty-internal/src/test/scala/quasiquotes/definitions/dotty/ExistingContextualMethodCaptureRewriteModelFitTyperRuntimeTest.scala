@@ -14,9 +14,13 @@ import dotty.tools.dotc.core.Phases.Phase
 import dotty.tools.dotc.core.Symbols.NoSymbol
 import dotty.tools.dotc.parsing.Parser
 
+import quasiquotes.definitions.dotty.ExistingClassUntypedRewrite.*
+import quasiquotes.parser.TermShape
+import quasiquotes.types.TypeNormalForm
+
 final class ExistingContextualMethodCaptureRewriteModelFitTyperRuntimeTest
     extends munit.FunSuite:
-  test("C1 and C2 test-only rewrites survive U023 insertion Typer TASTy and runtime") {
+  test("U067 public C1 and C2 rewrites survive ordinary Typer TASTy and runtime") {
     val temporary = Files.createTempDirectory("u054-existing-contextual-model-fit-")
     try
       val source = temporary.resolve("U054ExistingContextualRuntime.scala")
@@ -81,7 +85,7 @@ final class ExistingContextualMethodCaptureRewriteModelFitTyperRuntimeTest
         case packageDef: untpd.PackageDef =>
           val rewritten = packageDef.stats.map {
             case root: untpd.TypeDef if root.name.toString == "U054ContextualOnly" =>
-              rewrite(root, Set(0 -> 0), Vector(0 -> 0), "CONTEXTUAL_PARAMETER_UNSUPPORTED") match
+              rewrite(root, Vector(0 -> 0)) match
                 case Left(problem) =>
                   report.error(problem)
                   root
@@ -96,12 +100,7 @@ final class ExistingContextualMethodCaptureRewriteModelFitTyperRuntimeTest
                   result.root
             case root: untpd.TypeDef
                 if root.name.toString == "U054OrdinaryThenContextual" =>
-              rewrite(
-                root,
-                Set(0 -> 0, 1 -> 0),
-                Vector(0 -> 0, 1 -> 0),
-                "UNSUPPORTED_PARAMETER_TOPOLOGY"
-              ) match
+              rewrite(root, Vector(0 -> 0, 1 -> 0)) match
                 case Left(problem) =>
                   report.error(problem)
                   root
@@ -140,29 +139,52 @@ final class ExistingContextualMethodCaptureRewriteModelFitTyperRuntimeTest
 
   private def rewrite(
       root: untpd.TypeDef,
-      editedPositions: Set[(Int, Int)],
-      bodyReferences: Vector[(Int, Int)],
-      expectedFailure: String
+      bodyReferences: Vector[(Int, Int)]
   )(using Context): Either[String, RewriteResult] =
     for
-      captured <- ExistingUntpdClassMemberFilter.capture(root).left.map(_.message)
-      _ <- ExistingUntpdOrdinaryMethodDescriptor.capture(captured, 0) match
-        case Left(problem) if problem.code == expectedFailure => Right(())
-        case Left(problem) => Left("unexpected descriptor failure: " + problem.message)
-        case Right(_) => Left("production descriptor unexpectedly admitted contextual method")
-      carrier <- ExistingContextualMethodCaptureRewriteModelFitProbe.assemble(captured, 0)
-      prepared <- ExistingContextualMethodCaptureRewriteModelFitProbe
-        .prepare(carrier, editedPositions, bodyReferences)
-      rebuilt <- ExistingUntpdClassMemberFilter
-        .reconstruct(
-          captured,
-          captured.originalTemplate.body.toVector.updated(0, prepared.method)
-        )
+      captured <- ExistingClassUntypedRewrite.capture(root).left.map(_.message)
+      member <- captured.member(0).left.map(_.message)
+      method <- captured.method(member.ref).left.map(_.message)
+      selected <- bodyReferences.foldLeft[Either[String, Vector[ParameterView]]](Right(Vector.empty)) {
+        case (result, (clauseIndex, parameterIndex)) =>
+          for
+            parameters <- result
+            clause <- method.parameterClauses.lift(clauseIndex)
+              .toRight(s"missing clause $clauseIndex")
+            parameter <- clause.parameters.lift(parameterIndex)
+              .toRight(s"missing parameter $clauseIndex/$parameterIndex")
+          yield parameters :+ parameter
+      }
+      references <- selected.foldLeft[Either[String, Vector[TermShape]]](Right(Vector.empty)) {
+        case (result, parameter) =>
+          for
+            values <- result
+            reference <- method.parameterScope.reference(parameter.ref).left.map(_.message)
+          yield values :+ reference
+      }
+      body <- references match
+        case Vector(reference) => Right(reference)
+        case Vector(first, second) => Right(TermShape.Apply(
+          TermShape.Select(TermShape.Identifier("Math", false), "addExact"),
+          List(first, second)
+        ))
+        case _ => Left("expected one or two selected contextual body references")
+      typed <- selected.foldLeft[Either[String, EditPlan]](Right(captured.emptyPlan)) {
+        case (result, parameter) =>
+          result.flatMap(_.replaceParameterType(parameter.ref, TypeNormalForm.STypeIdent("Int"))
+            .left.map(_.message))
+      }
+      resultTyped <- typed.replaceResultType(method.ref, TypeNormalForm.STypeIdent("Int"))
         .left.map(_.message)
+      complete <- resultTyped.replaceBody(method.ref, body).left.map(_.message)
+      applied <- ExistingClassUntypedRewrite(captured, complete).left.map(_.message)
+      rewrittenMethod <- applied.tree.rhs.asInstanceOf[untpd.Template].body.headOption
+        .collect { case value: untpd.DefDef => value }
+        .toRight("rewritten first direct member was not a method")
     yield RewriteResult(
-      rebuilt.root,
-      prepared.method,
-      captured.members(1).tree.eq(rebuilt.template.body(1))
+      applied.tree,
+      rewrittenMethod,
+      applied.directMemberIdentities(1).sameObjectAs(captured.members(1).identity)
     )
 
   private def emitted(output: Path): Vector[String] =

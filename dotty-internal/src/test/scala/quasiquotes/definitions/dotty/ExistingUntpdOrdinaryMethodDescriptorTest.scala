@@ -125,12 +125,14 @@ class ExistingUntpdOrdinaryMethodDescriptorTest extends munit.FunSuite:
     }
   }
 
-  test("accepted authority union admits zero-parameter and exact two-unary-clause forms while rejecting adjacent families") {
+  test("accepted authority union admits zero-parameter ordinary and exact contextual forms while rejecting adjacent families") {
     withContext {
       Vector(
         "def f: Int = 1" -> Vector.empty[Int],
         "def f(): Int = 1" -> Vector(0),
-        "def f(x: Int)(y: Int): Int = x" -> Vector(1, 1)
+        "def f(x: Int)(y: Int): Int = x" -> Vector(1, 1),
+        "def f(using x: Int): Int = x" -> Vector(1),
+        "def f(x: Int)(using y: Int): Int = x" -> Vector(1, 1)
       ).foreach { (declaration, expectedClauseSizes) =>
         val owner = capture(parseSingleTypeDef(s"class A:\n  $declaration\n"))
         val admitted = descriptor(owner, 0)
@@ -138,8 +140,10 @@ class ExistingUntpdOrdinaryMethodDescriptorTest extends munit.FunSuite:
       }
       Vector("def f(x: Int, y: Int, z: Int): Int = x",
         "def f[A](x: A): A = x",
-        "def f[A](x: A, y: A): A = x", "def f(using x: Int): Int = x",
+        "def f[A](x: A, y: A): A = x",
         "def f(using x: Int, y: Int): Int = x", "implicit def f(x: Int): Int = x",
+        "def f(using x: Int)(y: Int): Int = y",
+        "def f(using x: Int)(using y: Int): Int = x",
         "def f(x: Int = 1): Int = x", "def f(x: Int, y: Int = 1): Int = x").foreach { declaration =>
         val owner = capture(parseSingleTypeDef(s"class A:\n  $declaration\n"))
         assert(ExistingUntpdSingleParameterMethodView.capture(owner, 0).isLeft)
@@ -156,7 +160,9 @@ class ExistingUntpdOrdinaryMethodDescriptorTest extends munit.FunSuite:
         "class A:\n  def f: Int = 1\n",
         "class A:\n  def f(): Int = 1\n",
         "class A:\n  def f(x: Int): Int = 1\n",
-        "class A:\n  def f(x: Int, y: String): Int = 1\n"
+        "class A:\n  def f(x: Int, y: String): Int = 1\n",
+        "class A:\n  def f(using x: Int): Int = 1\n",
+        "class A:\n  def f(x: Int)(using y: Int): Int = 1\n"
       ).foreach { source =>
         val m = methodFrom(source)
         val ps = m.paramss.flatten.map(_.asInstanceOf[untpd.ValDef])
@@ -172,7 +178,7 @@ class ExistingUntpdOrdinaryMethodDescriptorTest extends munit.FunSuite:
           val p = ps(index)
           def withP(p: untpd.ValDef): Unit = reject(copyMethod(m, List(ps.updated(index, p)), m.tpt, m.rhs))
           withP(null)
-          Vector(Implicit, Given, Erased).foreach(flag => withP(p.withMods(untpd.Modifiers(p.mods.flags | flag))))
+          Vector(Implicit, Erased).foreach(flag => withP(p.withMods(untpd.Modifiers(p.mods.flags | flag))))
           Vector(null, untpd.TypeTree()).foreach(t => withP(untpd.cpy.ValDef(p)(p.name, t, p.rhs)))
           withP(untpd.cpy.ValDef(p)(p.name, p.tpt, m.rhs))
           withP(untpd.cpy.ValDef(p)(p.name, p.tpt, null))

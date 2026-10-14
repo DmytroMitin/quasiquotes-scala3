@@ -5,6 +5,7 @@ import scala.compiletime.testing.typeCheckErrors
 import dotty.tools.dotc.CompilationUnit
 import dotty.tools.dotc.ast.untpd
 import dotty.tools.dotc.core.Contexts.{Context, ContextBase}
+import dotty.tools.dotc.core.Flags
 import dotty.tools.dotc.parsing.Parsers
 import dotty.tools.dotc.reporting.StoreReporter
 
@@ -128,6 +129,156 @@ final class ExistingClassUntypedRewriteConsumerTest extends munit.FunSuite:
       assertEquals(rewritten.paramss.map(_.size), List(1, 1))
       assert(!applied.directMemberIdentities.head.sameObjectAs(captured.members.head.identity))
       assert(applied.directMemberIdentities(1).sameObjectAs(captured.members(1).identity))
+
+  test("foreign callers distinguish and atomically rewrite contextual unary clauses"):
+    withContext:
+      assertEquals(ExistingClassUntypedRewrite.ParameterClauseKind.Contextual.code, "CONTEXTUAL")
+      assertNotEquals(
+        ExistingClassUntypedRewrite.ParameterClauseKind.Contextual,
+        ExistingClassUntypedRewrite.ParameterClauseKind.Ordinary
+      )
+
+      val root = parseClass(
+        """class ContextualPublic:
+          |  def value(using x: AnyVal): AnyVal = x
+          |  def combine(a: AnyVal)(using b: AnyVal): AnyVal = a
+          |  val untouched: Int = 7
+          |""".stripMargin
+      )
+      val originalMethods = root.rhs.asInstanceOf[untpd.Template].body.collect {
+        case method: untpd.DefDef => method
+      }
+      val captured = right(ExistingClassUntypedRewrite.capture(root))
+      val contextualOnly = right(captured.method(captured.members(0).ref))
+      val mixed = right(captured.method(captured.members(1).ref))
+      assertEquals(contextualOnly.parameterClauses.map(_.kind.code), Vector("CONTEXTUAL"))
+      assertEquals(mixed.parameterClauses.map(_.kind.code), Vector("ORDINARY", "CONTEXTUAL"))
+      assertEquals(
+        mixed.parameterClauses.map(_.parameters.map(_.diagnosticName)),
+        Vector(Vector("a"), Vector("b"))
+      )
+
+      val contextual = contextualOnly.parameterClauses.head.parameters.head
+      val first = mixed.parameterClauses(0).parameters.head
+      val second = mixed.parameterClauses(1).parameters.head
+      assertEquals((contextual.clauseIndex, contextual.parameterIndex), (0, 0))
+      assertEquals((first.clauseIndex, first.parameterIndex), (0, 0))
+      assertEquals((second.clauseIndex, second.parameterIndex), (1, 0))
+      assertNotEquals(
+        right(mixed.parameterScope.binder(first.ref)),
+        right(mixed.parameterScope.binder(second.ref))
+      )
+
+      val contextualBody = right(contextualOnly.parameterScope.reference(contextual.ref))
+      val mixedBody = TermShape.Apply(
+        TermShape.Select(TermShape.Identifier("Math", false), "addExact"),
+        List(
+          right(mixed.parameterScope.reference(first.ref)),
+          right(mixed.parameterScope.reference(second.ref))
+        )
+      )
+      val plan = right(for
+        p1 <- captured.emptyPlan.replaceParameterType(contextual.ref, intType)
+        p2 <- p1.replaceResultType(contextualOnly.ref, intType)
+        p3 <- p2.replaceBody(contextualOnly.ref, contextualBody)
+        p4 <- p3.replaceParameterType(first.ref, intType)
+        p5 <- p4.replaceParameterType(second.ref, intType)
+        p6 <- p5.replaceResultType(mixed.ref, intType)
+        p7 <- p6.replaceBody(mixed.ref, mixedBody)
+      yield p7)
+      val applied = right(ExistingClassUntypedRewrite(captured, plan))
+      val methods = applied.tree.rhs.asInstanceOf[untpd.Template].body.collect {
+        case method: untpd.DefDef => method
+      }
+      assertEquals(methods(0).paramss.map(_.size), List(1))
+      assertEquals(methods(1).paramss.map(_.size), List(1, 1))
+      assert(methods(0).paramss.head.head.asInstanceOf[untpd.ValDef].mods.is(Flags.Given))
+      assert(!methods(1).paramss.head.head.asInstanceOf[untpd.ValDef].mods.is(Flags.Given))
+      assert(methods(1).paramss(1).head.asInstanceOf[untpd.ValDef].mods.is(Flags.Given))
+      assert(methods(0).paramss.head.head.mods.eq(originalMethods(0).paramss.head.head.mods))
+      assert(methods(1).paramss.head.head.mods.eq(originalMethods(1).paramss.head.head.mods))
+      assert(methods(1).paramss(1).head.mods.eq(originalMethods(1).paramss(1).head.mods))
+      assert(applied.directMemberIdentities(2).sameObjectAs(captured.members(2).identity))
+
+  test("contextual public plans cover independent ordered combined and no-op edits"):
+    withContext:
+      val source =
+        """class ContextualMatrix:
+          |  def combine(a: AnyVal)(using b: AnyVal): AnyVal = a
+          |  val untouched: Int = 7
+          |""".stripMargin
+      def fixture() =
+        val root = parseClass(source)
+        val original = root.rhs.asInstanceOf[untpd.Template].body.head.asInstanceOf[untpd.DefDef]
+        val captured = right(ExistingClassUntypedRewrite.capture(root))
+        val method = right(captured.method(captured.members.head.ref))
+        (
+          root,
+          original,
+          captured,
+          method,
+          method.parameterClauses(0).parameters.head,
+          method.parameterClauses(1).parameters.head
+        )
+      def raw(result: Result): untpd.DefDef =
+        result.tree.rhs.asInstanceOf[untpd.Template].body.head.asInstanceOf[untpd.DefDef]
+
+      Vector(0, 1).foreach { selected =>
+        val (_, before, captured, _, first, second) = fixture()
+        val parameters = Vector(first, second)
+        val result = right(ExistingClassUntypedRewrite(
+          captured,
+          right(captured.emptyPlan.replaceParameterType(parameters(selected).ref, intType))
+        ))
+        val rewritten = raw(result)
+        assert(!rewritten.paramss(selected).head.eq(before.paramss(selected).head))
+        assert(rewritten.paramss(1 - selected).head.eq(before.paramss(1 - selected).head))
+        assert(rewritten.tpt.eq(before.tpt))
+        assert(rewritten.rhs.eq(before.rhs))
+      }
+
+      Vector(false, true).foreach { reverse =>
+        val (_, before, captured, _, first, second) = fixture()
+        val ordered = if reverse then Vector(second, first) else Vector(first, second)
+        val plan = ordered.foldLeft(captured.emptyPlan) { (current, parameter) =>
+          right(current.replaceParameterType(parameter.ref, intType))
+        }
+        val rewritten = raw(right(ExistingClassUntypedRewrite(captured, plan)))
+        assert(!rewritten.paramss(0).head.eq(before.paramss(0).head))
+        assert(!rewritten.paramss(1).head.eq(before.paramss(1).head))
+      }
+
+      val (_, resultBefore, resultCapture, resultMethod, _, _) = fixture()
+      val resultOnly = raw(right(ExistingClassUntypedRewrite(
+        resultCapture,
+        right(resultCapture.emptyPlan.replaceResultType(resultMethod.ref, intType))
+      )))
+      assert(!resultOnly.tpt.eq(resultBefore.tpt))
+      assert(resultOnly.paramss(0).head.eq(resultBefore.paramss(0).head))
+      assert(resultOnly.paramss(1).head.eq(resultBefore.paramss(1).head))
+
+      val (_, bodyBefore, bodyCapture, bodyMethod, bodyFirst, bodySecond) = fixture()
+      val body = TermShape.Apply(
+        TermShape.Select(TermShape.Identifier("Math", false), "addExact"),
+        List(
+          right(bodyMethod.parameterScope.reference(bodyFirst.ref)),
+          right(bodyMethod.parameterScope.reference(bodySecond.ref))
+        )
+      )
+      val bodyOnly = raw(right(ExistingClassUntypedRewrite(
+        bodyCapture,
+        right(bodyCapture.emptyPlan.replaceBody(bodyMethod.ref, body))
+      )))
+      assert(!bodyOnly.rhs.eq(bodyBefore.rhs))
+      assert(bodyOnly.paramss(0).head.eq(bodyBefore.paramss(0).head))
+      assert(bodyOnly.paramss(1).head.eq(bodyBefore.paramss(1).head))
+      assert(bodyOnly.tpt.eq(bodyBefore.tpt))
+
+      val (noOpRoot, _, noOpCapture, _, _, _) = fixture()
+      val noOp = right(ExistingClassUntypedRewrite(noOpCapture, noOpCapture.emptyPlan))
+      assert(!noOp.changed)
+      assert(noOp.tree.eq(noOpRoot))
+      assert(noOp.directMemberIdentities(1).sameObjectAs(noOpCapture.members(1).identity))
 
   test("bounded slot projection stays independent from exact capture and parameter scope"):
     withContext:

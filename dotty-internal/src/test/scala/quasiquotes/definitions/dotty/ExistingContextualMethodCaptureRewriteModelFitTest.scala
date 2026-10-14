@@ -74,36 +74,47 @@ class ExistingContextualMethodCaptureRewriteModelFitTest extends munit.FunSuite:
     }
   }
 
-  test("current private and public failures remain distinct for C1 and C2") {
+  test("private and public capture distinguish the ratified C1 and C2 clause kinds") {
     withContext {
       val fixtures = Vector(
         "class ContextualBoundary:\n  def value(using x: Int): Int = x\n" ->
-          "CONTEXTUAL_PARAMETER_UNSUPPORTED",
+          Vector("CONTEXTUAL"),
         "class MixedBoundary:\n  def combine(x: Int)(using y: Int): Int = x + y\n" ->
-          "UNSUPPORTED_PARAMETER_TOPOLOGY"
+          Vector("ORDINARY", "CONTEXTUAL")
       )
-      fixtures.foreach { case (source, privateCode) =>
+      fixtures.foreach { case (source, expectedKinds) =>
         val root = parseClass(source)
         val captured = ExistingUntpdClassMemberFilter.capture(root).fold(
           problem => fail(problem.message),
           identity
         )
-        val privateFailure =
-          ExistingUntpdOrdinaryMethodDescriptor.capture(captured, 0).left.toOption.get
-        assertEquals(privateFailure.code, privateCode)
+        val descriptor = ExistingUntpdOrdinaryMethodDescriptor.capture(captured, 0).fold(
+          problem => fail(problem.message),
+          identity
+        )
+        assertEquals(
+          ExistingUntpdOrdinaryMethodDescriptor.clauseKinds(descriptor)
+            .fold(problem => fail(problem.message), identity).map(_.code),
+          expectedKinds
+        )
 
         val publicCapture = ExistingClassUntypedRewrite.capture(root).fold(
           problem => fail(problem.message),
           identity
         )
-        val publicFailure =
-          publicCapture.method(publicCapture.members.head.ref).left.toOption.get
-        assertEquals(publicFailure.code, "UNSUPPORTED_STRUCTURE")
-        assert(publicFailure.detail.contains(privateCode))
+        val publicMethod = publicCapture.method(publicCapture.members.head.ref).fold(
+          problem => fail(problem.message),
+          identity
+        )
+        assertEquals(publicMethod.parameterClauses.map(_.kind.code), expectedKinds)
       }
       assertEquals(
         ExistingClassUntypedRewrite.ParameterClauseKind.Ordinary.code,
         "ORDINARY"
+      )
+      assertEquals(
+        ExistingClassUntypedRewrite.ParameterClauseKind.Contextual.code,
+        "CONTEXTUAL"
       )
     }
   }

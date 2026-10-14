@@ -27,6 +27,12 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
   final case class Error(code: String, detail: String) derives CanEqual:
     def message: String = s"$code: $detail"
 
+  final class ClauseKind private (val code: String) derives CanEqual
+
+  object ClauseKind:
+    val Ordinary: ClauseKind = new ClauseKind("ORDINARY")
+    val Contextual: ClauseKind = new ClauseKind("CONTEXTUAL")
+
   def capture(
       captured: ExistingUntpdClassMemberFilter.Capture,
       memberIndex: Int
@@ -64,6 +70,19 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
       }
     }
 
+  private[dotty] def clauseKinds(
+      descriptor: Descriptor
+  )(using Context): Either[Error, Vector[ClauseKind]] =
+    validate(descriptor).flatMap { _ =>
+      descriptor.parameterClauses.foldLeft[Either[Error, Vector[ClauseKind]]](Right(Vector.empty)) {
+        case (result, clause) =>
+          for
+            kinds <- result
+            kind <- clauseKind(clause)
+          yield kinds :+ kind
+      }
+    }
+
   private def build(
       captured: ExistingUntpdClassMemberFilter.Capture,
       memberIndex: Int
@@ -96,6 +115,9 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
           buildZeroParameterDescriptor(owner, memberIndex, method, Vector.empty)
         case clause :: Nil if clause != null && clause.isEmpty =>
           buildZeroParameterDescriptor(owner, memberIndex, method, Vector(Vector.empty))
+        case List(List(parameter: untpd.ValDef))
+            if hasExactFlags(parameter, Flags.Param | Flags.Given) =>
+          buildContextualUnaryDescriptor(owner, memberIndex, method, None, parameter)
         case clause :: Nil if clause.size == 1 =>
           ExistingUntpdSingleParameterMethodView.capture(owner, memberIndex)
             .left.map(e => Error(e.code, e.detail)).map { view =>
@@ -122,9 +144,19 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
             first,
             second
           )
+        case List(List(first: untpd.ValDef), List(second: untpd.ValDef))
+            if hasExactFlags(first, Flags.Param) &&
+              hasExactFlags(second, Flags.Param | Flags.Given) =>
+          buildContextualUnaryDescriptor(
+            owner,
+            memberIndex,
+            method,
+            Some(first),
+            second
+          )
         case _ => Left(Error(
           "UNSUPPORTED_PARAMETER_TOPOLOGY",
-          "a parameterless method, one clause of zero, one, or two ordinary parameters, or exactly two ordinary unary clauses is required."
+          "a parameterless method, one clause of zero, one, or two ordinary parameters, exactly two ordinary unary clauses, one contextual unary clause, or one ordinary unary clause followed by one contextual unary clause is required."
         ))
       // The older single-parameter authority predates the explicit erased/owner guards.
       // Keep that authority unchanged while enforcing this descriptor's pre-Typer boundary.
@@ -190,6 +222,61 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
       rhs
     )
 
+  private def buildContextualUnaryDescriptor(
+      owner: ExistingUntpdClassMemberFilter.Capture,
+      memberIndex: Int,
+      method: untpd.DefDef,
+      ordinaryTree: Option[untpd.ValDef],
+      contextualTree: untpd.ValDef
+  ): Either[Error, Descriptor] =
+    val unsupportedRole =
+      method.name == nme.CONSTRUCTOR ||
+        !method.mods.is(Flags.Method) ||
+        method.mods.is(Flags.Synthetic) ||
+        method.mods.is(Flags.Artifact) ||
+        method.mods.is(Flags.Accessor) ||
+        method.mods.is(Flags.ExtensionMethod) ||
+        method.mods.is(Flags.Given) ||
+        method.mods.is(Flags.Implicit)
+    for
+      _ <- Either.cond(
+        !unsupportedRole,
+        (),
+        Error(
+          "UNSUPPORTED_METHOD_ROLE",
+          "constructors, contextual, synthetic/artifact/accessor, extension, and non-method DefDefs are outside the admitted ordinary-method role."
+        )
+      )
+      ordinary <- ordinaryTree match
+        case Some(parameter) => ordinaryUnaryParameter(parameter, "ordinary")
+          .map(Some(_))
+        case None => Right(None)
+      contextual <- contextualUnaryParameter(contextualTree)
+      _ <- Either.cond(
+        ordinary.forall(_.name != contextual.name),
+        (),
+        Error(
+          "DUPLICATE_PARAMETER_NAME",
+          "ordinary and contextual unary clauses must use distinct parameter names for unambiguous lexical capture."
+        )
+      )
+      resultType <- Option(method.tpt).filterNot(_.isEmpty).filter(hasSourceSite).toRight(
+        Error("RESULT_TYPE_REQUIRED", "the method result type must be nonempty and retain its source site.")
+      )
+      rhs <- Option(method.unforcedRhs.asInstanceOf[untpd.Tree]).filterNot(_.isEmpty).filter(hasSourceSite).toRight(
+        Error("RHS_REQUIRED", "the method RHS must be nonempty and retain its source site.")
+      )
+    yield Descriptor(
+      owner,
+      memberIndex,
+      method,
+      method.name.toString,
+      ordinary.toVector.map(parameter => Vector(Parameter(parameter, parameter.tpt, parameter.name.toString))) :+
+        Vector(Parameter(contextual, contextual.tpt, contextual.name.toString)),
+      resultType,
+      rhs
+    )
+
   private def ordinaryUnaryParameter(
       tree: untpd.Tree,
       position: String
@@ -226,6 +313,58 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
         Error("PARAMETER_SITE_REQUIRED", s"the $position unary-clause parameter must retain a name, source, and span.")
       )
     yield parameter
+
+  private def contextualUnaryParameter(
+      tree: untpd.Tree
+  ): Either[Error, untpd.ValDef] =
+    for
+      parameter <- Option(tree).filterNot(_.isEmpty) match
+        case Some(value: untpd.ValDef) => Right(value)
+        case _ => Left(Error("PARAMETER_REQUIRED", "the contextual unary-clause parameter was absent or not a value parameter."))
+      _ <- Either.cond(
+        hasExactFlags(parameter, Flags.Param | Flags.Given),
+        (),
+        Error("UNSUPPORTED_PARAMETER_MODIFIERS", "the contextual unary-clause parameter was not one exact Given value parameter.")
+      )
+      parameterType <- Option(parameter.tpt).filterNot(_.isEmpty).filter(hasSourceSite).toRight(
+        Error("PARAMETER_TYPE_REQUIRED", "the contextual unary-clause parameter type must be nonempty and retain its source site.")
+      )
+      _ <- Either.cond(
+        !parameterType.isInstanceOf[untpd.ByNameTypeTree] &&
+          !parameterType.isInstanceOf[untpd.PostfixOp],
+        (),
+        Error("UNSUPPORTED_PARAMETER_MODE", "the contextual unary-clause parameter may not be by-name or repeated.")
+      )
+      parameterRhs <- Option(parameter.unforcedRhs.asInstanceOf[untpd.Tree]).toRight(
+        Error("PARAMETER_REQUIRED", "the contextual unary-clause parameter RHS field was absent.")
+      )
+      _ <- Either.cond(
+        parameterRhs.isEmpty,
+        (),
+        Error("PARAMETER_RHS_UNEXPECTED", "the contextual unary-clause parameter carried a default or other RHS.")
+      )
+      _ <- Either.cond(
+        parameter.name != null && parameter.name.toString.nonEmpty && hasSourceSite(parameter),
+        (),
+        Error("PARAMETER_SITE_REQUIRED", "the contextual unary-clause parameter must retain a name, source, and span.")
+      )
+    yield parameter
+
+  private def clauseKind(clause: Vector[Parameter]): Either[Error, ClauseKind] =
+    if clause.forall(parameter => hasExactFlags(parameter.tree, Flags.Param)) then
+      Right(ClauseKind.Ordinary)
+    else if clause.nonEmpty && clause.forall(parameter =>
+        hasExactFlags(parameter.tree, Flags.Param | Flags.Given)
+      ) then
+      Right(ClauseKind.Contextual)
+    else
+      Left(Error(
+        "DESCRIPTOR_IDENTITY_INVARIANT_FAILED",
+        "the descriptor parameter clause no longer has one homogeneous validated calling mode."
+      ))
+
+  private def hasExactFlags(parameter: untpd.ValDef, expected: Flags.FlagSet): Boolean =
+    parameter.mods != null && parameter.mods.flags == expected
 
   private def hasSourceSite(tree: untpd.Tree): Boolean =
     tree.source != null && tree.source.exists && tree.span.exists

@@ -34,6 +34,9 @@ object ExistingClassUntypedRewrite:
         descriptor <- ExistingUntpdOrdinaryMethodDescriptor
           .capture(exact, selected.index)
           .left.map(mapDescriptor)
+        clauseKinds <- ExistingUntpdOrdinaryMethodDescriptor
+          .clauseKinds(descriptor)
+          .left.map(mapDescriptor)
         scope <- ParameterScopeState.create(descriptor)
         methodRef = new MethodRef(
           exact,
@@ -41,32 +44,38 @@ object ExistingClassUntypedRewrite:
           descriptor.method,
           scope
         )
-        parameters = descriptor.parameterClauses.zipWithIndex.map { (clause, clauseIndex) =>
-          new ParameterClauseView(
-            ParameterClauseKind.Ordinary,
-            clause.zipWithIndex.map { (parameter, parameterIndex) =>
-              val ref = new ParameterRef(
-                methodRef,
-                clauseIndex,
-                parameterIndex,
-                parameter.tree,
-                parameter.tpt
-              )
-              new ParameterView(
-                ref,
-                clauseIndex,
-                parameterIndex,
-                parameter.diagnosticName,
-                new ExactIdentity(parameter.tree),
-                new TypeSlotView(
-                  new ExactIdentity(parameter.tpt),
-                  ExistingUntpdOrdinaryMethodTypeSlotProjection
-                    .projectParameter(descriptor, parameter)
-                    .left.map(mapTypeProjection)
+        parameters = descriptor.parameterClauses.zip(clauseKinds).zipWithIndex.map {
+          case ((clause, clauseKind), clauseIndex) =>
+            val publicKind = clauseKind match
+              case ExistingUntpdOrdinaryMethodDescriptor.ClauseKind.Ordinary =>
+                ParameterClauseKind.Ordinary
+              case ExistingUntpdOrdinaryMethodDescriptor.ClauseKind.Contextual =>
+                ParameterClauseKind.Contextual
+            new ParameterClauseView(
+              publicKind,
+              clause.zipWithIndex.map { (parameter, parameterIndex) =>
+                val ref = new ParameterRef(
+                  methodRef,
+                  clauseIndex,
+                  parameterIndex,
+                  parameter.tree,
+                  parameter.tpt
                 )
-              )
-            }
-          )
+                new ParameterView(
+                  ref,
+                  clauseIndex,
+                  parameterIndex,
+                  parameter.diagnosticName,
+                  new ExactIdentity(parameter.tree),
+                  new TypeSlotView(
+                    new ExactIdentity(parameter.tpt),
+                    ExistingUntpdOrdinaryMethodTypeSlotProjection
+                      .projectParameter(descriptor, parameter)
+                      .left.map(mapTypeProjection)
+                  )
+                )
+              }
+            )
         }
         bodySemantic = ExistingUntpdOrdinaryMethodRhsTermProjection
           .projectRhs(descriptor)
@@ -140,6 +149,7 @@ object ExistingClassUntypedRewrite:
 
   object ParameterClauseKind:
     val Ordinary: ParameterClauseKind = new ParameterClauseKind("ORDINARY")
+    val Contextual: ParameterClauseKind = new ParameterClauseKind("CONTEXTUAL")
 
   final class MemberView private[dotty] (
       private val refValue: MemberRef,

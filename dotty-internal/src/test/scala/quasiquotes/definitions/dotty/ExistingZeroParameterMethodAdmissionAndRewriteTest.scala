@@ -127,7 +127,6 @@ final class ExistingZeroParameterMethodAdmissionAndRewriteTest extends munit.Fun
     withContext:
       val unsupported = Vector(
         "class Generic:\n  def value[T]: Int = 0\n" -> "INTERNAL_INVARIANT_FAILED",
-        "class Contextual:\n  def value(using x: Int): Int = x\n" -> "UNSUPPORTED_STRUCTURE",
         "class Defaulted:\n  def value(x: Int = 1): Int = x\n" -> "INTERNAL_INVARIANT_FAILED",
         "class Three:\n  def value(a: Int, b: Int, c: Int): Int = a\n" -> "UNSUPPORTED_STRUCTURE"
       )
