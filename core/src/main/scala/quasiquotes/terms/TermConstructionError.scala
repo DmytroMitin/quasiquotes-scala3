@@ -117,6 +117,26 @@ private[quasiquotes] object TermConstructionError:
     def message: String =
       s"Select ordinal $selectOrdinal is assigned to more than one selected-name hole."
 
+  final case class RepeatedSelectedNameHoleCardinalityMismatch(actual: Int)
+      extends TermConstructionError:
+    def message: String =
+      s"Repeated selected-name hole cardinality mismatch: expected exactly two occurrences but received $actual."
+
+  final case class RepeatedSelectedNameLogicalNameMismatch()
+      extends TermConstructionError:
+    def message: String =
+      "Repeated selected-name occurrences must share exactly one logical name."
+
+  final case class DuplicateSelectedNameTransport(transport: String)
+      extends TermConstructionError:
+    def message: String =
+      s"Selected-name transport $transport is assigned to more than one occurrence."
+
+  final case class InvalidSelectedNameTransport(transport: String)
+      extends TermConstructionError:
+    def message: String =
+      s"Invalid selected-name transport $transport: expected a neutral plain non-keyword ASCII identifier."
+
   final case class SelectedNameHoleCategoryConflict(name: String)
       extends TermConstructionError:
     def message: String =

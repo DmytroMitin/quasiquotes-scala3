@@ -537,12 +537,6 @@ final class N070RepeatedSelectedNameConstructionIdentityModelFitTest
       HoleRole.TermTemplate
     )
 
-private final case class SelectedNameHoleOccurrenceWithTransport(
-    name: String,
-    selectOrdinal: Int,
-    transport: String
-) derives CanEqual
-
 private sealed trait RepeatedSelectedNameModelError derives CanEqual
 
 private object RepeatedSelectedNameModelError:
