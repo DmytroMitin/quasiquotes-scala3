@@ -676,20 +676,32 @@ object SourceOwnedLocalDefFirstUseSnippet:
 
 Construction remains exactly one literal method name, one literal ordinary
 parameter name, complete reflected parameter and result Types, a body that
-references that parameter, and one following result expression. It does not
-splice an external `DefDef`, expose `Symbol`, support recursion, or admit
-multiple statements.
+references that parameter, and one following result expression. With the
+opt-in typed-Scalameta frontend selected, the public root form is:
+
+```scala
+qr```{
+  def id(value: Int): Int = value
+  id(argument)
+}```
+```
+
+The opt-in construction is restricted to that complete source root and equal
+explicit `Int`/`Int`, `String`/`String`, or `Boolean`/`Boolean` Types. It uses
+callback-owned `MethodType`, `DefDef`, `Quotes`, and source/Type sidecars.
+Placement inside an outer `If`, `Apply`, tuple, P2 initializer, or lambda body
+is rejected. It does not splice an external `DefDef`, expose `Symbol`, support
+recursion, or admit multiple methods.
 
 Standard and opt-in typed-Scalameta scalar `qq` match the same fixed identity
-family when the parameter and result Types are the same explicit `Int`,
-`String`, or `Boolean`. The opt-in route is Scalameta-primary. Its source
-method and parameter binders exclude symbolic and Unicode spellings under the
-accepted simple-binder policy, while target spellings may differ
-alpha-equivalently by role. The single argument hole returns the original
-caller-universe `quotes.reflect.Term`. This is not general local-definition
-matching: broader blocks, clauses, Types, parameters, bodies, captures, and
-ranked P3 remain outside the current boundary, and typed-Scalameta P3
-construction remains unavailable.
+family. The opt-in matcher is Scalameta-primary. Its source method and
+parameter binders exclude symbolic and Unicode spellings under the accepted
+simple-binder policy, while target spellings may differ alpha-equivalently by
+role. The single argument hole returns the original caller-universe
+`quotes.reflect.Term`. Immediate matching of a synthetically constructed P3
+remains restricted because its TypeTrees lack explicit source provenance.
+Broader blocks, clauses, Types, parameters, bodies, captures, and ranked P3
+remain outside the current boundary.
 
 ## Bounded `qq` extractor first use
 
@@ -942,6 +954,30 @@ tuple/function positions.
 `TypeTemplateSource.fromSource` are available for the corresponding focused
 operations. Prefer the `Located` form when reporting source failures to a
 person. See [Diagnostics](DIAGNOSTICS.md) for exact examples.
+
+## Existing-class rewrite first use
+
+The exact-version `dottyInternal` module exposes
+`ExistingClassUntypedRewrite` for one already parsed pre-Typer class. Start
+with the [focused contract](EXISTING_CLASS_UNTYPED_REWRITE.md); this is an
+identity-sensitive compiler-tree transaction, not a source-text quasiquote.
+
+The current public method families distinguish:
+
+- parameterless `def value` as raw `Nil`, with zero public clauses;
+- explicit-empty `def value()` as `List(Nil)`, with one empty ordinary
+  clause;
+- one ordinary unary or binary clause; and
+- exact `def combine(a: Int)(b: Int)` as two ordinary unary clauses at
+  ordinals 0 and 1.
+
+The two-clause form keeps distinct binders, raw `List(List(a), List(b))`,
+`List(1, 1)` cardinality, and curried call syntax through bounded
+parameter-Type, result-Type, binder-aware body, and combined atomic edits. The
+foreign-package consumer suite compiles and executes that facade; a
+one-clause `combine(a, b)` is kept as a separate control. Duplicate names,
+contextual/generic/defaulted/erased methods, and by-name or repeated parameters
+inside the two-clause family remain unsupported.
 
 ## Supported boundary
 

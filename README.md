@@ -184,8 +184,23 @@ Scalameta-primary compilation. Source method and parameter binders use the
 accepted ASCII simple-binder policy, excluding symbolic and Unicode spellings;
 target method and parameter spellings remain alpha-equivalent by role. The
 sole capture is the original caller-universe `quotes.reflect.Term` argument.
-Typed-Scalameta P3 construction, broader methods/blocks/clauses, additional
-capture names, and ranked P3 remain unsupported.
+
+Opt-in typed-Scalameta `qr` construction accepts the same fixed equal-Type
+identity family only as the complete source root:
+
+```scala
+qr```{
+  def id(value: Int): Int = value
+  id(argument)
+}```
+```
+
+The construction owns the callback `MethodType`, `DefDef` and `Quotes` values
+plus its source and Type sidecars. P3 nested in an outer `If`, `Apply`, tuple,
+P2 initializer, or lambda body is rejected. Immediate `qq` matching of a
+synthetically constructed P3 still fails the explicit source-`TypeTree`
+provenance boundary; broader methods/blocks/clauses, additional captures, and
+ranked P3 remain unsupported.
 
 See the [syntax support matrix](docs/SYNTAX_SUPPORT_MATRIX.md) for the
 user-facing construct/match boundary and the
@@ -497,12 +512,24 @@ The active 0.4.0-SNAPSHOT tree adds
 [`ExistingClassUntypedRewrite`](docs/EXISTING_CLASS_UNTYPED_REWRITE.md), a
 bounded public exact-version transaction for one already parsed pre-Typer
 class. It exposes ordered direct-member views, opaque capture-local refs,
-binder-aware one- or two-parameter method edits, omission, and ordered
-`SemanticDefinition` append through one immutable plan and one final owner
-transaction. It does not provide arbitrary AST rewriting, public `u*` syntax,
-owner/symbol repair, target selection, or plugin lifecycle.
-Captured by-name and repeated/vararg parameters may be inspected and edited
-within the admitted one-clause unary/two-parameter method families.
+zero-binder result/body edits, binder-aware one- or two-parameter method edits,
+omission, and ordered `SemanticDefinition` append through one immutable plan
+and one final owner transaction. Raw `DefDef.paramss = Nil` projects as zero
+public term parameter clauses; `List(Nil)` projects as one empty ordinary
+clause. Both forms create zero parameter binders, preserve their distinct
+`value` versus `value()` call syntax, and retain the existing result/body,
+identity, provenance, and untouched-member guarantees. The same facade also
+admits exactly two distinct-name ordinary unary clauses such as
+`def combine(a: Int)(b: Int): Int = ...`. It exposes two `Ordinary`
+clauses at ordinals 0 and 1 with independent binders, and preserves raw
+`List(List(a), List(b))`, `List(1, 1)` cardinality, and curried call syntax
+through parameter-Type, result-Type, binder-aware body, and combined atomic
+edits. A one-clause binary `combine(a, b)` remains a separate admitted
+family. It does not provide arbitrary AST rewriting, public `u*` syntax,
+owner/symbol repair, target selection, or plugin lifecycle. Captured by-name
+and repeated/vararg parameters may be inspected and edited within the
+separately admitted one-clause unary/two-parameter method families; that
+calling-mode support does not widen the two-clause family.
 `replaceParameterType` preserves a fresh by-name wrapper or a fresh repeated
 wrapper with its validated original star marker while changing only the inner
 Type. Mixed by-name/repeated edits are safe in one immutable plan both within
@@ -516,8 +543,10 @@ deterministic generated-source provenance. Surviving originals retain their
 relative order and identity, and the generated member is last. Both legal
 immutable plan-building orders fail before result exposure on invalid
 combinations. This is not arbitrary multi-method/calling-mode or broader
-contextual, generic, curried, multi-clause rewriting, generated sibling
-reference resolution, or rollback across later compiler phases.
+contextual, generic, defaulted, erased, by-name/repeated two-clause rewriting,
+generated sibling-reference resolution, or rollback across later compiler
+phases. Duplicate names and other uncharacterized clause topologies fail
+closed.
 
 The additive [semantic Term generated-origin facade](docs/SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md)
 accepts public TermShape and a virtual source name, returning a positioned tree,

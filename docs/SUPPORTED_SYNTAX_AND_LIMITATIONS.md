@@ -208,6 +208,26 @@ bodies, classes, traits, and objects. Neither owns target admission, placement,
 insertion, rollback, ordinary typing, ownership, or reownership. See the
 [focused Definition bridge contract](SCALAMETA_DEFINITION_BRIDGES.md).
 
+## Public bounded existing-class rewrite
+
+`ExistingClassUntypedRewrite` is a separate exact-version U-U facade over one
+already parsed pre-Typer class. Its admitted ordinary method topologies are
+exactly:
+
+- raw `DefDef.paramss = Nil`, exposed as zero public term clauses;
+- raw `List(Nil)`, exposed as one empty `Ordinary` clause;
+- one ordinary clause with one or two parameters; and
+- exact `List(List(a), List(b))` with distinct names, exposed as two
+  `Ordinary` clauses at ordinals 0 and 1 with independent binders.
+
+The two-clause family preserves `List(1, 1)`, curried call syntax, method
+identity, source/provenance, and untouched members through parameter-Type,
+result-Type, binder-aware body and combined atomic edits. A one-clause binary
+`f(a, b)` remains distinct from `f(a)(b)`. Duplicate names, contextual,
+generic, defaulted, erased, and by-name/repeated parameters within the
+two-clause family remain unsupported. Previously accepted by-name/repeated
+calling-mode edits stay scoped to their one-clause families.
+
 Currently exercised areas include:
 
 - identifiers, selections, applications, typed terms, binder-free P1 blocks,
@@ -479,11 +499,27 @@ simple-binder policy, excluding symbolic and Unicode spellings, while target
 method and parameter spellings remain alpha-equivalent by role. The capture is
 the original caller-universe `quotes.reflect.Term` argument.
 
-Dynamic names, modifiers, annotations, type parameters, contextual/by-name/
-default/erased/repeated parameters, multiple clauses, recursion, arbitrary
-bodies, broader blocks, multiple distinct scalar holes, and external `DefDef`
-splices fail closed. Typed-Scalameta P3 construction remains unavailable;
-broader blocks, methods, clauses, captures, and ranked P3 remain unsupported.
+Opt-in typed-Scalameta `qr` construction accepts that same fixed equal-Type
+identity shape only as the complete source root:
+
+```scala
+qr```{
+  def id(value: Int): Int = value
+  id(argument)
+}```
+```
+
+The lowering uses callback-owned `MethodType`, `DefDef`, `Quotes`, and
+source/Type sidecars. Nested P3 in outer If, Apply, Tuple, P2 initializer, or
+Lambda body is rejected. Dynamic names, modifiers, annotations, type
+parameters, contextual/by-name/default/erased/repeated parameters, multiple
+clauses, recursion, arbitrary bodies, broader blocks, multiple distinct scalar
+holes, and external `DefDef` splices still fail closed.
+
+Immediate `qq` matching of a synthetically constructed P3 remains restricted
+because its TypeTrees lack explicit source provenance. Source-written P3
+matching remains the accepted source-owned route; broader blocks, methods,
+clauses, captures, and ranked P3 remain unsupported.
 
 ## Bounded reflected type interpolators
 

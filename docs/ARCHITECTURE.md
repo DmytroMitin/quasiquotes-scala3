@@ -295,13 +295,19 @@ is not widened by specialized refined-alias authority.
 On the separate U-U axis, `ExistingClassUntypedRewrite` is the public
 exact-version facade for one bounded pre-Typer class transaction. It exposes
 ordered direct-member views, opaque capture-local refs, exact-object identity
-handles, binder-aware one- or two-parameter method Type/body edits, omission,
-and ordered semantic Definition append through one immutable plan and one final
-owner transaction. It delegates the accepted package-private capture,
+handles, zero-binder result/body edits for distinct parameterless `Nil` and
+explicit-empty `List(Nil)` methods, binder-aware one-clause unary/binary
+method edits, and exactly two distinct-name ordinary unary clauses at ordinals
+0 and 1 with independent binders and preserved curried call syntax. Omission
+and ordered semantic Definition append compose through one immutable plan and
+one final owner transaction. It delegates the accepted
+package-private capture,
 projection, preparation, reconstruction, and transaction authorities rather
 than exposing their carriers. Unsupported shapes fail closed. It is not
 arbitrary raw-tree rewriting, owner/symbol repair, lifecycle/placement, or
-public `u*` syntax.
+public `u*` syntax. Contextual, generic, defaulted, erased and by-name or
+repeated parameters within the two-clause family remain outside the admitted
+architecture.
 
 An advanced owner/definition-plan handle may eventually be justified by a
 real consumer, but symmetric `sqr`/`sqq` symbol syntax is not currently

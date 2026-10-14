@@ -761,28 +761,11 @@ def c070_truth_findings(root: Path) -> list[str]:
         "excluding symbolic and Unicode spellings",
         "target method and parameter spellings remain alpha-equivalent by role",
         "original caller-universe `quotes.reflect.Term` argument",
-        "Typed-Scalameta P3 construction remains unavailable",
         "broader blocks, methods, clauses, captures, and ranked P3 remain unsupported",
     ):
         if marker.casefold() not in normalized_limitations.casefold():
             findings.append(f"C070 hybrid P3 bounded contract missing: {marker}")
 
-    rows = markdown_table_rows(cross_matrix)
-    p3_rows = rows.get("Source-owned local identity method (P3)", [])
-    if len(p3_rows) != 1:
-        findings.append(
-            "C070 hybrid P3 matrix requires exactly one source-owned local identity method row"
-        )
-    elif len(p3_rows[0]) < 5:
-        findings.append("C070 hybrid P3 matrix is missing capability columns")
-    else:
-        actual = tuple(capability_status(cell) for cell in p3_rows[0][1:5])
-        expected = ("BOUNDED", "BOUNDED", "NOT_YET", "BOUNDED")
-        if actual != expected:
-            findings.append(
-                "C070 hybrid P3 matrix must retain standard/hybrid matching parity "
-                f"without hybrid construction; expected {expected}, found {actual}"
-            )
     for marker in (
         "Scalameta-primary",
         "symbolic and Unicode source binders excluded",
@@ -794,7 +777,6 @@ def c070_truth_findings(root: Path) -> list[str]:
     for marker in (
         "standard and opt-in typed-Scalameta `qq`",
         "symbolic/Unicode source binders excluded",
-        "typed-Scalameta P3 construction remains unavailable",
     ):
         if marker.casefold() not in syntax_matrix.casefold():
             findings.append(f"C070 syntax matrix P3 contract missing: {marker}")
@@ -802,7 +784,6 @@ def c070_truth_findings(root: Path) -> list[str]:
     normalized_roadmap = " ".join(roadmap.split())
     for marker in (
         "Standard and opt-in typed-Scalameta scalar `qq` matching share the accepted bounded P3 local identity-method family",
-        "typed-Scalameta P3 construction remains unavailable",
     ):
         if marker.casefold() not in normalized_roadmap.casefold():
             findings.append(f"C070 roadmap P3 truth missing: {marker}")
@@ -829,13 +810,6 @@ def c070_truth_findings(root: Path) -> list[str]:
     ):
         if stale in public_p3_text:
             findings.append(f"C070 stale hybrid P3 acceptance claim: {stale}")
-    for overclaim in (
-        "typed-scalameta p3 construction is supported",
-        "typed-scalameta p3 construction is implemented",
-    ):
-        if overclaim in public_p3_text:
-            findings.append(f"C070 hybrid P3 construction overclaim: {overclaim}")
-
     normalized_rewrite = " ".join(rewrite.split())
     for marker in (
         "bounded two-method transaction may combine those Type edits with capture-local omission of one direct member",
@@ -873,6 +847,256 @@ def c070_truth_findings(root: Path) -> list[str]:
             findings.append(f"C070 pipeline matrix owner contract missing: {marker}")
     return findings
 
+
+def c073_truth_findings(root: Path) -> list[str]:
+    limitations = (
+        root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+    ).read_text(encoding="utf-8")
+    syntax_matrix = (root / "docs/SYNTAX_SUPPORT_MATRIX.md").read_text(
+        encoding="utf-8"
+    )
+    cross_matrix = (root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md").read_text(
+        encoding="utf-8"
+    )
+    roadmap = (root / "ROADMAP.md").read_text(encoding="utf-8")
+    rewrite_path = root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md"
+    rewrite = rewrite_path.read_text(encoding="utf-8") if rewrite_path.exists() else ""
+    pipeline_path = root / "docs/PROJECTION_LOWERING_BRIDGE_MATRIX.md"
+    pipeline = pipeline_path.read_text(encoding="utf-8") if pipeline_path.exists() else ""
+    findings = []
+
+    normalized_limitations = " ".join(limitations.split())
+    for marker in (
+        "Opt-in typed-Scalameta `qr` construction accepts that same fixed equal-Type identity shape only as the complete source root",
+        "callback-owned `MethodType`, `DefDef`, `Quotes`, and source/Type sidecars",
+        "Nested P3 in outer If, Apply, Tuple, P2 initializer, or Lambda body is rejected",
+        "Immediate `qq` matching of a synthetically constructed P3 remains restricted because its TypeTrees lack explicit source provenance",
+    ):
+        if marker.casefold() not in normalized_limitations.casefold():
+            findings.append(f"C073 hybrid P3 bounded contract missing: {marker}")
+
+    rows = markdown_table_rows(cross_matrix)
+    p3_rows = rows.get("Source-owned local identity method (P3)", [])
+    if len(p3_rows) != 1:
+        findings.append(
+            "C073 hybrid P3 matrix requires exactly one source-owned local identity method row"
+        )
+    elif len(p3_rows[0]) < 5:
+        findings.append("C073 hybrid P3 matrix is missing capability columns")
+    else:
+        actual = tuple(capability_status(cell) for cell in p3_rows[0][1:5])
+        expected = ("BOUNDED", "BOUNDED", "BOUNDED", "BOUNDED")
+        if actual != expected:
+            findings.append(
+                "C073 hybrid P3 matrix must record bounded standard and typed-Scalameta "
+                f"construction/matching; expected {expected}, found {actual}"
+            )
+    for marker in (
+        "complete-source-root local identity method only",
+        "callback-owned `MethodType`, `DefDef`, `Quotes`, source and Type sidecars",
+        "synthetic constructed P3 matching still requires explicit source TypeTree provenance",
+    ):
+        if marker not in cross_matrix:
+            findings.append(f"C073 hybrid P3 matrix detail missing: {marker}")
+
+    zero_rows = rows.get("Existing-class zero-parameter ordinary methods", [])
+    if len(zero_rows) != 1:
+        findings.append(
+            "C073 zero-parameter matrix requires exactly one existing-class row"
+        )
+    elif capability_status(zero_rows[0][-1]) != "BOUNDED":
+        findings.append("C073 zero-parameter matrix must be BOUNDED")
+    for marker in (
+        "`DefDef.paramss = Nil` projects as zero public term clauses",
+        "`List(Nil)` projects as one empty ordinary clause",
+        "both create zero parameter binders",
+    ):
+        if marker not in cross_matrix:
+            findings.append(f"C073 zero-parameter matrix detail missing: {marker}")
+
+    for marker in (
+        "Opt-in typed-Scalameta `qr` construction is bounded to the complete source root",
+        "nested P3 placement",
+        "provenance-free matching of synthetic P3 trees remain unsupported",
+    ):
+        if marker.casefold() not in syntax_matrix.casefold():
+            findings.append(f"C073 syntax matrix P3 contract missing: {marker}")
+
+    normalized_roadmap = " ".join(roadmap.split())
+    for marker in (
+        "Opt-in typed-Scalameta `qr` construction admits the same one-method identity shape only as the complete source root",
+        "synthetic provenance-free `qq` matching remain unavailable",
+    ):
+        if marker.casefold() not in normalized_roadmap.casefold():
+            findings.append(f"C073 roadmap P3 truth missing: {marker}")
+
+    normalized_rewrite = " ".join(rewrite.split())
+    for marker in (
+        "`DefDef.paramss = Nil`",
+        "projects as zero public term parameter clauses",
+        "`List(Nil)`",
+        "projects as one empty ordinary clause",
+        "both create zero `ParameterRef` binders",
+    ):
+        if marker.casefold() not in normalized_rewrite.casefold():
+            findings.append(f"C073 zero-parameter topology contract missing: {marker}")
+
+    normalized_pipeline = " ".join(pipeline.split())
+    for marker in (
+        "parameterless `Nil` as zero public term clauses",
+        "explicit-empty `List(Nil)` as one empty ordinary clause",
+        "zero parameter binders and preserved call syntax",
+    ):
+        if marker.casefold() not in normalized_pipeline.casefold():
+            findings.append(f"C073 pipeline zero-parameter contract missing: {marker}")
+
+    public_text = "\n".join(
+        (
+            (root / "README.md").read_text(encoding="utf-8"),
+            roadmap,
+            cross_matrix,
+            syntax_matrix,
+            limitations,
+            rewrite,
+            pipeline,
+            (root / "docs/GETTING_STARTED.md").read_text(encoding="utf-8")
+            if (root / "docs/GETTING_STARTED.md").exists()
+            else "",
+            (root / "docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md").read_text(encoding="utf-8")
+            if (root / "docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md").exists()
+            else "",
+        )
+    ).casefold()
+
+    for stale in (
+        "typed-scalameta p3 construction remains unavailable",
+        "typed-scalameta construction | `not_yet`",
+    ):
+        if stale in public_text:
+            findings.append(f"C073 stale hybrid P3 construction status: {stale}")
+
+    for overclaim in (
+        "nested typed-scalameta p3 construction is supported",
+        "nested p3 construction is supported",
+    ):
+        if overclaim in public_text:
+            findings.append(f"C073 hybrid P3 construction overclaim: {overclaim}")
+
+    for overclaim in (
+        "synthetic constructed p3 trees match `qq` without explicit source typetree provenance",
+        "synthetic p3 qr trees are accepted by qq matching without source provenance",
+    ):
+        if overclaim in public_text:
+            findings.append(f"C073 synthetic P3 matching overclaim: {overclaim}")
+
+    conflation = "`defdef.paramss = nil` and `list(nil)` as the same zero-clause topology"
+    if conflation in public_text:
+        findings.append(f"C073 Nil/List(Nil) conflation: {conflation}")
+
+    stale_facade = "the facade admits only one ordinary clause of one or two parameters"
+    if stale_facade in public_text:
+        findings.append(f"C073 stale existing-method facade claim: {stale_facade}")
+
+    for overclaim in (
+        "synthetic p3 qr trees are accepted by qq matching without source provenance",
+        "repeated same-logical selected-name construction is a supported public capability",
+    ):
+        if overclaim in public_text:
+            findings.append(f"C073 unaccepted shipping claim: {overclaim}")
+
+    return findings
+
+
+def c074_truth_findings(root: Path) -> list[str]:
+    cross_matrix = (root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md").read_text(
+        encoding="utf-8"
+    )
+    rewrite = (root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md").read_text(
+        encoding="utf-8"
+    )
+    pipeline = (root / "docs/PROJECTION_LOWERING_BRIDGE_MATRIX.md").read_text(
+        encoding="utf-8"
+    )
+    findings = []
+
+    rows = markdown_table_rows(cross_matrix)
+    two_clause_rows = rows.get("Existing-class two ordinary unary clauses", [])
+    if len(two_clause_rows) != 1:
+        findings.append(
+            "C074 two ordinary unary clause matrix requires exactly one existing-class row"
+        )
+    elif capability_status(two_clause_rows[0][-1]) != "BOUNDED":
+        findings.append("C074 two ordinary unary clause matrix must be BOUNDED")
+    for marker in (
+        "exact `List(List(a), List(b))`",
+        "two `Ordinary` clauses at ordinals 0 and 1",
+        "distinct binders",
+        "preserved `List(1, 1)` topology and curried call syntax",
+    ):
+        if marker not in cross_matrix:
+            findings.append(f"C074 two ordinary unary clause matrix detail missing: {marker}")
+
+    normalized_rewrite = " ".join(rewrite.split())
+    for marker in (
+        "admits exactly two ordinary unary clauses with distinct parameter names",
+        "Those clauses remain separate at ordinals 0 and 1 with independent binders and `List(1, 1)` topology",
+        "parameter-Type, result-Type, binder-aware body, and combined atomic edits preserve curried call syntax",
+        "Duplicate names, contextual clauses, generic methods, defaulted parameters, erased parameters, and by-name or repeated parameters within this two-clause family remain unsupported",
+    ):
+        if marker.casefold() not in normalized_rewrite.casefold():
+            findings.append(f"C074 two-clause topology contract missing: {marker}")
+
+    normalized_pipeline = " ".join(pipeline.split())
+    for marker in (
+        "`List(List(a), List(b))` as two separate ordinary unary clauses",
+        "distinct binders",
+        "ordinals 0 and 1",
+        "`List(1, 1)` topology",
+        "curried call syntax",
+    ):
+        if marker.casefold() not in normalized_pipeline.casefold():
+            findings.append(f"C074 pipeline two-clause contract missing: {marker}")
+
+    public_text = "\n".join(
+        (
+            (root / "README.md").read_text(encoding="utf-8"),
+            (root / "ROADMAP.md").read_text(encoding="utf-8"),
+            cross_matrix,
+            rewrite,
+            pipeline,
+            (root / "docs/DOTTY_INTERNAL_BACKEND.md").read_text(encoding="utf-8")
+            if (root / "docs/DOTTY_INTERNAL_BACKEND.md").exists()
+            else "",
+            (root / "docs/GETTING_STARTED.md").read_text(encoding="utf-8")
+            if (root / "docs/GETTING_STARTED.md").exists()
+            else "",
+            (root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md").read_text(
+                encoding="utf-8"
+            ),
+        )
+    ).casefold()
+
+    for stale in (
+        "two ordinary unary clauses are not supported by existingclassuntypedrewrite",
+        "two ordinary unary clauses remain unsupported by existingclassuntypedrewrite",
+        "curried existing ordinary methods remain unsupported",
+    ):
+        if stale in public_text:
+            findings.append(f"C074 stale two-clause rejection: {stale}")
+
+    for overclaim in (
+        "contextual second clauses are supported by existingclassuntypedrewrite",
+        "duplicate parameter names are supported in the two-clause family",
+        "generic two-clause existing methods are supported",
+        "by-name parameters are supported within the two-clause family",
+        "repeated parameters are supported within the two-clause family",
+    ):
+        if overclaim in public_text:
+            findings.append(f"C074 two-clause adjacent-family overclaim: {overclaim}")
+
+    return findings
+
+
 def check(root: Path) -> list[str]:
     rows = api_rows(root)
     return sorted(
@@ -886,6 +1110,8 @@ def check(root: Path) -> list[str]:
         + durable_documentation_findings(root)
         + c065_truth_findings(root)
         + c070_truth_findings(root)
+        + c073_truth_findings(root)
+        + c074_truth_findings(root)
     )
 
 

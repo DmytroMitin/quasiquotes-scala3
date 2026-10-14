@@ -44,16 +44,41 @@ fresh structurally equal tree is not the same object.
 
 ## Method views and bounded semantic slots
 
-The admitted ordinary method topology is exactly one ordinary parameter clause
-containing one or two parameters. Other methods remain visible as members but
-`method` fails closed with `UNSUPPORTED_STRUCTURE`. A successful
-`MethodView` exposes:
+The admitted ordinary method topology has four exact forms:
+
+- `def value: Int = rhs` has raw `DefDef.paramss = Nil` and projects as zero
+  public term parameter clauses;
+- `def value(): Int = rhs` has raw `List(Nil)` and projects as one empty
+  ordinary clause; and
+- one ordinary clause containing one or two parameters retains the previously
+  accepted binder-aware family; and
+- `def combine(a: Int)(b: Int): Int = rhs` has exact raw
+  `List(List(a), List(b))` and admits exactly two ordinary unary clauses with
+  distinct parameter names.
+
+The first two forms both create zero `ParameterRef` binders. They preserve
+their distinct `value` versus `value()` call syntax while supporting bounded
+result-Type and body editing. Other methods remain visible as members but
+`method` fails closed with `UNSUPPORTED_STRUCTURE`. A successful `MethodView`
+exposes:
 
 - ordered parameter clauses and parameters;
 - exact identities for each raw parameter, declared Type, result Type, and RHS;
 - bounded `TypeNormalForm` projections for declared/result Types;
 - a bounded `TermShape` projection for the body; and
 - an `ExistingMethodParameterScope` for binder-safe body construction.
+
+For the two-clause family, those clauses remain separate at ordinals 0 and 1
+with independent binders and `List(1, 1)` topology. Parameter-Type,
+result-Type, binder-aware body, and combined atomic edits preserve curried call
+syntax. A one-clause binary `f(a, b)` is not flattened into or conflated with
+`f(a)(b)`.
+
+Duplicate names, contextual clauses, generic methods, defaulted parameters,
+erased parameters, and by-name or repeated parameters within this two-clause
+family remain unsupported. The accepted by-name/repeated calling-mode edits
+belong to their separately admitted one-clause families and do not imply a
+two-clause widening.
 
 Raw capture and semantic projection are independent. A Type or body slot may
 return `UNSUPPORTED_STRUCTURE` while its exact identity remains available.
@@ -95,8 +120,9 @@ Repeated parameter-Type replacement preserves a fresh `PostfixOp` wrapper and
 the original `Ident(*)` marker by identity while replacing only its element
 Type.
 
-The supported topology remains one ordinary clause of one or two parameters.
-A repeated parameter must remain the final parameter in that clause. The
+For by-name/repeated calling modes, the supported topology remains one ordinary
+clause of one or two parameters. A repeated parameter must remain the final
+parameter in that clause. The
 existing private source, span, wrapper, marker, identity and capture-local
 provenance checks still fail closed for malformed, stale, foreign or tampered
 evidence. Strict parameters retain their direct replacement path.
@@ -120,7 +146,7 @@ exposed.
 
 This does not authorize arbitrary calling-mode rewriting. It does not authorize
 arbitrary multiple methods, general by-name or vararg construction,
-contextual/generic/curried/multi-clause method admission, or broader
+contextual/generic/defaulted/erased two-clause method admission, or broader
 method-shape support. Generated sibling-reference resolution remains separate,
 and this does not authorize general transactional rollback across later
 compiler phases.

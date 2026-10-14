@@ -395,9 +395,16 @@ The public `ExistingClassUntypedRewrite` facade exposes only the bounded
 composition described above. Its delegated package-private U-U mechanisms can
 perform admitted method-body and class/Template transformations while
 preserving exact objects where their contracts say so. The public method view
-admits exactly one ordinary clause of one or two parameters; semantic slot
-projection is bounded; replacement grammar is bounded; direct-member indices
-and capture-local refs are authority. There is still no arbitrary raw-tree
+admits exact parameterless `Nil`, explicit-empty `List(Nil)`, and one ordinary
+clause of one or two parameters. It also admits exact
+`List(List(a), List(b))` with distinct parameter names as two separate
+ordinary unary clauses at ordinals 0 and 1. The zero-parameter forms create no
+binder refs and retain distinct call syntax; the two-clause form retains
+independent binders, `List(1, 1)` topology, and curried call syntax. Semantic
+slot projection and replacement grammar remain bounded, while direct-member
+indices and capture-local refs are authority. Contextual, generic, defaulted,
+erased, by-name/repeated and other uncharacterized two-clause forms remain
+unsupported. There is still no arbitrary raw-tree
 editor, numeric-selector edit API, post-Typer rewriter, owner/symbol repair, or
 placement/lifecycle service. Optional `u*` syntax remains a later decision.
 The older specialized parameterless/single/two-parameter internal operations
