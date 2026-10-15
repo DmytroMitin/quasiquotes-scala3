@@ -525,7 +525,14 @@ clauses at ordinals 0 and 1 with independent binders, and preserves raw
 `List(List(a), List(b))`, `List(1, 1)` cardinality, and curried call syntax
 through parameter-Type, result-Type, binder-aware body, and combined atomic
 edits. A one-clause binary `combine(a, b)` remains a separate admitted
-family. It does not provide arbitrary AST rewriting, public `u*` syntax,
+family. The contextual family is separately bounded to C1
+`def use(using context: Int)` and C2
+`def combine(a: Int)(using context: Int)`. C1 exposes one `Contextual` clause
+at ordinal 0; C2 exposes `Ordinary` at ordinal 0 followed by `Contextual` at
+ordinal 1. `ParameterClauseKind.Contextual.code` is `CONTEXTUAL`, and both
+forms preserve their raw clause topology, capture-local binders, modifiers,
+source/span identity, and contextual call syntax through bounded edits. It
+does not provide arbitrary AST rewriting, public `u*` syntax,
 owner/symbol repair, target selection, or plugin lifecycle. Captured by-name
 and repeated/vararg parameters may be inspected and edited within the
 separately admitted one-clause unary/two-parameter method families; that
@@ -542,11 +549,19 @@ member and append of one ordinary accepted `SemanticDefinition` with
 deterministic generated-source provenance. Surviving originals retain their
 relative order and identity, and the generated member is last. Both legal
 immutable plan-building orders fail before result exposure on invalid
-combinations. This is not arbitrary multi-method/calling-mode or broader
-contextual, generic, defaulted, erased, by-name/repeated two-clause rewriting,
-generated sibling-reference resolution, or rollback across later compiler
-phases. Duplicate names and other uncharacterized clause topologies fail
-closed.
+combinations. This is not arbitrary multi-method/calling-mode rewriting.
+The separate generic G1 family admits exactly one unbounded private opaque
+Type clause followed by one ordinary strict unary term clause. The public view
+exposes only that term clause at ordinal 0; Type-independent primitive
+parameter/result and binder-aware body edits preserve the original Type clause,
+`TypeDef`, and bounds by identity. No public Type binder or substitution model
+is exposed. G2 Type-dependent slots, primitive-shadowing, bounded/wide/multiple
+Type clauses, and adjacent contextual/defaulted/by-name/repeated forms fail closed.
+Contextual-before-ordinary, multiple/empty/wide contextual clauses, Scala 2
+implicit-style, broader generic, defaulted, erased, by-name/repeated contextual forms,
+generated sibling-reference resolution, and rollback across later compiler
+phases remain unsupported. Duplicate names and other uncharacterized clause
+topologies fail closed.
 
 The additive [semantic Term generated-origin facade](docs/SEMANTIC_TERM_GENERATED_ORIGIN_LOWERING.md)
 accepts public TermShape and a virtual source name, returning a positioned tree,

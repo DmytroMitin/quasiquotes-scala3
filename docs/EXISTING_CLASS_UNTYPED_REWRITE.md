@@ -44,7 +44,8 @@ fresh structurally equal tree is not the same object.
 
 ## Method views and bounded semantic slots
 
-The admitted ordinary method topology has four exact forms:
+The admitted method topology has four ordinary forms plus two exact contextual
+forms:
 
 - `def value: Int = rhs` has raw `DefDef.paramss = Nil` and projects as zero
   public term parameter clauses;
@@ -55,6 +56,11 @@ The admitted ordinary method topology has four exact forms:
 - `def combine(a: Int)(b: Int): Int = rhs` has exact raw
   `List(List(a), List(b))` and admits exactly two ordinary unary clauses with
   distinct parameter names.
+- C1 `def use(using context: Int): Int = rhs` has exact raw
+  `List(List(context))` and one `Contextual` clause at ordinal 0; and
+- C2 `def combine(a: Int)(using context: Int): Int = rhs` has exact raw
+  `List(List(a), List(context))`, one `Ordinary` clause at ordinal 0 followed
+  by one `Contextual` clause at ordinal 1, and distinct binders.
 
 The first two forms both create zero `ParameterRef` binders. They preserve
 their distinct `value` versus `value()` call syntax while supporting bounded
@@ -74,11 +80,33 @@ result-Type, binder-aware body, and combined atomic edits preserve curried call
 syntax. A one-clause binary `f(a, b)` is not flattened into or conflated with
 `f(a)(b)`.
 
-Duplicate names, contextual clauses, generic methods, defaulted parameters,
-erased parameters, and by-name or repeated parameters within this two-clause
-family remain unsupported. The accepted by-name/repeated calling-mode edits
-belong to their separately admitted one-clause families and do not imply a
-two-clause widening.
+Each clause exposes its true `Ordinary` or `Contextual` kind, and
+`ParameterClauseKind.Contextual.code == "CONTEXTUAL"`. C1 preserves
+`List(List(context))` and `List(1)`; C2 preserves
+`List(List(a), List(context))`, distinct binders, `List(1, 1)`, and contextual
+call syntax. Parameter-Type, result-Type, binder-aware body, and combined
+atomic edits retain those clause kinds and ordinals.
+
+For the two-ordinary-clause family, duplicate names, generic methods,
+defaulted parameters, erased parameters, and by-name or repeated parameters
+remain unsupported. The separate contextual family admits C1 one contextual
+unary clause at ordinal 0 and C2 one ordinary unary clause at ordinal 0
+followed by one contextual unary clause at ordinal 1.
+
+Contextual-before-ordinary, two contextual clauses, empty or wide contextual
+clauses, third clauses, duplicate names, Scala 2 implicit-style clauses,
+generic, defaulted, erased, by-name, and repeated contextual forms remain
+unsupported. The accepted by-name/repeated calling-mode edits belong to their
+separately admitted one-clause ordinary families and do not imply a contextual
+or general two-clause widening.
+
+The separate G1 family admits exact one unbounded private opaque `TypeDef`
+clause followed by one `Ordinary` strict unary term clause exposed at public
+term-clause ordinal 0. Type-independent primitive parameter/result Types and
+binder-aware body edits preserve the original Type clause, `TypeDef`, and
+bounds by identity; no public Type binder is exposed. G2 locally Type-dependent
+slots, primitive-shadowing, bounded, wide, or multiple Type clauses, and
+contextual, defaulted, by-name, or repeated adjacent forms remain fail-closed.
 
 Raw capture and semantic projection are independent. A Type or body slot may
 return `UNSUPPORTED_STRUCTURE` while its exact identity remains available.
@@ -145,11 +173,12 @@ orders are supported, and invalid combinations fail before a result is
 exposed.
 
 This does not authorize arbitrary calling-mode rewriting. It does not authorize
-arbitrary multiple methods, general by-name or vararg construction,
-contextual/generic/defaulted/erased two-clause method admission, or broader
-method-shape support. Generated sibling-reference resolution remains separate,
-and this does not authorize general transactional rollback across later
-compiler phases.
+arbitrary multiple methods, general by-name or vararg construction, or broader
+method-shape support. Contextual support is limited to C1 and C2 above; generic
+support is limited to G1 above, while defaulted, erased, contextual-before-ordinary, multiple-contextual and
+by-name/repeated contextual shapes remain fail-closed. Generated
+sibling-reference resolution remains separate, and this does not authorize
+general transactional rollback across later compiler phases.
 
 Earlier active-source warnings were conservative for the historical unsafe
 whole-slot implementation and are superseded by the bounded wrapper-preserving
@@ -228,12 +257,36 @@ object ExistingClassUntypedRewriteFirstUse:
       p4 <- p3.append(GeneratedSibling, "generated/ExistingClassBonus.scala")
       result <- ExistingClassUntypedRewrite(captured, p4)
     yield result
+
+  def contextualClauseKinds(existingClass: untpd.Tree)(using Context)
+      : Either[Failure, (Vector[(String, Int)], Vector[(String, Int)])] =
+    for
+      captured <- ExistingClassUntypedRewrite.capture(existingClass)
+      contextualMember <- captured.member(0)
+      contextualMethod <- captured.method(contextualMember.ref)
+      mixedMember <- captured.member(1)
+      mixedMethod <- captured.method(mixedMember.ref)
+    yield
+      val contextual = contextualMethod.parameterClauses.zipWithIndex.map:
+        (clause, clauseIndex) => clause.kind.code -> clauseIndex
+      val mixed = mixedMethod.parameterClauses.zipWithIndex.map:
+        (clause, clauseIndex) => clause.kind.code -> clauseIndex
+      contextual -> mixed
 ```
 <!-- snippet:existing-class-untyped-rewrite-first-use:end -->
 
 For U1, omit the three replace calls and append from `emptyPlan`. For U2,
 apply `p3` without the append. In all three cases, invoke the facade exactly
 once for the finished plan.
+
+For contextual first use, pass a class whose first two direct methods are C1
+`def use(using context: Int)` and C2
+`def combine(a: Int)(using context: Int)`. The compiled foreign-package helper
+returns `Vector("CONTEXTUAL" -> 0)` for C1 and
+`Vector("ORDINARY" -> 0, "CONTEXTUAL" -> 1)` for C2. A runtime integration
+consumer also installs `given Int = 22`; after bounded parameter/result/body
+edits, `combine(20)` contributes 42 and the contextual-only value contributes
+22, producing 64.
 
 ## Failures and limits
 

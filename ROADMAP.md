@@ -379,10 +379,17 @@ architecture rather than inventing a new one:
 - **U-U** continues bounded existing-tree capture, preservation, rewrite, and
   reconstruction work. The current public facade distinguishes parameterless
   `Nil`, explicit-empty `List(Nil)`, one ordinary unary/binary clause, and
-  exactly two distinct-name ordinary unary clauses. The two-clause family
-  preserves ordinals 0/1, independent binders and curried call syntax; it does
-  not imply contextual, generic, defaulted, erased, by-name/repeated or general
-  multi-clause support;
+  exactly two distinct-name ordinary unary clauses. It also admits C1 one
+  contextual unary clause and C2 one ordinary unary followed by one contextual
+  unary clause. C1/C2 preserve true `Ordinary`/`Contextual` kinds, ordinals,
+  independent binders and contextual call syntax. The separate G1 generic
+  family preserves one private opaque unbounded Type clause and exposes only
+  one ordinary strict unary term clause at public ordinal 0; Type-independent
+  primitive Type/body edits preserve the Type clause and bounds by identity.
+  This does not imply public Type binders, G2 Type-dependent substitution,
+  contextual-before-ordinary, multiple/empty/wide contextual clauses, Scala 2
+  implicit-style, broader generic, defaulted, erased, by-name/repeated contextual or
+  general multi-clause support;
 - **C** owns cross-layer integration and public API policy.
 
 Public existing-tree transformation is post-0.3.0 future work. Reopening

@@ -404,9 +404,22 @@ independent binders, `List(1, 1)` topology, and curried call syntax. Semantic
 slot projection and replacement grammar remain bounded, while direct-member
 indices and capture-local refs are authority. Contextual, generic, defaulted,
 erased, by-name/repeated and other uncharacterized two-clause forms remain
-unsupported. There is still no arbitrary raw-tree
+unsupported except for the exact existing-tree C1/C2 contextual family. C1
+preserves one `Contextual` clause at ordinal 0; C2 preserves `Ordinary` at
+ordinal 0 followed by `Contextual` at ordinal 1. Both retain raw clause
+cardinality, modifiers, capture-local binders and contextual calling syntax;
+`ParameterClauseKind.Contextual.code` is `CONTEXTUAL`. Contextual-before-
+ordinary, multiple/empty/wide contextual clauses, Scala 2 implicit-style,
+generic contextual, defaulted, erased, by-name and repeated contextual shapes still fail
+closed. There is still no arbitrary raw-tree
 editor, numeric-selector edit API, post-Typer rewriter, owner/symbol repair, or
 placement/lifecycle service. Optional `u*` syntax remains a later decision.
+Separately, generic G1 admits one unbounded private opaque `TypeDef` clause
+followed by one ordinary strict unary term clause. Only the term clause is
+public at ordinal 0; Type-independent primitive parameter/result/body edits
+preserve the Type clause, `TypeDef`, and bounds by identity. G2 dependent slots,
+primitive-shadowing, bounded/wide/multiple Type clauses, and public Type-binder
+semantics remain closed.
 The older specialized parameterless/single/two-parameter internal operations
 remain implementation authorities and do not independently widen the public
 contract.

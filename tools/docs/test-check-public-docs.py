@@ -144,6 +144,8 @@ class PublicDocsCheckTest(unittest.TestCase):
             "| Source-owned local identity method (P3) | `BOUNDED` | `BOUNDED` standard typed qq | `BOUNDED` complete-source-root local identity method only; callback-owned `MethodType`, `DefDef`, `Quotes`, source and Type sidecars | `BOUNDED` Scalameta-primary matching parity; symbolic and Unicode source binders excluded; original caller-universe `Term`; synthetic constructed P3 matching still requires explicit source TypeTree provenance | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_APPLICABLE` |\n"
             "| Existing-class zero-parameter ordinary methods | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `BOUNDED` `DefDef.paramss = Nil` projects as zero public term clauses; `List(Nil)` projects as one empty ordinary clause; both create zero parameter binders |\n"
             "| Existing-class two ordinary unary clauses | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `BOUNDED` exact `List(List(a), List(b))`; two `Ordinary` clauses at ordinals 0 and 1; distinct binders; preserved `List(1, 1)` topology and curried call syntax |\n"
+            "| Existing-class contextual unary clauses | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `BOUNDED` C1 exact `List(List(context))` exposes one `Contextual` clause at ordinal 0; C2 exact `List(List(a), List(context))` exposes `Ordinary` at ordinal 0 then `Contextual` at ordinal 1; distinct binders; preserved `List(1)` or `List(1, 1)` topology and contextual call syntax |\n"
+            "| Existing-class generic G1 unary method | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `BOUNDED` exact one unbounded private opaque `TypeDef` clause followed by one `Ordinary` strict unary term clause exposed at public term-clause ordinal 0; Type-independent primitive parameter/result Types and binder-aware body edits preserve the original Type clause, `TypeDef`, and bounds by identity; no public Type binder |\n"
             "\n`TermUntypedLowering` and `TermGeneratedOriginLowering` preserve "
             "two or more successive ordinary argument clauses. "
             "`ScalametaTermProjection` and `ScalametaTermShapeAuthoring` preserve completed nested clauses. "
@@ -192,9 +194,24 @@ class PublicDocsCheckTest(unittest.TestCase):
             "ordinary unary clauses with distinct parameter names. Those clauses remain separate "
             "at ordinals 0 and 1 with independent binders and `List(1, 1)` topology; parameter-Type, "
             "result-Type, binder-aware body, and combined atomic edits preserve curried call syntax. "
-            "Duplicate names, contextual clauses, generic methods, defaulted parameters, erased "
-            "parameters, and by-name or repeated parameters within this two-clause family remain "
-            "unsupported. Mixed edits compose across two distinct admitted "
+            "For the two-ordinary-clause family, duplicate names, generic methods, defaulted "
+            "parameters, erased parameters, and by-name or repeated parameters remain "
+            "unsupported. The separate contextual family admits C1 one contextual unary clause "
+            "at ordinal 0 and C2 one ordinary unary clause at ordinal 0 followed by one contextual "
+            "unary clause at ordinal 1. Each clause exposes its true `Ordinary` or `Contextual` "
+            "kind, and `ParameterClauseKind.Contextual.code == \"CONTEXTUAL\"`. C1 preserves "
+            "`List(List(context))` and `List(1)`; C2 preserves "
+            "`List(List(a), List(context))`, distinct binders, `List(1, 1)`, and contextual call "
+            "syntax. Contextual-before-ordinary, two contextual clauses, empty or wide contextual "
+            "clauses, third clauses, duplicate names, Scala 2 implicit-style clauses, generic, "
+            "defaulted, erased, by-name, and repeated contextual forms remain unsupported. Mixed "
+            "The separate G1 family admits exact one unbounded private opaque `TypeDef` clause "
+            "followed by one `Ordinary` strict unary term clause exposed at public term-clause ordinal 0. "
+            "Type-independent primitive parameter/result Types and binder-aware body edits preserve "
+            "the original Type clause, `TypeDef`, and bounds by identity; no public Type binder is exposed. "
+            "G2 locally Type-dependent slots, primitive-shadowing, bounded, wide, or multiple Type clauses, "
+            "and contextual, defaulted, by-name, or repeated adjacent forms remain fail-closed. "
+            "edits compose across two distinct admitted "
             "methods of the same captured class while preserving independent method/parameter "
             "refs.\n\n"
             "The bounded two-method transaction may combine those Type edits with capture-local "
@@ -216,6 +233,14 @@ class PublicDocsCheckTest(unittest.TestCase):
             "with zero parameter binders and preserved call syntax. It also preserves exact "
             "`List(List(a), List(b))` as two separate ordinary unary clauses with distinct binders, "
             "ordinals 0 and 1, `List(1, 1)` topology, and curried call syntax. It supports the bounded two-method "
+            "calling-mode family. Separately, C1 preserves one `Contextual` clause at ordinal 0, "
+            "while C2 preserves `Ordinary` at ordinal 0 followed by `Contextual` at ordinal 1, "
+            "without flattening either clause topology; the contextual kind code is `CONTEXTUAL`. "
+            "G1 preserves one private opaque unbounded `TypeDef` clause and exposes only one `Ordinary` "
+            "term clause at public ordinal 0. Type-independent primitive parameter/result/body edits "
+            "preserve original `TypeDef` and bounds by identity. G2 locally dependent slots remain "
+            "fail-closed and no public Type-binder carrier exists. "
+            "It supports the bounded two-method "
             "calling-mode edit plus capture-local omit and generated SemanticDefinition append "
             "composition in one immutable plan. It is not a universal owner editor.\n",
             encoding="utf-8",
@@ -1124,7 +1149,7 @@ class PublicDocsCheckTest(unittest.TestCase):
 
     def test_rejects_c074_contextual_or_duplicate_name_two_clause_overclaim(self) -> None:
         claims = (
-            "Contextual second clauses are supported by ExistingClassUntypedRewrite.",
+            "All contextual second clauses are supported by ExistingClassUntypedRewrite.",
             "Duplicate parameter names are supported in the two-clause family.",
         )
         for claim in claims:
@@ -1141,6 +1166,153 @@ class PublicDocsCheckTest(unittest.TestCase):
 
                 self.assertEqual(result.returncode, 1)
                 self.assertIn("two-clause adjacent-family overclaim", result.stderr)
+
+    def test_rejects_missing_c076_contextual_clause_row(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            matrix = root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md"
+            matrix.write_text(
+                "\n".join(
+                    line
+                    for line in matrix.read_text(encoding="utf-8").splitlines()
+                    if not line.startswith("| Existing-class contextual unary clauses |")
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C076 contextual clause matrix", result.stderr)
+
+    def test_rejects_c076_swapped_clause_kinds_and_ordinals(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            matrix = root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md"
+            matrix.write_text(
+                matrix.read_text(encoding="utf-8").replace(
+                    "exposes `Ordinary` at ordinal 0 then `Contextual` at ordinal 1",
+                    "exposes `Contextual` at ordinal 0 then `Ordinary` at ordinal 1",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C076 contextual clause matrix detail", result.stderr)
+
+    def test_rejects_missing_c076_contextual_code_truth(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            rewrite = root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md"
+            rewrite.write_text(
+                rewrite.read_text(encoding="utf-8").replace(
+                    "`ParameterClauseKind.Contextual.code == \"CONTEXTUAL\"`",
+                    "`ParameterClauseKind.Contextual`",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C076 contextual rewrite contract missing", result.stderr)
+
+    def test_rejects_c076_stale_contextual_not_yet_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            readme = root / "README.md"
+            readme.write_text(
+                readme.read_text(encoding="utf-8")
+                + "\nContextual existing-tree rewrite is `NOT_YET`.\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C076 stale contextual availability claim", result.stderr)
+
+    def test_rejects_c076_broad_contextual_or_implicit_admission(self) -> None:
+        claims = (
+            "All contextual method shapes are supported by ExistingClassUntypedRewrite.",
+            "Scala 2 implicit-style clauses are supported by ExistingClassUntypedRewrite.",
+            "Generic contextual methods are supported by ExistingClassUntypedRewrite.",
+            "Defaulted contextual parameters are supported by ExistingClassUntypedRewrite.",
+            "Erased contextual parameters are supported by ExistingClassUntypedRewrite.",
+        )
+        for claim in claims:
+            with self.subTest(claim=claim), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.make_fixture(root)
+                readme = root / "README.md"
+                readme.write_text(
+                    readme.read_text(encoding="utf-8") + f"\n{claim}\n",
+                    encoding="utf-8",
+                )
+
+                result = self.run_checker(root)
+
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("C076 contextual adjacent-family overclaim", result.stderr)
+
+    def test_rejects_missing_c076_accepted_u068_g1_row(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            matrix = root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md"
+            matrix.write_text(
+                "\n".join(
+                    line
+                    for line in matrix.read_text(encoding="utf-8").splitlines()
+                    if not line.startswith("| Existing-class generic G1 unary method |")
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C076 accepted U068 G1 matrix", result.stderr)
+
+    def test_rejects_c076_stale_blanket_generic_rejection(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            readme = root / "README.md"
+            readme.write_text(
+                readme.read_text(encoding="utf-8")
+                + "\nAll generic existing methods remain unsupported by ExistingClassUntypedRewrite.\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C076 stale accepted U068 G1 rejection", result.stderr)
+
+    def test_rejects_c076_u068_g2_overclaim(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            readme = root / "README.md"
+            readme.write_text(
+                readme.read_text(encoding="utf-8")
+                + "\nG2 locally Type-dependent generic methods are supported by ExistingClassUntypedRewrite.\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C076 U068 G2 overclaim", result.stderr)
 
     def test_rejects_stale_c070_cross_member_omit_append_exclusion(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

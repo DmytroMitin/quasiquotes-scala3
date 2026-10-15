@@ -211,22 +211,35 @@ insertion, rollback, ordinary typing, ownership, or reownership. See the
 ## Public bounded existing-class rewrite
 
 `ExistingClassUntypedRewrite` is a separate exact-version U-U facade over one
-already parsed pre-Typer class. Its admitted ordinary method topologies are
-exactly:
+already parsed pre-Typer class. Its admitted method topologies are exactly:
 
 - raw `DefDef.paramss = Nil`, exposed as zero public term clauses;
 - raw `List(Nil)`, exposed as one empty `Ordinary` clause;
 - one ordinary clause with one or two parameters; and
 - exact `List(List(a), List(b))` with distinct names, exposed as two
-  `Ordinary` clauses at ordinals 0 and 1 with independent binders.
+  `Ordinary` clauses at ordinals 0 and 1 with independent binders;
+- C1 one contextual unary clause, exposed as `Contextual` at ordinal 0; and
+- C2 one ordinary unary then one contextual unary clause, exposed as
+  `Ordinary` at ordinal 0 and `Contextual` at ordinal 1; and
+- G1 one unbounded private opaque Type clause followed by one ordinary strict
+  unary term clause, with only the term clause exposed at public ordinal 0.
 
 The two-clause family preserves `List(1, 1)`, curried call syntax, method
 identity, source/provenance, and untouched members through parameter-Type,
 result-Type, binder-aware body and combined atomic edits. A one-clause binary
-`f(a, b)` remains distinct from `f(a)(b)`. Duplicate names, contextual,
-generic, defaulted, erased, and by-name/repeated parameters within the
-two-clause family remain unsupported. Previously accepted by-name/repeated
-calling-mode edits stay scoped to their one-clause families.
+`f(a, b)` remains distinct from `f(a)(b)`. The contextual forms preserve
+`List(1)` or `List(1, 1)`, true clause kinds, zero-based ordinals, contextual
+call syntax, source/span identity, and capture-local binders. `Contextual.code`
+is `CONTEXTUAL`. Contextual-before-ordinary, two contextual clauses,
+empty/wide contextual clauses, third clauses, duplicate names, Scala 2
+implicit-style clauses, generic contextual, defaulted, erased, and by-name/repeated
+contextual forms remain unsupported. Previously accepted by-name/repeated
+calling-mode edits stay scoped to their one-clause ordinary families.
+G1 permits Type-independent primitive parameter/result and binder-aware body
+edits while preserving the original Type clause, `TypeDef`, and bounds by
+identity. It exposes no public Type binder. G2 Type-dependent slots,
+primitive-shadowing, bounded/wide/multiple Type clauses, and adjacent
+contextual/defaulted/by-name/repeated shapes remain fail-closed.
 
 Currently exercised areas include:
 

@@ -1041,7 +1041,7 @@ def c074_truth_findings(root: Path) -> list[str]:
         "admits exactly two ordinary unary clauses with distinct parameter names",
         "Those clauses remain separate at ordinals 0 and 1 with independent binders and `List(1, 1)` topology",
         "parameter-Type, result-Type, binder-aware body, and combined atomic edits preserve curried call syntax",
-        "Duplicate names, contextual clauses, generic methods, defaulted parameters, erased parameters, and by-name or repeated parameters within this two-clause family remain unsupported",
+        "For the two-ordinary-clause family, duplicate names, generic methods, defaulted parameters, erased parameters, and by-name or repeated parameters remain unsupported",
     ):
         if marker.casefold() not in normalized_rewrite.casefold():
             findings.append(f"C074 two-clause topology contract missing: {marker}")
@@ -1085,7 +1085,7 @@ def c074_truth_findings(root: Path) -> list[str]:
             findings.append(f"C074 stale two-clause rejection: {stale}")
 
     for overclaim in (
-        "contextual second clauses are supported by existingclassuntypedrewrite",
+        "all contextual second clauses are supported by existingclassuntypedrewrite",
         "duplicate parameter names are supported in the two-clause family",
         "generic two-clause existing methods are supported",
         "by-name parameters are supported within the two-clause family",
@@ -1093,6 +1093,148 @@ def c074_truth_findings(root: Path) -> list[str]:
     ):
         if overclaim in public_text:
             findings.append(f"C074 two-clause adjacent-family overclaim: {overclaim}")
+
+    return findings
+
+
+def c076_truth_findings(root: Path) -> list[str]:
+    cross_matrix = (root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md").read_text(
+        encoding="utf-8"
+    )
+    rewrite = (root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md").read_text(
+        encoding="utf-8"
+    )
+    pipeline = (root / "docs/PROJECTION_LOWERING_BRIDGE_MATRIX.md").read_text(
+        encoding="utf-8"
+    )
+    findings = []
+
+    rows = markdown_table_rows(cross_matrix)
+    contextual_rows = rows.get("Existing-class contextual unary clauses", [])
+    if len(contextual_rows) != 1:
+        findings.append(
+            "C076 contextual clause matrix requires exactly one existing-class row"
+        )
+    elif capability_status(contextual_rows[0][-1]) != "BOUNDED":
+        findings.append("C076 contextual clause matrix must be BOUNDED")
+    for marker in (
+        "C1 exact `List(List(context))` exposes one `Contextual` clause at ordinal 0",
+        "C2 exact `List(List(a), List(context))` exposes `Ordinary` at ordinal 0 then `Contextual` at ordinal 1",
+        "distinct binders",
+        "preserved `List(1)` or `List(1, 1)` topology and contextual call syntax",
+    ):
+        if marker not in cross_matrix:
+            findings.append(f"C076 contextual clause matrix detail missing: {marker}")
+
+    generic_g1_rows = rows.get("Existing-class generic G1 unary method", [])
+    if len(generic_g1_rows) != 1:
+        findings.append(
+            "C076 accepted U068 G1 matrix requires exactly one existing-class row"
+        )
+    elif capability_status(generic_g1_rows[0][-1]) != "BOUNDED":
+        findings.append("C076 accepted U068 G1 matrix must be BOUNDED")
+    for marker in (
+        "exact one unbounded private opaque `TypeDef` clause followed by one `Ordinary` strict unary term clause exposed at public term-clause ordinal 0",
+        "Type-independent primitive parameter/result Types and binder-aware body edits preserve the original Type clause, `TypeDef`, and bounds by identity",
+        "no public Type binder",
+    ):
+        if marker not in cross_matrix:
+            findings.append(f"C076 accepted U068 G1 matrix detail missing: {marker}")
+
+    normalized_rewrite = " ".join(rewrite.split())
+    for marker in (
+        "C1 one contextual unary clause at ordinal 0",
+        "C2 one ordinary unary clause at ordinal 0 followed by one contextual unary clause at ordinal 1",
+        "Each clause exposes its true `Ordinary` or `Contextual` kind",
+        '`ParameterClauseKind.Contextual.code == "CONTEXTUAL"`',
+        "C1 preserves `List(List(context))` and `List(1)`",
+        "C2 preserves `List(List(a), List(context))`, distinct binders, `List(1, 1)`, and contextual call syntax",
+        "Contextual-before-ordinary, two contextual clauses, empty or wide contextual clauses, third clauses, duplicate names, Scala 2 implicit-style clauses, generic, defaulted, erased, by-name, and repeated contextual forms remain unsupported",
+    ):
+        if marker.casefold() not in normalized_rewrite.casefold():
+            findings.append(f"C076 contextual rewrite contract missing: {marker}")
+
+    for marker in (
+        "The separate G1 family admits exact one unbounded private opaque `TypeDef` clause followed by one `Ordinary` strict unary term clause exposed at public term-clause ordinal 0",
+        "Type-independent primitive parameter/result Types and binder-aware body edits preserve the original Type clause, `TypeDef`, and bounds by identity; no public Type binder is exposed",
+        "G2 locally Type-dependent slots, primitive-shadowing, bounded, wide, or multiple Type clauses, and contextual, defaulted, by-name, or repeated adjacent forms remain fail-closed",
+    ):
+        if marker.casefold() not in normalized_rewrite.casefold():
+            findings.append(f"C076 accepted U068 G1 rewrite contract missing: {marker}")
+
+    normalized_pipeline = " ".join(pipeline.split())
+    for marker in (
+        "C1 preserves one `Contextual` clause at ordinal 0",
+        "C2 preserves `Ordinary` at ordinal 0 followed by `Contextual` at ordinal 1",
+        "without flattening either clause topology",
+        "contextual kind code is `CONTEXTUAL`",
+    ):
+        if marker.casefold() not in normalized_pipeline.casefold():
+            findings.append(f"C076 pipeline contextual contract missing: {marker}")
+
+    for marker in (
+        "G1 preserves one private opaque unbounded `TypeDef` clause and exposes only one `Ordinary` term clause at public ordinal 0",
+        "Type-independent primitive parameter/result/body edits preserve original `TypeDef` and bounds by identity",
+        "G2 locally dependent slots remain fail-closed and no public Type-binder carrier exists",
+    ):
+        if marker.casefold() not in normalized_pipeline.casefold():
+            findings.append(f"C076 accepted U068 G1 pipeline contract missing: {marker}")
+
+    public_text = "\n".join(
+        (
+            (root / "README.md").read_text(encoding="utf-8"),
+            (root / "ROADMAP.md").read_text(encoding="utf-8"),
+            cross_matrix,
+            rewrite,
+            pipeline,
+            (root / "docs/ARCHITECTURE.md").read_text(encoding="utf-8"),
+            (root / "docs/DOTTY_INTERNAL_BACKEND.md").read_text(encoding="utf-8")
+            if (root / "docs/DOTTY_INTERNAL_BACKEND.md").exists()
+            else "",
+            (root / "docs/GETTING_STARTED.md").read_text(encoding="utf-8")
+            if (root / "docs/GETTING_STARTED.md").exists()
+            else "",
+            (root / "docs/SYNTAX_SUPPORT_MATRIX.md").read_text(encoding="utf-8"),
+            (root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md").read_text(
+                encoding="utf-8"
+            ),
+        )
+    ).casefold()
+
+    for stale in (
+        "contextual existing-tree rewrite is `not_yet`",
+        "no accepted contextual-method existing-tree rewrite",
+    ):
+        if stale in public_text:
+            findings.append(f"C076 stale contextual availability claim: {stale}")
+
+    for stale in (
+        "all generic existing methods remain unsupported by existingclassuntypedrewrite",
+        "generic existing-tree rewrite is `not_yet`",
+    ):
+        if stale in public_text:
+            findings.append(f"C076 stale accepted U068 G1 rejection: {stale}")
+
+    for overclaim in (
+        "all contextual method shapes are supported by existingclassuntypedrewrite",
+        "all contextual second clauses are supported by existingclassuntypedrewrite",
+        "scala 2 implicit-style clauses are supported by existingclassuntypedrewrite",
+        "generic contextual methods are supported by existingclassuntypedrewrite",
+        "defaulted contextual parameters are supported by existingclassuntypedrewrite",
+        "erased contextual parameters are supported by existingclassuntypedrewrite",
+        "by-name contextual parameters are supported by existingclassuntypedrewrite",
+        "repeated contextual parameters are supported by existingclassuntypedrewrite",
+    ):
+        if overclaim in public_text:
+            findings.append(f"C076 contextual adjacent-family overclaim: {overclaim}")
+
+    for overclaim in (
+        "g2 locally type-dependent generic methods are supported by existingclassuntypedrewrite",
+        "existingclassuntypedrewrite exposes public type binders",
+        "generic type substitution is supported by existingclassuntypedrewrite",
+    ):
+        if overclaim in public_text:
+            findings.append(f"C076 U068 G2 overclaim: {overclaim}")
 
     return findings
 
@@ -1112,6 +1254,7 @@ def check(root: Path) -> list[str]:
         + c070_truth_findings(root)
         + c073_truth_findings(root)
         + c074_truth_findings(root)
+        + c076_truth_findings(root)
     )
 
 

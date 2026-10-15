@@ -298,16 +298,26 @@ ordered direct-member views, opaque capture-local refs, exact-object identity
 handles, zero-binder result/body edits for distinct parameterless `Nil` and
 explicit-empty `List(Nil)` methods, binder-aware one-clause unary/binary
 method edits, and exactly two distinct-name ordinary unary clauses at ordinals
-0 and 1 with independent binders and preserved curried call syntax. Omission
+0 and 1 with independent binders and preserved curried call syntax. The same
+facade separately admits C1 one contextual unary clause at ordinal 0 and C2
+one ordinary unary clause at ordinal 0 followed by one contextual unary clause
+at ordinal 1. The public clause-kind carrier distinguishes `Ordinary` from
+`Contextual` (`code == "CONTEXTUAL"`) without encoding arity or topology.
+The separate generic G1 path keeps one unbounded private opaque Type clause
+outside that public term-clause carrier, exposes its following ordinary strict
+unary term clause at ordinal 0, and preserves the original `TypeDef` and bounds
+by identity for Type-independent primitive parameter/result/body edits. It
+does not expose a public Type binder or authorize G2 Type-dependent substitution.
+Omission
 and ordered semantic Definition append compose through one immutable plan and
 one final owner transaction. It delegates the accepted
 package-private capture,
 projection, preparation, reconstruction, and transaction authorities rather
 than exposing their carriers. Unsupported shapes fail closed. It is not
 arbitrary raw-tree rewriting, owner/symbol repair, lifecycle/placement, or
-public `u*` syntax. Contextual, generic, defaulted, erased and by-name or
-repeated parameters within the two-clause family remain outside the admitted
-architecture.
+public `u*` syntax. Contextual-before-ordinary, multiple/empty/wide contextual
+clauses, Scala 2 implicit-style, broader generic, defaulted, erased and by-name or
+repeated contextual parameters remain outside the admitted architecture.
 
 An advanced owner/definition-plan handle may eventually be justified by a
 real consumer, but symmetric `sqr`/`sqq` symbol syntax is not currently

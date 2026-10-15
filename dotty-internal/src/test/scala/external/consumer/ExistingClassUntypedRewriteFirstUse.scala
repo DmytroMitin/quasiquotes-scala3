@@ -36,4 +36,19 @@ object ExistingClassUntypedRewriteFirstUse:
       p4 <- p3.append(GeneratedSibling, "generated/ExistingClassBonus.scala")
       result <- ExistingClassUntypedRewrite(captured, p4)
     yield result
+
+  def contextualClauseKinds(existingClass: untpd.Tree)(using Context)
+      : Either[Failure, (Vector[(String, Int)], Vector[(String, Int)])] =
+    for
+      captured <- ExistingClassUntypedRewrite.capture(existingClass)
+      contextualMember <- captured.member(0)
+      contextualMethod <- captured.method(contextualMember.ref)
+      mixedMember <- captured.member(1)
+      mixedMethod <- captured.method(mixedMember.ref)
+    yield
+      val contextual = contextualMethod.parameterClauses.zipWithIndex.map:
+        (clause, clauseIndex) => clause.kind.code -> clauseIndex
+      val mixed = mixedMethod.parameterClauses.zipWithIndex.map:
+        (clause, clauseIndex) => clause.kind.code -> clauseIndex
+      contextual -> mixed
 // snippet:existing-class-untyped-rewrite-first-use:end
