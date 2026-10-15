@@ -201,7 +201,8 @@ class ExistingUntpdOrdinaryMethodDescriptorTest extends munit.FunSuite:
         "class A:\n  def f: Int = 1\n",
         "class A:\n  def f(): Int = 1\n",
         "class A:\n  def f(x: Int): Int = 1\n",
-        "class A:\n  def f(x: Int, y: String): Int = 1\n"
+        "class A:\n  def f(x: Int, y: String): Int = 1\n",
+        "class A:\n  def f[T](x: Int): Int = 1\n"
       ).foreach { source =>
         val m = methodFrom(source)
         Vector(symbolic, untpd.TypedSplice(symbolic), untpd.Apply(m.rhs, null.asInstanceOf[List[untpd.Tree]])).foreach { bad =>

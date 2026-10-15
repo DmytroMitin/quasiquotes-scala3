@@ -131,9 +131,10 @@ final class ExistingMethodTypeParameterCaptureRewriteModelFitTyperRuntimeTest
     for
       captured <- ExistingUntpdClassMemberFilter.capture(root).left.map(_.message)
       _ <- ExistingUntpdOrdinaryMethodDescriptor.capture(captured, 0) match
-        case Left(problem) if problem.code == "UNSUPPORTED_PARAMETER_TOPOLOGY" => Right(())
+        case Right(descriptor) if rewriteTypes && descriptor.opaqueTypeClause.nonEmpty => Right(())
+        case Left(problem) if !rewriteTypes && problem.code == "GENERIC_TYPE_DEPENDENCY_UNSUPPORTED" => Right(())
         case Left(problem) => Left("unexpected descriptor failure: " + problem.message)
-        case Right(_) => Left("production descriptor unexpectedly admitted generic method")
+        case Right(_) => Left("production descriptor admitted the wrong generic family")
       carrier <- ExistingMethodTypeParameterCaptureRewriteModelFitProbe.assemble(captured, 0)
       prepared <- ExistingMethodTypeParameterCaptureRewriteModelFitProbe
         .prepare(carrier, rewriteTypes)

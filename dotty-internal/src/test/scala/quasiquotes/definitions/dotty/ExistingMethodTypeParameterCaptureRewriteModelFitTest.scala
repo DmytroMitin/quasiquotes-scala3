@@ -102,28 +102,44 @@ class ExistingMethodTypeParameterCaptureRewriteModelFitTest extends munit.FunSui
     }
   }
 
-  test("current private and public capture reject G1 and G2 at generic topology") {
+  test("production capture admits G1 and keeps G2 rejected at its dependent Type slots") {
     withContext {
-      fixtures.take(1).appended(fixtures(2)).foreach { fixture =>
-        val root = parseClass(fixture.source)
-        val captured = ExistingUntpdClassMemberFilter.capture(root).fold(
-          problem => fail(problem.message),
-          identity
-        )
-        val privateFailure = ExistingUntpdOrdinaryMethodDescriptor
-          .capture(captured, 0).left.toOption.get
-        assertEquals(privateFailure.code, "UNSUPPORTED_PARAMETER_TOPOLOGY")
-        assert(privateFailure.detail.contains("one clause"))
+      val g1Root = parseClass(fixtures.head.source)
+      val g1Captured = ExistingUntpdClassMemberFilter.capture(g1Root).fold(
+        problem => fail(problem.message),
+        identity
+      )
+      val g1Descriptor = ExistingUntpdOrdinaryMethodDescriptor.capture(g1Captured, 0).fold(
+        problem => fail(problem.message),
+        identity
+      )
+      assertEquals(g1Descriptor.parameterClauses.size, 1)
+      assertEquals(g1Descriptor.parameterClauses.head.size, 1)
+      assert(g1Descriptor.opaqueTypeClause.nonEmpty)
 
-        val publicCapture = ExistingClassUntypedRewrite.capture(root).fold(
-          problem => fail(problem.message),
-          identity
-        )
-        val publicFailure = publicCapture
-          .method(publicCapture.members.head.ref).left.toOption.get
-        assertEquals(publicFailure.code, "UNSUPPORTED_STRUCTURE")
-        assert(publicFailure.detail.contains("UNSUPPORTED_PARAMETER_TOPOLOGY"))
-      }
+      val g1Public = ExistingClassUntypedRewrite.capture(g1Root).fold(
+        problem => fail(problem.message),
+        identity
+      )
+      assert(g1Public.method(g1Public.members.head.ref).isRight)
+
+      val g2Root = parseClass(fixtures(2).source)
+      val g2Captured = ExistingUntpdClassMemberFilter.capture(g2Root).fold(
+        problem => fail(problem.message),
+        identity
+      )
+      val privateFailure = ExistingUntpdOrdinaryMethodDescriptor
+        .capture(g2Captured, 0).left.toOption.get
+      assertEquals(privateFailure.code, "GENERIC_TYPE_DEPENDENCY_UNSUPPORTED")
+
+      val publicCapture = ExistingClassUntypedRewrite.capture(g2Root).fold(
+        problem => fail(problem.message),
+        identity
+      )
+      val publicFailure = publicCapture
+        .method(publicCapture.members.head.ref).left.toOption.get
+      assertEquals(publicFailure.code, "UNSUPPORTED_STRUCTURE")
+      assert(publicFailure.detail.contains("GENERIC_TYPE_DEPENDENCY_UNSUPPORTED"))
     }
   }
 

@@ -130,6 +130,45 @@ final class ExistingClassUntypedRewriteConsumerTest extends munit.FunSuite:
       assert(!applied.directMemberIdentities.head.sameObjectAs(captured.members.head.identity))
       assert(applied.directMemberIdentities(1).sameObjectAs(captured.members(1).identity))
 
+  test("foreign callers rewrite G1 while its method Type clause stays opaque"):
+    withContext:
+      val root = parseClass(
+        """class GenericPublic:
+          |  def keep[A](x: AnyVal): AnyVal = x
+          |  val untouched: Int = 7
+          |""".stripMargin
+      )
+      val original = root.rhs.asInstanceOf[untpd.Template]
+        .body.head.asInstanceOf[untpd.DefDef]
+      val originalTypeClause = original.paramss.head
+      val captured = right(ExistingClassUntypedRewrite.capture(root))
+      val method = right(captured.method(captured.members.head.ref))
+
+      assertEquals(method.parameterClauses.map(_.kind.code), Vector("ORDINARY"))
+      assertEquals(method.parameterClauses.map(_.parameters.map(_.diagnosticName)), Vector(Vector("x")))
+      val parameter = method.parameterClauses.head.parameters.head
+      assertEquals((parameter.clauseIndex, parameter.parameterIndex), (0, 0))
+      assertEquals(right(parameter.declaredType.semantic), TypeNormalForm.STypeIdent("AnyVal"))
+      assertEquals(right(method.resultType.semantic), TypeNormalForm.STypeIdent("AnyVal"))
+      val reference = right(method.parameterScope.reference(parameter.ref))
+      val plan = right(for
+        p1 <- captured.emptyPlan.replaceParameterType(parameter.ref, intType)
+        p2 <- p1.replaceResultType(method.ref, intType)
+        p3 <- p2.replaceBody(method.ref, reference)
+      yield p3)
+      val applied = right(ExistingClassUntypedRewrite(captured, plan))
+      val rebuilt = applied.tree.rhs.asInstanceOf[untpd.Template]
+        .body.head.asInstanceOf[untpd.DefDef]
+
+      assertEquals(rebuilt.paramss.map(_.size), List(1, 1))
+      assert(rebuilt.paramss.head.eq(originalTypeClause))
+      assert(rebuilt.paramss.head.head.isInstanceOf[untpd.TypeDef])
+      assert(applied.directMemberIdentities(1).sameObjectAs(captured.members(1).identity))
+
+      val dependent = parseClass("class GenericDependent:\n  def keep[A](x: A): A = x\n")
+      val dependentCapture = right(ExistingClassUntypedRewrite.capture(dependent))
+      assertCode(dependentCapture.method(dependentCapture.members.head.ref), "UNSUPPORTED_STRUCTURE")
+
   test("foreign callers distinguish and atomically rewrite contextual unary clauses"):
     withContext:
       assertEquals(ExistingClassUntypedRewrite.ParameterClauseKind.Contextual.code, "CONTEXTUAL")

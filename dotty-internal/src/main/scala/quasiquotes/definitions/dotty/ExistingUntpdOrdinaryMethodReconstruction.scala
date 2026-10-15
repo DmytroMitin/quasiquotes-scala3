@@ -117,7 +117,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodReconstruction:
   private def validateMethodShell(
       method: untpd.DefDef,
       expected: Descriptor,
-      selectedClauses: List[List[untpd.ValDef]],
+      selectedClauses: List[untpd.ParamClause],
       selectedResult: untpd.Tree,
       selectedBody: untpd.Tree,
       failure: Error
@@ -135,6 +135,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodReconstruction:
           method.span == expected.method.span &&
           method.symbol == NoSymbol &&
           clausesMatchByIdentity(actualClauses, selectedClauses) &&
+          opaqueTypeClauseMatches(actualClauses, expected) &&
           method.tpt != null &&
           selectedResult != null &&
           method.tpt.eq(selectedResult) &&
@@ -261,17 +262,24 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodReconstruction:
   private def selectParameterClauses(
       descriptor: Descriptor,
       preparations: Vector[PreparedParameterType]
-  ): List[List[untpd.ValDef]] =
-    descriptor.parameterClauses.map { clause =>
+  ): List[untpd.ParamClause] =
+    val selectedTermClauses = descriptor.parameterClauses.map { clause =>
       clause.map { parameter =>
         preparations.find(_.parameter.eq(parameter))
           .fold(parameter.tree)(_.positionedParameter)
       }.toList
-    }.toList
+    }
+    descriptor.opaqueTypeClause match
+      case None => selectedTermClauses.toList
+      case Some(opaque) =>
+        descriptor.method.paramss.updated(
+          opaque.rawTermClauseOrdinal,
+          selectedTermClauses.head
+        )
 
   private def clausesMatchByIdentity(
       actual: List[untpd.ParamClause],
-      expected: List[List[untpd.ValDef]]
+      expected: List[untpd.ParamClause]
   ): Boolean =
     Option(actual).exists { clauses =>
       clauses.size == expected.size &&
@@ -283,6 +291,19 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodReconstruction:
               }
           }
         }
+    }
+
+  private def opaqueTypeClauseMatches(
+      actual: List[untpd.ParamClause],
+      descriptor: Descriptor
+  ): Boolean =
+    descriptor.opaqueTypeClause.forall { opaque =>
+      actual.lift(opaque.rawClauseOrdinal).exists { clause =>
+        clause.eq(opaque.rawClause) &&
+          clause.size == 1 &&
+          clause.head.eq(opaque.typeParameter) &&
+          opaque.typeParameter.rhs.eq(opaque.bounds)
+      }
     }
 
   private def error(code: String, detail: String): Error = Error(code, detail)
