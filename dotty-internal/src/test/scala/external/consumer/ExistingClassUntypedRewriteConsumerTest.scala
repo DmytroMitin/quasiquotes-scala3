@@ -167,7 +167,16 @@ final class ExistingClassUntypedRewriteConsumerTest extends munit.FunSuite:
 
       val dependent = parseClass("class GenericDependent:\n  def keep[A](x: A): A = x\n")
       val dependentCapture = right(ExistingClassUntypedRewrite.capture(dependent))
-      assertCode(dependentCapture.method(dependentCapture.members.head.ref), "UNSUPPORTED_STRUCTURE")
+      val dependentMethod = right(dependentCapture.method(dependentCapture.members.head.ref))
+      val dependentParameter = dependentMethod.parameterClauses.head.parameters.head
+      assertCode(dependentParameter.declaredType.semantic, "UNSUPPORTED_STRUCTURE")
+      assertCode(dependentMethod.resultType.semantic, "UNSUPPORTED_STRUCTURE")
+      val dependentReference = right(dependentMethod.parameterScope.reference(dependentParameter.ref))
+      val dependentApplied = right(ExistingClassUntypedRewrite(
+        dependentCapture,
+        right(dependentCapture.emptyPlan.replaceBody(dependentMethod.ref, dependentReference))
+      ))
+      assert(!dependentApplied.directMemberIdentities.head.sameObjectAs(dependentCapture.members.head.identity))
 
   test("foreign callers distinguish and atomically rewrite contextual unary clauses"):
     withContext:

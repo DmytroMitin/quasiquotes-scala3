@@ -16,7 +16,6 @@ final class ExistingGenericG1OpaqueTypeClauseNegativeTest extends munit.FunSuite
   private val rejected = Vector(
     Rejected("two Type parameters", "def keep[A, B](x: Int): Int = x"),
     Rejected("bounded Type parameter", "def keep[A <: AnyVal](x: Int): Int = x"),
-    Rejected("exact G2 dependent method", "def keep[A](x: A): A = x"),
     Rejected("dependent parameter Type", "def keep[A](x: A): Int = 1"),
     Rejected("dependent result Type", "def keep[A](x: Int): A = ???"),
     Rejected("Int binder shadows admitted primitive", "def keep[Int](x: Int): Int = x"),

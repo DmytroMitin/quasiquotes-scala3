@@ -85,6 +85,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodRhsEditPreparation:
         .left.map(coreFailure("CORE_PARAMETER_SCOPE_FAILED", _))
       scope = new ReplacementScope(validDescriptor, parameters, names, binders)
       built <- invokeBuilder(build, scope)
+      _ <- validateLocalTypeDependentBody(validDescriptor, parameters, built)
       admitted <- admitReplacement(built, names.flatten.toSet)
       completed <- parameters.complete(admitted)
         .left.map(bodyFailure)
@@ -158,6 +159,8 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodRhsEditPreparation:
         (),
         failure
       )
+      _ <- validateLocalTypeDependentBody(expected, scope.parameters, value.semanticReplacement)
+        .left.map(_ => failure)
       _ <- scope.parameters.validateDefinitionBody(names.map(_.size), value.semanticReplacement)
         .left.map(_ => failure)
       _ <- admitReplacement(value.semanticReplacement, names.flatten.toSet).left.map(_ => failure)
@@ -182,6 +185,27 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodRhsEditPreparation:
         failure
       )
     yield ()).left.map(_ => failure)
+
+  private def validateLocalTypeDependentBody(
+      descriptor: Descriptor,
+      parameters: TermBindingInternals.PersistentParameters,
+      replacement: TermShape
+  ): Either[Error, Unit] =
+    descriptor.localTypeDependency match
+      case None => Right(())
+      case Some(_) =>
+        parameters.referenceAt(0, 0)
+          .left.map(coreFailure("CORE_PARAMETER_REFERENCE_FAILED", _))
+          .flatMap { expected =>
+            Either.cond(
+              replacement == expected,
+              (),
+              error(
+                "SEMANTIC_LOCAL_TYPE_DEPENDENT_BODY_UNSUPPORTED",
+                "a method with opaque local Type-dependent parameter and result slots admits only the exact capture-local term-parameter reference as its replacement body."
+              )
+            )
+          }
 
   private def invokeBuilder(
       build: ReplacementScope => Either[Error, TermShape],

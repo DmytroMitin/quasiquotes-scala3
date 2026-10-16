@@ -403,7 +403,7 @@ class ExistingGenericG1OpaqueTypeClausePreservationTest extends munit.FunSuite:
     }
   }
 
-  test("G2 dependent parameter and result Types remain publicly unsupported") {
+  test("G2 method capture succeeds while dependent parameter and result Type semantics remain opaque") {
     withContext {
       val root = parseClass(
         "class GenericDependent:\n  def keep[A](x: A): A = x\n"
@@ -412,11 +412,12 @@ class ExistingGenericG1OpaqueTypeClausePreservationTest extends munit.FunSuite:
         problem => fail(problem.message),
         identity
       )
-      val failure = captured.method(captured.members.head.ref).left.toOption
-        .getOrElse(fail("G2 unexpectedly succeeded"))
-
-      assertEquals(failure.code, "UNSUPPORTED_STRUCTURE")
-      assert(failure.detail.contains("GENERIC_TYPE_DEPENDENCY_UNSUPPORTED"))
+      val method = captured.method(captured.members.head.ref).fold(
+        problem => fail(problem.message),
+        identity
+      )
+      assertEquals(method.parameterClauses.head.parameters.head.declaredType.semantic.left.toOption.map(_.code), Some("UNSUPPORTED_STRUCTURE"))
+      assertEquals(method.resultType.semantic.left.toOption.map(_.code), Some("UNSUPPORTED_STRUCTURE"))
     }
   }
 

@@ -32,6 +32,8 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeSlotProjection:
                 s"the supplied parameter handle occurred ${exactMatches.size} times in the exact descriptor; exactly one capture-local handle is required."
               )
             )
+          else if isDependentParameterSlot(valid, exactMatches.head) then
+            Left(dependentSlot("parameter type"))
           else projectSlot(exactMatches.head.tpt, "parameter type")
         }
     }
@@ -39,8 +41,29 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeSlotProjection:
   def projectResult(
       descriptor: Descriptor
   )(using Context): Either[Error, TypeNormalForm] =
-    validateDescriptor(descriptor)
-      .flatMap(valid => projectSlot(valid.resultType, "result type"))
+    validateDescriptor(descriptor).flatMap { valid =>
+      if isDependentResultSlot(valid) then Left(dependentSlot("result type"))
+      else projectSlot(valid.resultType, "result type")
+    }
+
+  private def isDependentParameterSlot(
+      descriptor: Descriptor,
+      parameter: Parameter
+  ): Boolean =
+    descriptor.localTypeDependency.exists(dependency =>
+      dependency.parameterType.eq(parameter.tpt)
+    )
+
+  private def isDependentResultSlot(descriptor: Descriptor): Boolean =
+    descriptor.localTypeDependency.exists(dependency =>
+      dependency.resultType.eq(descriptor.resultType)
+    )
+
+  private def dependentSlot(path: String): Error =
+    error(
+      "LOCAL_TYPE_BINDER_DEPENDENCY_UNSUPPORTED",
+      s"$path is an exact reference to the method-local opaque Type binder and has no public TypeNormalForm projection."
+    )
 
   private def validateDescriptor(
       descriptor: Descriptor

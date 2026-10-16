@@ -102,7 +102,7 @@ class ExistingMethodTypeParameterCaptureRewriteModelFitTest extends munit.FunSui
     }
   }
 
-  test("production capture admits G1 and keeps G2 rejected at its dependent Type slots") {
+  test("production capture admits G1 and G2 while G2 dependent Type semantics stay opaque") {
     withContext {
       val g1Root = parseClass(fixtures.head.source)
       val g1Captured = ExistingUntpdClassMemberFilter.capture(g1Root).fold(
@@ -128,18 +128,24 @@ class ExistingMethodTypeParameterCaptureRewriteModelFitTest extends munit.FunSui
         problem => fail(problem.message),
         identity
       )
-      val privateFailure = ExistingUntpdOrdinaryMethodDescriptor
-        .capture(g2Captured, 0).left.toOption.get
-      assertEquals(privateFailure.code, "GENERIC_TYPE_DEPENDENCY_UNSUPPORTED")
+      val g2Descriptor = ExistingUntpdOrdinaryMethodDescriptor.capture(g2Captured, 0).fold(
+        problem => fail(problem.message),
+        identity
+      )
+      assert(g2Descriptor.opaqueTypeClause.nonEmpty)
 
       val publicCapture = ExistingClassUntypedRewrite.capture(g2Root).fold(
         problem => fail(problem.message),
         identity
       )
-      val publicFailure = publicCapture
-        .method(publicCapture.members.head.ref).left.toOption.get
-      assertEquals(publicFailure.code, "UNSUPPORTED_STRUCTURE")
-      assert(publicFailure.detail.contains("GENERIC_TYPE_DEPENDENCY_UNSUPPORTED"))
+      val publicMethod = publicCapture.method(publicCapture.members.head.ref).fold(
+        problem => fail(problem.message),
+        identity
+      )
+      assertEquals(publicMethod.parameterClauses.size, 1)
+      assertEquals(publicMethod.parameterClauses.head.parameters.size, 1)
+      assertEquals(publicMethod.parameterClauses.head.parameters.head.declaredType.semantic.left.toOption.map(_.code), Some("UNSUPPORTED_STRUCTURE"))
+      assertEquals(publicMethod.resultType.semantic.left.toOption.map(_.code), Some("UNSUPPORTED_STRUCTURE"))
     }
   }
 

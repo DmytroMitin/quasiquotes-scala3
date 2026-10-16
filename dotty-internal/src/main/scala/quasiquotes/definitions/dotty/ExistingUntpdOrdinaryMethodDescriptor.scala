@@ -22,6 +22,13 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
       rawTermClauseOrdinal: Int
   )
 
+  final case class LocalTypeDependency private[dotty] (
+      typeParameter: untpd.TypeDef,
+      parameterType: untpd.Tree,
+      resultType: untpd.Tree,
+      binderName: String
+  )
+
   final case class Descriptor private[dotty] (
       captured: ExistingUntpdClassMemberFilter.Capture,
       memberIndex: Int,
@@ -30,7 +37,8 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
       parameterClauses: Vector[Vector[Parameter]],
       resultType: untpd.Tree,
       rhs: untpd.Tree,
-      opaqueTypeClause: Option[OpaqueTypeClause] = None
+      opaqueTypeClause: Option[OpaqueTypeClause] = None,
+      localTypeDependency: Option[LocalTypeDependency] = None
   )
 
   final case class Error(code: String, detail: String) derives CanEqual:
@@ -71,17 +79,27 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
         }
         val opaqueTypeClauseMatches = (value.opaqueTypeClause, expected.opaqueTypeClause) match
           case (None, None) => true
-          case (Some(actual), Some(original)) =>
+          case (Some(actual), Some(original)) if actual != null && original != null =>
             actual.rawClauseOrdinal == original.rawClauseOrdinal &&
               actual.rawTermClauseOrdinal == original.rawTermClauseOrdinal &&
               actual.rawClause.eq(original.rawClause) &&
               actual.typeParameter.eq(original.typeParameter) &&
               actual.bounds.eq(original.bounds)
           case _ => false
+        val localTypeDependencyMatches =
+          (value.localTypeDependency, expected.localTypeDependency) match
+            case (None, None) => true
+            case (Some(actual), Some(original)) if actual != null && original != null =>
+              actual.typeParameter.eq(original.typeParameter) &&
+                actual.parameterType.eq(original.parameterType) &&
+                actual.resultType.eq(original.resultType) &&
+                actual.binderName == original.binderName
+            case _ => false
         Either.cond(
           expected.captured.eq(value.captured) && expected.memberIndex == value.memberIndex &&
             expected.method.eq(value.method) && expected.resultType.eq(value.resultType) &&
-            expected.rhs.eq(value.rhs) && parametersMatch && opaqueTypeClauseMatches,
+            expected.rhs.eq(value.rhs) && parametersMatch && opaqueTypeClauseMatches &&
+            localTypeDependencyMatches,
           (),
           failure
         )
@@ -173,7 +191,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
             second
           )
         case List(typeClause @ List(typeParameter: untpd.TypeDef), List(termParameter: untpd.ValDef)) =>
-          buildGenericG1Descriptor(
+          buildGenericDescriptor(
             owner,
             memberIndex,
             method,
@@ -195,7 +213,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
       _ <- validatePreTyperOwner(owner.originalRoot)
     yield descriptor
 
-  private def buildGenericG1Descriptor(
+  private def buildGenericDescriptor(
       owner: ExistingUntpdClassMemberFilter.Capture,
       memberIndex: Int,
       method: untpd.DefDef,
@@ -218,7 +236,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
         (),
         Error(
           "UNSUPPORTED_METHOD_ROLE",
-          "constructors, contextual, synthetic/artifact/accessor, extension, and non-method DefDefs are outside the admitted generic G1 method role."
+          "constructors, contextual, synthetic/artifact/accessor, extension, and non-method DefDefs are outside the admitted generic method role."
         )
       )
       _ <- Either.cond(
@@ -228,21 +246,21 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
         (),
         Error(
           "UNSUPPORTED_GENERIC_TYPE_CLAUSE",
-          "the generic G1 method must contain one exact source-positioned Type parameter declaration."
+          "the generic method must contain one exact source-positioned Type parameter declaration."
         )
       )
       bounds <- typeParameter.rhs match
         case value: untpd.TypeBoundsTree => Right(value)
         case _ => Left(Error(
           "UNSUPPORTED_GENERIC_TYPE_BOUNDS",
-          "the generic G1 Type parameter must retain one exact TypeBoundsTree."
+          "the generic Type parameter must retain one exact TypeBoundsTree."
         ))
       _ <- Either.cond(
         bounds.lo.isEmpty && bounds.hi.isEmpty && bounds.alias.isEmpty && hasSourceSite(bounds),
         (),
         Error(
           "UNSUPPORTED_GENERIC_TYPE_BOUNDS",
-          "the generic G1 Type parameter must use the exact unbounded parser form."
+          "the generic Type parameter must use the exact unbounded parser form."
         )
       )
       _ <- Either.cond(
@@ -253,7 +271,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
         (),
         Error(
           "UNSUPPORTED_GENERIC_TERM_CLAUSE",
-          "the generic G1 family requires one exact ordinary unary term clause."
+          "the generic family requires one exact ordinary unary term clause."
         )
       )
       termParameter <- ordinaryUnaryParameter(termParameterTree, "generic G1 term")
@@ -262,18 +280,13 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
         (),
         Error(
           "GENERIC_BINDER_ALIAS_UNSUPPORTED",
-          "the generic G1 Type and term binders must remain distinct."
+          "the generic Type and term binders must remain distinct."
         )
       )
-      _ <- directAdmittedPrimitiveType(
+      dependency <- classifyGenericTypeRelationship(
         termParameter.tpt,
-        typeParameter.name.toString,
-        "generic G1 term parameter type"
-      )
-      _ <- directAdmittedPrimitiveType(
         method.tpt,
-        typeParameter.name.toString,
-        "generic G1 result type"
+        typeParameter
       )
       rhs <- Option(method.unforcedRhs.asInstanceOf[untpd.Tree]).filterNot(_.isEmpty).filter(hasSourceSite).toRight(
         Error("RHS_REQUIRED", "the generic G1 method RHS must be nonempty and retain its source site.")
@@ -286,23 +299,40 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodDescriptor:
       Vector(Vector(Parameter(termParameter, termParameter.tpt, termParameter.name.toString))),
       method.tpt,
       rhs,
-      Some(OpaqueTypeClause(typeClause, 0, typeParameter, bounds, 1))
+      Some(OpaqueTypeClause(typeClause, 0, typeParameter, bounds, 1)),
+      dependency
     )
 
-  private def directAdmittedPrimitiveType(
-      tree: untpd.Tree,
-      localTypeBinderName: String,
-      path: String
-  ): Either[Error, Unit] =
-    Option(tree).filterNot(_.isEmpty) match
-      case Some(untpd.Ident(name))
-          if name.isTypeName && name.toString != localTypeBinderName &&
-            Set("Int", "String", "Boolean", "AnyVal").contains(name.toString) =>
-        Right(())
-      case _ => Left(Error(
+  private val admittedPrimitiveTypeNames = Set("Int", "String", "Boolean", "AnyVal")
+
+  private def classifyGenericTypeRelationship(
+      parameterType: untpd.Tree,
+      resultType: untpd.Tree,
+      typeParameter: untpd.TypeDef
+  ): Either[Error, Option[LocalTypeDependency]] =
+    val binderName = typeParameter.name.toString
+    val parameterName = directTypeIdentifierName(parameterType)
+    val resultName = directTypeIdentifierName(resultType)
+    val independentG1 =
+      parameterName.exists(name => name != binderName && admittedPrimitiveTypeNames.contains(name)) &&
+        resultName.exists(name => name != binderName && admittedPrimitiveTypeNames.contains(name))
+    val canonicalG2 =
+      !admittedPrimitiveTypeNames.contains(binderName) &&
+        parameterName.contains(binderName) && resultName.contains(binderName) &&
+        hasSourceSite(parameterType) && hasSourceSite(resultType)
+    if independentG1 then Right(None)
+    else if canonicalG2 then
+      Right(Some(LocalTypeDependency(typeParameter, parameterType, resultType, binderName)))
+    else
+      Left(Error(
         "GENERIC_TYPE_DEPENDENCY_UNSUPPORTED",
-        s"$path must be one direct admitted primitive Type independent of the local method Type binder."
+        "generic parameter and result Types must be direct admitted primitives independent of the local Type binder, or the exact canonical pair of direct references to one non-primitive-named local Type binder."
       ))
+
+  private def directTypeIdentifierName(tree: untpd.Tree): Option[String] =
+    Option(tree).filterNot(_.isEmpty).collect {
+      case untpd.Ident(name) if name.isTypeName => name.toString
+    }
 
   private def buildTwoUnaryOrdinaryClauseDescriptor(
       owner: ExistingUntpdClassMemberFilter.Capture,

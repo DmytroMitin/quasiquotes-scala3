@@ -89,6 +89,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
       oldParameterType <- Option(selected.tpt)
         .filterNot(_.isEmpty)
         .toRight(error("OLD_PARAMETER_TYPE_SITE_REQUIRED", "the selected old parameter Type was null or EmptyTree."))
+      _ <- rejectDependentParameterType(validDescriptor, selected, oldParameterType)
       _ <- validateOriginalParameterType(validDescriptor, selected, oldParameterType)
       _ <- requireSite(oldParameter, "OLD_PARAMETER_SITE_REQUIRED", "the selected old parameter")
       _ <- requireSite(oldParameterType, "OLD_PARAMETER_TYPE_SITE_REQUIRED", "the selected old parameter Type")
@@ -140,6 +141,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
       oldResultType <- Option(validDescriptor.resultType)
         .filterNot(_.isEmpty)
         .toRight(error("OLD_RESULT_TYPE_SITE_REQUIRED", "the old result Type was null or EmptyTree."))
+      _ <- rejectDependentResultType(validDescriptor, oldResultType)
       _ <- requireSite(oldResultType, "OLD_RESULT_TYPE_SITE_REQUIRED", "the old result Type")
       admitted <- admit(replacement)
       lowered <- lower(admitted)
@@ -285,6 +287,35 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
           case 0 => Left(error("PARAMETER_NOT_CAPTURED", "the supplied parameter wrapper does not belong to the exact descriptor wrapper."))
           case count => Left(error("PARAMETER_OCCURRENCE_NOT_UNIQUE", s"the supplied parameter wrapper occurred $count times; exactly one occurrence is required."))
       }
+
+  private def rejectDependentParameterType(
+      descriptor: Descriptor,
+      parameter: Parameter,
+      oldParameterType: untpd.Tree
+  ): Either[Error, Unit] =
+    Either.cond(
+      !descriptor.localTypeDependency.exists(dependency =>
+        dependency.parameterType.eq(oldParameterType) && parameter.tpt.eq(oldParameterType)
+      ),
+      (),
+      error(
+        "SEMANTIC_TYPE_LOCAL_BINDER_DEPENDENCY_UNSUPPORTED",
+        "the selected parameter Type is an exact reference to the method-local opaque Type binder and cannot be replaced."
+      )
+    )
+
+  private def rejectDependentResultType(
+      descriptor: Descriptor,
+      oldResultType: untpd.Tree
+  ): Either[Error, Unit] =
+    Either.cond(
+      !descriptor.localTypeDependency.exists(_.resultType.eq(oldResultType)),
+      (),
+      error(
+        "SEMANTIC_TYPE_LOCAL_BINDER_DEPENDENCY_UNSUPPORTED",
+        "the result Type is an exact reference to the method-local opaque Type binder and cannot be replaced."
+      )
+    )
 
   private def exactParameterOccurrences(
       descriptor: Descriptor,
