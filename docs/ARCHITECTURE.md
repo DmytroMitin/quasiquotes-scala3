@@ -307,7 +307,13 @@ The separate generic G1 path keeps one unbounded private opaque Type clause
 outside that public term-clause carrier, exposes its following ordinary strict
 unary term clause at ordinal 0, and preserves the original `TypeDef` and bounds
 by identity for Type-independent primitive parameter/result/body edits. It
-does not expose a public Type binder or authorize G2 Type-dependent substitution.
+does not expose a public Type binder. The exact G2 body-only path preserves one
+private opaque unbounded `TypeDef(A)` clause and dependent parameter/result
+`Ident(A)` nodes while exposing only its ordinary strict unary term clause at
+public ordinal 0. Dependent Type semantics and replacement remain
+`UNSUPPORTED_STRUCTURE`; only the exact capture-local `x` body is admitted.
+This does not authorize Type substitution, arbitrary bodies, `Option[String]`
+method-Type replacement, or a public Type binder.
 Omission
 and ordered semantic Definition append compose through one immutable plan and
 one final owner transaction. It delegates the accepted

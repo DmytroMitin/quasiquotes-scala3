@@ -975,7 +975,9 @@ The current public method families distinguish:
 - C2 `def combine(a: Int)(using context: Int)` as `Ordinary` at ordinal 0
   followed by `Contextual` at ordinal 1.
 - G1 `def keep[A](x: Int): Int = x` as one public `Ordinary` term clause
-  at ordinal 0 while its unbounded private opaque Type clause is preserved.
+  at ordinal 0 while its unbounded private opaque Type clause is preserved; and
+- G2 `def keep[A](x: A): A = x` as the same public term-clause shape with its
+  private opaque `TypeDef(A)`, bounds, and dependent Type nodes preserved.
 
 The two-clause form keeps distinct binders, raw `List(List(a), List(b))`,
 `List(1, 1)` cardinality, and curried call syntax through bounded
@@ -983,13 +985,17 @@ parameter-Type, result-Type, binder-aware body, and combined atomic edits. The
 foreign-package consumer suite compiles and executes that facade; a
 one-clause `combine(a, b)` is kept as a separate control. Duplicate names,
 contextual-before-ordinary, multiple/empty/wide contextual clauses, Scala 2
-implicit-style, G2 Type-dependent or broader generic/defaulted/erased methods,
-and by-name or repeated
-contextual parameters remain unsupported. `Contextual.code` is `CONTEXTUAL`;
+implicit-style, broader generic/defaulted/erased methods, and by-name or repeated
+contextual parameters remain unsupported. For G2, dependent parameter/result
+`Ident(A)` semantics and replacement remain `UNSUPPORTED_STRUCTURE`; only the
+exact capture-local `x` reference is admitted as a replacement body. Literal,
+free, or rebound identifiers and nondependent applied method-Type replacement
+such as `Option[String]` remain unsupported. `Contextual.code` is `CONTEXTUAL`;
 it is a semantic clause kind, not an arity-specific method model.
 For G1, Type-independent primitive parameter/result and binder-aware body edits
 preserve the original Type clause, `TypeDef`, and bounds by identity. No public
-Type binder or generic substitution model is exposed.
+Type binder or generic substitution model is exposed. G2 likewise exposes no
+public Type binder and does not authorize Type substitution.
 
 ## Supported boundary
 

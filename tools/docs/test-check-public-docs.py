@@ -146,6 +146,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             "| Existing-class two ordinary unary clauses | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `BOUNDED` exact `List(List(a), List(b))`; two `Ordinary` clauses at ordinals 0 and 1; distinct binders; preserved `List(1, 1)` topology and curried call syntax |\n"
             "| Existing-class contextual unary clauses | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `BOUNDED` C1 exact `List(List(context))` exposes one `Contextual` clause at ordinal 0; C2 exact `List(List(a), List(context))` exposes `Ordinary` at ordinal 0 then `Contextual` at ordinal 1; distinct binders; preserved `List(1)` or `List(1, 1)` topology and contextual call syntax |\n"
             "| Existing-class generic G1 unary method | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `BOUNDED` exact one unbounded private opaque `TypeDef` clause followed by one `Ordinary` strict unary term clause exposed at public term-clause ordinal 0; Type-independent primitive parameter/result Types and binder-aware body edits preserve the original Type clause, `TypeDef`, and bounds by identity; no public Type binder |\n"
+            "| Existing-class generic G2 unary method | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `BOUNDED` exact one unbounded private opaque `TypeDef(A)` clause followed by one `Ordinary` strict unary term clause at public term-clause ordinal 0; dependent parameter/result `Ident(A)` semantics and replacement remain `UNSUPPORTED_STRUCTURE`; only the exact capture-local `x` reference is admitted as a replacement body; no public Type binder |\n"
             "\n`TermUntypedLowering` and `TermGeneratedOriginLowering` preserve "
             "two or more successive ordinary argument clauses. "
             "`ScalametaTermProjection` and `ScalametaTermShapeAuthoring` preserve completed nested clauses. "
@@ -209,8 +210,14 @@ class PublicDocsCheckTest(unittest.TestCase):
             "followed by one `Ordinary` strict unary term clause exposed at public term-clause ordinal 0. "
             "Type-independent primitive parameter/result Types and binder-aware body edits preserve "
             "the original Type clause, `TypeDef`, and bounds by identity; no public Type binder is exposed. "
-            "G2 locally Type-dependent slots, primitive-shadowing, bounded, wide, or multiple Type clauses, "
-            "and contextual, defaulted, by-name, or repeated adjacent forms remain fail-closed. "
+            "The separate G2 family admits exact one unbounded private opaque `TypeDef(A)` clause "
+            "followed by one `Ordinary` strict unary term clause at public term-clause ordinal 0. "
+            "Dependent parameter/result `Ident(A)` semantics and replacement remain "
+            "`UNSUPPORTED_STRUCTURE`; only the exact capture-local `x` reference is admitted as a "
+            "replacement body. The Type clause, `TypeDef`, bounds, dependent Type nodes, source, "
+            "span, method, and owner identities remain preserved, and no public Type binder is exposed. "
+            "Primitive-shadowing, bounded, wide, or multiple Type clauses, and contextual, defaulted, "
+            "by-name, or repeated adjacent forms remain fail-closed. "
             "edits compose across two distinct admitted "
             "methods of the same captured class while preserving independent method/parameter "
             "refs.\n\n"
@@ -218,6 +225,9 @@ class PublicDocsCheckTest(unittest.TestCase):
             "omission of one direct member and append of one ordinary accepted public "
             "`SemanticDefinition`. Surviving original members retain exact order and identity, "
             "and the generated member is last with deterministic generated-source provenance. "
+            "Generated strict `val` initializers must be appended in dependency order; ordinary "
+            "Typer and TASTy success with no warnings does not make a forward eager reference "
+            "safe, and the JVM may observe the default value. "
             "Both legal immutable plan-building orders are supported, and invalid combinations "
             "fail before a result is exposed.\n\n"
             "This does not authorize arbitrary calling-mode rewriting. It does not authorize "
@@ -238,8 +248,11 @@ class PublicDocsCheckTest(unittest.TestCase):
             "without flattening either clause topology; the contextual kind code is `CONTEXTUAL`. "
             "G1 preserves one private opaque unbounded `TypeDef` clause and exposes only one `Ordinary` "
             "term clause at public ordinal 0. Type-independent primitive parameter/result/body edits "
-            "preserve original `TypeDef` and bounds by identity. G2 locally dependent slots remain "
-            "fail-closed and no public Type-binder carrier exists. "
+            "preserve original `TypeDef` and bounds by identity. G2 preserves one private opaque "
+            "unbounded `TypeDef(A)` clause and exposes only one `Ordinary` term clause at public ordinal 0; "
+            "dependent parameter/result `Ident(A)` semantics and replacement remain "
+            "`UNSUPPORTED_STRUCTURE`, while only the exact capture-local `x` reference is admitted as a "
+            "replacement body. No public Type-binder carrier exists. "
             "It supports the bounded two-method "
             "calling-mode edit plus capture-local omit and generated SemanticDefinition append "
             "composition in one immutable plan. It is not a universal owner editor.\n",
@@ -1282,6 +1295,44 @@ class PublicDocsCheckTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("C076 accepted U068 G1 matrix", result.stderr)
 
+    def test_rejects_missing_c079_accepted_u069_g2_row(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            matrix = root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md"
+            matrix.write_text(
+                "\n".join(
+                    line
+                    for line in matrix.read_text(encoding="utf-8").splitlines()
+                    if not line.startswith("| Existing-class generic G2 unary method |")
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C079 accepted U069 G2 matrix", result.stderr)
+
+    def test_rejects_missing_c079_exact_x_body_only_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            rewrite = root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md"
+            rewrite.write_text(
+                rewrite.read_text(encoding="utf-8").replace(
+                    "only the exact capture-local `x` reference is admitted as a replacement body",
+                    "capture-local replacement bodies are admitted",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C079 accepted U069 G2 rewrite contract missing", result.stderr)
+
     def test_rejects_c076_stale_blanket_generic_rejection(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -1298,21 +1349,60 @@ class PublicDocsCheckTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("C076 stale accepted U068 G1 rejection", result.stderr)
 
-    def test_rejects_c076_u068_g2_overclaim(self) -> None:
+    def test_rejects_c079_stale_blanket_g2_rejection(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             self.make_fixture(root)
             readme = root / "README.md"
             readme.write_text(
                 readme.read_text(encoding="utf-8")
-                + "\nG2 locally Type-dependent generic methods are supported by ExistingClassUntypedRewrite.\n",
+                + "\nG2 locally Type-dependent generic methods remain unsupported by ExistingClassUntypedRewrite.\n",
                 encoding="utf-8",
             )
 
             result = self.run_checker(root)
 
             self.assertEqual(result.returncode, 1)
-            self.assertIn("C076 U068 G2 overclaim", result.stderr)
+            self.assertIn("C079 stale accepted U069 G2 rejection", result.stderr)
+
+    def test_rejects_c079_g2_type_body_or_option_overclaim(self) -> None:
+        claims = (
+            "G2 dependent parameter and result Type replacement is supported by ExistingClassUntypedRewrite.",
+            "G2 arbitrary replacement bodies are supported by ExistingClassUntypedRewrite.",
+            "Option[String] method-Type replacement is supported by ExistingClassUntypedRewrite.",
+        )
+        for claim in claims:
+            with self.subTest(claim=claim), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.make_fixture(root)
+                readme = root / "README.md"
+                readme.write_text(
+                    readme.read_text(encoding="utf-8") + f"\n{claim}\n",
+                    encoding="utf-8",
+                )
+
+                result = self.run_checker(root)
+
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("C079 G2 adjacent-family overclaim", result.stderr)
+
+    def test_rejects_missing_c079_u070_strict_val_initialization_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            rewrite = root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md"
+            rewrite.write_text(
+                rewrite.read_text(encoding="utf-8").replace(
+                    "Generated strict `val` initializers must be appended in dependency order; ordinary Typer and TASTy success with no warnings does not make a forward eager reference safe, and the JVM may observe the default value. ",
+                    "",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C079 accepted U070 strict-val warning missing", result.stderr)
 
     def test_rejects_stale_c070_cross_member_omit_append_exclusion(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

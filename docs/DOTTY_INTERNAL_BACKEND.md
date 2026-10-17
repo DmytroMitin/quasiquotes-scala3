@@ -417,9 +417,14 @@ placement/lifecycle service. Optional `u*` syntax remains a later decision.
 Separately, generic G1 admits one unbounded private opaque `TypeDef` clause
 followed by one ordinary strict unary term clause. Only the term clause is
 public at ordinal 0; Type-independent primitive parameter/result/body edits
-preserve the Type clause, `TypeDef`, and bounds by identity. G2 dependent slots,
-primitive-shadowing, bounded/wide/multiple Type clauses, and public Type-binder
-semantics remain closed.
+preserve the Type clause, `TypeDef`, and bounds by identity. G2 admits exact
+`def keep[A](x: A): A = x` body-only rewrite to the capture-local `x` reference,
+preserving its private `TypeDef(A)`, bounds, dependent `Ident(A)` Type nodes,
+source/span, method, and owner identities. Dependent Type semantics and
+replacement remain `UNSUPPORTED_STRUCTURE`; literal, free, or rebound bodies,
+`Option[String]` method-Type replacement, primitive-shadowing, and bounded,
+wide, or multiple Type clauses remain closed. No public Type-binder semantics
+are exposed.
 The older specialized parameterless/single/two-parameter internal operations
 remain implementation authorities and do not independently widen the public
 contract.

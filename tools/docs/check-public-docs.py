@@ -1141,6 +1141,22 @@ def c076_truth_findings(root: Path) -> list[str]:
         if marker not in cross_matrix:
             findings.append(f"C076 accepted U068 G1 matrix detail missing: {marker}")
 
+    generic_g2_rows = rows.get("Existing-class generic G2 unary method", [])
+    if len(generic_g2_rows) != 1:
+        findings.append(
+            "C079 accepted U069 G2 matrix requires exactly one existing-class row"
+        )
+    elif capability_status(generic_g2_rows[0][-1]) != "BOUNDED":
+        findings.append("C079 accepted U069 G2 matrix must be BOUNDED")
+    for marker in (
+        "exact one unbounded private opaque `TypeDef(A)` clause followed by one `Ordinary` strict unary term clause at public term-clause ordinal 0",
+        "dependent parameter/result `Ident(A)` semantics and replacement remain `UNSUPPORTED_STRUCTURE`",
+        "only the exact capture-local `x` reference is admitted as a replacement body",
+        "no public Type binder",
+    ):
+        if marker not in cross_matrix:
+            findings.append(f"C079 accepted U069 G2 matrix detail missing: {marker}")
+
     normalized_rewrite = " ".join(rewrite.split())
     for marker in (
         "C1 one contextual unary clause at ordinal 0",
@@ -1157,10 +1173,28 @@ def c076_truth_findings(root: Path) -> list[str]:
     for marker in (
         "The separate G1 family admits exact one unbounded private opaque `TypeDef` clause followed by one `Ordinary` strict unary term clause exposed at public term-clause ordinal 0",
         "Type-independent primitive parameter/result Types and binder-aware body edits preserve the original Type clause, `TypeDef`, and bounds by identity; no public Type binder is exposed",
-        "G2 locally Type-dependent slots, primitive-shadowing, bounded, wide, or multiple Type clauses, and contextual, defaulted, by-name, or repeated adjacent forms remain fail-closed",
     ):
         if marker.casefold() not in normalized_rewrite.casefold():
             findings.append(f"C076 accepted U068 G1 rewrite contract missing: {marker}")
+
+    for marker in (
+        "The separate G2 family admits exact one unbounded private opaque `TypeDef(A)` clause followed by one `Ordinary` strict unary term clause at public term-clause ordinal 0",
+        "Dependent parameter/result `Ident(A)` semantics and replacement remain `UNSUPPORTED_STRUCTURE`",
+        "only the exact capture-local `x` reference is admitted as a replacement body",
+        "The Type clause, `TypeDef`, bounds, dependent Type nodes, source, span, method, and owner identities remain preserved",
+        "no public Type binder is exposed",
+        "Primitive-shadowing, bounded, wide, or multiple Type clauses, and contextual, defaulted, by-name, or repeated adjacent forms remain fail-closed",
+    ):
+        if marker.casefold() not in normalized_rewrite.casefold():
+            findings.append(f"C079 accepted U069 G2 rewrite contract missing: {marker}")
+
+    strict_val_warning = (
+        "Generated strict `val` initializers must be appended in dependency order; ordinary "
+        "Typer and TASTy success with no warnings does not make a forward eager reference "
+        "safe, and the JVM may observe the default value"
+    )
+    if strict_val_warning.casefold() not in normalized_rewrite.casefold():
+        findings.append("C079 accepted U070 strict-val warning missing")
 
     normalized_pipeline = " ".join(pipeline.split())
     for marker in (
@@ -1175,10 +1209,18 @@ def c076_truth_findings(root: Path) -> list[str]:
     for marker in (
         "G1 preserves one private opaque unbounded `TypeDef` clause and exposes only one `Ordinary` term clause at public ordinal 0",
         "Type-independent primitive parameter/result/body edits preserve original `TypeDef` and bounds by identity",
-        "G2 locally dependent slots remain fail-closed and no public Type-binder carrier exists",
     ):
         if marker.casefold() not in normalized_pipeline.casefold():
             findings.append(f"C076 accepted U068 G1 pipeline contract missing: {marker}")
+
+    for marker in (
+        "G2 preserves one private opaque unbounded `TypeDef(A)` clause and exposes only one `Ordinary` term clause at public ordinal 0",
+        "dependent parameter/result `Ident(A)` semantics and replacement remain `UNSUPPORTED_STRUCTURE`",
+        "only the exact capture-local `x` reference is admitted as a replacement body",
+        "No public Type-binder carrier exists",
+    ):
+        if marker.casefold() not in normalized_pipeline.casefold():
+            findings.append(f"C079 accepted U069 G2 pipeline contract missing: {marker}")
 
     public_text = "\n".join(
         (
@@ -1215,6 +1257,13 @@ def c076_truth_findings(root: Path) -> list[str]:
         if stale in public_text:
             findings.append(f"C076 stale accepted U068 G1 rejection: {stale}")
 
+    for stale in (
+        "g2 locally type-dependent generic methods remain unsupported by existingclassuntypedrewrite",
+        "g2 existing-tree rewrite is `not_yet`",
+    ):
+        if stale in public_text:
+            findings.append(f"C079 stale accepted U069 G2 rejection: {stale}")
+
     for overclaim in (
         "all contextual method shapes are supported by existingclassuntypedrewrite",
         "all contextual second clauses are supported by existingclassuntypedrewrite",
@@ -1230,11 +1279,14 @@ def c076_truth_findings(root: Path) -> list[str]:
 
     for overclaim in (
         "g2 locally type-dependent generic methods are supported by existingclassuntypedrewrite",
+        "g2 dependent parameter and result type replacement is supported by existingclassuntypedrewrite",
+        "g2 arbitrary replacement bodies are supported by existingclassuntypedrewrite",
+        "option[string] method-type replacement is supported by existingclassuntypedrewrite",
         "existingclassuntypedrewrite exposes public type binders",
         "generic type substitution is supported by existingclassuntypedrewrite",
     ):
         if overclaim in public_text:
-            findings.append(f"C076 U068 G2 overclaim: {overclaim}")
+            findings.append(f"C079 G2 adjacent-family overclaim: {overclaim}")
 
     return findings
 

@@ -547,7 +547,10 @@ through one owner reconstruction. For exactly two admitted methods, those
 Type edits may also compose with capture-local omission of one obsolete direct
 member and append of one ordinary accepted `SemanticDefinition` with
 deterministic generated-source provenance. Surviving originals retain their
-relative order and identity, and the generated member is last. Both legal
+relative order and identity, and the generated member is last. Generated
+strict `val` initializers must be appended in dependency order: warning-free
+Typer/TASTy success does not make a forward eager reference safe, and the JVM
+may observe the default value. The facade does not sort dependencies. Both legal
 immutable plan-building orders fail before result exposure on invalid
 combinations. This is not arbitrary multi-method/calling-mode rewriting.
 The separate generic G1 family admits exactly one unbounded private opaque
@@ -555,8 +558,16 @@ Type clause followed by one ordinary strict unary term clause. The public view
 exposes only that term clause at ordinal 0; Type-independent primitive
 parameter/result and binder-aware body edits preserve the original Type clause,
 `TypeDef`, and bounds by identity. No public Type binder or substitution model
-is exposed. G2 Type-dependent slots, primitive-shadowing, bounded/wide/multiple
-Type clauses, and adjacent contextual/defaulted/by-name/repeated forms fail closed.
+is exposed. The separate G2 family admits only exact
+`def keep[A](x: A): A`: the same private opaque unbounded `TypeDef(A)` clause
+is preserved while the public view exposes its ordinary strict unary term
+clause at ordinal 0. Dependent parameter/result `Ident(A)` semantics and Type
+replacement remain `UNSUPPORTED_STRUCTURE`; the only admitted replacement body
+is the exact capture-local `x` reference. Arbitrary constants, free or rebound
+identifiers, primitive-shadowing, bounded/wide/multiple Type clauses, and
+adjacent contextual/defaulted/by-name/repeated forms fail closed. This body-only
+G2 support is not a public Type-binder or substitution API and does not admit
+nondependent applied method-Type replacement such as `Option[String]`.
 Contextual-before-ordinary, multiple/empty/wide contextual clauses, Scala 2
 implicit-style, broader generic, defaulted, erased, by-name/repeated contextual forms,
 generated sibling-reference resolution, and rollback across later compiler

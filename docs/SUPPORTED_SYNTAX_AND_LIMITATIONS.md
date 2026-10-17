@@ -237,9 +237,15 @@ contextual forms remain unsupported. Previously accepted by-name/repeated
 calling-mode edits stay scoped to their one-clause ordinary families.
 G1 permits Type-independent primitive parameter/result and binder-aware body
 edits while preserving the original Type clause, `TypeDef`, and bounds by
-identity. It exposes no public Type binder. G2 Type-dependent slots,
-primitive-shadowing, bounded/wide/multiple Type clauses, and adjacent
-contextual/defaulted/by-name/repeated shapes remain fail-closed.
+identity. It exposes no public Type binder. G2 admits exact
+`def keep[A](x: A): A = x` body-only rewrite to the capture-local `x` reference
+while preserving its private `TypeDef(A)`, bounds, dependent Type nodes, and
+source/span/method/owner identities. Dependent parameter/result `Ident(A)`
+semantics and replacement remain `UNSUPPORTED_STRUCTURE`; literal, free, or
+rebound bodies and nondependent applied method-Type replacement such as
+`Option[String]` remain unsupported. Primitive-shadowing,
+bounded/wide/multiple Type clauses, and adjacent contextual/defaulted/by-name/
+repeated shapes remain fail-closed, with no public Type binder.
 
 Currently exercised areas include:
 

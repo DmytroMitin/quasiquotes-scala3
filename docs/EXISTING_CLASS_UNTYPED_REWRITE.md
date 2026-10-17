@@ -104,9 +104,17 @@ The separate G1 family admits exact one unbounded private opaque `TypeDef`
 clause followed by one `Ordinary` strict unary term clause exposed at public
 term-clause ordinal 0. Type-independent primitive parameter/result Types and
 binder-aware body edits preserve the original Type clause, `TypeDef`, and
-bounds by identity; no public Type binder is exposed. G2 locally Type-dependent
-slots, primitive-shadowing, bounded, wide, or multiple Type clauses, and
-contextual, defaulted, by-name, or repeated adjacent forms remain fail-closed.
+bounds by identity; no public Type binder is exposed. The separate G2 family
+admits exact one unbounded private opaque `TypeDef(A)` clause followed by one
+`Ordinary` strict unary term clause at public term-clause ordinal 0. Dependent
+parameter/result `Ident(A)` semantics and replacement remain
+`UNSUPPORTED_STRUCTURE`; only the exact capture-local `x` reference is admitted
+as a replacement body. The Type clause, `TypeDef`, bounds, dependent Type nodes,
+source, span, method, and owner identities remain preserved, and no public Type
+binder is exposed. Primitive-shadowing, bounded, wide, or multiple Type clauses,
+and contextual, defaulted, by-name, or repeated adjacent forms remain
+fail-closed. Literal, free, or rebound identifier bodies and nondependent
+applied method-Type replacement such as `Option[String]` remain outside G2.
 
 Raw capture and semantic projection are independent. A Type or body slot may
 return `UNSUPPORTED_STRUCTURE` while its exact identity remains available.
@@ -168,14 +176,20 @@ The bounded two-method transaction may combine those Type edits with
 capture-local omission of one direct member and append of one ordinary accepted
 public `SemanticDefinition`. Surviving original members retain exact order and
 identity, while edited methods are fresh and the generated member is last with
-deterministic generated-source provenance. Both legal immutable plan-building
+deterministic generated-source provenance. Generated strict `val` initializers
+must be appended in dependency order; ordinary Typer and TASTy success with no
+warnings does not make a forward eager reference safe, and the JVM may observe
+the default value. The facade preserves caller-supplied append order and does
+not perform dependency sorting. Generated methods have delayed-execution
+semantics and are not covered by this eager-initialization warning. Both legal immutable plan-building
 orders are supported, and invalid combinations fail before a result is
 exposed.
 
 This does not authorize arbitrary calling-mode rewriting. It does not authorize
 arbitrary multiple methods, general by-name or vararg construction, or broader
 method-shape support. Contextual support is limited to C1 and C2 above; generic
-support is limited to G1 above, while defaulted, erased, contextual-before-ordinary, multiple-contextual and
+support is limited to G1 and the exact G2 body-only family above, while
+defaulted, erased, contextual-before-ordinary, multiple-contextual and
 by-name/repeated contextual shapes remain fail-closed. Generated
 sibling-reference resolution remains separate, and this does not authorize
 general transactional rollback across later compiler phases.

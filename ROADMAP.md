@@ -386,7 +386,11 @@ architecture rather than inventing a new one:
   family preserves one private opaque unbounded Type clause and exposes only
   one ordinary strict unary term clause at public ordinal 0; Type-independent
   primitive Type/body edits preserve the Type clause and bounds by identity.
-  This does not imply public Type binders, G2 Type-dependent substitution,
+  The separate G2 family admits exact `def keep[A](x: A): A` body-only rewrite
+  to the capture-local `x` reference while preserving its private `TypeDef(A)`,
+  bounds and dependent Type nodes. Dependent Type semantics/replacement remain
+  `UNSUPPORTED_STRUCTURE`. This does not imply public Type binders, arbitrary
+  G2 bodies, G2 Type-dependent substitution, `Option[String]` method-Type edits,
   contextual-before-ordinary, multiple/empty/wide contextual clauses, Scala 2
   implicit-style, broader generic, defaulted, erased, by-name/repeated contextual or
   general multi-clause support;
