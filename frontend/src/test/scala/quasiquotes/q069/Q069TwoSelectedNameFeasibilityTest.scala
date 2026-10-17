@@ -7,38 +7,34 @@ import quasiquotes.matching.*
 import quasiquotes.parser.{TermShape, TinyTermParser}
 
 final class Q069TwoSelectedNameFeasibilityTest extends munit.FunSuite:
-  private inline def messages(inline source: String): List[String] =
-    typeCheckErrors(source).map(_.message)
-
   private val source = "$receiver.$first.$second($argument)"
   private val parts = List("", ".", ".", "(", ")")
 
-  test("public standard qq stops two selected-name source roles at the classifier"):
+  test("Q074 standard early route supersedes the shared one-name classifier for distinct binders"):
     val classified = SelectedMemberPatternSource.classifyIncludingRanked(parts)
     assert(classified.left.toOption.exists(_.contains("selected-name capture is supported only")))
 
-    val direct = messages(
+    val direct = typeCheckErrors(
       """import scala.quoted.*; import quasiquotes.matching.QuasiPattern.*
         def probe(using q: Quotes)(target: q.reflect.Term) = target match
           case qq"$receiver.$first.$second" => (receiver, first, second)
           case _ => ()"""
     )
-    val unary = messages(
+    val unary = typeCheckErrors(
       """import scala.quoted.*; import quasiquotes.matching.QuasiPattern.*
         def probe(using q: Quotes)(target: q.reflect.Term) = target match
           case qq"$receiver.$first.$second($argument)" => (receiver, first, second, argument)
           case _ => ()"""
     )
-    val repeated = messages(
+    val repeated = typeCheckErrors(
       """import scala.quoted.*; import quasiquotes.matching.QuasiPattern.*
         def probe(using q: Quotes)(target: q.reflect.Term) = target match
           case qq"$receiver.$same.$same" => (receiver, same)
           case _ => ()"""
     )
-    Vector(direct, unary, repeated).foreach { errors =>
-      assert(errors.exists(_.contains("Invalid qq term-pattern template")), clues(errors))
-      assert(errors.exists(_.contains("selected-name capture is supported only")), clues(errors))
-    }
+    assertEquals(direct, Nil)
+    assertEquals(unary, Nil)
+    assert(repeated.exists(_.message.contains("duplicate pattern variable: same")), clues(repeated))
 
   test("public source mapping and Dotty parser retain two Select slots without assigning their roles"):
     val mapped = PatternSource.synthesizeMapped(source).toOption.get

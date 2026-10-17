@@ -15,6 +15,23 @@ private[matching] object QuasiPatternMacro:
       case _ =>
         return '{ QuasiPattern.scalarExtractor($context)(using $callerQuotes) }
 
+    val originalSource = context.asTerm.pos.sourceCode.getOrElse(
+      quotes.reflect.report.errorAndAbort(
+        "Unable to recover qq term-pattern source for selected-name role planning",
+        context
+      )
+    )
+
+    TwoSelectedMemberPatternSource.classify(parts, originalSource) match
+      case Left(detail) =>
+        quotes.reflect.report.errorAndAbort(
+          s"Invalid qq term-pattern template: $detail",
+          context
+        )
+      case Right(Some(plan)) =>
+        return twoSelectedMemberExtractor(plan, callerQuotes)
+      case Right(None) => ()
+
     SelectedMemberPatternSource.classifyIncludingRanked(parts) match
       case Left(detail) =>
         quotes.reflect.report.errorAndAbort(
@@ -91,6 +108,42 @@ private[matching] object QuasiPatternMacro:
                         RankedTermPatternExtractorFactory
                           .extractor[captureKinds & Tuple]($context, ${ Expr(sequenceIndex) })(using $callerQuotes)
                       }
+
+  private def twoSelectedMemberExtractor(
+      plan: TwoSelectedMemberPatternPlan,
+      callerQuotes: Expr[Quotes]
+  )(using Quotes): Expr[Any] =
+    val pattern = RankedTermPatternBridge.patternExpr(plan.pattern)
+    val receiverName = Expr(plan.receiverName)
+
+    plan.layout match
+      case TwoSelectedMemberPatternLayout.Direct =>
+        '{
+          TwoSelectedMemberPatternExtractorFactory.direct(using $callerQuotes)(
+            TwoSelectedMemberPatternPlan(
+              TwoSelectedMemberPatternLayout.Direct,
+              $pattern,
+              $receiverName,
+              None
+            )
+          )
+        }
+      case TwoSelectedMemberPatternLayout.Unary =>
+        val argumentName = Expr(plan.argumentName.getOrElse(
+          quotes.reflect.report.errorAndAbort(
+            "Two-selected-name unary plan lost its argument capture"
+          )
+        ))
+        '{
+          TwoSelectedMemberPatternExtractorFactory.unary(using $callerQuotes)(
+            TwoSelectedMemberPatternPlan(
+              TwoSelectedMemberPatternLayout.Unary,
+              $pattern,
+              $receiverName,
+              Some($argumentName)
+            )
+          )
+        }
 
   private def selectedMemberExtractor(
       plan: SelectedMemberPatternPlan,

@@ -98,7 +98,7 @@ final class Q058SelectedMemberPatternTest extends munit.FunSuite:
     assert(receiverAsName.nonEmpty)
     assert(argumentAsName.nonEmpty)
 
-  test("positions outside the direct-root slice never acquire selected-name typing"):
+  test("only the authorized direct-root selected-name positions acquire selected-name typing"):
     val bare = typeCheckErrors(
       """{
         import scala.quoted.*
@@ -144,7 +144,7 @@ final class Q058SelectedMemberPatternTest extends munit.FunSuite:
 
     assert(bare.nonEmpty)
     assert(nested.nonEmpty)
-    assert(twoNames.nonEmpty)
+    assertEquals(twoNames, Nil)
     assert(infix.nonEmpty)
 
   test("dynamic StringContext retains the scalar fallback result type"):

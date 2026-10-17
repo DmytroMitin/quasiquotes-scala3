@@ -3,9 +3,6 @@ package quasiquotes.matching
 import scala.compiletime.testing.typeCheckErrors
 
 final class Q070TwoSelectedNameReflectedBridgeTest extends munit.FunSuite:
-  private inline def messages(inline source: String): List[String] =
-    typeCheckErrors(source).map(_.message)
-
   test("test-only reflected bridge returns two typed names and the original receiver"):
     assertEquals(
       Q070ReflectedBridgeProbe.distinctDirectObservation,
@@ -42,25 +39,25 @@ final class Q070TwoSelectedNameReflectedBridgeTest extends munit.FunSuite:
       "true:true:true:true:true:true"
     )
 
-  test("current public standard qq continues to reject all modeled two-name lines"):
-    val direct = messages(
+  test("Q074 productionizes distinct lines while repeated source binders retain native E005"):
+    val direct = typeCheckErrors(
       """import scala.quoted.*; import quasiquotes.matching.QuasiPattern.*
         def probe(using q: Quotes)(target: q.reflect.Term) = target match
           case qq"$receiver.$first.$second" => (receiver, first, second)
           case _ => ()"""
     )
-    val unary = messages(
+    val unary = typeCheckErrors(
       """import scala.quoted.*; import quasiquotes.matching.QuasiPattern.*
         def probe(using q: Quotes)(target: q.reflect.Term) = target match
           case qq"$receiver.$first.$second($argument)" => (receiver, first, second, argument)
           case _ => ()"""
     )
-    val repeated = messages(
+    val repeated = typeCheckErrors(
       """import scala.quoted.*; import quasiquotes.matching.QuasiPattern.*
         def probe(using q: Quotes)(target: q.reflect.Term) = target match
           case qq"$receiver.$same.$same" => (receiver, same)
           case _ => ()"""
     )
-    Vector(direct, unary, repeated).foreach { errors =>
-      assert(errors.exists(_.contains("selected-name capture is supported only")), clues(errors))
-    }
+    assertEquals(direct, Nil)
+    assertEquals(unary, Nil)
+    assert(repeated.exists(_.message.contains("duplicate pattern variable: same")), clues(repeated))

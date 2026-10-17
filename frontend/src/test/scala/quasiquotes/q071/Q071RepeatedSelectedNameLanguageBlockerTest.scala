@@ -24,7 +24,7 @@ final class Q071RepeatedSelectedNameLanguageBlockerTest extends munit.FunSuite:
       clues(errors)
     )
 
-  test("the exact requested public qq spelling remains compile-negative"):
+  test("the exact repeated public qq spelling remains native-E005 compile-negative"):
     val errors = typeCheckErrors(
       """{
         import scala.quoted.*
@@ -36,8 +36,8 @@ final class Q071RepeatedSelectedNameLanguageBlockerTest extends munit.FunSuite:
       }"""
     )
 
-    assert(errors.nonEmpty, clues(errors))
     assert(
-      errors.exists(_.message.contains("Invalid qq term-pattern template")),
+      errors.exists(_.message.contains("duplicate pattern variable: same")),
       clues(errors)
     )
+    assert(!errors.exists(_.message.contains("Invalid qq term-pattern template")), clues(errors))

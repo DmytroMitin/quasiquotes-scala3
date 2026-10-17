@@ -123,7 +123,7 @@ final class Q072PatternBinderSyntaxFeasibilityTest extends munit.FunSuite:
     assertEquals(StringContext("", ".", ".#repeat").parts.toList, List("", ".", ".#repeat"))
     assert(SelectedMemberName.from("#repeat").isLeft)
 
-  test("current public qq classifier remains an independent rejection stage"):
+  test("public qq now accepts distinct binders while the unselected marker remains rejected"):
     val distinct = typeCheckErrors(
       """import scala.quoted.*; import quasiquotes.matching.QuasiPattern.*
         def probe(using q: Quotes)(target: q.reflect.Term) = target match
@@ -136,12 +136,11 @@ final class Q072PatternBinderSyntaxFeasibilityTest extends munit.FunSuite:
           case qq"$receiver.$same.#repeat" => (receiver, same)
           case _ => ()"""
     )
-    Vector(distinct, marker).foreach { errors =>
-      val classifier = errors.find(_.message.contains("Invalid qq term-pattern template"))
-      assert(classifier.nonEmpty, clues(errors.map(_.message)))
-      assert(classifier.get.lineContent.contains("case qq\""), clues(classifier.get))
-      assert(classifier.get.column >= 0, clues(classifier.get))
-    }
+    assertEquals(distinct, Nil)
+    val classifier = marker.find(_.message.contains("Invalid qq term-pattern template"))
+    assert(classifier.nonEmpty, clues(marker.map(_.message)))
+    assert(classifier.get.lineContent.contains("case qq\""), clues(classifier.get))
+    assert(classifier.get.column >= 0, clues(classifier.get))
 
   test("source occurrence evidence preserves transports and root-first ordinals 1 then 0"):
     val normalized = SelectedNameSourceNormalizer
