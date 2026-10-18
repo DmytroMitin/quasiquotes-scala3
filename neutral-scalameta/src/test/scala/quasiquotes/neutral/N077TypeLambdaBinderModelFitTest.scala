@@ -182,6 +182,81 @@ final class N077TypeLambdaBinderModelFitTest extends munit.FunSuite:
     )
     assertEquals(shadowed.provenance.lambdaParameterNames, Vector(List("A"), List("A")))
 
+  test("fixed constructor applications shadowed by Type-lambda binders fail closed during projection"):
+    val shadowed = List(
+      "[List] =>> List[Int]",
+      "[Option] =>> Option[Int]",
+      "[Either] =>> Either[Int, String]",
+      "[List] =>> [A] =>> List[A]",
+      "[A] =>> [List] =>> List[A]"
+    )
+
+    shadowed.foreach { source =>
+      val parsed = parseType(source)
+      assertEquals(parsed.productPrefix, "Type.Lambda", clues(source))
+      assertEquals(
+        candidateProject(parsed).left.toOption.map(_.code),
+        Some("N077_CANDIDATE_CONSTRUCTOR_SHADOWED"),
+        clues(source)
+      )
+    }
+
+  test("fixed constructor applications shadowed by provenance fail closed during authoring"):
+    val shadowed = List(
+      CandidateProjection(
+        CandidateType.Lambda(1, CandidateType.Apply("List", List(CandidateType.Atom("Int")))),
+        SourceProvenance(Vector(List("List")), Nil, None)
+      ),
+      CandidateProjection(
+        CandidateType.Lambda(1, CandidateType.Apply("Option", List(CandidateType.Atom("Int")))),
+        SourceProvenance(Vector(List("Option")), Nil, None)
+      ),
+      CandidateProjection(
+        CandidateType.Lambda(
+          1,
+          CandidateType.Apply("Either", List(CandidateType.Atom("Int"), CandidateType.Atom("String")))
+        ),
+        SourceProvenance(Vector(List("Either")), Nil, None)
+      ),
+      CandidateProjection(
+        CandidateType.Lambda(
+          1,
+          CandidateType.Lambda(
+            1,
+            CandidateType.Apply("List", List(CandidateType.Bound(0, 0)))
+          )
+        ),
+        SourceProvenance(Vector(List("List"), List("A")), Nil, None)
+      ),
+      CandidateProjection(
+        CandidateType.Lambda(
+          1,
+          CandidateType.Lambda(
+            1,
+            CandidateType.Apply("List", List(CandidateType.Bound(1, 0)))
+          )
+        ),
+        SourceProvenance(Vector(List("A"), List("List")), Nil, None)
+      )
+    )
+
+    shadowed.foreach { projection =>
+      assertEquals(
+        candidateAuthor(projection).left.toOption.map(_.code),
+        Some("N077_CANDIDATE_CONSTRUCTOR_SHADOWED")
+      )
+    }
+
+  test("unambiguous fixed-name binders and unrelated atom shadowing keep lexical identity"):
+    assertEquals(
+      candidateProject(parseType("[List] =>> Int")).map(_.model),
+      Right(CandidateType.Lambda(1, CandidateType.Atom("Int")))
+    )
+    assertEquals(
+      candidateProject(parseType("[Int] =>> Int")).map(_.model),
+      Right(CandidateType.Lambda(1, CandidateType.Bound(0, 0)))
+    )
+
   test("fresh authoring and reprojection preserve binding clause order source names and shadowing"):
     val sources = List(
       "[A] =>> List[A]",
@@ -390,6 +465,14 @@ final class N077TypeLambdaBinderModelFitTest extends munit.FunSuite:
             .toRight(CandidateError("N077_CANDIDATE_LIST_MISSING", "application arguments must be present."))
             .flatMap { presentArguments =>
               fixedConstructors.get(constructor) match
+                case Some(_) if boundPosition(constructor, scopes).nonEmpty =>
+                  val (depth, index) = boundPosition(constructor, scopes).get
+                  Left(
+                    CandidateError(
+                      "N077_CANDIDATE_CONSTRUCTOR_SHADOWED",
+                      s"fixed constructor `$constructor` is shadowed at lexical depth $depth and parameter index $index."
+                    )
+                  )
                 case Some(expectedArity) if presentArguments.size == expectedArity =>
                   authorTypes(presentArguments, scopes, clauses).map { (authoredArguments, remaining) =>
                     Type.Apply(Type.Name(constructor), authoredArguments) -> remaining
@@ -516,6 +599,14 @@ final class N077TypeLambdaBinderModelFitTest extends munit.FunSuite:
           applied.tpe match
             case constructor: Type.Name =>
               fixedConstructors.get(constructor.value) match
+                case Some(_) if boundPosition(constructor.value, scopes).nonEmpty =>
+                  val (depth, index) = boundPosition(constructor.value, scopes).get
+                  Left(
+                    CandidateError(
+                      "N077_CANDIDATE_CONSTRUCTOR_SHADOWED",
+                      s"fixed constructor `${constructor.value}` is shadowed at lexical depth $depth and parameter index $index."
+                    )
+                  )
                 case Some(expectedArity) if applied.args.size == expectedArity =>
                   traverse(applied.args)(projectType(_, scopes)).map { projected =>
                     val (arguments, clauses) = projected.unzip
