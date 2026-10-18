@@ -18,7 +18,7 @@ final class Q070ScalametaReflectedBridgeTest extends munit.FunSuite:
       "Scalameta:true:Scalameta:true:Scalameta:true"
     )
 
-  test("current public hybrid qq continues to reject all modeled two-name lines"):
+  test("inline source helper loses provenance and Q075 candidates fail closed"):
     val direct = messages(
       """import scala.quoted.*; import quasiquotes.scalameta.ScalametaQuasiPattern.qq
         def probe(using q: Quotes)(target: q.reflect.Term) = target match
@@ -37,6 +37,10 @@ final class Q070ScalametaReflectedBridgeTest extends munit.FunSuite:
           case qq"$receiver.$same.$same" => (receiver, same)
           case _ => ()"""
     )
-    Vector(direct, unary, repeated).foreach { errors =>
-      assert(errors.exists(_.contains("selected-name capture is supported only")), clues(errors))
+    Vector(direct, unary).foreach { errors =>
+      assert(errors.exists(_.contains("Invalid Scalameta qq term-pattern template")), clues(errors))
+      assert(errors.exists(_.contains("Selected source occurrence index")), clues(errors))
+      assert(!errors.exists(_.contains("selected-name capture is supported only")), clues(errors))
     }
+    assert(repeated.exists(_.contains("duplicate pattern variable: same")), clues(repeated))
+    assert(repeated.exists(_.contains("Selected source occurrence index")), clues(repeated))

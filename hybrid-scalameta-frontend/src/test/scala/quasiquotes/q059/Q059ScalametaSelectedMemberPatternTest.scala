@@ -120,7 +120,7 @@ final class Q059ScalametaSelectedMemberPatternTest extends munit.FunSuite:
 
     assert(bare.nonEmpty)
     assert(nested.nonEmpty)
-    assert(twoNames.exists(_.contains("Invalid Scalameta qq term-pattern template")))
+    assert(twoNames.exists(_.contains("Selected source occurrence index")))
     assert(infix.nonEmpty)
     assert(malformedDirect.exists(_.contains("Invalid Scalameta qq term-pattern template")))
 

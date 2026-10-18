@@ -12,7 +12,7 @@ final class Q069ScalametaTwoSelectedNameFeasibilityTest extends munit.FunSuite:
   private inline def messages(inline source: String): List[String] =
     typeCheckErrors(source).map(_.message)
 
-  test("public hybrid qq also stops the two-name source at shared classification"):
+  test("inline source helper loses provenance and Q075 candidates fail closed"):
     val direct = messages(
       """import scala.quoted.*; import quasiquotes.scalameta.ScalametaQuasiPattern.qq
         def probe(using q: Quotes)(target: q.reflect.Term) = target match
@@ -31,10 +31,13 @@ final class Q069ScalametaTwoSelectedNameFeasibilityTest extends munit.FunSuite:
           case qq"$receiver.$same.$same" => (receiver, same)
           case _ => ()"""
     )
-    Vector(direct, unary, repeated).foreach { errors =>
+    Vector(direct, unary).foreach { errors =>
       assert(errors.exists(_.contains("Invalid Scalameta qq term-pattern template")), clues(errors))
-      assert(errors.exists(_.contains("selected-name capture is supported only")), clues(errors))
+      assert(errors.exists(_.contains("Selected source occurrence index")), clues(errors))
+      assert(!errors.exists(_.contains("selected-name capture is supported only")), clues(errors))
     }
+    assert(repeated.exists(_.contains("duplicate pattern variable: same")), clues(repeated))
+    assert(repeated.exists(_.contains("Selected source occurrence index")), clues(repeated))
 
   test("Scalameta parser and exact validator can compile the ordinary chain independently of selected-role typing"):
     val source = "$receiver.$first.$second($argument)"

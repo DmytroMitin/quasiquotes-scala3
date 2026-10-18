@@ -3,6 +3,7 @@ package quasiquotes.matching
 import scala.quoted.*
 
 import quasiquotes.scalameta.{ScalametaQuasiPattern, TermFrontend}
+import quasiquotes.source.ReflectedPositionProvenance
 
 private[quasiquotes] object ScalametaQuasiPatternMacro:
   def extractor(
@@ -16,6 +17,20 @@ private[quasiquotes] object ScalametaQuasiPatternMacro:
         partExpressions.toList.map(_.valueOrAbort)
       case _ =>
         return '{ ScalametaQuasiPattern.scalarExtractor($context)(using $callerQuotes) }
+
+    ScalametaTwoSelectedMemberPatternSource.classify(
+      parts,
+      ReflectedPositionProvenance.sourceCode(context.asTerm.pos).getOrElse(
+        abort(
+          "two-selected-name source-role planning requires recoverable original interpolation source",
+          context
+        )
+      )
+    ) match
+      case Left(detail) => abort(detail, context)
+      case Right(Some(plan)) =>
+        return twoSelectedMemberExtractor(plan, callerQuotes)
+      case Right(None) => ()
 
     SelectedMemberPatternSource.classifyIncludingRanked(parts) match
       case Left(detail) => abort(detail, context)
@@ -92,6 +107,42 @@ private[quasiquotes] object ScalametaQuasiPatternMacro:
                       $sequenceName
                     )(using $callerQuotes)
                   }
+
+  private def twoSelectedMemberExtractor(
+      plan: TwoSelectedMemberPatternPlan,
+      callerQuotes: Expr[Quotes]
+  )(using Quotes): Expr[Any] =
+    val pattern = RankedTermPatternBridge.patternExpr(plan.pattern)
+    val receiverName = Expr(plan.receiverName)
+
+    plan.layout match
+      case TwoSelectedMemberPatternLayout.Direct =>
+        '{
+          TwoSelectedMemberPatternExtractorFactory.direct(using $callerQuotes)(
+            TwoSelectedMemberPatternPlan(
+              TwoSelectedMemberPatternLayout.Direct,
+              $pattern,
+              $receiverName,
+              None
+            )
+          )
+        }
+      case TwoSelectedMemberPatternLayout.Unary =>
+        val argumentName = Expr(plan.argumentName.getOrElse(
+          quotes.reflect.report.errorAndAbort(
+            "Two-selected-name Scalameta unary plan lost its argument capture"
+          )
+        ))
+        '{
+          TwoSelectedMemberPatternExtractorFactory.unary(using $callerQuotes)(
+            TwoSelectedMemberPatternPlan(
+              TwoSelectedMemberPatternLayout.Unary,
+              $pattern,
+              $receiverName,
+              Some($argumentName)
+            )
+          )
+        }
 
   private def selectedMemberExtractor(
       plan: SelectedMemberPatternPlan,
