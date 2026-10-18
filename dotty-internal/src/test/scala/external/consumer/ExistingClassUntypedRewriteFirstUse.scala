@@ -6,12 +6,31 @@ import dotty.tools.dotc.core.Contexts.Context
 
 import quasiquotes.definitions.{DefinitionName, SemanticDefinition}
 import quasiquotes.definitions.dotty.ExistingClassUntypedRewrite
-import quasiquotes.definitions.dotty.ExistingClassUntypedRewrite.{Failure, Result}
+import quasiquotes.definitions.dotty.ExistingClassUntypedRewrite.{Failure, MemberKind, Result}
 import quasiquotes.parser.TermShape
-import quasiquotes.types.TypeNormalForm
+import quasiquotes.types.{
+  ResolvedTypeNameId,
+  ResolvedTypeOwnerKind,
+  ResolvedTypeOwnerSegment,
+  TypeNormalForm
+}
 
 object ExistingClassUntypedRewriteFirstUse:
   private val IntType = TypeNormalForm.STypeIdent("Int")
+  val canonicalOptionString: TypeNormalForm =
+    val pkg = (name: String) =>
+      ResolvedTypeOwnerSegment(ResolvedTypeOwnerKind.Package, name)
+    TypeNormalForm.STypeApply(
+      TypeNormalForm.STypeResolved(
+        ResolvedTypeNameId(Vector(pkg("scala")), "Option")
+      ),
+      List(
+        TypeNormalForm.STypeResolved(
+          ResolvedTypeNameId(Vector(pkg("java"), pkg("lang")), "String")
+        )
+      )
+    )
+
   private val GeneratedSibling =
     val name = DefinitionName.fromSource("bonus")
       .fold(error => throw new IllegalArgumentException(error.message), identity)
@@ -35,6 +54,28 @@ object ExistingClassUntypedRewriteFirstUse:
       p3 <- p2.replaceBody(method.ref, body)
       p4 <- p3.append(GeneratedSibling, "generated/ExistingClassBonus.scala")
       result <- ExistingClassUntypedRewrite(captured, p4)
+    yield result
+
+  def rewriteCanonicalOption(existingClass: untpd.Tree)(using Context)
+      : Either[Failure, Result] =
+    for
+      captured <- ExistingClassUntypedRewrite.capture(existingClass)
+      candidates = captured.members.filter(_.kind == MemberKind.Method)
+      _ <- Either.cond(
+        candidates.size == 1,
+        (),
+        Failure(
+          "METHOD_SELECTION_FAILED",
+          s"expected exactly one direct method; found ${candidates.size}"
+        )
+      )
+      method <- captured.method(candidates.head.ref)
+      parameter = method.parameterClauses.head.parameters.head
+      reference <- method.parameterScope.reference(parameter.ref)
+      p1 <- captured.emptyPlan.replaceParameterType(parameter.ref, canonicalOptionString)
+      p2 <- p1.replaceResultType(method.ref, canonicalOptionString)
+      p3 <- p2.replaceBody(method.ref, reference)
+      result <- ExistingClassUntypedRewrite(captured, p3)
     yield result
 
   def contextualClauseKinds(existingClass: untpd.Tree)(using Context)

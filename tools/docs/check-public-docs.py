@@ -1281,12 +1281,94 @@ def c076_truth_findings(root: Path) -> list[str]:
         "g2 locally type-dependent generic methods are supported by existingclassuntypedrewrite",
         "g2 dependent parameter and result type replacement is supported by existingclassuntypedrewrite",
         "g2 arbitrary replacement bodies are supported by existingclassuntypedrewrite",
-        "option[string] method-type replacement is supported by existingclassuntypedrewrite",
+        "g2 option[string] method-type replacement is supported by existingclassuntypedrewrite",
         "existingclassuntypedrewrite exposes public type binders",
         "generic type substitution is supported by existingclassuntypedrewrite",
     ):
         if overclaim in public_text:
             findings.append(f"C079 G2 adjacent-family overclaim: {overclaim}")
+
+    return findings
+
+
+def c083_truth_findings(root: Path) -> list[str]:
+    rewrite = (root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md").read_text(
+        encoding="utf-8"
+    )
+    cross_matrix = (root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md").read_text(
+        encoding="utf-8"
+    )
+    findings = []
+
+    rows = markdown_table_rows(cross_matrix)
+    option_rows = rows.get(
+        "Existing-class canonical resolved Option[String] method Type write", []
+    )
+    if len(option_rows) != 1:
+        findings.append("C083 canonical Option cross-surface row missing")
+    elif capability_status(option_rows[0][-1]) != "BOUNDED":
+        findings.append("C083 canonical Option cross-surface row must be BOUNDED")
+
+    normalized_rewrite = " ".join(rewrite.split())
+    recipe_markers = (
+        "`ResolvedTypeOwnerSegment(ResolvedTypeOwnerKind.Package, name)`",
+        "`ResolvedTypeNameId`",
+        "`TypeNormalForm.STypeResolved`",
+        "`TypeNormalForm.STypeApply`",
+    )
+    if not all(marker in normalized_rewrite for marker in recipe_markers):
+        findings.append("C083 canonical Option public construction recipe missing")
+
+    for marker in (
+        "one strict unary ordinary existing method",
+        "`_root_.scala.Option[_root_.java.lang.String]`",
+        "parameter-only, result-only, and combined capture-local body replacement",
+        'Bare `STypeIdent("Option")` or `STypeIdent("String")`',
+        "nested or other applied constructors",
+        "G2-dependent Type replacement",
+        "general `@addOption` expression wrapping",
+        "`TypeSlotView.semantic` still returns `UNSUPPORTED_STRUCTURE`",
+    ):
+        if marker.casefold() not in normalized_rewrite.casefold():
+            findings.append(f"C083 canonical Option contract missing: {marker}")
+
+    public_paths = (
+        "README.md",
+        "ROADMAP.md",
+        "docs/EXISTING_CLASS_UNTYPED_REWRITE.md",
+        "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md",
+        "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md",
+        "docs/SYNTAX_SUPPORT_MATRIX.md",
+        "docs/DOTTY_INTERNAL_BACKEND.md",
+        "docs/PROJECTION_LOWERING_BRIDGE_MATRIX.md",
+        "docs/GETTING_STARTED.md",
+        "docs/ARCHITECTURE.md",
+    )
+    public_text = "\n".join(
+        (root / relative).read_text(encoding="utf-8")
+        for relative in public_paths
+        if (root / relative).exists()
+    ).casefold()
+
+    for stale in (
+        "all stypeapply existing method edits are unsupported",
+        "option[string] method-type replacement remains unsupported",
+        "nondependent applied method type such as option remains unsupported",
+        "nondependent applied method type such as `option` remains unsupported",
+    ):
+        if stale in public_text:
+            findings.append(f"C083 stale blanket applied method-Type rejection: {stale}")
+
+    for overclaim in (
+        "bare option and string aliases are canonical global identities for existing method edits",
+        "nested option and other applied constructors are supported by existingclassuntypedrewrite",
+        "g2 dependent option type replacement is supported by existingclassuntypedrewrite",
+        "general @addoption expression wrapping is supported by existingclassuntypedrewrite",
+    ):
+        if overclaim in public_text:
+            findings.append(
+                f"C083 canonical Option adjacent-family overclaim: {overclaim}"
+            )
 
     return findings
 
@@ -1368,6 +1450,7 @@ def check(root: Path) -> list[str]:
         + c074_truth_findings(root)
         + c076_truth_findings(root)
         + c082_truth_findings(root)
+        + c083_truth_findings(root)
     )
 
 

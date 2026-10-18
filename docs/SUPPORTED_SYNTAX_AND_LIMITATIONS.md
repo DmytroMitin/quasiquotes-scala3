@@ -242,10 +242,21 @@ identity. It exposes no public Type binder. G2 admits exact
 while preserving its private `TypeDef(A)`, bounds, dependent Type nodes, and
 source/span/method/owner identities. Dependent parameter/result `Ident(A)`
 semantics and replacement remain `UNSUPPORTED_STRUCTURE`; literal, free, or
-rebound bodies and nondependent applied method-Type replacement such as
-`Option[String]` remain unsupported. Primitive-shadowing,
+rebound bodies and applied method-Type replacement inside G2 remain
+unsupported. Primitive-shadowing,
 bounded/wide/multiple Type clauses, and adjacent contextual/defaulted/by-name/
 repeated shapes remain fail-closed, with no public Type binder.
+
+The separate strict unary ordinary family accepts exactly
+`STypeApply(STypeResolved(scala.Option),
+List(STypeResolved(java.lang.String)))` through the public resolved-Type
+constructors. Parameter-only, result-only, and combined capture-local body
+replacement emit `_root_.scala.Option[_root_.java.lang.String]`, so imported or
+owner-local aliases named `Option`, `String`, or `scala` do not capture it.
+Bare name-only Types, wrong identities/arity, nested or other constructors,
+G2-dependent Type replacement, and general `@addOption` expression wrapping
+remain unsupported. A fresh recapture may perform another admitted write, but
+the rooted applied slots do not yet project through `TypeSlotView.semantic`.
 
 Currently exercised areas include:
 

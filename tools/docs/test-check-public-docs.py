@@ -147,6 +147,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             "| Existing-class contextual unary clauses | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `BOUNDED` C1 exact `List(List(context))` exposes one `Contextual` clause at ordinal 0; C2 exact `List(List(a), List(context))` exposes `Ordinary` at ordinal 0 then `Contextual` at ordinal 1; distinct binders; preserved `List(1)` or `List(1, 1)` topology and contextual call syntax |\n"
             "| Existing-class generic G1 unary method | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `BOUNDED` exact one unbounded private opaque `TypeDef` clause followed by one `Ordinary` strict unary term clause exposed at public term-clause ordinal 0; Type-independent primitive parameter/result Types and binder-aware body edits preserve the original Type clause, `TypeDef`, and bounds by identity; no public Type binder |\n"
             "| Existing-class generic G2 unary method | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `BOUNDED` exact one unbounded private opaque `TypeDef(A)` clause followed by one `Ordinary` strict unary term clause at public term-clause ordinal 0; dependent parameter/result `Ident(A)` semantics and replacement remain `UNSUPPORTED_STRUCTURE`; only the exact capture-local `x` reference is admitted as a replacement body; no public Type binder |\n"
+            "| Existing-class canonical resolved Option[String] method Type write | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `BOUNDED` exact strict unary ordinary existing method; public `STypeApply(STypeResolved(scala.Option), List(STypeResolved(java.lang.String)))`; parameter-only, result-only, and combined capture-local body replacement; rooted alias-resistant output; semantic read projection remains unsupported |\n"
             "\n`TermUntypedLowering` and `TermGeneratedOriginLowering` preserve "
             "two or more successive ordinary argument clauses. "
             "`ScalametaTermProjection` and `ScalametaTermShapeAuthoring` preserve completed nested clauses. "
@@ -242,6 +243,19 @@ class PublicDocsCheckTest(unittest.TestCase):
             "safe, and the JVM may observe the default value. "
             "Both legal immutable plan-building orders are supported, and invalid combinations "
             "fail before a result is exposed.\n\n"
+            "The canonical applied method-Type write family is limited to one strict unary "
+            "ordinary existing method and the exact public value "
+            "`STypeApply(STypeResolved(ResolvedTypeNameId(Vector(Package(scala)), Option)), "
+            "List(STypeResolved(ResolvedTypeNameId(Vector(Package(java), Package(lang)), String))))`. "
+            "It lowers to `_root_.scala.Option[_root_.java.lang.String]` for parameter-only, "
+            "result-only, and combined capture-local body replacement. Public construction uses "
+            "`ResolvedTypeOwnerSegment(ResolvedTypeOwnerKind.Package, name)`, "
+            "`ResolvedTypeNameId`, `TypeNormalForm.STypeResolved`, and "
+            "`TypeNormalForm.STypeApply`. Bare `STypeIdent(\"Option\")` or "
+            "`STypeIdent(\"String\")`, nested or other applied constructors, G2-dependent Type "
+            "replacement, and general `@addOption` expression wrapping remain unsupported. "
+            "Recapture permits fresh write transactions, but `TypeSlotView.semantic` still "
+            "returns `UNSUPPORTED_STRUCTURE` for the rooted applied Type.\n\n"
             "This does not authorize arbitrary calling-mode rewriting. It does not authorize "
             "arbitrary multiple methods or broader contextual/generic method shapes. Generated "
             "sibling-reference resolution remains separate. This does not authorize general "
@@ -1381,7 +1395,7 @@ class PublicDocsCheckTest(unittest.TestCase):
         claims = (
             "G2 dependent parameter and result Type replacement is supported by ExistingClassUntypedRewrite.",
             "G2 arbitrary replacement bodies are supported by ExistingClassUntypedRewrite.",
-            "Option[String] method-Type replacement is supported by ExistingClassUntypedRewrite.",
+            "G2 Option[String] method-Type replacement is supported by ExistingClassUntypedRewrite.",
         )
         for claim in claims:
             with self.subTest(claim=claim), tempfile.TemporaryDirectory() as directory:
@@ -1660,6 +1674,86 @@ class PublicDocsCheckTest(unittest.TestCase):
 
                 self.assertEqual(result.returncode, 1)
                 self.assertIn("C082 repeated-name or arity-family overclaim", result.stderr)
+
+    def test_rejects_missing_c083_canonical_resolved_option_recipe(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            rewrite = root / "docs/EXISTING_CLASS_UNTYPED_REWRITE.md"
+            rewrite.write_text(
+                rewrite.read_text(encoding="utf-8").replace(
+                    "`ResolvedTypeOwnerSegment(ResolvedTypeOwnerKind.Package, name)`, "
+                    "`ResolvedTypeNameId`, `TypeNormalForm.STypeResolved`, and "
+                    "`TypeNormalForm.STypeApply`.",
+                    "public resolved constructors.",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C083 canonical Option public construction recipe missing", result.stderr)
+
+    def test_rejects_c083_stale_blanket_applied_method_type_rejection(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            readme = root / "README.md"
+            readme.write_text(
+                readme.read_text(encoding="utf-8")
+                + "\nAll STypeApply existing method edits are unsupported.\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C083 stale blanket applied method-Type rejection", result.stderr)
+
+    def test_rejects_c083_option_adjacent_family_overclaims(self) -> None:
+        overclaims = (
+            "Bare Option and String aliases are canonical global identities for existing method edits.",
+            "Nested Option and other applied constructors are supported by ExistingClassUntypedRewrite.",
+            "G2 dependent Option Type replacement is supported by ExistingClassUntypedRewrite.",
+            "General @addOption expression wrapping is supported by ExistingClassUntypedRewrite.",
+        )
+        for overclaim in overclaims:
+            with self.subTest(overclaim=overclaim), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.make_fixture(root)
+                readme = root / "README.md"
+                readme.write_text(
+                    readme.read_text(encoding="utf-8") + "\n" + overclaim + "\n",
+                    encoding="utf-8",
+                )
+
+                result = self.run_checker(root)
+
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("C083 canonical Option adjacent-family overclaim", result.stderr)
+
+    def test_rejects_missing_c083_cross_surface_boundary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            matrix = root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md"
+            matrix.write_text(
+                "\n".join(
+                    line
+                    for line in matrix.read_text(encoding="utf-8").splitlines()
+                    if not line.startswith(
+                        "| Existing-class canonical resolved Option[String] method Type write |"
+                    )
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C083 canonical Option cross-surface row missing", result.stderr)
 
 
 if __name__ == "__main__":

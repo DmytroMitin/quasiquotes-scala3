@@ -16,6 +16,14 @@ import quasiquotes.types.{
 }
 
 final class ExistingClassUntypedRewriteOptionAppliedTypeFeasibilityTest extends munit.FunSuite:
+  test("documented foreign first use executes the canonical resolved Option write"):
+    withContext:
+      val root = parseClass(optionServiceSource)
+      val result = right(ExistingClassUntypedRewriteFirstUse.rewriteCanonicalOption(root))
+      val rewritten = selectedMethod(result.tree)
+      assertCanonicalRootedPair(rewritten.paramss.head.head.asInstanceOf[untpd.ValDef].tpt)
+      assertCanonicalRootedPair(rewritten.tpt)
+
   test("foreign package rewrites both method Types through the public facade with the exact resolved canonical pair"):
     withContext:
       val root = parseClass(

@@ -312,8 +312,15 @@ private opaque unbounded `TypeDef(A)` clause and dependent parameter/result
 `Ident(A)` nodes while exposing only its ordinary strict unary term clause at
 public ordinal 0. Dependent Type semantics and replacement remain
 `UNSUPPORTED_STRUCTURE`; only the exact capture-local `x` body is admitted.
-This does not authorize Type substitution, arbitrary bodies, `Option[String]`
-method-Type replacement, or a public Type binder.
+This does not authorize Type substitution, arbitrary bodies, applied
+method-Type replacement inside G2, or a public Type binder. A separate
+non-generic strict unary ordinary path accepts only the exact resolved
+`STypeApply(STypeResolved(scala.Option),
+List(STypeResolved(java.lang.String)))`, emitting
+`_root_.scala.Option[_root_.java.lang.String]` for parameter/result writes and
+combined capture-local body replacement. Its generated rooted children retain
+truthful provenance, while bare/other/nested applications and semantic read
+projection remain closed.
 Omission
 and ordered semantic Definition append compose through one immutable plan and
 one final owner transaction. It delegates the accepted

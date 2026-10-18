@@ -1039,13 +1039,26 @@ implicit-style, broader generic/defaulted/erased methods, and by-name or repeate
 contextual parameters remain unsupported. For G2, dependent parameter/result
 `Ident(A)` semantics and replacement remain `UNSUPPORTED_STRUCTURE`; only the
 exact capture-local `x` reference is admitted as a replacement body. Literal,
-free, or rebound identifiers and nondependent applied method-Type replacement
-such as `Option[String]` remain unsupported. `Contextual.code` is `CONTEXTUAL`;
+free, or rebound identifiers and applied method-Type replacement inside G2
+remain unsupported. `Contextual.code` is `CONTEXTUAL`;
 it is a semantic clause kind, not an arity-specific method model.
 For G1, Type-independent primitive parameter/result and binder-aware body edits
 preserve the original Type clause, `TypeDef`, and bounds by identity. No public
 Type binder or generic substitution model is exposed. G2 likewise exposes no
 public Type binder and does not authorize Type substitution.
+
+For a non-generic strict unary ordinary method, the separate canonical write
+family accepts only the exact public resolved pair
+`STypeApply(STypeResolved(scala.Option),
+List(STypeResolved(java.lang.String)))`. Construct it with
+`ResolvedTypeOwnerSegment`, `ResolvedTypeOwnerKind.Package`,
+`ResolvedTypeNameId`, `TypeNormalForm.STypeResolved`, and
+`TypeNormalForm.STypeApply`; the complete compiled recipe is in the focused
+guide. Parameter-only, result-only, and combined capture-local body plans emit
+`_root_.scala.Option[_root_.java.lang.String]`. Bare names, aliases, other or
+nested applications, G2-dependent replacement, and general `@addOption`
+wrapping remain unsupported. Recapture permits a new admitted write, while
+semantic projection of the rooted applied slots remains unsupported.
 
 ## Supported boundary
 

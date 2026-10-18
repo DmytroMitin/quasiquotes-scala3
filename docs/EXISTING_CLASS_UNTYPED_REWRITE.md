@@ -114,7 +114,46 @@ source, span, method, and owner identities remain preserved, and no public Type
 binder is exposed. Primitive-shadowing, bounded, wide, or multiple Type clauses,
 and contextual, defaulted, by-name, or repeated adjacent forms remain
 fail-closed. Literal, free, or rebound identifier bodies and nondependent
-applied method-Type replacement such as `Option[String]` remain outside G2.
+applied method-Type replacement remain outside G2.
+
+## Canonical resolved `Option[String]` method-Type writes
+
+The separate canonical applied method-Type write family is limited to one
+strict unary ordinary existing method and this exact public semantic value:
+
+```scala
+val canonicalOptionString =
+  val pkg = (name: String) =>
+    ResolvedTypeOwnerSegment(ResolvedTypeOwnerKind.Package, name)
+  TypeNormalForm.STypeApply(
+    TypeNormalForm.STypeResolved(
+      ResolvedTypeNameId(Vector(pkg("scala")), "Option")
+    ),
+    List(
+      TypeNormalForm.STypeResolved(
+        ResolvedTypeNameId(Vector(pkg("java"), pkg("lang")), "String")
+      )
+    )
+  )
+```
+
+Public construction uses
+`ResolvedTypeOwnerSegment(ResolvedTypeOwnerKind.Package, name)`,
+`ResolvedTypeNameId`, `TypeNormalForm.STypeResolved`, and
+`TypeNormalForm.STypeApply`. The value lowers to
+`_root_.scala.Option[_root_.java.lang.String]` for parameter-only,
+result-only, and combined capture-local body replacement. The outer applied
+node occupies the old Type site; its rooted qualifier and argument children
+have generated virtual-source provenance. Rooted emission is not captured by
+imports or owner members named `Option`, `String`, or `scala`.
+
+Bare `STypeIdent("Option")` or `STypeIdent("String")`, `Option[Int]`, nested
+or other applied constructors, wrong declaration identities or arities,
+G2-dependent Type replacement, exotic method shapes, and general `@addOption`
+expression wrapping remain unsupported. A successfully rewritten class can be
+recaptured for a fresh write transaction, but `TypeSlotView.semantic` still
+returns `UNSUPPORTED_STRUCTURE` for the rooted applied Type; no semantic read
+round trip is claimed.
 
 Raw capture and semantic projection are independent. A Type or body slot may
 return `UNSUPPORTED_STRUCTURE` while its exact identity remains available.
@@ -228,11 +267,13 @@ same transaction.
 
 ## Compiled first use
 
-The following U3-shaped example is compiled in the external-consumer test
-package. It assumes direct member 0 is an admitted one- or two-parameter
-ordinary method with a strict parameter; it does not exercise the unsafe
-by-name parameter-Type edit. Production callers should branch on each `Either`
-and inspect the returned topology rather than infer it from a name.
+The following example is compiled in the external-consumer test package. Its
+original U3 helper assumes direct member 0 is an admitted one- or two-parameter
+ordinary method with a strict parameter. The canonical Option helper requires
+exactly one direct method and demonstrates the resolved public construction
+recipe plus one combined capture-local body plan. It does not exercise the
+unsafe by-name parameter-Type edit. Production callers should branch on each
+`Either` and inspect the returned topology rather than infer it from a name.
 
 <!-- snippet:existing-class-untyped-rewrite-first-use:start -->
 ```scala
@@ -241,12 +282,31 @@ import dotty.tools.dotc.core.Contexts.Context
 
 import quasiquotes.definitions.{DefinitionName, SemanticDefinition}
 import quasiquotes.definitions.dotty.ExistingClassUntypedRewrite
-import quasiquotes.definitions.dotty.ExistingClassUntypedRewrite.{Failure, Result}
+import quasiquotes.definitions.dotty.ExistingClassUntypedRewrite.{Failure, MemberKind, Result}
 import quasiquotes.parser.TermShape
-import quasiquotes.types.TypeNormalForm
+import quasiquotes.types.{
+  ResolvedTypeNameId,
+  ResolvedTypeOwnerKind,
+  ResolvedTypeOwnerSegment,
+  TypeNormalForm
+}
 
 object ExistingClassUntypedRewriteFirstUse:
   private val IntType = TypeNormalForm.STypeIdent("Int")
+  val canonicalOptionString: TypeNormalForm =
+    val pkg = (name: String) =>
+      ResolvedTypeOwnerSegment(ResolvedTypeOwnerKind.Package, name)
+    TypeNormalForm.STypeApply(
+      TypeNormalForm.STypeResolved(
+        ResolvedTypeNameId(Vector(pkg("scala")), "Option")
+      ),
+      List(
+        TypeNormalForm.STypeResolved(
+          ResolvedTypeNameId(Vector(pkg("java"), pkg("lang")), "String")
+        )
+      )
+    )
+
   private val GeneratedSibling =
     val name = DefinitionName.fromSource("bonus")
       .fold(error => throw new IllegalArgumentException(error.message), identity)
@@ -272,6 +332,28 @@ object ExistingClassUntypedRewriteFirstUse:
       result <- ExistingClassUntypedRewrite(captured, p4)
     yield result
 
+  def rewriteCanonicalOption(existingClass: untpd.Tree)(using Context)
+      : Either[Failure, Result] =
+    for
+      captured <- ExistingClassUntypedRewrite.capture(existingClass)
+      candidates = captured.members.filter(_.kind == MemberKind.Method)
+      _ <- Either.cond(
+        candidates.size == 1,
+        (),
+        Failure(
+          "METHOD_SELECTION_FAILED",
+          s"expected exactly one direct method; found ${candidates.size}"
+        )
+      )
+      method <- captured.method(candidates.head.ref)
+      parameter = method.parameterClauses.head.parameters.head
+      reference <- method.parameterScope.reference(parameter.ref)
+      p1 <- captured.emptyPlan.replaceParameterType(parameter.ref, canonicalOptionString)
+      p2 <- p1.replaceResultType(method.ref, canonicalOptionString)
+      p3 <- p2.replaceBody(method.ref, reference)
+      result <- ExistingClassUntypedRewrite(captured, p3)
+    yield result
+
   def contextualClauseKinds(existingClass: untpd.Tree)(using Context)
       : Either[Failure, (Vector[(String, Int)], Vector[(String, Int)])] =
     for
@@ -292,6 +374,11 @@ object ExistingClassUntypedRewriteFirstUse:
 For U1, omit the three replace calls and append from `emptyPlan`. For U2,
 apply `p3` without the append. In all three cases, invoke the facade exactly
 once for the finished plan.
+
+`rewriteCanonicalOption` is executed by the foreign-package public-facade
+suite. That suite separately proves parameter-only and result-only plans,
+untouched-member identity/order, exact rooted topology, alias-resistant Typer,
+TASTy and runtime behavior, and atomic noncanonical failures.
 
 For contextual first use, pass a class whose first two direct methods are C1
 `def use(using context: Int)` and C2

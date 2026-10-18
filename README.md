@@ -574,7 +574,17 @@ is the exact capture-local `x` reference. Arbitrary constants, free or rebound
 identifiers, primitive-shadowing, bounded/wide/multiple Type clauses, and
 adjacent contextual/defaulted/by-name/repeated forms fail closed. This body-only
 G2 support is not a public Type-binder or substitution API and does not admit
-nondependent applied method-Type replacement such as `Option[String]`.
+applied method-Type replacement inside G2.
+
+Separately, one strict unary ordinary existing method admits the exact public
+resolved value `STypeApply(STypeResolved(scala.Option),
+List(STypeResolved(java.lang.String)))` for parameter-only, result-only, and
+combined capture-local body replacement. It emits the alias-resistant raw Type
+`_root_.scala.Option[_root_.java.lang.String]`. Bare name-only
+`STypeIdent("Option")` / `STypeIdent("String")`, other or nested applications,
+G2-dependent replacement, and general `@addOption` wrapping remain closed.
+Recapture supports a fresh write transaction; semantic read projection of the
+rooted applied Type remains unsupported.
 Contextual-before-ordinary, multiple/empty/wide contextual clauses, Scala 2
 implicit-style, broader generic, defaulted, erased, by-name/repeated contextual forms,
 generated sibling-reference resolution, and rollback across later compiler

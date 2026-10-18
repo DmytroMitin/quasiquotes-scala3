@@ -58,6 +58,15 @@ defines the one-/two-parameter topology, binder-scope rules, failures, identity
 postconditions, and caller-owned Macro-Paradise lifecycle. It is not in the
 released 0.3.0 artifacts.
 
+Within that active-source facade, one strict unary ordinary method may replace
+its parameter/result Type with the exact resolved
+`STypeApply(STypeResolved(scala.Option),
+List(STypeResolved(java.lang.String)))`. The backend emits
+`_root_.scala.Option[_root_.java.lang.String]`, retaining the old outer Type
+site and generated provenance for fresh rooted children. Parameter-only,
+result-only, and combined capture-local body plans are admitted; name-only,
+other/nested applied Types and general `@addOption` wrapping are not.
+
 `ScalametaTermUntypedBridge` is the public Scalameta-facing Term bridge. It accepts
 one `scala.meta.Term`, mechanically calls `ScalametaTermProjection.project`,
 then passes the projected `TermShape` to the package-private
@@ -422,9 +431,11 @@ preserve the Type clause, `TypeDef`, and bounds by identity. G2 admits exact
 preserving its private `TypeDef(A)`, bounds, dependent `Ident(A)` Type nodes,
 source/span, method, and owner identities. Dependent Type semantics and
 replacement remain `UNSUPPORTED_STRUCTURE`; literal, free, or rebound bodies,
-`Option[String]` method-Type replacement, primitive-shadowing, and bounded,
-wide, or multiple Type clauses remain closed. No public Type-binder semantics
-are exposed.
+applied method-Type replacement inside G2, primitive-shadowing, and bounded,
+wide, or multiple Type clauses remain closed. The separate canonical resolved
+Option write does not add public Type-binder semantics or semantic read
+projection: recaptured rooted Option slots still return
+`UNSUPPORTED_STRUCTURE` from `TypeSlotView.semantic`.
 The older specialized parameterless/single/two-parameter internal operations
 remain implementation authorities and do not independently widen the public
 contract.

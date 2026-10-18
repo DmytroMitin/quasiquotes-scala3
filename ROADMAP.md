@@ -393,7 +393,13 @@ architecture rather than inventing a new one:
   to the capture-local `x` reference while preserving its private `TypeDef(A)`,
   bounds and dependent Type nodes. Dependent Type semantics/replacement remain
   `UNSUPPORTED_STRUCTURE`. This does not imply public Type binders, arbitrary
-  G2 bodies, G2 Type-dependent substitution, `Option[String]` method-Type edits,
+  G2 bodies, or G2 Type-dependent substitution. Separately, the strict unary
+  ordinary existing-method family admits only the exact resolved
+  `scala.Option[java.lang.String]` semantic pair for parameter/result writes,
+  lowering to `_root_.scala.Option[_root_.java.lang.String]`. Bare aliases,
+  other/nested applications, general `@addOption` body wrapping, and semantic
+  read projection of the rooted applied Type remain unsupported. This does not
+  widen
   contextual-before-ordinary, multiple/empty/wide contextual clauses, Scala 2
   implicit-style, broader generic, defaulted, erased, by-name/repeated contextual or
   general multi-clause support;
