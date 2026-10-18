@@ -10,9 +10,15 @@ import dotty.tools.dotc.core.Types.NoType
 import dotty.tools.dotc.parsing.Parsers
 import dotty.tools.dotc.reporting.StoreReporter
 import dotty.tools.dotc.util.{NoSource, SourceFile}
-import dotty.tools.dotc.util.Spans.Span
+import dotty.tools.dotc.util.Spans.{NoSpan, Span}
 
-import quasiquotes.types.TypeNormalForm
+import quasiquotes.types.{
+  ResolvedTypeNameId,
+  ResolvedTypeOwnerKind,
+  ResolvedTypeOwnerSegment,
+  StandardResolvedTypeNames,
+  TypeNormalForm
+}
 
 class ExistingUntpdOrdinaryMethodTypeEditPreparationTest extends munit.FunSuite:
   import ExistingUntpdOrdinaryMethodTypeEditPreparation.*
@@ -293,6 +299,85 @@ class ExistingUntpdOrdinaryMethodTypeEditPreparationTest extends munit.FunSuite:
         )
         assertSnapshotUnchanged(root, before)
       }
+    }
+  }
+
+  test("canonical resolved Option String preparation keeps the outer site and rejects recursive provenance tampering") {
+    withContext {
+      val descriptor = descriptorFor(
+        parseClass("class CanonicalApplied:\n  def echo(value: String): String = value\n"),
+        0
+      )
+      val prepared = prepareResultType(descriptor, canonicalOptionString)
+        .fold(problem => fail(problem.message), identity)
+      val loweredGraph = allTrees(prepared.loweredType)
+      val positionedGraph = allTrees(prepared.positionedType)
+
+      assertEquals(loweredGraph.size, 8)
+      assert(loweredGraph.forall(node =>
+        !node.source.exists && !node.span.exists && node.symbol == NoSymbol
+      ))
+      assertEquals(positionedGraph.size, 8)
+      assertEquals(prepared.positionedType.source, descriptor.resultType.source)
+      assertEquals(prepared.positionedType.span, descriptor.resultType.span)
+      positionedGraph.tail.foreach { node =>
+        assertEquals(node.source.path, "generated/CanonicalResolvedOptionStringMethodType.scala")
+        assertEquals(node.source.content.mkString, "_root_.scala.Option[_root_.java.lang.String]")
+        assert(node.span.exists)
+      }
+      assert(positionedGraph.forall(positioned =>
+        loweredGraph.forall(lowered => !positioned.eq(lowered))
+      ))
+      assertEquals(validatePreparedResultType(prepared, descriptor), Right(()))
+
+      val (positionedOption, positionedString) = prepared.positionedType match
+        case untpd.AppliedTypeTree(option, List(string)) => (option, string)
+        case other => fail(s"expected canonical AppliedTypeTree, found $other")
+      val (loweredOption, loweredString) = prepared.loweredType match
+        case untpd.AppliedTypeTree(option, List(string)) => (option, string)
+        case other => fail(s"expected source-free canonical AppliedTypeTree, found $other")
+
+      def forged(positionedType: untpd.Tree): PreparedResultType =
+        prepared.copy(
+          positionedType = positionedType,
+          evidence = prepared.evidence.copy(positionedType = positionedType)
+        )
+
+      def atOldSite(option: untpd.Tree, string: untpd.Tree): untpd.Tree =
+        given SourceFile = NoSource
+        untpd.AppliedTypeTree(option, string :: Nil)
+          .cloneIn(descriptor.resultType.source)
+          .withSpan(descriptor.resultType.span)
+
+      val wrongSourceOption = positionedOption
+        .cloneIn(SourceFile.virtual("generated/Wrong.scala", "_root_.scala.Option"))
+        .withSpan(positionedOption.span)
+      assertCode(
+        validatePreparedResultType(forged(atOldSite(wrongSourceOption, positionedString)), descriptor),
+        "FINAL_RESULT_PREPARATION_INVARIANT_FAILED"
+      )
+
+      val missingSpanOption = positionedOption
+        .cloneIn(positionedOption.source)
+        .withSpan(NoSpan)
+      assertCode(
+        validatePreparedResultType(forged(atOldSite(missingSpanOption, positionedString)), descriptor),
+        "FINAL_RESULT_PREPARATION_INVARIANT_FAILED"
+      )
+
+      assertCode(
+        validatePreparedResultType(forged(atOldSite(loweredOption, loweredString)), descriptor),
+        "FINAL_RESULT_PREPARATION_INVARIANT_FAILED"
+      )
+
+      val foreignDescriptor = descriptorFor(
+        parseClass("class ForeignCanonicalApplied:\n  def echo(value: String): String = value\n"),
+        0
+      )
+      assertCode(
+        validatePreparedResultType(prepared, foreignDescriptor),
+        "FINAL_RESULT_PREPARATION_INVARIANT_FAILED"
+      )
     }
   }
 
@@ -642,6 +727,19 @@ class ExistingUntpdOrdinaryMethodTypeEditPreparationTest extends munit.FunSuite:
   )(using Context): PreparedParameterType =
     prepareParameterType(descriptor, parameter, TypeNormalForm.STypeIdent(primitive))
       .fold(problem => fail(problem.message), identity)
+
+  private val canonicalOptionString: TypeNormalForm =
+    val javaString = ResolvedTypeNameId(
+      Vector(
+        ResolvedTypeOwnerSegment(ResolvedTypeOwnerKind.Package, "java"),
+        ResolvedTypeOwnerSegment(ResolvedTypeOwnerKind.Package, "lang")
+      ),
+      "String"
+    )
+    TypeNormalForm.STypeApply(
+      TypeNormalForm.STypeResolved(StandardResolvedTypeNames.OptionId),
+      List(TypeNormalForm.STypeResolved(javaString))
+    )
 
   private def prepareResult(
       descriptor: ExistingUntpdOrdinaryMethodDescriptor.Descriptor,

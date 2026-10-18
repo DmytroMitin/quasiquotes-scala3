@@ -13,13 +13,35 @@ import dotty.tools.dotc.core.Phases.Phase
 import dotty.tools.dotc.core.Symbols.NoSymbol
 import dotty.tools.dotc.parsing.Parser
 
-import quasiquotes.types.TypeNormalForm
+import quasiquotes.types.{
+  ResolvedTypeNameId,
+  ResolvedTypeOwnerKind,
+  ResolvedTypeOwnerSegment,
+  TypeNormalForm
+}
 
 class ExistingOptionStringAppliedMethodTypeTyperRuntimeTest extends munit.FunSuite:
   import ExistingClassUntypedRewrite.*
-  import U071OptionStringAppliedMethodTypeOracle.*
 
-  test("private prototype P1-P5 reaches ordinary Typer, TASTy and runtime with exact Option[String]"):
+  private final case class ProductionProof(
+      result: Result,
+      positionEvidence: Boolean,
+      untouchedIdentityAndOrder: Boolean
+  )
+
+  private val optionString: TypeNormalForm =
+    val pkg = (name: String) =>
+      ResolvedTypeOwnerSegment(ResolvedTypeOwnerKind.Package, name)
+    TypeNormalForm.STypeApply(
+      TypeNormalForm.STypeResolved(ResolvedTypeNameId(Vector(pkg("scala")), "Option")),
+      List(
+        TypeNormalForm.STypeResolved(
+          ResolvedTypeNameId(Vector(pkg("java"), pkg("lang")), "String")
+        )
+      )
+    )
+
+  test("public production facade P1-P5 reaches ordinary Typer, TASTy and runtime with canonical Option[String]"):
     val temporary = Files.createTempDirectory("u071-option-runtime-")
     try
       val source = temporary.resolve("U071OptionRuntime.scala")
@@ -59,24 +81,25 @@ class ExistingOptionStringAppliedMethodTypeTyperRuntimeTest extends munit.FunSui
       finally loader.close()
     finally deleteRecursively(temporary)
 
-  test("prototype reconstruction does not hide an incompatible unchanged body from ordinary Typer"):
+  test("production reconstruction does not hide an incompatible unchanged body from ordinary Typer"):
     val outcome = compileNegative("U071IncompatibleBody.scala", incompatibleBodyProgram, "U071IncompatibleBody")
-    assert(outcome.oracleSucceeded)
+    assert(outcome.rewriteSucceeded)
     assert(outcome.errors.nonEmpty)
     assert(outcome.errors.exists(message => message.contains("value trim is not a member") || message.contains("Found:") || message.contains("Required:")), clues(outcome.errors))
     assert(!outcome.emitted.exists(_.endsWith("U071IncompatibleBody.tasty")))
 
-  test("imported alias shadowing is an unresolved descriptor/provenance gap, not an Option capability"):
+  test("canonical resolved pair survives imported Option String and scala aliases through runtime"):
     val outcome = compileNegative("U071ImportedAlias.scala", importedAliasProgram, "U071ImportedAlias")
-    assert(outcome.oracleSucceeded, "the class-only descriptor cannot observe the enclosing imported alias")
-    assert(outcome.errors.nonEmpty)
-    assert(outcome.errors.exists(message => message.contains("aliases.Types.Option") || message.contains("List") || message.contains("Found:") || message.contains("Required:")), clues(outcome.errors))
-    assert(!outcome.emitted.exists(_.endsWith("U071ImportedAlias.tasty")))
+    assert(outcome.rewriteSucceeded)
+    assertEquals(outcome.errors, Vector.empty)
+    assert(outcome.emitted.exists(_.endsWith("U071ImportedAlias.tasty")), clues(outcome.emitted))
+    assertEquals(outcome.runtimeValue, Some(Some("ok")))
 
   private final case class NegativeOutcome(
-      oracleSucceeded: Boolean,
+      rewriteSucceeded: Boolean,
       errors: Vector[String],
-      emitted: Vector[String]
+      emitted: Vector[String],
+      runtimeValue: Option[Option[String]]
   )
 
   private final class RewriteDriver extends Driver:
@@ -91,7 +114,7 @@ class ExistingOptionStringAppliedMethodTypeTyperRuntimeTest extends munit.FunSui
           List(new Parser) :: List(new RewriteBeforeTyper(RewriteDriver.this, None)) :: super.frontendPhases.tail
 
   private final class NegativeDriver(owner: String) extends Driver:
-    @volatile var oracleSucceeded = false
+    @volatile var rewriteSucceeded = false
 
     override protected def newCompiler(using Context): Compiler =
       new Compiler:
@@ -117,11 +140,11 @@ class ExistingOptionStringAppliedMethodTypeTyperRuntimeTest extends munit.FunSui
               case Right(proof) =>
                 if positive != null then
                   positive.rewritten = positive.rewritten :+ root.name.toString
-                  positive.preTyperClean &&= allTrees(proof.reconstructed.root).forall(clean)
-                  positive.positionEvidence &&= Vector(proof.parameterType, proof.resultType).flatten.forall(positionedEvidence)
-                  positive.untouchedIdentityAndOrder &&= proof.untouchedIdentity && proof.orderPreserved
-                negative.foreach(_._2.oracleSucceeded = true)
-                proof.reconstructed.root
+                  positive.preTyperClean &&= allTrees(proof.result.tree).forall(clean)
+                  positive.positionEvidence &&= proof.positionEvidence
+                  positive.untouchedIdentityAndOrder &&= proof.untouchedIdentityAndOrder
+                negative.foreach(_._2.rewriteSucceeded = true)
+                proof.result.tree
           case other => super.transform(other)
       summon[Context].compilationUnit.untpdTree = transformed.transform(unitTree)
 
@@ -137,7 +160,7 @@ class ExistingOptionStringAppliedMethodTypeTyperRuntimeTest extends munit.FunSui
   private enum Mode:
     case ParameterOnly, ResultOnly, BothBody, BothUnchanged
 
-  private def rewrite(root: untpd.TypeDef, mode: Mode)(using Context): Either[String, Proof] =
+  private def rewrite(root: untpd.TypeDef, mode: Mode)(using Context): Either[String, ProductionProof] =
     for
       captured <- ExistingClassUntypedRewrite.capture(root).left.map(_.message)
       methodIndex <- captured.members.indexWhere(_.kind == MemberKind.Method) match
@@ -155,15 +178,32 @@ class ExistingOptionStringAppliedMethodTypeTyperRuntimeTest extends munit.FunSui
       plan3 <- mode match
         case Mode.BothBody => plan2.replaceBody(method.ref, body).left.map(_.message)
         case _ => Right(plan2)
-      proof <- U071OptionStringAppliedMethodTypeOracle(captured, plan3).left.map(_.message)
-    yield proof
+      result <- ExistingClassUntypedRewrite(captured, plan3).left.map(_.message)
+      rewrittenMethod <- result.tree.rhs.asInstanceOf[untpd.Template].body.lift(methodIndex) match
+        case Some(value: untpd.DefDef) => Right(value)
+        case other => Left(s"rewritten method was unavailable: $other")
+      oldParameter = method.ref.methodIdentity.paramss.head.head.asInstanceOf[untpd.ValDef]
+      rewrittenParameter = rewrittenMethod.paramss.head.head.asInstanceOf[untpd.ValDef]
+      positionEvidence = Vector(
+        Option.when(mode != Mode.ResultOnly)(positionedEvidence(rewrittenParameter.tpt, oldParameter.tpt)),
+        Option.when(mode != Mode.ParameterOnly)(positionedEvidence(rewrittenMethod.tpt, method.ref.methodIdentity.tpt))
+      ).flatten.forall(identity)
+      untouchedIdentity = captured.members.indices.forall(index =>
+        index == methodIndex || result.directMemberIdentities(index).sameObjectAs(captured.members(index).identity)
+      )
+      selectedFresh = !result.directMemberIdentities(methodIndex).sameObjectAs(captured.members(methodIndex).identity)
+    yield ProductionProof(
+      result,
+      positionEvidence,
+      result.directMemberIdentities.size == captured.members.size && untouchedIdentity && selectedFresh
+    )
 
-  private def positionedEvidence(value: PositionedType)(using Context): Boolean =
-    val nodes = allTrees(value.positioned)
-    nodes.size == 3 && value.positioned.source == value.oldSite.source &&
-      value.positioned.span == value.oldSite.span &&
+  private def positionedEvidence(positioned: untpd.Tree, oldSite: untpd.Tree)(using Context): Boolean =
+    val nodes = allTrees(positioned)
+    nodes.size == 8 && positioned.source == oldSite.source &&
+      positioned.span == oldSite.span &&
       nodes.drop(1).forall(node => node.source.exists && node.span.exists) &&
-      nodes.drop(1).forall(_.source.path == "generated/U071OptionString.scala")
+      nodes.drop(1).forall(_.source.path == "generated/CanonicalResolvedOptionStringMethodType.scala")
 
   private def clean(tree: untpd.Tree)(using Context): Boolean =
     tree.symbol == NoSymbol && !tree.isInstanceOf[untpd.TypedSplice]
@@ -181,10 +221,18 @@ class ExistingOptionStringAppliedMethodTypeTyperRuntimeTest extends munit.FunSui
         "-d", output.toString,
         source.toString
       ))
+      val errors = reporter.allErrors.toVector.map(_.message)
+      val runtime =
+        if errors.isEmpty && owner == "U071ImportedAlias" then
+          val loader = new URLClassLoader(Array(output.toUri.toURL), getClass.getClassLoader)
+          try Some(invoke(loader, "u071.aliasnegative.U071ImportedAliasUse$", "value"))
+          finally loader.close()
+        else None
       NegativeOutcome(
-        driver.oracleSucceeded,
-        reporter.allErrors.toVector.map(_.message),
-        emitted(output)
+        driver.rewriteSucceeded,
+        errors,
+        emitted(output),
+        runtime
       )
     finally deleteRecursively(temporary)
 
@@ -241,15 +289,24 @@ class ExistingOptionStringAppliedMethodTypeTyperRuntimeTest extends munit.FunSui
     """package aliases {
       |  object Types {
       |    type Option[A] = List[A]
+      |    type List[A] = Vector[A]
+      |    type String = Int
+      |  }
+      |  object Names {
+      |    object scala {
+      |      type Option[A] = List[A]
+      |    }
       |  }
       |}
       |package u071.aliasnegative {
-      |  import aliases.Types.Option
+      |  import aliases.Types.{Option, List, String}
+      |  import aliases.Names.scala
       |  class U071ImportedAlias {
       |    def echo(value: String): String = value
       |  }
       |  object U071ImportedAliasUse {
-      |    val value: scala.Option[String] = new U071ImportedAlias().echo(Some("ok"))
+      |    def value: _root_.scala.Option[_root_.java.lang.String] =
+      |      new U071ImportedAlias().echo(_root_.scala.Some("ok"))
       |  }
       |}
       |""".stripMargin

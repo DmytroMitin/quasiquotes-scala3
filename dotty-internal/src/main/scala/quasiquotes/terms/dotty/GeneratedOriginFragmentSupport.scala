@@ -166,6 +166,24 @@ private[quasiquotes] object GeneratedOriginFragmentSupport:
       _ <- validatePlan(rendered.root, rendered.source.length)
     yield new TypeFragment(rendered.source, rendered.root)
 
+  /** Exact generated-origin plan for the one rooted applied method Type
+    * admitted by the existing-method rewrite boundary. This deliberately does
+    * not widen the general semantic Type planner.
+    */
+  private[quasiquotes] def planCanonicalResolvedOptionStringMethodType()
+      : Either[ConstructedTermGeneratedOriginError, TypeFragment] =
+    val source = "_root_.scala.Option[_root_.java.lang.String]"
+    val optionRoot = NodePlan(NodeKind.TypeIdent, 0, 6, 0, Vector.empty)
+    val scalaOwner = NodePlan(NodeKind.TypeSelect, 0, 12, 7, Vector(optionRoot))
+    val option = NodePlan(NodeKind.TypeSelect, 0, 19, 13, Vector(scalaOwner))
+    val stringRoot = NodePlan(NodeKind.TypeIdent, 20, 26, 20, Vector.empty)
+    val javaOwner = NodePlan(NodeKind.TypeSelect, 20, 31, 27, Vector(stringRoot))
+    val langOwner = NodePlan(NodeKind.TypeSelect, 20, 36, 32, Vector(javaOwner))
+    val string = NodePlan(NodeKind.TypeSelect, 20, 43, 37, Vector(langOwner))
+    val applied = NodePlan(NodeKind.AppliedType, 0, 44, 13, Vector(option, string))
+    validatePlan(applied, source.length)
+      .map(_ => new TypeFragment(source, applied))
+
   def positionTerm(
       raw: untpd.Tree,
       fragment: TermFragment,

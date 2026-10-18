@@ -2,10 +2,17 @@ package quasiquotes.definitions.dotty
 
 import dotty.tools.dotc.ast.untpd
 import dotty.tools.dotc.core.Contexts.Context
+import dotty.tools.dotc.core.Names.{termName, typeName}
 import dotty.tools.dotc.core.Symbols.NoSymbol
+import dotty.tools.dotc.util.Spans.Span
 import dotty.tools.dotc.util.{NoSource, SourceFile}
 
-import quasiquotes.types.TypeNormalForm
+import quasiquotes.terms.dotty.GeneratedOriginFragmentSupport
+import quasiquotes.types.{
+  ResolvedTypeOwnerKind,
+  StandardResolvedTypeNames,
+  TypeNormalForm
+}
 import quasiquotes.types.dotty.TypeUntypedLowering
 
 /** Preparation-only Type fragments for a later same-descriptor reconstruction. */
@@ -14,6 +21,18 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
 
   final case class Error(code: String, detail: String) derives CanEqual:
     def message: String = s"$code: $detail"
+
+  private enum AdmittedKind:
+    case Primitive(name: String)
+    case CanonicalResolvedOptionString
+
+  private final case class AdmittedReplacement(
+      semantic: TypeNormalForm,
+      kind: AdmittedKind
+  )
+
+  private val CanonicalGeneratedPath =
+    "generated/CanonicalResolvedOptionStringMethodType.scala"
 
   private[dotty] final class ParameterTypeIdentity private[ExistingUntpdOrdinaryMethodTypeEditPreparation] (
       val outer: untpd.Tree,
@@ -93,11 +112,11 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
       _ <- validateOriginalParameterType(validDescriptor, selected, oldParameterType)
       _ <- requireSite(oldParameter, "OLD_PARAMETER_SITE_REQUIRED", "the selected old parameter")
       _ <- requireSite(oldParameterType, "OLD_PARAMETER_TYPE_SITE_REQUIRED", "the selected old parameter Type")
-      admitted <- admit(replacement)
+      admitted <- admit(replacement, validDescriptor)
       lowered <- lower(admitted)
-      _ <- validateLowered(lowered, primitiveName(admitted))
-      positioned <- positionParameter(oldParameter, oldParameterType, lowered)
-      _ <- validatePositionedParameterType(positioned._1, lowered, oldParameterType, primitiveName(admitted))
+      _ <- validateLowered(lowered, admitted)
+      positioned <- positionParameter(oldParameter, oldParameterType, lowered, admitted)
+      _ <- validatePositionedParameterType(positioned._1, lowered, oldParameterType, admitted)
         .left.map(problem => error("ORIGIN_POSITIONING_FAILED", problem.detail))
       _ <- validatePositionedParameter(positioned._2, positioned._1, oldParameter)
         .left.map(problem => error("ORIGIN_POSITIONING_FAILED", problem.detail))
@@ -109,7 +128,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
         selected,
         oldParameter,
         oldParameterType,
-        admitted,
+        admitted.semantic,
         lowered,
         positioned._1,
         parameterTypeIdentity(positioned._1),
@@ -123,7 +142,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
         selected,
         oldParameter,
         oldParameterType,
-        admitted,
+        admitted.semantic,
         lowered,
         positioned._1,
         positioned._2,
@@ -143,11 +162,11 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
         .toRight(error("OLD_RESULT_TYPE_SITE_REQUIRED", "the old result Type was null or EmptyTree."))
       _ <- rejectDependentResultType(validDescriptor, oldResultType)
       _ <- requireSite(oldResultType, "OLD_RESULT_TYPE_SITE_REQUIRED", "the old result Type")
-      admitted <- admit(replacement)
+      admitted <- admit(replacement, validDescriptor)
       lowered <- lower(admitted)
-      _ <- validateLowered(lowered, primitiveName(admitted))
-      positioned = positionType(lowered, oldResultType)
-      _ <- validatePositionedType(positioned, lowered, oldResultType, primitiveName(admitted))
+      _ <- validateLowered(lowered, admitted)
+      positioned <- positionType(lowered, oldResultType, admitted)
+      _ <- validatePositionedType(positioned, lowered, oldResultType, admitted)
         .left.map(problem => error("ORIGIN_POSITIONING_FAILED", problem.detail))
       evidence = ResultEvidence(
         validDescriptor,
@@ -155,7 +174,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
         validDescriptor.memberIndex,
         validDescriptor.method,
         oldResultType,
-        admitted,
+        admitted.semantic,
         lowered,
         positioned
       )
@@ -165,7 +184,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
         validDescriptor.memberIndex,
         validDescriptor.method,
         oldResultType,
-        admitted,
+        admitted.semantic,
         lowered,
         positioned,
         evidence
@@ -211,13 +230,13 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
       ).left.map(_ => failure)
       _ <- requireSite(value.oldParameter, failure.code, "the retained old parameter").left.map(_ => failure)
       _ <- requireSite(value.oldParameterType, failure.code, "the retained old parameter Type").left.map(_ => failure)
-      admitted <- admit(value.semanticReplacement).left.map(_ => failure)
-      _ <- validateLowered(value.loweredType, primitiveName(admitted)).left.map(_ => failure)
+      admitted <- admit(value.semanticReplacement, expected).left.map(_ => failure)
+      _ <- validateLowered(value.loweredType, admitted).left.map(_ => failure)
       _ <- validatePositionedParameterType(
         value.positionedType,
         value.loweredType,
         value.oldParameterType,
-        primitiveName(admitted)
+        admitted
       ).left.map(_ => failure)
       _ <- validatePositionedParameter(
         value.positionedParameter,
@@ -251,13 +270,13 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
         failure
       )
       _ <- requireSite(value.oldResultType, failure.code, "the retained old result Type").left.map(_ => failure)
-      admitted <- admit(value.semanticReplacement).left.map(_ => failure)
-      _ <- validateLowered(value.loweredType, primitiveName(admitted)).left.map(_ => failure)
+      admitted <- admit(value.semanticReplacement, expected).left.map(_ => failure)
+      _ <- validateLowered(value.loweredType, admitted).left.map(_ => failure)
       _ <- validatePositionedType(
         value.positionedType,
         value.loweredType,
         value.oldResultType,
-        primitiveName(admitted)
+        admitted
       ).left.map(_ => failure)
     yield ()).left.map(_ => failure)
 
@@ -326,11 +345,18 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
       .flatMap(clause => Option(clause).iterator.flatMap(_.iterator))
       .count(candidate => candidate != null && candidate.eq(parameter))
 
-  private def admit(replacement: TypeNormalForm): Either[Error, TypeNormalForm] =
+  private def admit(
+      replacement: TypeNormalForm,
+      descriptor: Descriptor
+  )(using Context): Either[Error, AdmittedReplacement] =
     Option(replacement)
       .toRight(error("SEMANTIC_TYPE_REQUIRED", "the semantic replacement Type was null."))
       .flatMap {
-        case admitted @ TypeNormalForm.STypeIdent("Int" | "String" | "Boolean") => Right(admitted)
+        case admitted @ TypeNormalForm.STypeIdent(name @ ("Int" | "String" | "Boolean")) =>
+          Right(AdmittedReplacement(admitted, AdmittedKind.Primitive(name)))
+        case admitted if isCanonicalResolvedOptionString(admitted) =>
+          validateCanonicalOptionMethodShape(descriptor)
+            .map(_ => AdmittedReplacement(admitted, AdmittedKind.CanonicalResolvedOptionString))
         case identifier: TypeNormalForm.STypeIdent =>
           Left(error(
             "SEMANTIC_TYPE_IDENTIFIER_UNSUPPORTED",
@@ -339,9 +365,52 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
         case other =>
           Left(error(
             "SEMANTIC_TYPE_FAMILY_UNSUPPORTED",
-            s"U040 admits no non-primitive TypeNormalForm family; found ${other.getClass.getSimpleName}."
+            s"U040 admits no other non-primitive TypeNormalForm family; found ${other.getClass.getSimpleName}."
           ))
       }
+
+  private def isCanonicalResolvedOptionString(value: TypeNormalForm): Boolean =
+    value match
+      case TypeNormalForm.STypeApply(
+            TypeNormalForm.STypeResolved(optionId),
+            List(TypeNormalForm.STypeResolved(stringId))
+          ) =>
+        optionId != null && optionId == StandardResolvedTypeNames.OptionId &&
+          stringId != null && stringId.terminalName == "String" &&
+          stringId.owners == Vector(
+            quasiquotes.types.ResolvedTypeOwnerSegment(ResolvedTypeOwnerKind.Package, "java"),
+            quasiquotes.types.ResolvedTypeOwnerSegment(ResolvedTypeOwnerKind.Package, "lang")
+          )
+      case _ => false
+
+  private def validateCanonicalOptionMethodShape(
+      descriptor: Descriptor
+  )(using Context): Either[Error, Unit] =
+    for
+      kinds <- ExistingUntpdOrdinaryMethodDescriptor
+        .clauseKinds(descriptor)
+        .left.map(problem => error(
+          "SEMANTIC_TYPE_CANONICAL_OPTION_METHOD_SHAPE_UNSUPPORTED",
+          s"the exact method clause shape could not be validated: ${problem.message}"
+        ))
+      parameter <- descriptor.parameterClauses match
+        case Vector(Vector(value)) if value != null => Right(value)
+        case other => Left(error(
+          "SEMANTIC_TYPE_CANONICAL_OPTION_METHOD_SHAPE_UNSUPPORTED",
+          s"canonical resolved Option[String] requires one strict unary ordinary clause; found ${Option(other).fold("null")(_.map(_.size).mkString("[", ",", "]"))}."
+        ))
+      _ <- Either.cond(
+        kinds == Vector(ExistingUntpdOrdinaryMethodDescriptor.ClauseKind.Ordinary) &&
+          descriptor.opaqueTypeClause.isEmpty && descriptor.localTypeDependency.isEmpty &&
+          !parameter.tpt.isInstanceOf[untpd.ByNameTypeTree] &&
+          !parameter.tpt.isInstanceOf[untpd.PostfixOp],
+        (),
+        error(
+          "SEMANTIC_TYPE_CANONICAL_OPTION_METHOD_SHAPE_UNSUPPORTED",
+          "canonical resolved Option[String] is limited to one non-generic strict unary ordinary method; contextual, by-name, repeated and local-Type-binder shapes remain unsupported."
+        )
+      )
+    yield ()
 
   private def validateOriginalParameterType(
       descriptor: Descriptor,
@@ -426,24 +495,54 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
       )
     )
 
-  private def lower(replacement: TypeNormalForm): Either[Error, untpd.Tree] =
-    TypeUntypedLowering
-      .lower(replacement)
-      .left.map(problem => error("TYPE_LOWERING_FAILED", problem.message))
+  private def lower(replacement: AdmittedReplacement): Either[Error, untpd.Tree] =
+    replacement.kind match
+      case AdmittedKind.Primitive(_) =>
+        TypeUntypedLowering
+          .lower(replacement.semantic)
+          .left.map(problem => error("TYPE_LOWERING_FAILED", problem.message))
+      case AdmittedKind.CanonicalResolvedOptionString =>
+        given SourceFile = NoSource
+        val option = rootedTypePath(Vector("scala"), "Option")
+        val string = rootedTypePath(Vector("java", "lang"), "String")
+        Right(untpd.AppliedTypeTree(option, string :: Nil))
+
+  private def rootedTypePath(
+      owners: Vector[String],
+      terminal: String
+  )(using SourceFile): untpd.Tree =
+    val owner = owners.foldLeft[untpd.Tree](untpd.Ident(termName("_root_"))) {
+      (qualifier, segment) => untpd.Select(qualifier, termName(segment))
+    }
+    untpd.Select(owner, typeName(terminal))
 
   private def positionType(
       lowered: untpd.Tree,
-      oldSite: untpd.Tree
-  ): untpd.Tree =
-    lowered.cloneIn(oldSite.source).withSpan(oldSite.span)
+      oldSite: untpd.Tree,
+      replacement: AdmittedReplacement
+  )(using Context): Either[Error, untpd.Tree] =
+    replacement.kind match
+      case AdmittedKind.Primitive(_) =>
+        Right(lowered.cloneIn(oldSite.source).withSpan(oldSite.span))
+      case AdmittedKind.CanonicalResolvedOptionString =>
+        for
+          fragment <- GeneratedOriginFragmentSupport
+            .planCanonicalResolvedOptionStringMethodType()
+            .left.map(problem => error("ORIGIN_POSITIONING_FAILED", problem.message))
+          generatedSource = SourceFile.virtual(CanonicalGeneratedPath, fragment.source)
+          generated <- GeneratedOriginFragmentSupport
+            .positionType(lowered, fragment, generatedSource, 0)
+            .left.map(problem => error("ORIGIN_POSITIONING_FAILED", problem.message))
+        yield generated.cloneIn(oldSite.source).withSpan(oldSite.span)
 
   private def positionParameter(
       oldParameter: untpd.ValDef,
       oldParameterType: untpd.Tree,
-      lowered: untpd.Tree
+      lowered: untpd.Tree,
+      replacement: AdmittedReplacement
   )(using Context): Either[Error, (untpd.Tree, untpd.ValDef)] =
     for
-      positionedType <- positionParameterType(oldParameterType, lowered)
+      positionedType <- positionParameterType(oldParameterType, lowered, replacement)
     yield
       given SourceFile = NoSource
       val sourceFreeParameter = untpd
@@ -461,7 +560,8 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
 
   private def positionParameterType(
       oldParameterType: untpd.Tree,
-      lowered: untpd.Tree
+      lowered: untpd.Tree,
+      replacement: AdmittedReplacement
   )(using Context): Either[Error, untpd.Tree] =
     oldParameterType match
       case oldWrapper: untpd.ByNameTypeTree =>
@@ -477,9 +577,9 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
             "OLD_PARAMETER_TYPE_SITE_REQUIRED",
             "the selected old by-name parameter inner Type"
           )
+          positionedInner <- positionType(lowered, oldInner, replacement)
         yield
           given SourceFile = NoSource
-          val positionedInner = positionType(lowered, oldInner)
           untpd.ByNameTypeTree(positionedInner)
             .cloneIn(oldWrapper.source)
             .withSpan(oldWrapper.span)
@@ -500,62 +600,81 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
                   "the selected repeated parameter had no star marker."
                 ))
               _ <- validateRepeatedMarker(marker)
+              positionedElement <- positionType(lowered, element, replacement)
             yield
               given SourceFile = NoSource
-              val positionedElement = positionType(lowered, element)
               untpd.PostfixOp(positionedElement, marker)
                 .cloneIn(oldWrapper.source)
                 .withSpan(oldWrapper.span)
       case _ =>
-        Right(positionType(lowered, oldParameterType))
+        positionType(lowered, oldParameterType, replacement)
 
   private def validateLowered(
       lowered: untpd.Tree,
-      expectedName: String
+      replacement: AdmittedReplacement
   )(using Context): Either[Error, Unit] =
     Option(lowered) match
       case None => Left(error("LOWERED_TYPE_INVALID", "the delegated Type lowerer returned null."))
       case Some(tree) if tree.source == null =>
         Left(error("LOWERED_TYPE_INVALID", "the delegated Type lowerer returned a null source handle."))
-      case Some(tree) if tree.source.exists || tree.span.exists =>
-        Left(error("LOWERED_TYPE_INVALID", "the delegated Type lowerer did not return a source/span-free tree."))
-      case Some(tree) if tree.symbol != NoSymbol || tree.isInstanceOf[untpd.TypedSplice] =>
-        Left(error("LOWERED_TYPE_CONTAMINATED", "the delegated Type lowerer returned a symbol-bearing or TypedSplice tree."))
-      case Some(ident: untpd.Ident)
-          if Option(ident.name).exists(_.toString == expectedName) &&
-            safeAllTrees(ident).exists(_.size == 1) =>
-        Right(())
-      case Some(_) =>
-        Left(error("LOWERED_TYPE_INVALID", "the delegated Type lowerer did not return the exact admitted primitive Ident leaf."))
+      case Some(tree) =>
+        val graph = safeAllTrees(tree)
+        val clean = graph.exists(_.forall(node =>
+          node != null && node.source != null && !node.source.exists && !node.span.exists &&
+            node.symbol == NoSymbol && !node.isInstanceOf[untpd.TypedSplice]
+        ))
+        val exact = replacement.kind match
+          case AdmittedKind.Primitive(expectedName) =>
+            tree match
+              case ident: untpd.Ident =>
+                Option(ident.name).exists(_.toString == expectedName) && graph.exists(_.size == 1)
+              case _ => false
+          case AdmittedKind.CanonicalResolvedOptionString =>
+            exactCanonicalRootedTopology(tree) && graph.exists(_.size == 8)
+        Either.cond(
+          clean && exact,
+          (),
+          error(
+            "LOWERED_TYPE_INVALID",
+            "the delegated Type lowerer did not return the exact recursively source-free admitted Type graph."
+          )
+        )
 
   private def validatePositionedType(
       positioned: untpd.Tree,
       lowered: untpd.Tree,
       oldSite: untpd.Tree,
-      expectedName: String
+      replacement: AdmittedReplacement
   )(using Context): Either[Error, Unit] =
-    val valid = Option(positioned).exists {
-      case ident: untpd.Ident =>
-        Option(ident.name).exists(_.toString == expectedName) &&
-          safeAllTrees(ident).exists(_.size == 1) &&
-          !ident.eq(lowered) &&
-          !ident.eq(oldSite) &&
-          ident.source == oldSite.source &&
-          ident.span == oldSite.span &&
-          ident.symbol == NoSymbol
-      case _ => false
-    }
+    val valid = replacement.kind match
+      case AdmittedKind.Primitive(expectedName) =>
+        Option(positioned).exists {
+          case ident: untpd.Ident =>
+            Option(ident.name).exists(_.toString == expectedName) &&
+              safeAllTrees(ident).exists(_.size == 1) &&
+              !ident.eq(lowered) &&
+              !ident.eq(oldSite) &&
+              ident.source == oldSite.source &&
+              ident.span == oldSite.span &&
+              ident.symbol == NoSymbol
+          case _ => false
+        }
+      case AdmittedKind.CanonicalResolvedOptionString =>
+        validateCanonicalPositionedGraph(positioned, lowered, oldSite)
     Either.cond(
       valid,
       (),
-      error("ORIGIN_POSITIONING_FAILED", "the fresh positioned Type did not exactly occupy the old transformation site.")
+      error(
+        "ORIGIN_POSITIONING_FAILED",
+        "the fresh positioned Type did not preserve the exact old outer site and truthful recursive generated-origin graph."
+      )
     )
 
   private def validatePositionedParameterType(
       positioned: untpd.Tree,
       lowered: untpd.Tree,
       oldSite: untpd.Tree,
-      expectedName: String
+      replacement: AdmittedReplacement
   )(using Context): Either[Error, Unit] =
     oldSite match
       case oldWrapper: untpd.ByNameTypeTree =>
@@ -596,7 +715,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
                 wrapper.result,
                 lowered,
                 oldInner,
-                expectedName
+                replacement
               )
             yield ()
           case _ =>
@@ -656,7 +775,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
                     positionedElement,
                     lowered,
                     oldElement,
-                    expectedName
+                    replacement
                   )
                 yield ()
           case _ =>
@@ -665,7 +784,80 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
               "the positioned repeated parameter Type did not retain an exact star PostfixOp wrapper."
             ))
       case _ =>
-        validatePositionedType(positioned, lowered, oldSite, expectedName)
+        validatePositionedType(positioned, lowered, oldSite, replacement)
+
+  private def exactCanonicalRootedTopology(tree: untpd.Tree): Boolean =
+    tree match
+      case untpd.AppliedTypeTree(
+            untpd.Select(untpd.Select(untpd.Ident(rootOption), scalaName), optionName),
+            List(
+              untpd.Select(
+                untpd.Select(untpd.Select(untpd.Ident(rootString), javaName), langName),
+                stringName
+              )
+            )
+          ) =>
+        rootOption.toString == "_root_" && rootOption.isTermName &&
+          scalaName.toString == "scala" && scalaName.isTermName &&
+          optionName.toString == "Option" && optionName.isTypeName &&
+          rootString.toString == "_root_" && rootString.isTermName &&
+          javaName.toString == "java" && javaName.isTermName &&
+          langName.toString == "lang" && langName.isTermName &&
+          stringName.toString == "String" && stringName.isTypeName
+      case _ => false
+
+  private def validateCanonicalPositionedGraph(
+      positioned: untpd.Tree,
+      lowered: untpd.Tree,
+      oldSite: untpd.Tree
+  )(using Context): Boolean =
+    val generatedSource = "_root_.scala.Option[_root_.java.lang.String]"
+    val childrenWithSpans = positioned match
+      case untpd.AppliedTypeTree(
+            option @ untpd.Select(
+              scalaOwner @ untpd.Select(rootOption: untpd.Ident, _),
+              _
+            ),
+            List(
+              string @ untpd.Select(
+                langOwner @ untpd.Select(
+                  javaOwner @ untpd.Select(rootString: untpd.Ident, _),
+                  _
+                ),
+                _
+              )
+            )
+          ) =>
+        Vector(
+          option -> Span(0, 19, 13),
+          scalaOwner -> Span(0, 12, 7),
+          rootOption -> Span(0, 6, 0),
+          string -> Span(20, 43, 37),
+          langOwner -> Span(20, 36, 32),
+          javaOwner -> Span(20, 31, 27),
+          rootString -> Span(20, 26, 20)
+        )
+      case _ => Vector.empty
+    val positionedGraph = safeAllTrees(positioned).getOrElse(Vector.empty)
+    val loweredGraph = safeAllTrees(lowered).getOrElse(Vector.empty)
+    exactCanonicalRootedTopology(positioned) &&
+      positionedGraph.size == 8 && loweredGraph.size == 8 &&
+      !positioned.eq(lowered) && !positioned.eq(oldSite) &&
+      positioned.source == oldSite.source && positioned.span == oldSite.span &&
+      childrenWithSpans.size == 7 &&
+      childrenWithSpans.forall { case (node, expectedSpan) =>
+        node.source != null && node.source.exists &&
+          node.source.path == CanonicalGeneratedPath &&
+          node.source.content.mkString == generatedSource &&
+          node.span == expectedSpan && node.symbol == NoSymbol
+      } &&
+      positionedGraph.forall(node =>
+        node != null && node.symbol == NoSymbol && !node.isInstanceOf[untpd.TypedSplice]
+      ) &&
+      positionedGraph.indices.forall(left =>
+        positionedGraph.indices.forall(right => left == right || !positionedGraph(left).eq(positionedGraph(right)))
+      ) &&
+      positionedGraph.forall(node => loweredGraph.forall(loweredNode => !node.eq(loweredNode)))
 
   private def validatePositionedParameter(
       positioned: untpd.ValDef,
@@ -765,10 +957,6 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodTypeEditPreparation:
       value.semanticReplacement.eq(evidence.semanticReplacement) &&
       value.loweredType.eq(evidence.loweredType) &&
       value.positionedType.eq(evidence.positionedType)
-
-  private def primitiveName(replacement: TypeNormalForm): String = replacement match
-    case TypeNormalForm.STypeIdent(name) => name
-    case _ => ""
 
   private def requireSite(
       tree: untpd.Tree,
