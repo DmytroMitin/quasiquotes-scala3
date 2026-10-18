@@ -23,7 +23,7 @@ private[matching] object TwoSelectedMemberPatternSource:
 
   def classify(
       parts: List[String],
-      source: String
+      source: => String
   ): Either[String, Option[TwoSelectedMemberPatternPlan]] =
     layout(parts) match
       case None => Right(None)

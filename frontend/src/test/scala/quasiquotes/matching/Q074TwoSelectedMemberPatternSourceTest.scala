@@ -55,3 +55,17 @@ final class Q074TwoSelectedMemberPatternSourceTest extends munit.FunSuite:
     ).foreach(parts =>
       assertEquals(TwoSelectedMemberPatternSource.classify(parts, "$unused"), Right(None))
     )
+
+  test("unselected layouts do not request original interpolation source"):
+    var sourceRequested = false
+
+    val classified = TwoSelectedMemberPatternSource.classify(
+      List("", " + ", ""),
+      {
+        sourceRequested = true
+        "$left + $right"
+      }
+    )
+
+    assertEquals(classified, Right(None))
+    assertEquals(sourceRequested, false)

@@ -2,6 +2,8 @@ package quasiquotes.matching
 
 import scala.quoted.*
 
+import quasiquotes.source.ReflectedPositionProvenance
+
 private[matching] object QuasiPatternMacro:
   def extractor(
       context: Expr[StringContext],
@@ -15,14 +17,16 @@ private[matching] object QuasiPatternMacro:
       case _ =>
         return '{ QuasiPattern.scalarExtractor($context)(using $callerQuotes) }
 
-    val originalSource = context.asTerm.pos.sourceCode.getOrElse(
-      quotes.reflect.report.errorAndAbort(
-        "Unable to recover qq term-pattern source for selected-name role planning",
-        context
+    TwoSelectedMemberPatternSource.classify(
+      parts,
+      ReflectedPositionProvenance.sourceCode(context.asTerm.pos).getOrElse(
+        quotes.reflect.report.errorAndAbort(
+          "Invalid qq term-pattern template: two-selected-name source-role planning " +
+            "requires recoverable original interpolation source",
+          context
+        )
       )
-    )
-
-    TwoSelectedMemberPatternSource.classify(parts, originalSource) match
+    ) match
       case Left(detail) =>
         quotes.reflect.report.errorAndAbort(
           s"Invalid qq term-pattern template: $detail",
