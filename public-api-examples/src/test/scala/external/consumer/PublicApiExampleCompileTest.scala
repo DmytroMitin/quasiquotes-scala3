@@ -201,6 +201,14 @@ final class PublicApiExampleCompileTest extends munit.FunSuite:
       ),
       "many:3"
     )
+    assertEquals(
+      QqExtractorFirstUseSnippet.twoSelectedDirectSummary,
+      "inner:outer"
+    )
+    assert(
+      QqExtractorFirstUseSnippet.twoSelectedUnarySummary
+        .startsWith("inner:outer:")
+    )
 
   test("documented type interpolator first use stays in the external caller Quotes path"):
     assertEquals(

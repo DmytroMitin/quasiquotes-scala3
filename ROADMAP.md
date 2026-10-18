@@ -317,9 +317,12 @@ bounded P3 local identity-method family. Opt-in typed-Scalameta `qr`
 construction admits the same one-method identity shape only as the complete
 source root; nested placement and synthetic provenance-free `qq` matching
 remain unavailable. Bare identifiers,
-source-level overload resolution, dynamic infix syntax, multiple selected-name
-or ranked captures, rank 3, broader name/Type positions, and broader
-definition/class support remain independent later work. The
+source-level overload resolution, dynamic infix syntax, more than two
+selected-name captures, two-name/ranked combinations, multiple ranked captures,
+rank 3, broader name/Type positions, and broader definition/class support remain
+independent later work. Standard and opt-in typed-Scalameta `qq` now include the
+bounded direct and unary two-distinct-source-binder selected-name forms. The
+opt-in route retains Scalameta-primary compilation and the shared matcher. The
 [typed sequence Term splice contract](docs/TYPED_SEQUENCE_TERM_SPLICE_DESIGN.md)
 ships `..$args` plus a dedicated caller-universe carrier for one bounded
 Apply/one-list-New construction gate. The

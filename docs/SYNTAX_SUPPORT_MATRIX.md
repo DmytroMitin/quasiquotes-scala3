@@ -21,7 +21,7 @@ Status vocabulary:
 | Literals | `1`, `"text"`, `true` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; bounded literal kinds, no constant folding |
 | Identifiers | `value` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; structural names and explicit holes |
 | Selection | `value.size` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; fixed selection without an explicit argument list retains value-position normalization; no overload or semantic member equivalence |
-| Dynamic selected-member name | `qr"$receiver.$selectedName()"`; `case qq"$receiver.$selectedName"`; `case qq"$receiver.$selectedName(..$arguments)"` | Yes | Yes | `SelectedMemberName.from`, `qr`, `qq` | `BOUNDED`; construction validates a decoded ASCII name and requires a unique accessible member; matching observes an already-resolved `Select.name` once, captures `SelectedMemberName`, and admits direct, empty-call, unary-call, plus four one-rank-2 layouts on both typed frontends; an already-resolved overload may match; no dynamic infix, lexical lookup, multiple name/rank-2 captures, rank 3, or broader member positions |
+| Dynamic selected-member name | `qr"$receiver.$selectedName()"`; `case qq"$receiver.$selectedName"`; `case qq"$receiver.$first.$second"`; `case qq"$receiver.$first.$second($argument)"`; `case qq"$receiver.$selectedName(..$arguments)"` | Yes | Yes | `SelectedMemberName.from`, standard and opt-in typed-Scalameta `qr` / `qq` | `BOUNDED`; construction validates a decoded ASCII name and requires a unique accessible member. Matching observes already-resolved `Select.name` values: both typed frontends admit the accepted one-name direct/empty/unary and four one-rank-2 layouts plus the exact two distinct direct/unary source-binder forms, returning two independent names in source order. Target names may be equal and may be compared by an ordinary post-extraction guard. No native repeated binder, public repeat marker, `qq2`, dynamic infix, lexical lookup, more than two names, two-name/rank-2 combination, rank 3, or broader member positions. |
 | Application | `f(x)`, `builder.capacity()` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; ordinary supported source argument lists, including explicit empty clauses. Neutral Scalameta projection/authoring, direct Core lowering, semantic lowering, and both Scalameta bridges preserve completed left-associated 2..N ordinary clauses without flattening. This does not add clause-sequence splices, matching, contextual/named/star arguments, or rank-3 syntax. |
 | Sequence-Term arguments | `qr"f(fixed, ..$args)"`, `qr"new $typeRepr(..$args)"`, `case qq"f($head, ..$tail)"`, `case qq"new fixed.Type(..$args)"` | Yes | Yes | `TermSequenceSplices.termSplice`, `qr`, `qq` | `BOUNDED`; construction uses one dedicated caller-universe carrier per ordinary Apply or supported one-list New argument list; matching admits exactly one direct ordinary Apply-argument or fixed one-list New-argument capture as `Seq[q.reflect.Term]`; empty/one/many and fixed prefix/suffix supported; no dynamic/type-applied/multi-clause ranked New, tuple/interpolation/block/Type/Definition matching, rank 3, or vararg-star semantics |
 | Infix | `left + right` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; supported operators, structural rather than algebraic equality |
@@ -51,9 +51,12 @@ ordinal identities, and returns caller-owned `quotes.reflect.Term` captures.
 It also admits exactly one rank-2 Term sequence capture directly in ordinary
 `Apply.arguments` or the arguments of an existing fixed one-list `New`,
 returning `Seq[quotes.reflect.Term]` in the corresponding capture position. It
-does not add type slots, multiple/generalized ranks, backreferences, definition
-patterns, dynamic/type-applied/multi-clause constructors, ranked tuple/
-interpolation/block matching, or general Scala quasiquote coverage.
+additionally admits the exact standard and opt-in typed-Scalameta
+two-selected-name direct and unary forms with distinct source binders. It does
+not add type slots, multiple/generalized
+ranks, native repeated-binder backreferences, definition patterns,
+dynamic/type-applied/multi-clause constructors, ranked tuple/interpolation/block
+matching, or general Scala quasiquote coverage.
 
 ## Types
 

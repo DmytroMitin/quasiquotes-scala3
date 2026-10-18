@@ -49,6 +49,15 @@ hybrid inventory remains 45 rows / 43 groups, with one `tqq` source/TASTy
 signature replacement and no hybrid-specific carrier or helper group. Its
 legacy scalar JVM descriptor remains preserved.
 
+The standard two-selected-name `qq` direct/unary pattern forms reuse the
+existing variadic interpolator entry point and the existing public
+`TermPatternProductExtractor` product. They add no source declaration, JVM
+descriptor, TASTy signature, Scaladoc inventory row, or symbol group. Their
+public change is a bounded template admission and documentation change, not a
+public API-shape delta. Accepted opt-in typed-Scalameta parity reuses its
+existing `ScalametaTermPatternExtractor` entry point and likewise adds no public
+inventory row, symbol group, or JVM descriptor.
+
 The standard typed runtime-sequence `tqr` overload adds one logical row to
 the previous 793-row / 775-group inventory: all 793 prior rows are unchanged,
 with no replacement, removal or symbol-group addition. Its existing umbrella

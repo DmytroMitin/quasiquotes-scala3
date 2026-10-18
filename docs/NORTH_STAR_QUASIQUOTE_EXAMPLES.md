@@ -256,10 +256,14 @@ Apache-2.0 repository.
 
 The explicit-receiver dynamic selected-member construction gap is implemented
 through a validated decoded-name value and unique selection lowering. Matching
-is a separate bounded capability on both typed frontends: it observes one
-already-resolved selected name in direct, empty-call, unary-call, or one of the
-four admitted one-rank-2 layouts. It does not add bare-name lookup, source-level
-overload resolution, dynamic infix syntax, multiple selected names or ranks, or
+is a separate bounded capability. The accepted overlap on both typed frontends
+observes one already-resolved selected name in direct, empty-call, unary-call,
+or one of the four admitted one-rank-2 layouts. Standard and opt-in
+typed-Scalameta `qq` additionally observe two selected names in the exact direct
+and unary layouts, using two distinct Scala source binders and preserving
+source order. They do not add
+bare-name lookup, source-level overload resolution, dynamic infix syntax, more
+than two selected names, two-name/ranked combinations, multiple ranks, or
 generic member matching.
 
 The complete constructor Type position and the bounded sequence-Term argument

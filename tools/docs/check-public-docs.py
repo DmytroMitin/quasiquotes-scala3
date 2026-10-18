@@ -1291,6 +1291,66 @@ def c076_truth_findings(root: Path) -> list[str]:
     return findings
 
 
+def c082_truth_findings(root: Path) -> list[str]:
+    limitations = (
+        root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+    ).read_text(encoding="utf-8")
+    syntax_matrix = (root / "docs/SYNTAX_SUPPORT_MATRIX.md").read_text(
+        encoding="utf-8"
+    )
+    cross_matrix = (root / "docs/CROSS_SURFACE_CAPABILITY_MATRIX.md").read_text(
+        encoding="utf-8"
+    )
+    normalized = " ".join(limitations.split())
+    public_text = "\n".join((limitations, syntax_matrix, cross_matrix)).casefold()
+    findings = []
+
+    for marker in (
+        'Standard `qq` also admits `qq"$receiver.$first.$second"` and `qq"$receiver.$first.$second($argument)"`.',
+        "Different Scala source binder names produce two independent `SelectedMemberName` fields in source order",
+        "target member names may be equal",
+        "`if first == second` guard runs only after successful extraction",
+        "Opt-in typed-Scalameta `qq` admits the same exact two-name direct/unary contract",
+        "Native repeated same-binder patterns fail with E005",
+        "neither `#repeat` nor `qq2` is public syntax",
+    ):
+        if marker not in normalized:
+            findings.append(f"C082 standard two-selected-name contract missing: {marker}")
+
+    source_boundary = (
+        "Only exact two-name candidates require recoverable original source; legacy scalar, "
+        "one-name, ranked, mixed, and local-method candidates bypass source-position inspection, "
+        "while a true two-name candidate without source fails with a controlled selected-role diagnostic."
+    )
+    if source_boundary not in normalized:
+        findings.append("C082 two-name source-position contract missing")
+
+    if "multiple selected names remain unsupported on standard `qq`" in public_text:
+        findings.append("C082 stale standard two-selected-name rejection")
+
+    if (
+        "typed-scalameta two-name formal acceptance is pending" in public_text
+        or "typed-scalameta two-name parity is not yet part of the formally accepted support contract"
+        in public_text
+    ):
+        findings.append("C082 stale typed-Scalameta pending claim")
+
+    for overclaim in (
+        'native `qq"$receiver.$same.$same"` is supported',
+        "the `#repeat` marker is public syntax",
+        "use the public `qq2` interpolator for two names",
+    ):
+        if overclaim in public_text:
+            findings.append("C082 repeated-name or arity-family overclaim")
+
+    if "two distinct direct/unary" not in syntax_matrix:
+        findings.append("C082 syntax matrix missing standard two-name boundary")
+    if "accepted two distinct direct/unary parity" not in cross_matrix:
+        findings.append("C082 cross-surface matrix missing hybrid acceptance boundary")
+
+    return findings
+
+
 def check(root: Path) -> list[str]:
     rows = api_rows(root)
     return sorted(
@@ -1307,6 +1367,7 @@ def check(root: Path) -> list[str]:
         + c073_truth_findings(root)
         + c074_truth_findings(root)
         + c076_truth_findings(root)
+        + c082_truth_findings(root)
     )
 
 

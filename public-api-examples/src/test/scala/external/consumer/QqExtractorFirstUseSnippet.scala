@@ -9,6 +9,14 @@ import quasiquotes.matching.QuasiPattern.*
 object QqSelectedMemberFirstUseTarget:
   def many(first: Int, second: Int, third: Int): Int = first + second + third
 
+  object direct:
+    object inner:
+      val outer: Int = 42
+
+  object unary:
+    object inner:
+      def outer(value: Int): Int = value + 1
+
 object QqExtractorFirstUseSnippet:
   inline def splitAddition(expression: Int): (Int, Int) =
     ${ splitAdditionImpl('expression) }
@@ -24,6 +32,12 @@ object QqExtractorFirstUseSnippet:
 
   inline def selectedCallSummary(inline expression: Int): String =
     ${ selectedCallSummaryImpl('expression) }
+
+  inline def twoSelectedDirectSummary: String =
+    ${ twoSelectedDirectSummaryImpl }
+
+  inline def twoSelectedUnarySummary: String =
+    ${ twoSelectedUnarySummaryImpl }
 
   inline def malformedTemplate: Unit =
     ${ malformedTemplateImpl }
@@ -72,6 +86,39 @@ object QqExtractorFirstUseSnippet:
         val _: Seq[q.reflect.Term] = middle
         val _: q.reflect.Term = last
         Expr(s"${selectedName.decoded}:${middle.size + 2}")
+      case _ => Expr("no-match")
+
+  private def twoSelectedDirectSummaryImpl(using q: Quotes): Expr[String] =
+    import q.reflect.*
+
+    def stripInlined(term: Term): Term = term match
+      case Inlined(_, Nil, inner) => stripInlined(inner)
+      case other => other
+
+    val target = stripInlined('{ QqSelectedMemberFirstUseTarget.direct.inner.outer }.asTerm)
+    target match
+      case qq"$receiver.$first.$second" =>
+        val _: q.reflect.Term = receiver
+        val _: SelectedMemberName = first
+        val _: SelectedMemberName = second
+        Expr(s"${first.decoded}:${second.decoded}")
+      case _ => Expr("no-match")
+
+  private def twoSelectedUnarySummaryImpl(using q: Quotes): Expr[String] =
+    import q.reflect.*
+
+    def stripInlined(term: Term): Term = term match
+      case Inlined(_, Nil, inner) => stripInlined(inner)
+      case other => other
+
+    val target = stripInlined('{ QqSelectedMemberFirstUseTarget.unary.inner.outer(41) }.asTerm)
+    target match
+      case qq"$receiver.$first.$second($argument)" =>
+        val _: q.reflect.Term = receiver
+        val _: SelectedMemberName = first
+        val _: SelectedMemberName = second
+        val _: q.reflect.Term = argument
+        Expr(s"${first.decoded}:${second.decoded}:${argument.show}")
       case _ => Expr("no-match")
 
   private def malformedTemplateImpl(using q: Quotes): Expr[Unit] =

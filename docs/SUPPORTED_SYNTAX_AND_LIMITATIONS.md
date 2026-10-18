@@ -334,15 +334,21 @@ Important limitations:
   `..$slot` may be a direct ordinary application argument or an argument of an
   existing fixed fully qualified, non-generic, one-list constructor pattern and
   binds an ordered `Seq[q.reflect.Term]`. A selected-member pattern may also
-  capture exactly one already-resolved `Select.name` as `SelectedMemberName` in
+  capture one already-resolved `Select.name` as `SelectedMemberName` in
   direct, empty-call, unary-call, all-arguments, head-plus-tail, init-plus-last,
-  or first-plus-middle-plus-last form. Both typed frontends return captures in
-  interpolation order; the opt-in route compiles effective source once through
-  its Scalameta-primary frontend and reuses the shared matcher. An already
+  or first-plus-middle-plus-last form. Standard `qq` also admits
+  `qq"$receiver.$first.$second"` and
+  `qq"$receiver.$first.$second($argument)"`. Different Scala source binder
+  names produce two independent `SelectedMemberName` fields in source order;
+  target member names may be equal. An optional `if first == second` guard runs
+  only after successful extraction. An already
   resolved overload may match even though name-based construction is ambiguous.
-  Multiple selected names or sequence slots, other name/sequence positions,
-  dynamic/type-applied/multi-clause constructors, rank 3, type/definition
-  ranks, scalar/sequence role reuse, and generic member matching fail closed;
+  Native repeated same-binder patterns fail with E005, and neither `#repeat`
+  nor `qq2` is public syntax. More than two selected names, two-name forms mixed
+  with sequence slots, multiple sequence slots, other name/sequence positions,
+  dynamic/type-applied/multi-clause constructors, rank 3, type/definition ranks,
+  scalar/sequence role reuse, and generic member matching fail closed. Opt-in
+  typed-Scalameta `qq` admits the same exact two-name direct/unary contract;
 - public `tqr` and scalar `tqq` type templates use zero or more distinct
   ordinal whole-type slots; zero-hole `tqr` also admits canonical globally
   selected class terminals such as `java.lang.StringBuilder`. Standard `tqq`
@@ -398,14 +404,31 @@ case qq"$receiver.$selectedName(..$init, $last)" =>
 case qq"$receiver.$selectedName($first, ..$middle, $last)" =>
 ```
 
+Standard `qq` additionally admits the exact two-name direct and unary forms:
+
+```scala
+case qq"$receiver.$first.$second" =>
+case qq"$receiver.$first.$second($argument)" =>
+```
+
 The receiver and scalar arguments are exact caller-owned `Term` values, the
 name is one validated `SelectedMemberName`, and the ranked capture is one
 ordered `Seq[Term]`, all in interpolation order. The name is observed once from
 the already-resolved `Select.name`, so an already-resolved overload can match
-even when name-based construction would be ambiguous. The opt-in route is
-Scalameta-primary: it compiles effective source once and reuses the shared
-matcher. Multiple selected names or ranked captures, rank 3, broader name
-positions, and generic member matching remain unsupported.
+even when name-based construction would be ambiguous. In the exact two-name
+forms, different Scala source binder names produce two independent
+`SelectedMemberName` fields in source order. The target member names may be
+equal, and an `if first == second` guard runs only after successful extraction.
+Native repeated same-binder patterns fail with E005; neither `#repeat` nor
+`qq2` is public syntax. Only exact two-name candidates require recoverable
+original source; legacy scalar, one-name, ranked, mixed, and local-method
+candidates bypass source-position inspection, while a true two-name candidate
+without source fails with a controlled selected-role diagnostic. Opt-in
+typed-Scalameta `qq` admits the same exact two-name direct/unary contract and
+uses its Scalameta-primary compilation before the shared matcher. More than two
+selected names, two-name/ranked combinations,
+multiple ranked captures, rank 3, broader name positions, and generic member
+matching remain unsupported.
 
 The extractor synthesizes collision-safe semantic hole IDs by ordinal and
 projects the existing matcher's bindings back to the Scala pattern in

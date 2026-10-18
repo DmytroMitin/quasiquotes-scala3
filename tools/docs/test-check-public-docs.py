@@ -126,7 +126,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             "| Sequence-Term arguments | Apply and New sequence support |\n"
             "| Ordered term capture extractor | Scalar slots bind q.reflect.Term; exactly one "
             "direct Apply or New sequence slot binds Seq[q.reflect.Term] |\n"
-            "| Dynamic selected-member name | selected-name scalar and ranked matching |\n"
+            "| Dynamic selected-member name | standard and opt-in typed-Scalameta `qq` selected-name scalar, ranked, and two distinct direct/unary matching |\n"
             "| Runtime-sequence reflected Type application | dynamic constructor matching |\n\n"
             "The source-owned local identity method row uses standard and opt-in typed-Scalameta `qq` matching with symbolic/Unicode source binders excluded. Opt-in typed-Scalameta `qr` construction is bounded to the complete source root; nested P3 placement and provenance-free matching of synthetic P3 trees remain unsupported.\n\n"
             "https://docs.scala-lang.org/overviews/quasiquotes/syntax-summary.html\n"
@@ -140,7 +140,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             "| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"
             "| Rank-2 Term arguments in Apply / one-list New | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` | `NOT_APPLICABLE` |\n"
             "| Runtime-length Type application arguments | `BOUNDED` | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |\n"
-            "| Dynamic selected-member name | `BOUNDED` | `BOUNDED` already-resolved Select.name and one SelectedMemberName over compiler-presented `AppliedType` | `BOUNDED` | `BOUNDED` Scalameta-primary shared matcher | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |\n"
+            "| Dynamic selected-member name | `BOUNDED` | `BOUNDED` already-resolved Select.name with one-name/ranked forms plus standard two distinct direct/unary captures over compiler-presented `AppliedType` evidence | `BOUNDED` | `BOUNDED` Scalameta-primary shared matcher with accepted two distinct direct/unary parity | `NOT_YET` | `NOT_YET` | `NOT_YET` | `NOT_APPLICABLE` |\n"
             "| Source-owned local identity method (P3) | `BOUNDED` | `BOUNDED` standard typed qq | `BOUNDED` complete-source-root local identity method only; callback-owned `MethodType`, `DefDef`, `Quotes`, source and Type sidecars | `BOUNDED` Scalameta-primary matching parity; symbolic and Unicode source binders excluded; original caller-universe `Term`; synthetic constructed P3 matching still requires explicit source TypeTree provenance | `BOUNDED` | `BOUNDED` | `BOUNDED` | `NOT_APPLICABLE` |\n"
             "| Existing-class zero-parameter ordinary methods | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `BOUNDED` `DefDef.paramss = Nil` projects as zero public term clauses; `List(Nil)` projects as one empty ordinary clause; both create zero parameter binders |\n"
             "| Existing-class two ordinary unary clauses | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | `BOUNDED` exact `List(List(a), List(b))`; two `Ordinary` clauses at ordinals 0 and 1; distinct binders; preserved `List(1, 1)` topology and curried call syntax |\n"
@@ -167,6 +167,18 @@ class PublicDocsCheckTest(unittest.TestCase):
             "Selected-member matching uses `qq\"$receiver.$selectedName\"`, `qq\"$receiver.$selectedName()\"`, `qq\"$receiver.$selectedName($argument)\"`, `qq\"$receiver.$selectedName(..$arguments)\"`, `qq\"$receiver.$selectedName($head, ..$tail)\"`, `qq\"$receiver.$selectedName(..$init, $last)\"`, and `qq\"$receiver.$selectedName($first, ..$middle, $last)\"`. "
             "It returns exact Term, one SelectedMemberName, and one Seq[Term] from the already-resolved `Select.name`; an already-resolved overload may match. "
             "The typed route is Scalameta-primary and reuses the shared matcher.\n\n"
+            "Standard `qq` also admits `qq\"$receiver.$first.$second\"` and "
+            "`qq\"$receiver.$first.$second($argument)\"`. Different Scala source "
+            "binder names produce two independent `SelectedMemberName` fields in source "
+            "order; target member names may be equal, and an ordinary "
+            "`if first == second` guard runs only after successful extraction. Only exact "
+            "two-name candidates require recoverable original source; legacy scalar, "
+            "one-name, ranked, mixed, and local-method candidates bypass source-position "
+            "inspection, while a true two-name candidate without source fails with a "
+            "controlled selected-role diagnostic. Opt-in typed-Scalameta `qq` admits the "
+            "same exact two-name direct/unary contract. Native repeated "
+            "same-binder patterns fail with E005; neither `#repeat` nor `qq2` is public "
+            "syntax.\n\n"
             "Dynamic Type matching admits `tqq\"$constructor[..$arguments]\"`, `tqq\"$constructor[$head, ..$tail]\"`, `tqq\"$constructor[..$init, $last]\"`, `tqq\"$constructor[$first, ..$middle, $last]\"`, and `tqq\"$constructor[Int, ..$tail]\"` over any compiler-presented `AppliedType`; construction remains narrower and exact TypeRepr plus Seq[TypeRepr] identities are preserved. Matching is broader than the narrower construction contract.\n"
             "\nStandard and opt-in typed-Scalameta scalar `qq` matching share one bounded P3 local identity-method family. "
             "The opt-in route uses Scalameta-primary compilation. Both routes match one local identity method "
@@ -1572,6 +1584,82 @@ class PublicDocsCheckTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 1)
             self.assertIn("C065 active standard API inventory", result.stderr)
+
+    def test_rejects_stale_standard_two_selected_name_rejection(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            limitations = root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+            limitations.write_text(
+                limitations.read_text(encoding="utf-8").replace(
+                    "Standard `qq` also admits `qq\"$receiver.$first.$second\"` and "
+                    "`qq\"$receiver.$first.$second($argument)\"`.",
+                    "Multiple selected names remain unsupported on standard `qq`.",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C082 stale standard two-selected-name rejection", result.stderr)
+
+    def test_rejects_stale_typed_scalameta_two_name_pending_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            limitations = root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+            limitations.write_text(
+                limitations.read_text(encoding="utf-8").replace(
+                    "Opt-in typed-Scalameta `qq` admits the same exact two-name direct/unary contract.",
+                    "Opt-in typed-Scalameta two-name formal acceptance is pending.",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C082 stale typed-Scalameta pending claim", result.stderr)
+
+    def test_rejects_missing_two_name_source_position_boundary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.make_fixture(root)
+            limitations = root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+            limitations.write_text(
+                limitations.read_text(encoding="utf-8").replace(
+                    "Only exact two-name candidates require recoverable original source; legacy scalar, one-name, ranked, mixed, and local-method candidates bypass source-position inspection, while a true two-name candidate without source fails with a controlled selected-role diagnostic.",
+                    "Two-name source handling follows the ordinary matcher.",
+                ),
+                encoding="utf-8",
+            )
+
+            result = self.run_checker(root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("C082 two-name source-position contract missing", result.stderr)
+
+    def test_rejects_repeated_binder_or_marker_shipping_overclaim(self) -> None:
+        overclaims = (
+            'Native `qq"$receiver.$same.$same"` is supported.',
+            "The `#repeat` marker is public syntax.",
+            "Use the public `qq2` interpolator for two names.",
+        )
+        for overclaim in overclaims:
+            with self.subTest(overclaim=overclaim), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self.make_fixture(root)
+                limitations = root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+                limitations.write_text(
+                    limitations.read_text(encoding="utf-8") + "\n" + overclaim + "\n",
+                    encoding="utf-8",
+                )
+
+                result = self.run_checker(root)
+
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("C082 repeated-name or arity-family overclaim", result.stderr)
 
 
 if __name__ == "__main__":

@@ -422,8 +422,15 @@ selected member name in `qq"$receiver.$selectedName"`, its empty and unary
 call forms, and the four bounded forms that combine that name with one direct
 Term sequence capture. The name is a validated `SelectedMemberName`; matching
 may observe an already-resolved overload even though name-based construction
-remains ambiguous. Multiple selected-name or ranked captures, rank 3, and
-broader member positions remain unsupported.
+remains ambiguous. Standard and opt-in typed-Scalameta `qq` additionally match
+`qq"$receiver.$first.$second"` and
+`qq"$receiver.$first.$second($argument)"`. The two Scala pattern binders must
+be distinct, return independent `SelectedMemberName` values in source order,
+and may observe equal target member names; equality can be tested in an
+ordinary pattern guard. This does not add a repeated-binder syntax, repeat
+marker, `qq2`, two-name/ranked combination, more than two selected names, rank
+3, or broader member positions. The opt-in route is Scalameta-primary and
+returns the same public capture product.
 
 The canonical first-use examples, including the complete Lambda1, bounded P1
 block and single-typed-local-val P2 `qr`/`qq`, and bounded `tqr`/`tqq` macro paths, are mirrored from compiled
