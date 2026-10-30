@@ -311,7 +311,7 @@ final class Q078GenericSelectedChainTest extends munit.FunSuite:
     assertEquals(tuple.map(_.productArity), Some(3))
     assertEquals(tuple, Some(("receiver", name, name)))
 
-  test("real public flat eight remains unsupported"):
+  test("real public flat eight now uses the standard production route"):
     val errors = typeCheckErrors("""{
       import scala.quoted.*
       import quasiquotes.matching.QuasiPattern.*
@@ -319,7 +319,7 @@ final class Q078GenericSelectedChainTest extends munit.FunSuite:
         case qq"$receiver.$a.$b.$c.$d.$e.$f.$g.$h" => ()
         case _ => ()
     }""")
-    assert(errors.nonEmpty, errors.toString)
+    assertEquals(errors, Nil)
 
   test("nonliteral StringContext does not infer a fabricated static tuple"):
     val errors = typeCheckErrors("""{

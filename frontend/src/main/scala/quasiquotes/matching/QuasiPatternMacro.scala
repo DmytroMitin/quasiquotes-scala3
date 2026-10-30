@@ -17,6 +17,22 @@ private[matching] object QuasiPatternMacro:
       case _ =>
         return '{ QuasiPattern.scalarExtractor($context)(using $callerQuotes) }
 
+    // Classify parts before reading positions: unrelated generated NoSpan
+    // contexts retain the legacy scalar/selected/ranked admission rules.
+    SelectedChainPatternSource.classify(
+      parts,
+      ReflectedPositionProvenance.sourceCode(context.asTerm.pos).getOrElse(
+        report.errorAndAbort(
+          "Invalid qq term-pattern template: selected-chain source-role planning " +
+            "requires recoverable original interpolation source",
+          context
+        )
+      )
+    ) match
+      case Left(detail) => report.errorAndAbort(s"Invalid qq term-pattern template: $detail", context)
+      case Right(Some(plan)) => return selectedChainExtractor(plan, callerQuotes)
+      case Right(None) => ()
+
     TwoSelectedMemberPatternSource.classify(
       parts,
       ReflectedPositionProvenance.sourceCode(context.asTerm.pos).getOrElse(
@@ -112,6 +128,26 @@ private[matching] object QuasiPatternMacro:
                         RankedTermPatternExtractorFactory
                           .extractor[captureKinds & Tuple]($context, ${ Expr(sequenceIndex) })(using $callerQuotes)
                       }
+
+  private def selectedChainExtractor(
+      plan: SelectedChainPatternSource.Plan,
+      callerQuotes: Expr[Quotes]
+  )(using Quotes): Expr[Any] =
+    import quotes.reflect.*
+    val cons = TypeRepr.of[Any *: EmptyTuple] match
+      case AppliedType(constructor, _) => constructor
+      case other => report.errorAndAbort(s"Unable to resolve Scala tuple constructor: ${other.show}")
+    val roles = TypeRepr.of[ProductTermCapture] ::
+      List.fill(plan.selectedOccurrences.size)(TypeRepr.of[ProductSelectedNameCapture])
+    val kinds = roles.foldRight(TypeRepr.of[EmptyTuple]) { (head, tail) =>
+      AppliedType(cons, List(head, tail))
+    }
+    val pattern = RankedTermPatternBridge.patternExpr(plan.pattern)
+    kinds.asType match
+      case '[captureKinds] =>
+        '{ SelectedChainTupleFactory.extractor[captureKinds & Tuple](using $callerQuotes)(
+          $pattern, ${Expr(plan.receiverName)}, ${Expr(plan.selectedOccurrences.size)}
+        ) }
 
   private def twoSelectedMemberExtractor(
       plan: TwoSelectedMemberPatternPlan,

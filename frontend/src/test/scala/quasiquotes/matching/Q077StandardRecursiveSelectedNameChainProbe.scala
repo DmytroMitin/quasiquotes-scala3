@@ -178,14 +178,16 @@ private[matching] object Q077StandardFlatModel:
     else
       val prepared = stripInlined(target)
       val depth = plan.selectedOccurrences.size
-      peelRaw(prepared, depth).flatMap { case (_, rootFirstNames) =>
+      peelRaw(prepared, depth).flatMap { case (receiver, rootFirstNames) =>
         val decoded = rootFirstNames.reverse.map(SelectedMemberName.from)
         if decoded.exists(_.isLeft) then None
         else
           for
             concrete <- replaceNames(plan.pattern, rootFirstNames)
             matched <- TermMatcher.matchTermRaw(concrete, prepared).toOption
-            receiver <- matched.bindings.get(plan.receiverName)
+            // Keep the original prefix, including wrappers/local references;
+            // the ordinary matcher may normalize its internal target view.
+            _ <- matched.bindings.get(plan.receiverName)
           yield Result(receiver, decoded.flatMap(_.toOption))
       }
 

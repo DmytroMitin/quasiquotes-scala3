@@ -67,11 +67,11 @@ final class Q077RecursiveSelectedNameChainFeasibilityTest extends munit.FunSuite
       )
     )
 
-  test("standard public flat N=1/N=2 remain positive and N=3/N=4 remain unsupported"):
+  test("standard public flat N=1 through N=4 compile under the direct-chain policy"):
     assertEquals(typeCheckErrors(Q077StandardCompileCases.flatOne), Nil)
     assertEquals(typeCheckErrors(Q077StandardCompileCases.flatTwo), Nil)
-    assert(typeCheckErrors(Q077StandardCompileCases.flatThree).nonEmpty)
-    assert(typeCheckErrors(Q077StandardCompileCases.flatFour).nonEmpty)
+    assertEquals(typeCheckErrors(Q077StandardCompileCases.flatThree), Nil)
+    assertEquals(typeCheckErrors(Q077StandardCompileCases.flatFour), Nil)
 
   test("standard negative and source-role matrix fails atomically"):
     assertEquals(

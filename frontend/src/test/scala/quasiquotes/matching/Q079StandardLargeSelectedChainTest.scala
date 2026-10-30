@@ -214,7 +214,7 @@ final class Q079StandardLargeSelectedChainTest extends munit.FunSuite:
     assert(!errors.exists(e => e.message.contains("duplicate pattern variable") || e.message.contains("recoverable original source") || e.message.contains("requires a direct flat")), errors.toString)
     println("Q079 Standard N=32 E107: " + errors.head.message)
 
-  test("public qq N=3 stays rejected by the public selected source classifier"):
+  test("public qq N=3 now compiles through the bounded production route"):
     val errors = typeCheckErrors("""{
       import scala.quoted.*
       import quasiquotes.matching.QuasiPattern.*
@@ -222,10 +222,10 @@ final class Q079StandardLargeSelectedChainTest extends munit.FunSuite:
         case qq"$receiver.$slot1.$slot2.$slot3" => ()
         case _ => ()
     }""")
-    assert(errors.exists(_.message.contains("Invalid qq term-pattern template")), errors.toString)
+    assertEquals(errors, Nil)
     assert(!errors.exists(_.message.contains("duplicate pattern variable")), errors.toString)
 
-  test("public qq N=23 stays rejected by the public selected source classifier"):
+  test("public qq N=23 reports capacity before the measured prototype typer boundary"):
     val errors = typeCheckErrors("""{
       import scala.quoted.*
       import quasiquotes.matching.QuasiPattern.*
@@ -233,7 +233,7 @@ final class Q079StandardLargeSelectedChainTest extends munit.FunSuite:
         case qq"$receiver.$slot1.$slot2.$slot3.$slot4.$slot5.$slot6.$slot7.$slot8.$slot9.$slot10.$slot11.$slot12.$slot13.$slot14.$slot15.$slot16.$slot17.$slot18.$slot19.$slot20.$slot21.$slot22.$slot23" => ()
         case _ => ()
     }""")
-    assert(errors.exists(_.message.contains("Invalid qq term-pattern template")), errors.toString)
+    assert(errors.exists(_.message.contains("selected-chain capacity")), errors.toString)
     assert(!errors.exists(_.message.contains("duplicate pattern variable")), errors.toString)
 
   test("independent optional Tuple22 extractor compiler control"):
