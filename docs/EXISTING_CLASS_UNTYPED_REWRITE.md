@@ -405,3 +405,5 @@ authoring, post-Typer rewriting, symbol transport, owner repair, or
 cross-version compiler compatibility. Its raw input and raw result are the
 only public raw-tree boundary; the validated refs, identities, views, and plans
 remain opaque.
+
+For the bounded source-like ScalaMeta authoring producer with explicit rooted Java targets, see [Rooted quoted existing-method rewrites](ROOTED_QUOTED_EXISTING_METHOD_REWRITE.md).

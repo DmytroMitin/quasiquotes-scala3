@@ -6,7 +6,8 @@ import dotty.tools.dotc.core.Symbols.NoSymbol
 
 import quasiquotes.parser.{BinderId, TermShape}
 import quasiquotes.terms.{ConstructedTerm, TermBinder, TermBindingFailure, TermBindingInternals}
-import quasiquotes.terms.dotty.ConstructedTermUntypedBackend
+import quasiquotes.terms.dotty.{ConstructedTermUntypedBackend, GeneratedOriginFragmentSupport, ExistingQuotedRootedOriginValidation}
+import dotty.tools.dotc.util.SourceFile
 
 /** Preparation-only semantic RHS fragments for a later same-descriptor reconstruction. */
 private[quasiquotes] object ExistingUntpdOrdinaryMethodRhsEditPreparation:
@@ -37,7 +38,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodRhsEditPreparation:
 
     private[dotty] def close(): Unit = active = false
 
-  private[dotty] final case class Evidence(
+  private[dotty] sealed case class Evidence(
       descriptor: Descriptor,
       captured: ExistingUntpdClassMemberFilter.Capture,
       memberIndex: Int,
@@ -49,7 +50,17 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodRhsEditPreparation:
       loweredReplacement: untpd.Tree,
       replacementFamily: ReplacementFamily,
       positionedReplacement: untpd.Tree
-  )
+  ):
+    // General U041 evidence and its copy constructor cannot mint rooted authority.
+    private[dotty] val rootedSnapshot: Option[ExistingQuotedRootedBody.Snapshot] = None
+
+  private final class RootedEvidence(value: Evidence) extends Evidence(
+      value.descriptor, value.captured, value.memberIndex, value.method, value.oldRhs,
+      value.scope, value.semanticReplacement, value.parameterBinders,
+      value.loweredReplacement, value.replacementFamily, value.positionedReplacement
+  ):
+    override private[dotty] val rootedSnapshot = Some(
+      new ExistingQuotedRootedBody.Snapshot(ExistingQuotedRootedBody.nodes(positionedReplacement)))
 
   final case class PreparedBody private[dotty] (
       descriptor: Descriptor,
@@ -71,6 +82,16 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodRhsEditPreparation:
   )(
       build: ReplacementScope => Either[Error, TermShape]
   )(using Context): Either[Error, PreparedBody] =
+    prepareBodyUsing(descriptor, false)(build)
+
+  private[dotty] def prepareRootedQuotedBody(descriptor: Descriptor)(
+      build: ReplacementScope => Either[Error, TermShape]
+  )(using Context): Either[Error, PreparedBody] =
+    prepareBodyUsing(descriptor, true)(build)
+
+  private def prepareBodyUsing(descriptor: Descriptor, rooted: Boolean)(
+      build: ReplacementScope => Either[Error, TermShape]
+  )(using Context): Either[Error, PreparedBody] =
     for
       validDescriptor <- validateDescriptor(descriptor)
       oldRhs <- Option(validDescriptor.rhs).filterNot(_.isEmpty).toRight(
@@ -86,7 +107,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodRhsEditPreparation:
       scope = new ReplacementScope(validDescriptor, parameters, names, binders)
       built <- invokeBuilder(build, scope)
       _ <- validateLocalTypeDependentBody(validDescriptor, parameters, built)
-      admitted <- admitReplacement(built, names.flatten.toSet)
+      admitted <- if rooted then admitRooted(validDescriptor,built) else admitReplacement(built, names.flatten.toSet)
       completed <- parameters.complete(admitted)
         .left.map(bodyFailure)
       checked <- parameters.validateDefinitionBody(names.map(_.size), completed)
@@ -97,13 +118,15 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodRhsEditPreparation:
       lowered <- ConstructedTermUntypedBackend.lowerInScopes(constructed, bindings)
         .left.map(problem => error("SOURCE_FREE_TERM_LOWERING_FAILED", problem.message))
       _ <- validateLowered(lowered, checked)
-      family <- ExistingUntpdSingleParameterMethodRhsRewriter.classify(lowered, "U041")
-        .left.map(problem => error(problem.code, problem.detail))
-      positioned <- ExistingUntpdMethodBodyRewriteOriginAdapter
-        .prepareReplacement(lowered, oldRhs, family)
-        .left.map(problem => error("ORIGIN_POSITIONING_FAILED", problem.message))
-      _ <- validatePositioned(positioned, lowered, checked, oldRhs)
-      evidence = Evidence(
+      family <- if rooted then Right(ReplacementFamily.DirectIdentQualifiedSelectedApply)
+        else ExistingUntpdSingleParameterMethodRhsRewriter.classify(lowered, "U041")
+          .left.map(problem => error(problem.code, problem.detail))
+      positioned <- if rooted then positionRooted(lowered,constructed,bindings,oldRhs)
+        else ExistingUntpdMethodBodyRewriteOriginAdapter
+          .prepareReplacement(lowered, oldRhs, family)
+          .left.map(problem => error("ORIGIN_POSITIONING_FAILED", problem.message))
+      _ <- if rooted then Right(()) else validatePositioned(positioned, lowered, checked, oldRhs)
+      lexicalEvidence = Evidence(
         validDescriptor,
         validDescriptor.captured,
         validDescriptor.memberIndex,
@@ -116,6 +139,7 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodRhsEditPreparation:
         family,
         positioned
       )
+      evidence = if rooted then new RootedEvidence(lexicalEvidence) else lexicalEvidence
       prepared = PreparedBody(
         validDescriptor,
         validDescriptor.captured,
@@ -163,18 +187,24 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodRhsEditPreparation:
         .left.map(_ => failure)
       _ <- scope.parameters.validateDefinitionBody(names.map(_.size), value.semanticReplacement)
         .left.map(_ => failure)
-      _ <- admitReplacement(value.semanticReplacement, names.flatten.toSet).left.map(_ => failure)
       _ <- validateLowered(value.loweredReplacement, value.semanticReplacement).left.map(_ => failure)
-      family <- ExistingUntpdSingleParameterMethodRhsRewriter
-        .classify(value.loweredReplacement, "U041")
-        .left.map(_ => failure)
-      _ <- Either.cond(family == value.replacementFamily, (), failure)
-      _ <- validatePositioned(
-        value.positionedReplacement,
-        value.loweredReplacement,
-        value.semanticReplacement,
-        value.oldRhs
-      ).left.map(_ => failure)
+      _ <- evidence.rootedSnapshot match
+        case Some(snapshot) =>
+          for
+            _ <- admitRooted(expected,value.semanticReplacement).left.map(_ => failure)
+            _ <- Either.cond(value.replacementFamily == ReplacementFamily.DirectIdentQualifiedSelectedApply &&
+              semanticMatchesRaw(value.semanticReplacement,value.positionedReplacement) &&
+              snapshot.valid(ExistingQuotedRootedBody.nodes(value.positionedReplacement)) &&
+              value.positionedReplacement.source.eq(expected.rhs.source) && value.positionedReplacement.span == expected.rhs.span,
+              (),failure)
+          yield ()
+        case None =>
+          for
+            _ <- admitReplacement(value.semanticReplacement,names.flatten.toSet).left.map(_ => failure)
+            family <- ExistingUntpdSingleParameterMethodRhsRewriter.classify(value.loweredReplacement,"U041").left.map(_ => failure)
+            _ <- Either.cond(family == value.replacementFamily,(),failure)
+            _ <- validatePositioned(value.positionedReplacement,value.loweredReplacement,value.semanticReplacement,value.oldRhs).left.map(_ => failure)
+          yield ()
       _ <- Either.cond(carrierMatches(value, evidence), (), failure)
       _ <- Either.cond(
         value.captured.eq(expected.captured) &&
@@ -185,6 +215,26 @@ private[quasiquotes] object ExistingUntpdOrdinaryMethodRhsEditPreparation:
         failure
       )
     yield ()).left.map(_ => failure)
+
+  private def admitRooted(descriptor: Descriptor, shape: TermShape): Either[Error,TermShape] =
+    Either.cond(descriptor.opaqueTypeClause.isEmpty && descriptor.localTypeDependency.isEmpty &&
+      descriptor.parameterClauses.map(_.size) == Vector(1) && ExistingQuotedRootedBody.canonical(shape),
+      shape,error("SEMANTIC_ROOTED_QUOTED_BODY_UNSUPPORTED","one capture-local rooted Java abs argument is required"))
+
+  private def positionRooted(
+      raw: untpd.Tree, constructed: ConstructedTerm, bindings: Vector[(BinderId,String)], old: untpd.Tree
+  )(using Context): Either[Error,untpd.Tree] =
+    for
+      fragment <- GeneratedOriginFragmentSupport.planDefinitionBodyInScopes(constructed,bindings)
+        .left.map(p => error("ORIGIN_POSITIONING_FAILED",p.message))
+      source = SourceFile.virtual("existing-method-rooted-quote.scala",fragment.source)
+      generated <- GeneratedOriginFragmentSupport.positionTerm(raw,fragment,source,0)
+        .left.map(p => error("ORIGIN_POSITIONING_FAILED",p.message))
+      _ <- ExistingQuotedRootedOriginValidation.validate(raw,generated,fragment)
+        .left.map(p => error("ORIGIN_POSITIONING_FAILED",p.message))
+      _ <- GeneratedOriginFragmentSupport.validatePositionedTree(generated,source,0,fragment.source.length)
+        .left.map(p => error("ORIGIN_POSITIONING_FAILED",p.message))
+    yield generated.cloneIn(old.source).withSpan(old.span)
 
   private def validateLocalTypeDependentBody(
       descriptor: Descriptor,

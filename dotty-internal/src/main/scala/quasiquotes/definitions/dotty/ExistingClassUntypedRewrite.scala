@@ -19,6 +19,17 @@ object ExistingClassUntypedRewrite:
       private val memberValues: Vector[MemberView],
       private val capturedContext: Context
   ):
+    // Capturing remains usable for the pre-existing algebra even when quoted
+    // provenance is unavailable; only the opt-in quote facade requires it.
+    private val quotedOriginal =
+      try Some(new ExistingQuotedRootedBody.Snapshot(
+        ExistingQuotedRootedBody.originalGraph(exact.originalRoot)))
+      catch case scala.util.control.NonFatal(_) => None
+
+    private[dotty] def hasContext(context: Context): Boolean = capturedContext.eq(context)
+    private[dotty] def quotedOriginalUnchanged(using Context): Boolean =
+      quotedOriginal.exists(_.valid(ExistingQuotedRootedBody.originalGraph(exact.originalRoot)))
+
     def classIdentity: ExactIdentity = new ExactIdentity(exact.originalRoot)
     def members: Vector[MemberView] = memberValues
 
@@ -226,17 +237,28 @@ object ExistingClassUntypedRewrite:
     def reference(parameter: ParameterRef): Either[Failure, TermShape] =
       state.reference(parameter)
 
-  final class EditPlan private[dotty] (
+  final class EditPlan private (
       private[dotty] val captureIdentity: ExistingUntpdClassMemberFilter.Capture,
       private[dotty] val omissions: Vector[MemberRef],
       private[dotty] val parameterTypes: Vector[ParameterTypeIntent],
       private[dotty] val resultTypes: Vector[ResultTypeIntent],
       private[dotty] val bodies: Vector[BodyIntent],
-      private[dotty] val appends: Vector[AppendIntent]
+      private[dotty] val appends: Vector[AppendIntent],
+      private[dotty] val quotedBodies: Vector[QuotedBodyIntent]
   ):
+    // Retain the exact pre-U080 constructor descriptor for already compiled clients.
+    private[dotty] def this(
+        capture: ExistingUntpdClassMemberFilter.Capture,
+        omissions: Vector[MemberRef],
+        parameters: Vector[ParameterTypeIntent],
+        results: Vector[ResultTypeIntent],
+        bodies: Vector[BodyIntent],
+        appends: Vector[AppendIntent]
+    ) = this(capture, omissions, parameters, results, bodies, appends, Vector.empty)
+
     def isEmpty: Boolean = editCount == 0
     def editCount: Int =
-      omissions.size + parameterTypes.size + resultTypes.size + bodies.size + appends.size
+      omissions.size + parameterTypes.size + resultTypes.size + bodies.size + appends.size + quotedBodies.size
 
     def omit(member: MemberRef): Either[Failure, EditPlan] =
       for
@@ -311,11 +333,26 @@ object ExistingClassUntypedRewrite:
           conflict(s"direct member ${selected.memberIndex} is already omitted.")
         )
         _ <- Either.cond(
-          !bodies.exists(intent => sameMethod(intent.method, selected)),
+          !bodies.exists(intent => sameMethod(intent.method, selected)) &&
+            !quotedBodies.exists(intent => sameMethod(intent.selection.method.ref, selected)),
           (),
           conflict("the selected method body is already edited.")
         )
       yield copy(bodies = bodies :+ BodyIntent(selected, semantic))
+
+    private[dotty] def replaceQuotedBody(
+        selection: ExistingMethodQuotedRewrite.Selection,
+        replacement: TermShape
+    )(using Context): Either[Failure, EditPlan] =
+      for
+        _ <- selection.validate()
+        selected <- validateMethodRef(captureIdentity, selection.method.ref)
+        _ <- selected.scopeIdentity.validate(replacement)
+        _ <- Either.cond(quotedBodies.isEmpty && !isOmitted(selected.memberIndex) &&
+          !bodies.exists(intent => sameMethod(intent.method, selected)), (),
+          conflict("only one quoted method is supported; its body cannot be omitted or already edited."))
+      yield new EditPlan(captureIdentity, omissions, parameterTypes, resultTypes, bodies, appends,
+        Vector(new QuotedBodyIntent(selection,replacement)))
 
     def append(
         definition: SemanticDefinition,
@@ -339,7 +376,7 @@ object ExistingClassUntypedRewrite:
         bodies: Vector[BodyIntent] = bodies,
         appends: Vector[AppendIntent] = appends
     ): EditPlan =
-      new EditPlan(captureIdentity, omissions, parameterTypes, resultTypes, bodies, appends)
+      new EditPlan(captureIdentity, omissions, parameterTypes, resultTypes, bodies, appends, quotedBodies)
 
     private def isOmitted(memberIndex: Int): Boolean =
       omissions.exists(_.memberIndex == memberIndex)
@@ -347,7 +384,8 @@ object ExistingClassUntypedRewrite:
     private def hasFieldEdit(memberIndex: Int): Boolean =
       parameterTypes.exists(_.parameter.methodIdentity.memberIndex == memberIndex) ||
         resultTypes.exists(_.method.memberIndex == memberIndex) ||
-        bodies.exists(_.method.memberIndex == memberIndex)
+        bodies.exists(_.method.memberIndex == memberIndex) ||
+        quotedBodies.exists(_.selection.method.ref.memberIndex == memberIndex)
 
   private object EditPlan:
     def empty(capture: ExistingUntpdClassMemberFilter.Capture): EditPlan =
@@ -422,6 +460,10 @@ object ExistingClassUntypedRewrite:
   private[dotty] final case class ResultTypeIntent(
       method: MethodRef,
       replacement: TypeNormalForm
+  )
+  private[dotty] final class QuotedBodyIntent private[ExistingClassUntypedRewrite] (
+      val selection: ExistingMethodQuotedRewrite.Selection,
+      val replacement: TermShape
   )
   private[dotty] final case class BodyIntent(method: MethodRef, replacement: TermShape)
   private[dotty] final case class AppendIntent(
@@ -558,7 +600,8 @@ object ExistingClassUntypedRewrite:
     val indices = (
       plan.parameterTypes.map(_.parameter.methodIdentity.memberIndex) ++
         plan.resultTypes.map(_.method.memberIndex) ++
-        plan.bodies.map(_.method.memberIndex)
+        plan.bodies.map(_.method.memberIndex) ++
+        plan.quotedBodies.map(_.selection.method.ref.memberIndex)
     ).distinct.sorted
     indices.foldLeft[Either[Failure, Vector[ExistingUntpdOrdinaryMethodReconstruction.ReconstructedMethod]]](Right(Vector.empty)) {
       case (editsResult, memberIndex) =>
@@ -577,7 +620,16 @@ object ExistingClassUntypedRewrite:
                 .left.map(mapTypePreparation)
                 .map(Some(_))
           bodyPreparation <- plan.bodies.find(_.method.memberIndex == memberIndex) match
-            case None => Right(None)
+            case None => plan.quotedBodies.find(_.selection.method.ref.memberIndex == memberIndex) match
+              case None => Right(None)
+              case Some(intent) =>
+                for
+                  _ <- intent.selection.validate()
+                  prepared <- ExistingUntpdOrdinaryMethodRhsEditPreparation
+                    .prepareRootedQuotedBody(descriptor) { target =>
+                      intent.selection.method.ref.scopeIdentity.adaptForPreparation(intent.replacement,descriptor,target)
+                    }.left.map(mapBodyPreparation)
+                yield Some(prepared)
             case Some(intent) =>
               ExistingUntpdOrdinaryMethodRhsEditPreparation
                 .prepareBody(descriptor) { target =>
