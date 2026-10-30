@@ -21,7 +21,7 @@ Status vocabulary:
 | Literals | `1`, `"text"`, `true` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; bounded literal kinds, no constant folding |
 | Identifiers | `value` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; structural names and explicit holes |
 | Selection | `value.size` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; fixed selection without an explicit argument list retains value-position normalization; no overload or semantic member equivalence |
-| Dynamic selected-member name | `qr"$receiver.$selectedName()"`; `case qq"$receiver.$selectedName"`; `case qq"$receiver.$first.$second"`; `case qq"$receiver.$first.$second($argument)"`; `case qq"$receiver.$selectedName(..$arguments)"` | Yes | Yes | `SelectedMemberName.from`, standard and opt-in typed-Scalameta `qr` / `qq` | `BOUNDED`; construction validates a decoded ASCII name and requires a unique accessible member. Matching observes already-resolved `Select.name` values: both typed frontends admit the accepted one-name direct/empty/unary and four one-rank-2 layouts plus the exact two distinct direct/unary source-binder forms, returning two independent names in source order. Target names may be equal and may be compared by an ordinary post-extraction guard. No native repeated binder, public repeat marker, `qq2`, dynamic infix, lexical lookup, more than two names, two-name/rank-2 combination, rank 3, or broader member positions. |
+| Dynamic selected-member name | `qr"$receiver.$selectedName()"`; `case qq"$receiver.$selectedName"`; `case qq"$receiver.$first.$second"`; `case qq"$receiver.$first.$second($argument)"`; `case qq"$receiver.$selectedName(..$arguments)"` | Yes | Yes | `SelectedMemberName.from`, standard and opt-in typed-Scalameta `qr` / `qq` | `BOUNDED`; construction validates a decoded ASCII name and requires a unique accessible member. Matching observes already-resolved `Select.name` values: both typed frontends admit the accepted one-name direct/empty/unary and four one-rank-2 layouts plus exact two distinct direct/unary source-binder forms and direct flat chains at depths N=1..8, returning N statically typed names in source order above the original receiver. N=3..8 is direct only in current source `0.4.0-SNAPSHOT`, not released `0.3.0`. Target names may be equal and may be compared by an ordinary post-extraction guard. No native repeated binder, public repeat marker, `qq2`, dynamic infix, lexical lookup, N>8, N>=3 unary/ranked, two-name/rank-2 combination, rank 3, or broader member positions. |
 | Application | `f(x)`, `builder.capacity()` | Yes | Yes | `qr`, `QuasiPattern.term` | `SUPPORTED`; ordinary supported source argument lists, including explicit empty clauses. Neutral Scalameta projection/authoring, direct Core lowering, semantic lowering, and both Scalameta bridges preserve completed left-associated 2..N ordinary clauses without flattening. This does not add clause-sequence splices, matching, contextual/named/star arguments, or rank-3 syntax. |
 | Sequence-Term arguments | `qr"f(fixed, ..$args)"`, `qr"new $typeRepr(..$args)"`, `case qq"f($head, ..$tail)"`, `case qq"new fixed.Type(..$args)"` | Yes | Yes | `TermSequenceSplices.termSplice`, `qr`, `qq` | `BOUNDED`; construction uses one dedicated caller-universe carrier per ordinary Apply or supported one-list New argument list; matching admits exactly one direct ordinary Apply-argument or fixed one-list New-argument capture as `Seq[q.reflect.Term]`; empty/one/many and fixed prefix/suffix supported; no dynamic/type-applied/multi-clause ranked New, tuple/interpolation/block/Type/Definition matching, rank 3, or vararg-star semantics |
 | Infix | `left + right` | Yes | Yes | `qr`, `QuasiPattern.term` | `BOUNDED`; supported operators, structural rather than algebraic equality |
@@ -52,11 +52,23 @@ It also admits exactly one rank-2 Term sequence capture directly in ordinary
 `Apply.arguments` or the arguments of an existing fixed one-list `New`,
 returning `Seq[quotes.reflect.Term]` in the corresponding capture position. It
 additionally admits the exact standard and opt-in typed-Scalameta
-two-selected-name direct and unary forms with distinct source binders. It does
+two-selected-name direct and unary forms with distinct source binders, plus direct flat N=3..8 chains in both frontends. It does
 not add type slots, multiple/generalized
 ranks, native repeated-binder backreferences, definition patterns,
 dynamic/type-applied/multi-clause constructors, ranked tuple/interpolation/block
 matching, or general Scala quasiquote coverage.
+
+Current source (`0.4.0-SNAPSHOT`) supports the same direct N=1..8 syntax on
+both typed frontends; these additions are not in released `0.3.0`. For example,
+`case qq"$receiver.$first.$second.$third"` captures a caller-owned Term and
+three statically typed SelectedMemberName values in source order; extend the
+same flat spelling through eight names. It matches an N-link suffix above an
+arbitrary receiver, not a fixed root. Nested one-name extraction remains
+available; distinct source binders can capture equal decoded target names.
+N=3..8 requires recoverable original source and is direct only. N=1 retains
+its four one-rank-2 layouts, N=2 retains direct/unary only, and the N=2 terminal
+`(..$arguments)` combination remains unsupported, as do N>8, repeated source
+binders, named/contextual/TypeApply and multiple rank-2/rank-3 forms.
 
 ## Types
 

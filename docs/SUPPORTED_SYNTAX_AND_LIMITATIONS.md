@@ -355,7 +355,7 @@ Important limitations:
   only after successful extraction. An already
   resolved overload may match even though name-based construction is ambiguous.
   Native repeated same-binder patterns fail with E005, and neither `#repeat`
-  nor `qq2` is public syntax. More than two selected names, two-name forms mixed
+  nor `qq2` is public syntax. Direct flat N=3..8 is also supported on both typed frontends; N=3..8 unary/ranked forms, N>8, two-name forms mixed
   with sequence slots, multiple sequence slots, other name/sequence positions,
   dynamic/type-applied/multi-clause constructors, rank 3, type/definition ranks,
   scalar/sequence role reuse, and generic member matching fail closed. Opt-in
@@ -415,7 +415,7 @@ case qq"$receiver.$selectedName(..$init, $last)" =>
 case qq"$receiver.$selectedName($first, ..$middle, $last)" =>
 ```
 
-Standard `qq` additionally admits the exact two-name direct and unary forms:
+Both typed frontends additionally admit the exact two-name direct and unary forms:
 
 ```scala
 case qq"$receiver.$first.$second" =>
@@ -431,15 +431,37 @@ forms, different Scala source binder names produce two independent
 `SelectedMemberName` fields in source order. The target member names may be
 equal, and an `if first == second` guard runs only after successful extraction.
 Native repeated same-binder patterns fail with E005; neither `#repeat` nor
-`qq2` is public syntax. Only exact two-name candidates require recoverable
-original source; legacy scalar, one-name, ranked, mixed, and local-method
-candidates bypass source-position inspection, while a true two-name candidate
-without source fails with a controlled selected-role diagnostic. Opt-in
+`qq2` is public syntax. Exact two-name and direct N=3..8 candidates require recoverable original source;
+legacy scalar, one-name, ranked, mixed, and local-method candidates bypass
+source-position inspection. A new-family candidate without source fails closed. Opt-in
 typed-Scalameta `qq` admits the same exact two-name direct/unary contract and
-uses its Scalameta-primary compilation before the shared matcher. More than two
-selected names, two-name/ranked combinations,
+uses its Scalameta-primary compilation before the shared matcher. N>8,
+N>=3 unary/ranked forms, two-name/ranked combinations,
 multiple ranked captures, rank 3, broader name positions, and generic member
 matching remain unsupported.
+
+Both typed frontends support direct flat selected-member chains at depths N=1..8.
+This is the current source-built `0.4.0-SNAPSHOT` contract, not the released
+`0.3.0` contract. The same `qq` spelling scales from
+`qq"$receiver.$first.$second.$third"` through eight distinct selected-name
+binders. N=3..8 is direct only. One original `q.reflect.Term` receiver and N
+statically positional `SelectedMemberName` fields are retained in source order,
+with unchanged receiver/intermediate Term objects and Symbols/owners. A flat
+chain is an N-link suffix above an arbitrary captured receiver, not a fixed
+root or an exact total-depth certificate. Both flat and recursive nested
+one-name style remain supported.
+
+Selected-hole source binders remain distinct conservative plain Scala
+identifiers; decoded target-name values use the existing ASCII operator,
+keyword and safe-spaced-name domain. Equal target values are allowed even
+with distinct source binders. No Unicode/source-binder broadening is implied.
+Native repeated source binders still raise E005. N>8, N>=3 unary or ranked
+combinations, the N=2 terminal `(..$arguments)` form, multiple rank-2 holes,
+rank3, named/contextual/TypeApply and dynamic selected infix remain unsupported.
+No new `qq3`/`qqN` family, source-less new-family admission or wider Core/neutral/U
+support is introduced. Existing scalar/ranked NoSpan templates retain their
+candidate-first bypass. Public support stops at eight; it does not claim tuple
+extractor capacity beyond that bound.
 
 The extractor synthesizes collision-safe semantic hole IDs by ordinal and
 projects the existing matcher's bindings back to the Scala pattern in

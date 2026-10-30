@@ -1384,7 +1384,7 @@ def c082_truth_findings(root: Path) -> list[str]:
         encoding="utf-8"
     )
     normalized = " ".join(limitations.split())
-    public_text = "\n".join((limitations, syntax_matrix, cross_matrix)).casefold()
+    public_text = " ".join("\n".join((limitations, syntax_matrix, cross_matrix, (root / "README.md").read_text(encoding="utf-8"), (root / "docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md").read_text(encoding="utf-8"))).casefold().split())
     findings = []
 
     for marker in (
@@ -1400,9 +1400,9 @@ def c082_truth_findings(root: Path) -> list[str]:
             findings.append(f"C082 standard two-selected-name contract missing: {marker}")
 
     source_boundary = (
-        "Only exact two-name candidates require recoverable original source; legacy scalar, "
-        "one-name, ranked, mixed, and local-method candidates bypass source-position inspection, "
-        "while a true two-name candidate without source fails with a controlled selected-role diagnostic."
+        "Exact two-name and direct N=3..8 candidates require recoverable original source; "
+        "legacy scalar, one-name, ranked, mixed, and local-method candidates bypass "
+        "source-position inspection. A new-family candidate without source fails closed."
     )
     if source_boundary not in normalized:
         findings.append("C082 two-name source-position contract missing")
@@ -1430,6 +1430,17 @@ def c082_truth_findings(root: Path) -> list[str]:
     if "accepted two distinct direct/unary parity" not in cross_matrix:
         findings.append("C082 cross-surface matrix missing hybrid acceptance boundary")
 
+    if "Both typed frontends support direct flat selected-member chains at depths N=1..8." not in normalized:
+        findings.append("direct selected-chain boundary missing both-frontends N1..8 contract")
+    for stale in (
+        "more than two selected names remain unsupported",
+        "at most two selected names are supported",
+        "more than two selected names,",
+        "more than two names,",
+        "hybrid direct n3..8 is not yet supported",
+    ):
+        if stale in public_text:
+            findings.append("direct selected-chain boundary contains stale depth limit")
     return findings
 
 

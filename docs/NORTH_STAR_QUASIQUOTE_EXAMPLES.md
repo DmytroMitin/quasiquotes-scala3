@@ -261,10 +261,13 @@ observes one already-resolved selected name in direct, empty-call, unary-call,
 or one of the four admitted one-rank-2 layouts. Standard and opt-in
 typed-Scalameta `qq` additionally observe two selected names in the exact direct
 and unary layouts, using two distinct Scala source binders and preserving
-source order. They do not add
-bare-name lookup, source-level overload resolution, dynamic infix syntax, more
-than two selected names, two-name/ranked combinations, multiple ranks, or
-generic member matching.
+source order. Current source (`0.4.0-SNAPSHOT`) also admits direct flat
+N=3..8 chains on both typed frontends under the same `qq` spelling; these
+additions are not in released `0.3.0`. Flat extraction captures an N-link
+suffix above an arbitrary original receiver, and nested one-name matching
+remains supported. N=3..8 is direct only. They do not add bare-name lookup,
+source-level overload resolution, dynamic infix syntax, N>8, N>=3 unary/ranked
+forms, two-name/ranked combinations, multiple ranks, or generic member matching.
 
 The complete constructor Type position and the bounded sequence-Term argument
 slice in N5 are implemented. The Type input is a caller-owned `TypeRepr`,

@@ -172,11 +172,9 @@ class PublicDocsCheckTest(unittest.TestCase):
             "`qq\"$receiver.$first.$second($argument)\"`. Different Scala source "
             "binder names produce two independent `SelectedMemberName` fields in source "
             "order; target member names may be equal, and an ordinary "
-            "`if first == second` guard runs only after successful extraction. Only exact "
-            "two-name candidates require recoverable original source; legacy scalar, "
-            "one-name, ranked, mixed, and local-method candidates bypass source-position "
-            "inspection, while a true two-name candidate without source fails with a "
-            "controlled selected-role diagnostic. Opt-in typed-Scalameta `qq` admits the "
+            "`if first == second` guard runs only after successful extraction. Exact two-name and direct N=3..8 candidates require recoverable original source; "
+            "legacy scalar, one-name, ranked, mixed, and local-method candidates bypass "
+            "source-position inspection. A new-family candidate without source fails closed. Opt-in typed-Scalameta `qq` admits the "
             "same exact two-name direct/unary contract. Native repeated "
             "same-binder patterns fail with E005; neither `#repeat` nor `qq2` is public "
             "syntax.\n\n"
@@ -401,6 +399,9 @@ class PublicDocsCheckTest(unittest.TestCase):
             "  def unapply(value: T): Option[Captures] = extract(value)\n",
             encoding="utf-8",
         )
+
+        p = docs / "SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+        p.write_text(p.read_text() + "\nBoth typed frontends support direct flat selected-member chains at depths N=1..8.\n")
 
     def run_checker(self, root: Path) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -1643,7 +1644,7 @@ class PublicDocsCheckTest(unittest.TestCase):
             limitations = root / "docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
             limitations.write_text(
                 limitations.read_text(encoding="utf-8").replace(
-                    "Only exact two-name candidates require recoverable original source; legacy scalar, one-name, ranked, mixed, and local-method candidates bypass source-position inspection, while a true two-name candidate without source fails with a controlled selected-role diagnostic.",
+                    "Exact two-name and direct N=3..8 candidates require recoverable original source; legacy scalar, one-name, ranked, mixed, and local-method candidates bypass source-position inspection. A new-family candidate without source fails closed.",
                     "Two-name source handling follows the ordinary matcher.",
                 ),
                 encoding="utf-8",
@@ -1755,6 +1756,36 @@ class PublicDocsCheckTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("C083 canonical Option cross-surface row missing", result.stderr)
 
+
+    def test_rejects_stale_direct_chain_limits_on_either_frontend(self):
+        for claim in ("More than two selected names remain unsupported.", "Hybrid direct N3..8 is not yet supported."):
+            with self.subTest(claim=claim), tempfile.TemporaryDirectory() as tmp:
+                root=Path(tmp);self.make_fixture(root)
+                p=root/"docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+                p.write_text(p.read_text()+"\n"+claim+"\n")
+                result=self.run_checker(root)
+                self.assertEqual(1,result.returncode,result.stderr)
+                self.assertIn("direct selected-chain boundary",result.stderr)
+
+    def test_requires_both_frontend_direct_depth_contract(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);self.make_fixture(root)
+            p=root/"docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md"
+            p.write_text(p.read_text().replace("Both typed frontends support direct flat selected-member chains at depths N=1..8.","The previous smaller boundary remains."))
+            result=self.run_checker(root)
+            self.assertEqual(1,result.returncode,result.stderr)
+            self.assertIn("direct selected-chain boundary",result.stderr)
+
+
+    def test_rejects_wrapped_or_linked_stale_selected_depth(self):
+        cases = (("docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md", "More than two\nselected names remain unsupported."), ("docs/NORTH_STAR_QUASIQUOTE_EXAMPLES.md", "More than two selected names remain unsupported."), ("README.md", "At most two selected names are supported."))
+        for path, claim in cases:
+            with self.subTest(path=path), tempfile.TemporaryDirectory() as tmp:
+                root=Path(tmp);self.make_fixture(root);p=root/path
+                p.write_text(p.read_text()+"\n"+claim+"\n")
+                result=self.run_checker(root)
+                self.assertEqual(1,result.returncode,result.stderr)
+                self.assertIn("direct selected-chain boundary",result.stderr)
 
 if __name__ == "__main__":
     unittest.main()

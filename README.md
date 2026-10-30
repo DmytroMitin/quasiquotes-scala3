@@ -417,20 +417,40 @@ TypeLambda authoring, aliases-as-aliases, instance-dependent prefixes,
 refinements, nontrivial constrained bounds, multiple rank-2 holes, rank 3, and
 general selected source-constructor syntax remain outside this slice.
 
-Term matching on both typed frontends also captures one already-resolved
-selected member name in `qq"$receiver.$selectedName"`, its empty and unary
-call forms, and the four bounded forms that combine that name with one direct
-Term sequence capture. The name is a validated `SelectedMemberName`; matching
-may observe an already-resolved overload even though name-based construction
-remains ambiguous. Standard and opt-in typed-Scalameta `qq` additionally match
-`qq"$receiver.$first.$second"` and
-`qq"$receiver.$first.$second($argument)"`. The two Scala pattern binders must
-be distinct, return independent `SelectedMemberName` values in source order,
-and may observe equal target member names; equality can be tested in an
-ordinary pattern guard. This does not add a repeated-binder syntax, repeat
-marker, `qq2`, two-name/ranked combination, more than two selected names, rank
-3, or broader member positions. The opt-in route is Scalameta-primary and
-returns the same public capture product.
+In current source (`0.4.0-SNAPSHOT`), both standard and opt-in typed-Scalameta
+`qq` support direct flat selected-member chains at depths N=1..8. This extends
+matching syntax under the same `qq` name; it is not part of the released
+`0.3.0` artifacts. For example, with the standard import:
+
+```scala
+import scala.quoted.*
+import quasiquotes.construct.SelectedMemberName
+import quasiquotes.matching.QuasiPattern.*
+
+def selectedThree(using q: Quotes)(target: q.reflect.Term)
+    : Option[(q.reflect.Term, SelectedMemberName, SelectedMemberName, SelectedMemberName)] =
+  target match
+    case qq"$receiver.$first.$second.$third" =>
+      Some((receiver, first, second, third))
+    case _ => None
+```
+
+The opt-in typed-Scalameta version uses
+`quasiquotes.scalameta.ScalametaQuasiPattern.*` instead, with Scalameta-primary
+compilation. Additional distinct selected-name binders extend the direct
+chain through eight names. Each captures an N-link suffix above an arbitrary
+original caller-owned receiver, with statically typed `SelectedMemberName`
+values in source order. Recursive nested one-name matching also remains
+supported. Distinct Scala binders can capture equal decoded target names;
+use an ordinary guard to compare them. Native `$same.$same` still fails E005.
+
+One-name direct/empty/unary and the four one-name/rank-2 forms remain supported,
+as do two-name direct/unary forms. N=3..8 is **direct only**: no new unary or
+ranked combination, two-name terminal rank-2, N>8, `#repeat`, `qq2`/`qqN`,
+dynamic infix or broader selected positions is admitted. See the
+[syntax matrix](docs/SYNTAX_SUPPORT_MATRIX.md) and
+[exact limits](docs/SUPPORTED_SYNTAX_AND_LIMITATIONS.md) for source and target
+name domains, original-source requirements and legacy NoSpan behavior.
 
 The canonical first-use examples, including the complete Lambda1, bounded P1
 block and single-typed-local-val P2 `qr`/`qq`, and bounded `tqr`/`tqq` macro paths, are mirrored from compiled
