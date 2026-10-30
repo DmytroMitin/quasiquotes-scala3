@@ -62,4 +62,3 @@ final class Q080HybridBoundaryTest extends munit.FunSuite:
         case _ => ()
     }""")
     assert(errors.exists(_.message.contains("selected-name capture is supported only")), errors.toString)
-
