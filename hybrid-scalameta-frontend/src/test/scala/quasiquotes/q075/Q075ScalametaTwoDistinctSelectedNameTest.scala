@@ -67,7 +67,6 @@ final class Q075ScalametaTwoDistinctSelectedNameTest extends munit.FunSuite:
           case qq"$receiver.$first.#repeat" => (receiver, first)
           case _ => ()"""
     )
-    assert(threeNames.exists(_.message.contains("Invalid Scalameta qq term-pattern template")),
-      clues(threeNames))
+    assertEquals(threeNames, Nil)
     assert(repeatedMarker.exists(_.message.contains("Invalid Scalameta qq term-pattern template")),
       clues(repeatedMarker))

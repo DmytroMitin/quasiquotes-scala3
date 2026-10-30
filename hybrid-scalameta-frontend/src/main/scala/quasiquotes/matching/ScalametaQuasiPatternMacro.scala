@@ -18,6 +18,16 @@ private[quasiquotes] object ScalametaQuasiPatternMacro:
       case _ =>
         return '{ ScalametaQuasiPattern.scalarExtractor($context)(using $callerQuotes) }
 
+    ScalametaSelectedChainPatternSource.classify(
+      parts,
+      ReflectedPositionProvenance.sourceCode(context.asTerm.pos).getOrElse(
+        abort("selected-chain source-role planning requires recoverable original interpolation source", context)
+      )
+    ) match
+      case Left(detail) => abort(detail, context)
+      case Right(Some(plan)) => return QuasiPatternMacro.selectedChainExtractor(plan, callerQuotes)
+      case Right(None) => ()
+
     ScalametaTwoSelectedMemberPatternSource.classify(
       parts,
       ReflectedPositionProvenance.sourceCode(context.asTerm.pos).getOrElse(

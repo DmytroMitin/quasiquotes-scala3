@@ -69,11 +69,11 @@ final class Q077ScalametaRecursiveSelectedNameChainFeasibilityTest extends munit
       )
     )
 
-  test("Scalameta public flat N=1/N=2 remain positive and N=3/N=4 remain unsupported"):
+  test("Scalameta public flat N=1/N=2 remain positive and N=3/N=4 now compile"):
     assertEquals(typeCheckErrors(Q077ScalametaCompileCases.flatOne), Nil)
     assertEquals(typeCheckErrors(Q077ScalametaCompileCases.flatTwo), Nil)
-    assert(typeCheckErrors(Q077ScalametaCompileCases.flatThree).nonEmpty)
-    assert(typeCheckErrors(Q077ScalametaCompileCases.flatFour).nonEmpty)
+    assertEquals(typeCheckErrors(Q077ScalametaCompileCases.flatThree), Nil)
+    assertEquals(typeCheckErrors(Q077ScalametaCompileCases.flatFour), Nil)
 
   test("Scalameta negative and source-role matrix fails atomically"):
     assertEquals(

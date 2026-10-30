@@ -129,7 +129,7 @@ private[matching] object QuasiPatternMacro:
                           .extractor[captureKinds & Tuple]($context, ${ Expr(sequenceIndex) })(using $callerQuotes)
                       }
 
-  private def selectedChainExtractor(
+  private[matching] def selectedChainExtractor(
       plan: SelectedChainPatternSource.Plan,
       callerQuotes: Expr[Quotes]
   )(using Quotes): Expr[Any] =

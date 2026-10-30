@@ -284,7 +284,7 @@ final class Q078ScalametaGenericSelectedChainTest extends munit.FunSuite:
  }""")
     assert(errors.exists(_.message.contains("Term")), errors.toString)
 
-  test("real public flat eight remains unsupported"):
+  test("real public flat eight now compiles"):
     val errors = typeCheckErrors("""{
       import scala.quoted.*
       import quasiquotes.scalameta.ScalametaQuasiPattern.*
@@ -292,7 +292,7 @@ final class Q078ScalametaGenericSelectedChainTest extends munit.FunSuite:
         case qq"$receiver.$a.$b.$c.$d.$e.$f.$g.$h" => ()
         case _ => ()
     }""")
-    assert(errors.nonEmpty, errors.toString)
+    assertEquals(errors, Nil)
 
   test("nonliteral StringContext does not infer a fabricated static tuple"):
     val errors = typeCheckErrors("""{
