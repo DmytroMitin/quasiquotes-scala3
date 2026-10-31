@@ -1,0 +1,13 @@
+JVM constructor-invariant regression fixture, never production code.
+
+The generated class is quasiquotes.neutral.NamedInvocationKindForgery, extending
+ScalametaNamedInvocation$Kind. It returns ordinal/hashCode 99, productArity 0,
+throws IndexOutOfBoundsException from productElement, and returns true from
+canEqual/equals. Its public no-arg constructor invokes its superclass no-arg
+constructor. javac rejects direct enum extension; generate against an ordinary
+abstract KindStub with those Product/Enum methods, then replace the single
+constant-pool UTF8 superclass name quasiquotes/neutral/KindStub with
+quasiquotes/neutral/ScalametaNamedInvocation$Kind (updating its UTF8 length).
+The real enum and all production class files remain untouched. The JVM loads
+this legal classfile; Scala/Java source-level sealed/enum checks alone do not
+establish the checked model invariant. The test uses a child ClassLoader only.
