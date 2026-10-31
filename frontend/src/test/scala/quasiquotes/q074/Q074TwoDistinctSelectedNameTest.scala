@@ -31,7 +31,7 @@ final class Q074TwoDistinctSelectedNameTest extends munit.FunSuite:
     assert(errors.exists(_.message.contains("duplicate pattern variable: same")), clues(errors))
     assert(!errors.exists(_.message.contains("Invalid qq term-pattern template")), clues(errors))
 
-  test("category collisions and ranked layouts remain negative; direct three-name now compiles"):
+  test("category collisions remain negative; accepted direct three-name and Q083 ranked layouts compile"):
     val categoryCollision = typeCheckErrors(
       """import scala.quoted.*; import quasiquotes.matching.QuasiPattern.*
         def probe(using q: Quotes)(target: q.reflect.Term) = target match
@@ -53,4 +53,4 @@ final class Q074TwoDistinctSelectedNameTest extends munit.FunSuite:
     assert(categoryCollision.exists(_.message.contains("used by both an ordinary Term hole")),
       clues(categoryCollision))
     assertEquals(threeNames, Nil)
-    assert(rankedOverlap.nonEmpty, clues(rankedOverlap))
+    assertEquals(rankedOverlap, Nil)

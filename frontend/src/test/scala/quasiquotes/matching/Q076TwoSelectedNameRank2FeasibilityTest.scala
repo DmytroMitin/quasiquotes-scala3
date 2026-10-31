@@ -3,7 +3,7 @@ package quasiquotes.matching
 import scala.compiletime.testing.typeCheckErrors
 
 final class Q076TwoSelectedNameRank2FeasibilityTest extends munit.FunSuite:
-  test("current public standard qq rejects the unselected two-name rank-2 composition"):
+  test("Q083 public standard qq now admits the formerly private two-name rank-2 composition"):
     val errors = typeCheckErrors(
       """{
         import scala.quoted.*
@@ -17,12 +17,7 @@ final class Q076TwoSelectedNameRank2FeasibilityTest extends munit.FunSuite:
       }"""
     )
 
-    assert(
-      errors.exists(_.message.contains(
-        "compiled mixed selected-name pattern must be a direct root Apply"
-      )),
-      clues(errors)
-    )
+    assertEquals(errors, Nil)
 
   test("accepted one-name rank-2 public pattern remains a positive control"):
     val errors = typeCheckErrors(

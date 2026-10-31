@@ -19,6 +19,20 @@ private[matching] object QuasiPatternMacro:
 
     // Classify parts before reading positions: unrelated generated NoSpan
     // contexts retain the legacy scalar/selected/ranked admission rules.
+    TwoSelectedRankedPatternSource.classify(
+      parts,
+      ReflectedPositionProvenance.sourceCode(context.asTerm.pos).getOrElse(
+        report.errorAndAbort(
+          "Invalid qq term-pattern template: two-selected-name rank-2 source-role planning " +
+            "requires recoverable original interpolation source",
+          context
+        )
+      )
+    ) match
+      case Left(detail) => report.errorAndAbort(s"Invalid qq term-pattern template: $detail", context)
+      case Right(Some(_)) => return '{ TwoSelectedRankedPatternExtractorFactory.extractor(using $callerQuotes) }
+      case Right(None) => ()
+
     SelectedChainPatternSource.classify(
       parts,
       ReflectedPositionProvenance.sourceCode(context.asTerm.pos).getOrElse(
